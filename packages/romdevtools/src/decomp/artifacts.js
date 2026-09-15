@@ -16,7 +16,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { readFile, writeFile, mkdir, readdir, stat, unlink } from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir, stat, unlink, rename } from "node:fs/promises";
 import { createHash } from "node:crypto";
 
 export const ARTIFACT_SCHEMA = "romdev-decomp-artifacts-v1";
@@ -155,10 +155,21 @@ export async function pruneArtifacts(project, { apply = false, protectedPaths = 
     }
   }
 
-  let removed = 0, freed = 0;
+  let removed = 0, freed = 0, trashDir = null;
   if (apply) {
+    // PRUNE MOVES TO TRASH, IT DOES NOT DELETE. A cache that permanently
+    // destroys evidence on one wrong call is not a cache anyone can safely
+    // run, and `restore` has nothing to restore from without this. The trash
+    // keeps the workspace-relative path so a restore lands where it came from.
+    trashDir = path.join(store(project), "trash", String(Date.now()));
     for (const item of plan) {
-      try { await unlink(path.join(project.ws, item.remove)); removed++; freed += item.bytes; } catch {}
+      try {
+        const from = path.join(project.ws, item.remove);
+        const to = path.join(trashDir, item.remove);
+        await mkdir(path.dirname(to), { recursive: true });
+        await rename(from, to);
+        removed++; freed += item.bytes;
+      } catch {}
     }
   }
 
@@ -166,7 +177,8 @@ export async function pruneArtifacts(project, { apply = false, protectedPaths = 
     schema: ARTIFACT_SCHEMA, project: project.id,
     dryRun: !apply,
     plannedRemovals: plan.length, wouldFreeBytes: wouldFree,
-    ...(apply ? { removed, freedBytes: freed } : {}),
+    ...(apply ? { removed, freedBytes: freed, trash: trashDir,
+      recoverable: "every removed file was MOVED to `trash`, not deleted — decomp({op:'artifacts', action:'restore'}) puts them back" } : {}),
     plan: plan.slice(0, 40),
     protectedCount: accepted.size,
     policy: "DRY RUN unless apply:true. Only BYTE-IDENTICAL duplicates are ever proposed, one copy of each is always kept, and a file "
@@ -191,4 +203,57 @@ export async function listPins(project) {
   const f = path.join(store(project), "pins.json");
   if (!fs.existsSync(f)) return [];
   try { return JSON.parse(await readFile(f, "utf8")); } catch { return []; }
+}
+
+/**
+ * Put a pruned batch back.
+ *
+ * `prune` moves files to a timestamped trash directory rather than deleting
+ * them, so this is a real undo. Without it, `restore` was not implemented at
+ * all and the op quietly returned a SURVEY instead — a success-shaped response
+ * to a request that did nothing, which is the failure class this whole domain
+ * keeps tripping over.
+ */
+export async function restoreArtifacts(project, { batch } = {}) {
+  const root = path.join(store(project), "trash");
+  if (!fs.existsSync(root)) {
+    return { schema: ARTIFACT_SCHEMA, project: project.id, restored: 0, batches: [],
+      note: "nothing to restore: no prune has moved anything to trash in this workspace" };
+  }
+  const batches = (await readdir(root)).filter((d) => /^\d+$/.test(d)).sort();
+  if (!batches.length) {
+    return { schema: ARTIFACT_SCHEMA, project: project.id, restored: 0, batches: [],
+      note: "the trash directory exists but holds no prune batches" };
+  }
+  // Default to the MOST RECENT batch: undoing the last prune is the common ask.
+  const pick = batch ? String(batch) : batches[batches.length - 1];
+  const dir = path.join(root, pick);
+  if (!fs.existsSync(dir)) {
+    throw Object.assign(new Error(`no prune batch '${pick}'. Available: ${batches.join(", ")}`), { code: "NO_SUCH_BATCH" });
+  }
+
+  let restored = 0, skipped = 0;
+  const conflicts = [];
+  const walkBack = async (d, rel = "") => {
+    for (const e of await readdir(d, { withFileTypes: true })) {
+      const from = path.join(d, e.name);
+      const relPath = rel ? path.join(rel, e.name) : e.name;
+      if (e.isDirectory()) { await walkBack(from, relPath); continue; }
+      const to = path.join(project.ws, relPath);
+      // NEVER overwrite: a file that came back on its own is newer than the
+      // copy we trashed, and clobbering it would lose real work.
+      if (fs.existsSync(to)) { skipped++; if (conflicts.length < 10) conflicts.push(relPath); continue; }
+      await mkdir(path.dirname(to), { recursive: true });
+      await rename(from, to);
+      restored++;
+    }
+  };
+  await walkBack(dir);
+  return {
+    schema: ARTIFACT_SCHEMA, project: project.id,
+    batch: pick, restored, skipped,
+    ...(conflicts.length ? { conflicts, conflictNote: "these already exist in the workspace and were left alone — a file that came back on its own is newer than the trashed copy" } : {}),
+    availableBatches: batches,
+    note: restored ? `restored ${restored} file(s) from prune batch ${pick}` : "nothing restored",
+  };
 }

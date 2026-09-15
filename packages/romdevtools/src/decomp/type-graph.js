@@ -223,43 +223,90 @@ function cTypeFor(f) {
 }
 
 export function proposeStruct(base, { name } = {}) {
-  const CT = { 1: "u8", 2: "u16", 4: "u32", 8: "u64" };
   const lines = [];
   const structName = name ?? `Unk${(base.base ?? "Base").replace(/[^\w]/g, "")}`;
   lines.push(`/* PROPOSED from ${base.fieldCount} evidence fields across ${base.functionCount} function(s).`);
   lines.push(` * This is a PROPOSAL: every field below is backed by an observed access width.`);
-  lines.push(` * Holes are left as explicit padding, never invented fields. */`);
+  lines.push(` * Holes are left as explicit padding, never invented fields.`);
+  lines.push(` * An offset accessed at two INCOMPATIBLE types is emitted as a real C union,`);
+  lines.push(` * not as one arbitrary winner — the evidence says both, so the type says both. */`);
   lines.push(`typedef struct ${structName} {`);
-  let cursor = 0;
-  for (const f of base.fields) {
-    if (f.offset > cursor) {
-      lines.push(`    /* 0x${cursor.toString(16).toUpperCase()} */ u8 pad_${cursor.toString(16)}[0x${(f.offset - cursor).toString(16).toUpperCase()}]; /* UNKNOWN: no access observed */`);
-    }
-    // THE EMITTED TOKEN MUST BE VALID C. The evidence notation "s32/u32/ptr" is
-    // what a 4-byte load proves — it is a set of possibilities, not a type —
-    // and emitting it verbatim produced `s32/u32/ptr unk_4;`, which does not
-    // parse and cannot be fed to the context experiment this proposal exists
-    // to seed. An ambiguous width resolves to the unsigned integer of that
-    // width, with the evidence kept in a comment so nothing is lost.
-    const ct = cTypeFor(f);
-    if (!ct) {
-      // No observed width means no honest declaration. Say so instead of
-      // emitting a plausible-looking field.
-      lines.push(`    /* 0x${f.offset.toString(16).toUpperCase()} */ /* UNKNOWN width at this offset — evidence recorded but not conclusive */`);
-      cursor = f.offset;
-      continue;
-    }
-    const conf = f.conflict ? `  /* CONFLICT: ${f.unionView.join(" | ")} */` : "";
-    // Keep the raw evidence visible when the C type is a narrowing of it.
-    const eviNote = f.type && f.type !== ct && !conf ? `  /* observed: ${f.type} */` : "";
-    lines.push(`    /* 0x${f.offset.toString(16).toUpperCase()} */ ${ct} unk_${f.offset.toString(16).toUpperCase()};${conf}${eviNote}`);
-    cursor = f.offset + (f.width ?? 4);
+
+  // Walk in offset order, but group fields that OVERLAP in memory: a field
+  // whose extent crosses the next field's offset is not a sibling, it is an
+  // alternative view of the same bytes. Emitting those sequentially (as this
+  // did) produces a struct whose layout does not match the evidence at all —
+  // every following offset is pushed along by bytes that were never there.
+  const fields = [...base.fields].sort((a, b) => a.offset - b.offset);
+  const groups = [];
+  for (const f of fields) {
+    const g = groups[groups.length - 1];
+    const extent = (x) => x.offset + (x.width ?? 4);
+    if (g && f.offset < Math.max(...g.map(extent))) g.push(f);
+    else groups.push([f]);
   }
+
+  let cursor = 0;
+  let unionCount = 0;
+  for (const group of groups) {
+    const at = group[0].offset;
+    if (at > cursor) {
+      lines.push(`    /* 0x${cursor.toString(16).toUpperCase()} */ u8 pad_${cursor.toString(16)}[0x${(at - cursor).toString(16).toUpperCase()}]; /* UNKNOWN: no access observed */`);
+    }
+
+    // The alternatives at this location: overlapping fields, plus the distinct
+    // types recorded at ONE offset (a same-offset conflict).
+    const alts = [];
+    const push = (ct, why, off) => {
+      if (!ct) return;
+      const key = `${ct}@${off}`;
+      if (!alts.some((a) => a.key === key)) alts.push({ key, ct, why, off });
+    };
+    for (const f of group) {
+      push(cTypeFor(f), f.type && f.type !== cTypeFor(f) ? `observed ${f.type}` : null, f.offset);
+      for (const v of f.conflict ? (f.unionView ?? []) : []) {
+        // unionView entries look like "4:f32" / "2:s16".
+        const [w, t] = String(v).split(":");
+        const ct = cTypeFor({ width: Number(w), type: t });
+        push(ct, `observed ${t} at width ${w}`, f.offset);
+      }
+    }
+
+    const hex = at.toString(16).toUpperCase();
+    if (alts.length <= 1) {
+      const only = alts[0];
+      if (!only) {
+        lines.push(`    /* 0x${hex} */ /* UNKNOWN width at this offset — evidence recorded but not conclusive */`);
+        cursor = at;
+        continue;
+      }
+      lines.push(`    /* 0x${hex} */ ${only.ct} unk_${hex};${only.why ? `  /* ${only.why} */` : ""}`);
+    } else {
+      // A REAL UNION. Members are named by their type so two views of the same
+      // bytes are distinguishable, and each carries the evidence that produced
+      // it. This is what "compilable union representation" means: the struct
+      // now describes the bytes the way the accesses actually used them.
+      unionCount++;
+      lines.push(`    /* 0x${hex} */ union {`);
+      for (const a of alts) {
+        const rel = a.off - at;
+        const note = [a.why, rel ? `at +0x${rel.toString(16).toUpperCase()}` : null].filter(Boolean).join("; ");
+        lines.push(`        ${a.ct} as_${a.ct}${rel ? `_${rel.toString(16)}` : ""};${note ? `  /* ${note} */` : ""}`);
+      }
+      lines.push(`    } unk_${hex};  /* ${alts.length} incompatible views of these bytes */`);
+    }
+    cursor = Math.max(...group.map((f) => f.offset + (f.width ?? 4)));
+  }
+
   lines.push(`} ${structName}; /* size >= 0x${cursor.toString(16).toUpperCase()} (lower bound: only observed accesses) */`);
   return {
     base: base.base, structName, code: lines.join("\n"),
     fieldCount: base.fieldCount, conflicts: base.conflicts?.length ?? 0,
+    unions: unionCount,
     note: "a PROPOSAL derived from observed accesses. The size is a LOWER BOUND — no access past the last field was observed, "
-      + "which is not evidence that the struct ends there. Apply it to a context experiment before touching the project's headers.",
+      + "which is not evidence that the struct ends there. An offset with two incompatible observed types is a real C union, "
+      + "because the evidence supports both and picking one would be a guess. Apply it to a context experiment before touching "
+      + "the project's headers.",
   };
 }
+

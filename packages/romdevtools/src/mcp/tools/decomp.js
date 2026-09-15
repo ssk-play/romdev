@@ -12,7 +12,7 @@
 // NO_TARGET_ASM, FUNCTION_NOT_IN_TU, STALE_CONTEXT, COMPILE_FAILED,
 // CANDIDATE_REJECTED, SEARCH_IMPORT_FAILED, JOB_NOT_FOUND, CANCELLED,
 // LOST_RUNTIME_STATE, PC_BREAK_UNSUPPORTED, UNSUPPORTED_OP).
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import fs from "node:fs";
 import path from "node:path";
 import { jsonContent, safeTool } from "../util.js";
@@ -74,6 +74,8 @@ export function registerDecompTools(server, z, sessionKey) {
         "create", "control", "candidate", "conclude", "list", "families",
         // op:'scenario'
         "save", "run",
+        // op:'assets'
+        "unpack", "repack",
         // op:'skill'
         "preview", "write",
         // op:'artifacts'
@@ -82,8 +84,9 @@ export function registerDecompTools(server, z, sessionKey) {
         "op:'job' — status (default), best, cancel, report. "
         + "op:'experiment' — create, control, candidate, conclude, list, families. "
         + "op:'scenario' — save, run, list. "
+        + "op:'assets' — unpack (decode one container to a file), repack (compress an edited payload back, verified by decoding it again). "
         + "op:'skill' — preview (default), write. "
-        + "op:'artifacts' — status (default), prune, pin."),
+        + "op:'artifacts' — status (default), prune, restore, pin."),
       experimentId: z.string().optional().describe("op:'experiment' — the record to act on (from action:'create' or action:'list')."),
       hypothesis: z.string().optional().describe("op:'experiment' action:'create' — ONE falsifiable causal claim. Required: an experiment without one is a sweep, and a sweep is what produced 264 undifferentiated candidates for a single function."),
       lever: z.string().optional().describe("op:'experiment' action:'create' — the SINGLE source change being varied. Required: varying two things at once cannot attribute the result."),
@@ -102,7 +105,10 @@ export function registerDecompTools(server, z, sessionKey) {
       workClass: z.union([z.string(), z.array(z.string())]).optional().describe("op:'plan' — restrict the queue to these work classes (game-matching-c, libultra-known-source, handwritten-asm-retain, rsp-source, asset-data). Default: game-matching-c. op:'knownSource' — hint the class so the response can say whether published SDK source should be searched first."),
       includeAllClasses: z.boolean().default(false).describe("op:'plan' — include EVERY work class in the queue, not just game targets."),
       forceGraph: z.boolean().default(false).describe("op:'plan' — rebuild the call graph instead of using the content-addressed cache."),
-      apply: z.boolean().default(false).describe("op:'artifacts' action:'prune' — actually delete. Default is a DRY RUN; only byte-identical duplicates are ever proposed and files backing an accepted conclusion are always skipped."),
+
+      inputPath: z.string().optional().describe("op:'assets' action:'repack' — the edited payload to compress back into a container."),
+      outputPath: z.string().optional().describe("op:'assets' — where action:'unpack' writes the decoded payload, and where action:'repack' writes the rebuilt container. Defaults to <workspace>/assets/."),
+      batch: z.string().optional().describe("op:'artifacts' action:'restore' — which prune batch to put back (default: the most recent). A batch id comes from a prune's `trash` path."),
       romOffset: z.number().int().optional().describe("op:'assets' — ROM offset of a range to identify/round-trip. Omit to scan every bin range."),
       length: z.number().int().optional().describe("op:'assets' — byte length of the range at `romOffset`."),
       scenarioName: z.string().optional().describe("op:'scenario' — the scenario to run or save."),
@@ -113,11 +119,8 @@ export function registerDecompTools(server, z, sessionKey) {
       candidates: z.array(z.record(z.any())).optional().describe("op:'rank' — candidate records to rank (workbench comparison blocks or romdev compare results)."),
       baselineText: z.string().optional().describe("op:'gate' — the source the candidate was derived from; enables the behaviour-delta checks (volatile, removed calls, short-circuit, signedness)."),
       // op:'dispatch' — parallel, memory-bounded triage.
-      symbols: z.array(z.string()).optional().describe("op:'dispatch' — explicit function symbols to triage. Omit to take the top of the plan queue (game-matching-c only)."),
-      maxFunctions: z.number().int().min(1).max(512).optional().describe("op:'dispatch' — cap on functions processed this run (default 64)."),
       budgetMiB: z.number().int().min(512).optional().describe("op:'dispatch' — memory ceiling for the worker pool. Default: total RAM minus a reserve for the server and the build. Admission is by MEASURED peak RSS per worker class, not by a thread count."),
       maxWorkers: z.number().int().min(1).max(64).optional().describe("op:'dispatch' — hard cap on concurrent workers (default: cpus-2, max 12). The per-TU lock usually binds first."),
-      timeBudgetS: z.number().int().min(10).max(86400).optional().describe("op:'dispatch' — wall-clock budget; remaining functions come back as `skipped`."),
       wbGroup: z.string().optional().describe("op:'workbench' — command group (object, campaign, experiment, probe, trace, permute, sweep, oracle, pass, instrument, ...). Omit wbCommand to list the discovered catalog."),
       wbCommand: z.string().optional().describe("op:'workbench' — the command inside the group (e.g. 'diagnose', 'compare', 'collateral', 'staleness', 'linked-compare', 'reloc-proof'). Omit to get the catalog instead of running anything."),
       wbArgs: z.array(z.string()).optional().describe("op:'workbench' — positional args and flags passed through verbatim (e.g. [targetObj, candidateObj]). The project's --objdump is appended automatically when you do not pass one."),
@@ -131,13 +134,16 @@ export function registerDecompTools(server, z, sessionKey) {
       expectedSha1: z.string().optional().describe("op:'import' — expected base-ROM sha1 (default: the yaml's)."),
       buildCommand: z.array(z.string()).optional().describe("op:'import' — argv of the full-build command run from root (default: tools/matching-build.sh if present, else make)."),
       symbol: z.string().optional().describe("Function symbol name (func_801DEB08). Alternative to `va`."),
-      symbols: z.array(z.string()).optional().describe("op:'batch' — the functions to run (a batch from op:'plan')."),
+      symbols: z.array(z.string()).optional().describe("op:'batch' — the functions to run (a batch from op:'plan'). op:'dispatch' — explicit symbols to triage; omit to take the top of the plan queue."),
       va: z.union([z.number().int(), z.string()]).optional().describe("Virtual address (number, or hex string '0x801DEB08')."),
       segment: z.string().optional().describe("Segment name to disambiguate an overlay VA (the resolver lists candidates when ambiguous)."),
       tu: z.string().optional().describe("op:'plan'/'map' — restrict to one translation unit (relative path)."),
       limit: z.number().int().min(1).max(500).default(40).describe("op:'plan' — queue length."),
-      maxFunctions: z.number().int().min(1).max(64).default(12).describe("op:'batch' — cap on functions run."),
-      timeBudgetS: z.number().int().min(10).max(7200).default(600).describe("op:'batch' — wall-clock budget."),
+      // DECLARED TWICE before: the op:'batch' version silently replaced the
+      // op:'dispatch' one and narrowed its ceiling from 512 to 64. Same
+      // duplicate-key bug that made five `action` vocabularies unreachable.
+      maxFunctions: z.number().int().min(1).max(512).default(12).describe("op:'batch' — cap on functions run (default 12). op:'dispatch' — cap on functions processed this run (default 64)."),
+      timeBudgetS: z.number().int().min(10).max(86400).default(600).describe("op:'batch' — wall-clock budget (default 600). op:'dispatch' — wall-clock budget; remaining functions come back as `skipped`."),
       candidatePath: z.string().optional().describe("op:'compare'/'search'/'integrate' — path to a C file holding the function definition (+ any local declarations it needs)."),
       candidateText: z.string().optional().describe("op:'compare'/'search'/'integrate' — the candidate C inline (alternative to candidatePath)."),
       contextHash: z.string().optional().describe("op:'compare' — the context hash the candidate was generated against; the result flags contextStale when the TU/headers/flags changed since."),
@@ -156,7 +162,11 @@ export function registerDecompTools(server, z, sessionKey) {
       jobId: z.string().optional().describe("op:'job' — the job to inspect/cancel/report."),
       resumeFrom: z.string().optional().describe("op:'search' — a previous jobId whose best candidate becomes the base."),
 
-      apply: z.boolean().default(false).describe("op:'integrate' — apply the patch to the TU (else only write it)."),
+      // ONE declaration covering BOTH ops. Declared twice, the second silently
+      // replaced the first and the per-op validator then refused `apply` on
+      // artifacts — the same duplicate-key bug that made five `action`
+      // vocabularies unreachable.
+      apply: z.boolean().default(false).describe("op:'integrate' — apply the patch to the TU (else only write it). op:'artifacts' action:'prune' — actually move the duplicates to trash. Default is a DRY RUN; only byte-identical duplicates are ever proposed, files backing an accepted conclusion are always skipped, and a prune is recoverable with action:'restore'."),
       verify: z.boolean().default(true).describe("op:'integrate' — after apply, run the full build and compare the ROM (revert on mismatch)."),
       jobs: z.number().int().min(1).max(64).default(8).describe("op:'integrate'/'verify' — make -j."),
       frames: z.number().int().min(1).max(100000).default(720).describe("op:'smoke'/'coverage' — frames to run."),
@@ -447,6 +457,13 @@ export function registerDecompTools(server, z, sessionKey) {
           const asmRel = fn.targetAsm?.path ?? fn.source?.asmPath ?? null;
           if (!asmRel) throw Object.assign(new Error(`'${fn.symbol}' has no extracted asm to fingerprint.`), { code: "NO_TARGET_ASM" });
           const asmText = await readFile(project.abs(asmRel), "utf8");
+          // A fingerprint over ZERO instructions matches nothing and reports
+          // `siblingHits: []` — indistinguishable from an honest "no match
+          // found". Refuse instead: an empty search that LOOKS like a completed
+          // search is the worst of the three outcomes.
+          if (!/^\s*\/\*\s*[0-9A-Fa-f]+\s+[0-9A-Fa-f]{8}\s+[0-9A-Fa-f]{8}\s*\*\//m.test(asmText)) {
+            throw Object.assign(new Error(`'${fn.symbol}': ${asmRel} contains no disassembled instruction words, so a structural fingerprint would search on nothing and return an empty result that looks like 'no match'.`), { code: "NO_TARGET_ASM" });
+          }
           return jsonContent(await findKnownSource(project, { symbol: fn.symbol, asmText, workClass: args.workClass }));
         }
         case "scenario": {
@@ -470,6 +487,49 @@ export function registerDecompTools(server, z, sessionKey) {
           // wrong offset is worse than none, because it looks like progress.
           const A = await import("../../decomp/assets.js");
           const rom = await readFile(project.abs(project.m.rom.path));
+
+          // UNPACK / EDIT / REPACK, not just "identify". The audit's wording was
+          // "the public schema exposes no repack action" — and it was right in a
+          // way the encoder alone did not fix: a caller could see a sha of the
+          // decoded payload but never obtain the BYTES, so there was nothing to
+          // edit and nothing to feed back. These three actions are the loop.
+          if (args.action === "unpack" || args.action === "repack") {
+            if (args.romOffset == null) throw Object.assign(new Error(`decomp({op:'assets', action:'${args.action}'}): \`romOffset\` (and \`length\`) identify the range.`), { code: "BAD_ARGS" });
+            const end = args.romOffset + (args.length ?? 0);
+            const range = rom.subarray(args.romOffset, end || undefined);
+
+            if (args.action === "unpack") {
+              const decoded = A.decodeMio0Container(range);
+              if (!decoded) throw Object.assign(new Error(`the range at 0x${args.romOffset.toString(16)} is not a decodable MIO0 container.`), { code: "NOT_DECODABLE" });
+              const out = args.outputPath ?? path.join(project.ws, "assets", `0x${args.romOffset.toString(16)}.bin`);
+              await mkdir(path.dirname(out), { recursive: true });
+              await writeFile(out, Buffer.from(decoded));
+              return jsonContent({ project: project.id, action: "unpack", romOffset: args.romOffset,
+                decodedBytes: decoded.length, path: out,
+                nextStep: `edit ${out}, then decomp({op:'assets', action:'repack', romOffset:${args.romOffset}, inputPath:'${out}'}) — repack VERIFIES by decoding its own output before returning.` });
+            }
+
+            const src = args.inputPath ?? args.outputPath;
+            if (!src) throw Object.assign(new Error("decomp({op:'assets', action:'repack'}): `inputPath` (the edited payload) is required."), { code: "BAD_ARGS" });
+            const payload = await readFile(src);
+            const packed = A.encodeMio0(payload);
+            // NEVER return a container without checking it decodes back. An
+            // encoder that emits plausible bytes is the same failure as a
+            // decoder that emits plausible pixels.
+            const check = A.decodeMio0Container(packed);
+            const faithful = !!check && Buffer.compare(Buffer.from(check), payload) === 0;
+            const out = args.outputPath && args.outputPath !== src
+              ? args.outputPath : path.join(project.ws, "assets", `0x${args.romOffset.toString(16)}.mio0`);
+            if (faithful) { await mkdir(path.dirname(out), { recursive: true }); await writeFile(out, packed); }
+            return jsonContent({ project: project.id, action: "repack", romOffset: args.romOffset,
+              payloadBytes: payload.length, containerBytes: packed.length,
+              verified: faithful, ...(faithful ? { path: out } : {}),
+              sameSizeAsOriginal: packed.length === range.length,
+              note: faithful
+                ? "the container was decoded back and matches the payload byte for byte. `sameSizeAsOriginal` says whether it can be dropped in place without relocating the range."
+                : "REFUSED to write: the container did not decode back to the payload it was built from, so the encoder is not faithful for this input." });
+          }
+
           if (args.romOffset != null) {
             const end = args.romOffset + (args.length ?? 0);
             return jsonContent({ project: project.id, ...A.roundTrip(rom.subarray(args.romOffset, end || undefined), { name: `0x${args.romOffset.toString(16)}` }) });
@@ -485,6 +545,7 @@ export function registerDecompTools(server, z, sessionKey) {
         case "artifacts": {
           const A = await import("../../decomp/artifacts.js");
           if (args.action === "prune") return jsonContent(await A.pruneArtifacts(project, { apply: !!args.apply }));
+          if (args.action === "restore") return jsonContent(await A.restoreArtifacts(project, { batch: args.batch }));
           if (args.action === "pin") {
             if (!args.candidatePath) throw Object.assign(new Error("decomp({op:'artifacts', action:'pin'}): `candidatePath` is required."), { code: "BAD_ARGS" });
             return jsonContent(await A.pinArtifact(project, args.candidatePath, { reason: args.notes }));

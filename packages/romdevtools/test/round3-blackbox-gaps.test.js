@@ -154,3 +154,90 @@ test("a range whose trailing bytes are NOT zero is not called byte-exact", () =>
   const r = roundTrip(dirty, { name: "dirty" });
   assert.equal(r.containerExact, false, "non-zero trailing bytes are real content, not padding");
 });
+
+// ── no tool may declare the same parameter twice ───────────────────────────
+
+test("no tool schema declares a parameter twice", async () => {
+  // A duplicate key in an object literal keeps the LAST one, silently. That is
+  // how `action` lost four ops' vocabularies (the job-only enum overwrote the
+  // full one, making five operations unreachable through the public schema),
+  // how `apply` lost its artifacts scope, and how `maxFunctions` had its
+  // dispatch ceiling narrowed from 512 to 64. The bug is invisible in review
+  // and invisible at runtime — the only reliable catch is reading the source.
+  const { readFile, readdir } = await import("node:fs/promises");
+  const path = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src", "mcp", "tools");
+
+  const offenders = [];
+  for (const f of await readdir(dir)) {
+    if (!f.endsWith(".js")) continue;
+    const text = await readFile(path.join(dir, f), "utf8");
+    // A file may register SEVERAL tools, in which case a repeat is legitimate.
+    const toolCount = (text.match(/server\.tool\(/g) ?? []).length;
+    if (toolCount > 1) continue;
+    // Scan only from the server.tool( call onward: a helper that builds a
+    // NESTED shape (input.js's per-port button object) legitimately reuses the
+    // same key names at the same indentation, and counting those is a false
+    // positive that makes the guard unrunnable.
+    const at = text.indexOf("server.tool(");
+    if (at < 0) continue;
+    const keys = [...text.slice(at).matchAll(/^ {6}([A-Za-z][A-Za-z0-9]*): z\./gm)].map((m) => m[1]);
+    const seen = new Set(), dupes = new Set();
+    for (const k of keys) { if (seen.has(k)) dupes.add(k); seen.add(k); }
+    if (dupes.size) offenders.push(`${f}: ${[...dupes].join(", ")}`);
+  }
+  assert.deepEqual(offenders, [],
+    `a single-tool file declared a parameter more than once — the later declaration silently wins:\n${offenders.join("\n")}`);
+});
+
+// ── overlapping observations become a REAL union ───────────────────────────
+
+test("two incompatible types at one offset emit a compilable union", async () => {
+  // The audit's item 7 had TWO clauses: valid C tokens, and "overlapping
+  // observations as a compilable union representation rather than ordinary
+  // sequential fields". Emitting one arbitrary winner with a /* CONFLICT */
+  // comment answered only the first half.
+  const { proposeStruct } = await import("../src/decomp/type-graph.js");
+  const base = {
+    base: "t", fieldCount: 1, functionCount: 2,
+    fields: [{ offset: 0, width: 4, type: "f32", conflict: true, unionView: ["4:f32", "4:s32/u32/ptr"] }],
+  };
+  const { code, unions } = proposeStruct(base);
+  assert.equal(unions, 1, "a same-offset type conflict is a union");
+  assert.match(code, /union \{/);
+  assert.match(code, /f32 as_f32;/);
+  assert.match(code, /u32 as_u32;/);
+  assert.match(code, /incompatible views/);
+});
+
+test("a field whose extent CROSSES the next offset is a union, not a sibling", async () => {
+  // This is the half that is a real layout bug, not just lost information:
+  // emitting overlapping fields sequentially pushes every following offset
+  // along by bytes that were never there, so the struct stops describing the
+  // evidence at all.
+  const { proposeStruct } = await import("../src/decomp/type-graph.js");
+  const base = {
+    base: "t", fieldCount: 2, functionCount: 1,
+    fields: [
+      { offset: 0, width: 4, type: "u32" },
+      { offset: 2, width: 2, type: "u16" },   // sits INSIDE the 4-byte field
+    ],
+  };
+  const { code, unions } = proposeStruct(base);
+  assert.equal(unions, 1, "overlapping extents are one location, not two fields");
+  assert.match(code, /at \+0x2/, "the sub-offset must be recorded");
+  // The next honest offset is 4, not 6 — the overlap must not shift the layout.
+  assert.match(code, /size >= 0x4/);
+});
+
+test("non-overlapping fields are still plain fields", async () => {
+  const { proposeStruct } = await import("../src/decomp/type-graph.js");
+  const { code, unions } = proposeStruct({
+    base: "t", fieldCount: 2, functionCount: 1,
+    fields: [{ offset: 0, width: 4, type: "u32" }, { offset: 4, width: 4, type: "f32" }],
+  });
+  assert.equal(unions, 0, "adjacent fields are not a union");
+  assert.match(code, /u32 unk_0;/);
+  assert.match(code, /f32 unk_4;/);
+});

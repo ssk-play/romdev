@@ -301,7 +301,12 @@ export function parseSplatAsm(text) {
   let padWords = 0;
   for (const line of text.split("\n")) {
     let m;
-    if ((m = /^\s*\.section\s+(\S+)/.exec(line))) { section = m[1]; textEnded = false; continue; }
+    // `.section .text, "ax"` — the name ENDS at the comma. Capturing \S+ took
+    // the comma with it, so `section === ".text"` was false for every file that
+    // spells the directive with attributes, and EVERY instruction in it was
+    // silently dropped. The symbol still resolved, so the result was a real
+    // function reporting 0 instructions / 0 bytes rather than an error.
+    if ((m = /^\s*\.section\s+([^\s,]+)/.exec(line))) { section = m[1]; textEnded = false; continue; }
     if (/^\s*endlabel\b/.test(line)) { if (section === ".text") textEnded = true; continue; }
     // `.size f, . - f` marks the same boundary for emitters that omit endlabel.
     if (/^\s*\.size\s+/.test(line)) { if (section === ".text" && name) textEnded = true; continue; }
