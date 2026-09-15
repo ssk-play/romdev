@@ -257,13 +257,13 @@ export function emitSeam() {
  *   the original ROM produced is drawn — turning the blank port into a real
  *   rendered screen.
  */
-export function emitMainAsm({ body, resetLabel, nmiLabel, withShim, withRuntime, nmiBody }) {
+export function emitMainAsm({ body, resetLabel, nmiLabel, withShim, withRuntime, nmiBody, sourceLabel, sourceIsaLabel, seamFile }) {
   // Native NMI vector: with the phase-2 runtime it points at NES_RT_NMI (which
   // flushes sprites then calls the game's NMI); otherwise the legacy stub/label.
   const nmiVector = withRuntime ? "NES_RT_NMI" : (nmiLabel || "NMI_STUB");
   return [
-    `; NES→SNES recompiled image (romdev emit backend, ${withRuntime ? "phase 2: live runtime" : "phase 1"}).`,
-    "; The 6502 game logic runs in 65816 EMULATION mode (E=1) unmodified.",
+    `; ${(sourceLabel ?? "NES")}→SNES recompiled image (romdev emit backend, ${withRuntime ? "phase 2: live runtime" : "phase 1"}).`,
+    sourceIsaLabel ? `; ${sourceIsaLabel}.` : "; The 6502 game logic runs in 65816 EMULATION mode (E=1) unmodified.",
     "lorom",
     "",
     "org $008000",
@@ -285,7 +285,7 @@ export function emitMainAsm({ body, resetLabel, nmiLabel, withShim, withRuntime,
     "        xce             ; → EMULATION mode: now the 6502 logic runs as-is",
     `        jmp     ${resetLabel}`,
     "",
-    "; ── recompiled 6502 logic (emulation mode) ───────────────────────────",
+    `; ── recompiled ${sourceIsaLabel ?? "6502"} logic ───────────────────────────`,
     body,
     ...(withRuntime && nmiBody
       ? ["", "; ── recompiled NES NMI handler (called from NES_RT_NMI each vblank) ──", nmiBody]
@@ -301,7 +301,7 @@ export function emitMainAsm({ body, resetLabel, nmiLabel, withShim, withRuntime,
     // BEFORE the shim — the shim ends with `org $028000` + 8KB of data, and any
     // code after that would flow into bank $02 (wrong bank for the NMI vector +
     // for `lda.l ...,x` tables). Seam/runtime first (bank $00), shim data last.
-    ...(withRuntime ? ["incsrc \"nes_ppu_runtime.asm\""] : ["incsrc \"nes_seam.asm\""]),
+    ...(withRuntime ? ["incsrc \"nes_ppu_runtime.asm\""] : [`incsrc "${seamFile ?? "nes_seam.asm"}"`]),
     ...(withShim ? ["incsrc \"nes_ppu_shim.asm\""] : []),
     "",
     "; ── interrupt vectors (native + emulation) ───────────────────────────",
@@ -499,9 +499,27 @@ export function findUndefinedLabels(body, equs = []) {
   );
 }
 
-/** Labels defined in the seam include — never stub these (they'd redefine). */
+/**
+ * Labels defined in a seam include — never stub these (they'd redefine).
+ *
+ * A seam routine is provided by the RUNTIME, not by the game, so it looks
+ * exactly like an unresolved callee to the scan above: referenced by `jsr`,
+ * defined nowhere in the body. Stubbing it emits `LABEL: rts` next to the
+ * `incsrc` that defines the same label, and asar rejects the file:
+ *
+ *     error: (Elabel_redefined): Label 'Z80_IO_WRITE' redefined.
+ *
+ * This set must therefore list EVERY seam across every source ISA, not just
+ * the one that happened to be implemented first. It was NES-only, so the very
+ * first Z80 program containing an `out` produced output that could not
+ * assemble — the "looks like assembly and cannot build" failure the engine is
+ * built to prevent.
+ */
 const SEAM_LABELS = new Set([
+  // 6502 / NES source: memory-mapped hardware.
   "NES_PPU_WRITE", "NES_PPU_READ", "NES_APU_WRITE", "NES_OAM_DMA",
+  // Z80 source (SMS / Game Gear / MSX / Genesis Z80): separate I/O space.
+  "Z80_IO_WRITE", "Z80_IO_READ",
 ]);
 
 /**

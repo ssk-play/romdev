@@ -17,10 +17,26 @@
 // }
 // A LIFTER is: lift(sourceAsm) → { ir, equs, instrCount, seamCount, entry }.
 //
+// ── NOTE FOR A FUTURE WASM/WAT BACKEND ─────────────────────────────────────
+// Every emitter here targets ASSEMBLY (65816, m68k), so this does not bite
+// today — but it will the moment someone adds a WASM backend, and it is a
+// measured result rather than a guess (reported from a shipped SMS→WAT
+// recompiler):
+//
+//   A single wasm function with ~3,800 nested blocks and a ~3,800-entry
+//   `br_table` blows V8's COMPILER ZONE — an OOM inside the zone allocator
+//   that `--max-old-space-size` does nothing about, because the zone is not
+//   the JS heap. ~1,070 arms was fine.
+//
+// The whole-function dispatch loop (one br_table arm per basic block) is the
+// natural shape for a recompiler and walks straight into this. Shard the
+// dispatch into several functions of a few hundred arms each.
+//
 // Plain JS ESM + JSDoc.
 
 import { collectResidue } from "./ir.js";
 import { lift6502 } from "./lift-6502.js";
+import { liftZ80 } from "./lift-z80.js";
 import { emit65816Body } from "./emit-65816.js";
 import {
   emitMainAsm as emit65816Wrapper, emitSeam as emit65816Seam,
@@ -29,17 +45,39 @@ import {
 import {
   emitm68kBody, emitM68kWrapper, emitM68kSeam, findUndefinedLabelsM68k, emitM68kStubs,
 } from "./emit-m68k.js";
+import { emit65816FromZ80Body, emitZ80SeamAsm } from "./emit-65816-from-z80.js";
 
 /** source ISA / platform → lifter. (gg/gbc/md aliases map to their base ISA.) */
+/** Source platform -> the ISA its lifter produces IR from. An emitter accepts
+ *  or rejects a pairing on the ISA, not the platform name, so adding a fifth
+ *  Z80 machine needs no emitter change. */
+export const SOURCE_ISA = {
+  nes: "6502", "6502": "6502",
+  sms: "z80", gg: "z80", msx: "z80", z80: "z80",
+};
+
 const LIFTERS = {
   nes: lift6502, "6502": lift6502,
-  // future: gb/sms → lift-sm83 / lift-z80; genesis → lift-m68k; etc.
+  // One Z80 lifter serves FOUR platforms: Master System, Game Gear, MSX, and
+  // the Genesis sound CPU. They share the ISA and differ only at the hardware
+  // seam, which the IR already keeps separate (irHwReg).
+  sms: liftZ80, gg: liftZ80, msx: liftZ80, z80: liftZ80,
+  // future: gb → lift-sm83; genesis (68000) → lift-m68k; etc.
 };
 
 /** target platform → emitter object. */
 const EMITTERS = {
   snes: {
     targetPlatform: "snes", targetIsa: "65816",
+    // WHICH SOURCE ISAs this emitter can actually translate.
+    //
+    // 65816 emulation mode IS a 6502, so a 6502-sourced IR re-emits its
+    // mnemonics verbatim and assembles. That is the emitter's whole design --
+    // and it means any OTHER source ISA passes through as text the assembler
+    // has never heard of (`dec b`, `ld a,(hl)`, `ret label`), producing a file
+    // that looks plausible and cannot build. Declaring the accepted sources is
+    // what turns that from a silent miscompile into an honest error.
+    sourceIsas: ["6502"],
     emitBody: emit65816Body,
     emitWrapper: (a) => emit65816Wrapper(a),
     emitSeam: emit65816Seam,
@@ -49,6 +87,9 @@ const EMITTERS = {
   },
   genesis: {
     targetPlatform: "genesis", targetIsa: "m68k",
+    // Translates the ABSTRACT ops, but its operand handling assumes 6502
+    // addressing modes, so it is 6502-sourced for now too.
+    sourceIsas: ["6502"],
     emitBody: emitm68kBody,
     emitWrapper: (a) => emitM68kWrapper(a),
     emitSeam: emitM68kSeam,
@@ -66,7 +107,35 @@ function resolveLifter(source) {
 }
 
 /** Resolve a target platform to its emitter, or throw with the supported set. */
-function resolveEmitter(target) {
+/**
+ * Emitters that exist for ONE source ISA against a target, keyed
+ * `<sourceIsa>->{target}`.
+ *
+ * The base EMITTERS table is keyed by target alone, which was fine while every
+ * source was 6502. It stops being fine the moment two source ISAs need
+ * genuinely different code for the same target: 6502→65816 is a near-1:1
+ * passthrough (65816 emulation mode IS a 6502), while z80→65816 has to
+ * translate every instruction and emulate the Z80 register file in direct page.
+ */
+const SOURCE_EMITTERS = {
+  "z80->snes": {
+    targetPlatform: "snes", targetIsa: "65816",
+    sourceIsas: ["z80"],
+    emitBody: emit65816FromZ80Body,
+    emitWrapper: (a) => emit65816Wrapper({
+      ...a, sourceLabel: "Z80", sourceIsaLabel: "Z80 (register file in direct page)",
+      seamFile: "z80_seam.asm",
+    }),
+    emitSeam: emitZ80SeamAsm,
+    seamFile: "z80_seam.asm",
+    findUndefinedLabels,
+    emitStubs,
+  },
+};
+
+function resolveEmitter(target, sourceIsa) {
+  const specific = SOURCE_EMITTERS[`${sourceIsa}->${target}`];
+  if (specific) return specific;
   const e = EMITTERS[target];
   if (!e) throw new Error(`recompile: no emitter for target '${target}'. Supported targets: ${Object.keys(EMITTERS).join(", ")}.`);
   return e;
@@ -75,9 +144,20 @@ function resolveEmitter(target) {
 /** The supported (source → target) pairs, for tool docs + capability reporting. */
 export function supportedPairs() {
   const sources = Object.keys(LIFTERS).filter((k) => !/^\d/.test(k)); // platform names, not bare ISA
-  const targets = Object.keys(EMITTERS);
   const pairs = [];
-  for (const s of sources) for (const t of targets) if (s !== t) pairs.push(`${s}→${t}`);
+  for (const s of sources) {
+    const isa = SOURCE_ISA[s] ?? s;
+    for (const [t, em] of Object.entries(EMITTERS)) {
+      if (s === t) continue;
+      // Only list a pair the emitter can really translate. Listing every
+      // cross product advertised sms→snes, which lifts fine and emits
+      // unassemblable text.
+      const specific = SOURCE_EMITTERS[`${isa}->${t}`];
+      const use = specific ?? em;
+      if (Array.isArray(use.sourceIsas) && !use.sourceIsas.includes(isa)) continue;
+      pairs.push(`${s}→${t}`);
+    }
+  }
   return pairs;
 }
 
@@ -100,7 +180,25 @@ export function recompile(sourceAsm, opts = {}) {
   const source = opts.source || "nes";
   const target = opts.target || "snes";
   const lift = resolveLifter(source);
-  const emitter = resolveEmitter(target);
+  const emitter = resolveEmitter(target, SOURCE_ISA[source] ?? source);
+
+  // Refuse a pairing the emitter cannot actually translate.
+  //
+  // Without this the engine happily runs Z80 IR through the 65816 emitter,
+  // which re-emits the SOURCE mnemonics verbatim -- correct for 6502 (65816
+  // emulation mode is a 6502) and nonsense for anything else. The output looks
+  // like assembly and will not build. Failing here, naming both halves, is the
+  // difference between "unsupported pair" and a file that wastes an hour.
+  const sourceIsa = SOURCE_ISA[source] ?? source;
+  const accepted = emitter.sourceIsas;
+  if (Array.isArray(accepted) && !accepted.includes(sourceIsa)) {
+    throw new Error(
+      `recompile: the ${emitter.targetIsa} emitter cannot translate ${sourceIsa} source `
+      + `(it accepts: ${accepted.join(", ")}). The ${sourceIsa} LIFTER works -- `
+      + `disasm({target:'recompile'}) will lift and report instrCount/seamCount/residue -- `
+      + `but emitting ${sourceIsa}->${emitter.targetIsa} needs an emitter that translates the `
+      + `abstract IR ops rather than re-emitting source mnemonics. Supported pairs: ${supportedPairs().join(", ")}.`);
+  }
 
   // 1. LIFT the reset/body to IR.
   const lifted = lift(sourceAsm);

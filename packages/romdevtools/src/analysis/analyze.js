@@ -452,8 +452,14 @@ export async function analyzeFunctions(romPath, platformOverride, opts = {}) {
    */
   const minSize = Number.isFinite(opts.minSize) ? opts.minSize : 0;
   const filtered = minSize > 0 ? functions.filter((f) => (f.size ?? 0) >= minSize) : functions;
-  const cap = Number.isFinite(opts.topN) ? Math.max(1, opts.topN) : 25;
-  const shown = filtered.slice(0, cap);
+  // DEFAULT: return every function.
+  //
+  // The old default of 25 got worse the bigger the ROM -- 25 of 116 on a NES
+  // cart, 25 of 406 on Genesis -- and `truncated:true` next to a field still
+  // called `functions` reads as a complete list to anyone skimming. Returning
+  // everything is the honest default; callers that want a preview pass topN.
+  const cap = Number.isFinite(opts.topN) ? Math.max(1, opts.topN) : Infinity;
+  const shown = Number.isFinite(cap) ? filtered.slice(0, cap) : filtered;
   const truncated = shown.length < filtered.length;
   // `loadBase` is the CPU address that file offset 0 maps to (0 for flat carts
   // that map 1:1, the header-declared base for ROMs that don't). A function's
@@ -467,7 +473,10 @@ export async function analyzeFunctions(romPath, platformOverride, opts = {}) {
     ...(minSize > 0 ? { minSize, matched: filtered.length } : {}),
     ...(truncated ? { truncated: true, hint: `showing the ${shown.length} most code-like of ${filtered.length}; raise with topN, or drop stubs with minSize` } : {}),
     dataCount,
-    functions: shown,
+    // Name the array for what it IS. A truncated list under the key
+    // `functions` is the shape that gets misread as the whole set; under
+    // `functionsPage` it cannot be.
+    ...(truncated ? { functionsPage: shown } : { functions: shown }),
     loadBase: loadBase >>> 0,
     ...(warnings?.length ? { warnings } : {}),
   };
@@ -496,31 +505,273 @@ export async function analyzeCfg(romPath, address, platformOverride) {
   if (!Array.isArray(blocks) || blocks.length === 0) {
     return { platform, arch, address, addressHex: hx(address), nodes: [], edges: [], note: "no function/blocks at address" };
   }
-  const nodes = blocks.map((b) => ({
-    id: rb(b.addr),
-    address: rb(b.addr),
-    addressHex: hx(rb(b.addr)),
-    size: b.size,
-    ninstr: b.ninstr,
-  }));
+  // Classify each block by its LAST instruction. rizin's afbj says where a
+  // block goes but not what kind of instruction sent it there, and for a call
+  // that distinction is the whole ballgame:
+  //
+  //   - the fall-through IS emitted (as b.jump), but typed identically to a
+  //     plain jump, so a consumer walking the graph cannot tell "execution
+  //     continues here after the callee returns" from "execution goes here";
+  //   - the call TARGET is not in the graph at all -- no node, no edge -- so
+  //     the callee is invisible.
+  //
+  // Both matter to anyone lifting the CFG (recompiler, decompiler, coverage).
+  // One `pdj` per block over an already-analyzed function is cheap next to the
+  // `aaa` that precedes it.
+  const terminators = await blockTerminators({
+    blocks, romBytes, arch, bits, endian, baddr, seedAt, entry: flat,
+  });
+
+  const nodes = blocks.map((b) => {
+    const t = terminators.get(b.addr);
+    return {
+      id: rb(b.addr),
+      address: rb(b.addr),
+      addressHex: hx(rb(b.addr)),
+      size: b.size,
+      ninstr: b.ninstr,
+      ...(t?.kind ? { terminator: t.kind } : {}),
+      ...(t?.mnemonic ? { terminatorOp: t.mnemonic } : {}),
+    };
+  });
+
   const edges = [];
+  const callTargets = new Set();
   for (const b of blocks) {
+    const t = terminators.get(b.addr);
     const conditional = b.fail != null;
-    if (b.jump != null) edges.push({ from: rb(b.addr), to: rb(b.jump), type: conditional ? "branch_true" : "jump_or_fall" });
+    if (b.jump != null) {
+      // The block's own control-flow successor, from the BLOCK. This is a
+      // normal fall-through/branch even when the block happens to end in a
+      // call: it says where this block continues, not where any particular
+      // call returns to.
+      //
+      // It was once typed `call_return` on a call-terminated block, which
+      // conflated two different addresses -- `from` was the block START while
+      // a real return site belongs to the CALL INSTRUCTION, and on a 39-byte
+      // block ending in `jsr` the two differed by 39 bytes. Return sites are
+      // emitted per call below, where the call's own address is known.
+      edges.push({
+        from: rb(b.addr), to: rb(b.jump),
+        type: conditional ? "branch_true" : "jump_or_fall",
+      });
+    }
     if (b.fail != null) edges.push({ from: rb(b.addr), to: rb(b.fail), type: "branch_false" });
+    // The callees. Not nodes of THIS function's graph (they belong to other
+    // functions), but the edges are what make the call graph walkable at all.
+    //
+    // EVERY call in the block, not just a terminating one: on architectures
+    // where rizin does not split blocks at calls (Z80, notably), the calls are
+    // interior and a terminator-only reading reports none.
+    for (const c of t?.calls ?? []) {
+      if (c.target == null) continue;
+      callTargets.add(rb(c.target));
+      edges.push({ from: rb(c.address), to: rb(c.target), type: "call" });
+      // The RETURN SITE. For an interior call this is the next instruction in
+      // the same block and has no node of its own, but a recompiler must still
+      // know execution resumes there -- `ret` pops an address that otherwise
+      // was never compiled. Typing it `call_return` lets a consumer queue it
+      // as a block start without mistaking it for a branch target.
+      edges.push({ from: rb(c.address), to: rb(c.returnTo), type: "call_return" });
+    }
   }
+
   return {
     platform, arch,
     address, addressHex: hx(address),
     blockCount: nodes.length,
     nodes, edges,
+    ...(callTargets.size
+      ? { callTargets: [...callTargets].sort((a, z) => a - z) }
+      : {}),
+    // A single block with no edges is nearly always a bad entry address (the
+    // bytes decoded as data), not a one-block function. Saying so stops the
+    // reader concluding the CFG is broken -- which has happened.
+    ...(nodes.length === 1 && edges.length === 0
+      ? { note: "single block, no edges — if this was not meant to be a leaf, `address` is probably not a function entry (try an address from disasm({target:'functions'}))" }
+      : {}),
   };
+}
+
+/**
+ * Decode the last instruction of every basic block.
+ *
+ * Returns addr -> { kind, mnemonic, target }, where `kind` is 'call' | 'ret' |
+ * 'jump' | 'branch' | null. `target` is the call destination when rizin
+ * resolved one.
+ *
+ * Kinds come from rizin's own instruction `type`, which is already normalized
+ * across architectures (`call` covers 6502 jsr, Z80 call/rst, 68000 jsr/bsr,
+ * SM83 call/rst, MIPS jal, SH-4 bsr), so this stays architecture-agnostic
+ * rather than matching mnemonics per CPU.
+ */
+async function blockTerminators({ blocks, romBytes, arch, bits, endian, baddr, seedAt, entry }) {
+  const out = new Map();
+  const seed = analysisSeed({ arch, codeStart: seedAt });
+  // ONE rizin run for the whole function.
+  //
+  // Two traps make the obvious approaches wrong:
+  //   * `pdj a; pdj b` in one run returns ONLY the last array -- runRizin
+  //     splits on ';' and redirects just the final command to its output
+  //     file, so a batch silently reads as "no calls anywhere".
+  //   * one run per block is correct but 12x slower (473ms -> 5970ms on a
+  //     121-block function), which is not a price a CFG should pay.
+  // `pdfj` disassembles the entire function in a single run; the block
+  // terminators are then found by address.
+  let ops;
+  try {
+    const fn = await runRizinJson({
+      romBytes, arch, bits, endian, baddr,
+      commands: `${seed}; pdfj @ ${hx(entry)}`,
+    });
+    ops = Array.isArray(fn?.ops) ? fn.ops : [];
+  } catch {
+    return out;               // decode is an enrichment; never fail the CFG for it
+  }
+  if (!ops.length) return out;
+
+  const byOffset = new Map();
+  for (const o of ops) if (typeof o.offset === "number") byOffset.set(o.offset, o);
+
+  const isCallType = (t) => t === "call" || t === "ucall" || t === "rcall";
+
+  for (const b of blocks) {
+    // Walk every instruction that STARTS inside the block, in order. Walking
+    // the decoded stream (rather than `pdj 1` at a guessed address) is what
+    // keeps this correct on variable-length ISAs.
+    //
+    // WHY EVERY INSTRUCTION AND NOT JUST THE LAST ONE: rizin does not end a
+    // basic block at a call on every architecture. On Z80 it treats `call` as
+    // straight-line code, so a real SMS function had FOUR consecutive calls
+    // ($33F, $77C2, $34E, $1BB) sitting in the middle of one 31-byte block
+    // whose terminator was a plain `ld`. Reading only the terminator found no
+    // calls at all, which is precisely the reported bug -- the callee is
+    // invisible and the return site is never queued. The calls are INTERIOR,
+    // so they have to be collected as we pass them.
+    let last = null;
+    const calls = [];
+    for (let a = b.addr; a < b.addr + b.size; a++) {
+      const o = byOffset.get(a);
+      if (!o) continue;
+      last = o;
+      if (isCallType(String(o.type ?? ""))) {
+        const ret = a + (o.size || 0);            // the instruction after the call
+        calls.push({
+          address: a,
+          target: typeof o.jump === "number" ? o.jump : null,
+          returnTo: ret,
+          mnemonic: o.opcode ?? o.disasm ?? undefined,
+          // An interior call's return site is the next instruction in the SAME
+          // block; a call that really does end the block returns to wherever
+          // the block falls through to.
+          interior: ret < b.addr + b.size,
+        });
+      }
+      a += (o.size || 1) - 1;
+    }
+    if (!last && !calls.length) continue;
+
+    const type = String(last?.type ?? "");
+    const kind = isCallType(type) ? "call"
+      : type === "ret" ? "ret"
+      : type === "jmp" || type === "ujmp" || type === "rjmp" ? "jump"
+      : type === "cjmp" ? "branch"
+      : null;
+    if (!kind && !calls.length) continue;
+    out.set(b.addr, {
+      kind: kind ?? undefined,
+      mnemonic: kind ? (last.opcode ?? last.disasm ?? undefined) : undefined,
+      target: kind === "call" ? (typeof last.jump === "number" ? last.jump : null) : null,
+      calls,
+    });
+  }
+  return out;
 }
 
 /**
  * All cross-references TO `address` across the ROM.
  * @returns {{platform, address, count, refs: Array<{from, to, type}>}}
  */
+/**
+ * The closed set of basic blocks reachable from one or more entry points.
+ *
+ * This is the walk every recompiler, decompiler and coverage tool needs and
+ * that each of them otherwise rewrites: start at the entries, follow every
+ * edge, and -- critically -- follow BOTH halves of a call, the callee and the
+ * return site. A walker that misses the return site produces code where `ret`
+ * pops an address that was never compiled; one that misses the callee never
+ * discovers the function at all.
+ *
+ * Both halves are available because analyzeCfg types its edges: `call` is the
+ * callee, `call_return` is where execution resumes.
+ *
+ * @param {string} romPath
+ * @param {number[]} entries CPU addresses to start from
+ * @param {string} [platformOverride]
+ * @param {{maxBlocks?: number}} [opts]
+ */
+export async function analyzeReachable(romPath, entries, platformOverride, opts = {}) {
+  const list = (Array.isArray(entries) ? entries : [entries]).filter((a) => a != null);
+  if (!list.length) throw new Error("analyze reachable: entries required (one or more CPU addresses)");
+  const maxBlocks = Math.max(1, Math.min(opts.maxBlocks ?? 20000, 200000));
+
+  const seenFn = new Set();      // function entries already expanded
+  const blocks = new Map();      // block addr -> node
+  const queue = list.map((a) => (a >>> 0));
+  const entrySet = new Set(queue);
+  const unresolved = [];         // computed jumps we cannot follow statically
+  let platform, arch, truncated = false;
+
+  while (queue.length) {
+    const fnAddr = queue.shift();
+    if (seenFn.has(fnAddr)) continue;
+    seenFn.add(fnAddr);
+
+    let cfg;
+    try {
+      cfg = await analyzeCfg(romPath, fnAddr, platformOverride);
+    } catch (e) {
+      unresolved.push({ address: fnAddr, addressHex: hx(fnAddr), reason: String(e?.message ?? e) });
+      continue;
+    }
+    platform ??= cfg.platform; arch ??= cfg.arch;
+    if (!cfg.nodes?.length) {
+      unresolved.push({ address: fnAddr, addressHex: hx(fnAddr), reason: cfg.note ?? "no blocks" });
+      continue;
+    }
+    for (const n of cfg.nodes) {
+      if (!blocks.has(n.address)) blocks.set(n.address, n);
+      if (blocks.size >= maxBlocks) { truncated = true; break; }
+    }
+    if (truncated) break;
+
+    // A call edge leaves this function: its target is a new entry to expand.
+    // A call_return edge stays inside it and is already a node here, so it
+    // needs no queueing -- that it EXISTS is the point.
+    for (const e of cfg.edges) {
+      if (e.type === "call" && !seenFn.has(e.to)) queue.push(e.to);
+    }
+  }
+
+  const sorted = [...blocks.values()].sort((a, b) => a.address - b.address);
+  const byteSize = sorted.reduce((n, b) => n + (b.size || 0), 0);
+  return {
+    platform, arch,
+    entries: [...entrySet].sort((a, b) => a - b).map((a) => ({ address: a, addressHex: hx(a) })),
+    functionCount: seenFn.size,
+    blockCount: sorted.length,
+    byteSize,
+    blocks: sorted,
+    ...(unresolved.length ? { unresolved } : {}),
+    ...(truncated ? { truncated: true, hint: `stopped at maxBlocks=${maxBlocks}; raise it or narrow entries` } : {}),
+    // Computed jumps are the one thing no static walk can close. Saying so is
+    // the difference between "this set is complete" and "this set is complete
+    // except where the ROM jumps through a register", which changes what a
+    // recompiler must do about it (see breakpoint({on:'jumptable'})).
+    note: "static reachability: computed/indirect jumps are NOT followed — resolve those with breakpoint({on:'jumptable'}) and pass the recovered targets back as additional `entries`",
+  };
+}
+
 export async function analyzeXrefs(romPath, address, platformOverride) {
   if (address == null) throw new Error("analyze xrefs: address required");
   const { platform, romBytes, arch, bits, endian, loadBase, codeStart } = await loadContext(romPath, platformOverride);

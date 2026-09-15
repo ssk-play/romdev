@@ -4,6 +4,122 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 —
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.138.0 — 2026-09-15
+
+The static-recompilation round: a client shipped an SMS→WAT static recompiler
+(three commercial games, verified against `genesis_plus_gx` through romdev) and
+reported what cost them time. Every item is addressed, and five of the eight
+were reported as "ALL PLATFORMS" because they were one behaviour in a shared
+tool rather than per-platform bugs.
+
+### Fixed — P0 correctness
+
+- **`disasm({target:'cfg'})` omitted BOTH halves of a call, on every platform.**
+  The callee had no node and no edge (invisible), and the return site — where
+  execution resumes once the callee returns — was never emitted as a block
+  start. For a recompiler that is fatal: `ret` pops an address that has no
+  compiled block. Verified broken on four CPU families (6502 `jsr`, Z80 `call`,
+  68000 `jsr`, SM83 `call`). Blocks now carry a `terminator` classification and
+  edges are typed `call` (the callee) and `call_return` (the return site).
+  - The second half, found only by testing on a real ROM: **rizin does not end
+    a basic block at a call on every architecture.** On Z80 it treats `call` as
+    straight-line code, so a real SMS function had four consecutive calls
+    INSIDE one 31-byte block whose last instruction was a plain `ld`. Reading
+    each block's terminator alone therefore found no calls at all — the fix
+    looked correct on synthetic input and did nothing on real code. Calls are
+    now collected at every instruction in the block.
+  - A block-terminating call also emitted a `call_return` edge whose `from` was
+    the BLOCK START rather than the call instruction (39 bytes off on one
+    function), so `call` and `call_return` counts disagreed. Return sites are
+    emitted per call, where the call's own address is known.
+- **`input({op:'timeline'})` was documented "absolute" and behaved RELATIVE.**
+  It stepped `frame` frames from wherever the session already was, so a window
+  declared at frame 600 landed on ROM frame 710 when the ROM had run 100
+  frames — the exact phase drift the op exists to remove, under a response that
+  said "Absolute schedule". The schedule is now anchored to the emulator's
+  frame counter; a window already in the past is refused (frames cannot be
+  un-run) instead of silently re-running.
+- **`disasm({target:'bytes'})` ignored `platform`.** That path is da65, which
+  is 6502-family only, so `platform:'sms'` decoded Z80 bytes as 6502 and
+  returned real instructions from the wrong CPU (`dd 7e 05` came back as
+  `cmp $057E,x`, not `ld a,(ix+5)`). A non-6502 platform is now refused, naming
+  `target:'rom'` as the op that dispatches per CPU.
+
+### Fixed — the Z80 backend (new, and its first bugs)
+
+The Z80 lifter unlocks four platforms at once (SMS, Game Gear, MSX, the Genesis
+sound CPU). Three silent miscompiles were found and fixed before it shipped;
+all three are the same hazard, that **every Z80 register name is also valid
+hexadecimal**:
+
+- `seamPort('(c),a')` returned port **12**. `in`/`out (c)` take the port from
+  register C at runtime, so a dynamic port was reported as a literal one — on
+  SMS the difference between "VDP control at $BF" and "port 12" — and it made
+  the dynamic-port branch unreachable for every `(c)` form in the ISA.
+- `ld hl,de` emitted `lda #$00de`: a plain pair-to-pair move compiled as an
+  immediate load, because the bare-hex match was tested before the register
+  match.
+- `(ix+d)` displacements are SIGNED (-128..+127) while the 65816's `[dp],y`
+  index is UNSIGNED. Narrowing with `d & 0xff` turned `(iy-3)` into `ldy #$fd`
+  — indexing +253, a read 256 bytes from the intended byte. Negative
+  displacements now load a 16-bit index.
+- The emitted 65816 **did not assemble at all** when a program contained any
+  `in`/`out`: the callee-stub pass emitted `Z80_IO_WRITE: rts` for a label the
+  seam include already defined, and asar rejected the file with
+  `Elabel_redefined`. The seam-label exemption was NES-only; it now covers
+  every source ISA's seam.
+
+### Added
+
+- **`disasm({target:'reachable', entries})`** — the closed set of basic blocks
+  reachable from one or more entry points, following both the callee and the
+  return site. Every recompiler, decompiler and coverage tool wants this and
+  otherwise rewrites it. Computed jumps are NOT followed and the response says
+  so, pointing at `breakpoint({on:'jumptable'})` to resolve the arms.
+- **Z80 source lifter + a real z80→65816 emitter** for `sms`/`gg`/`msx`/`z80`.
+  This is a genuine cross-ISA translation, not the near-1:1 passthrough the
+  6502 path uses (65816 emulation mode IS a 6502): the Z80 register file lives
+  in direct page and each instruction is translated. An unsupported
+  source→target pair is now REFUSED — previously Z80 IR run through the 6502
+  emitter re-emitted Z80 mnemonics verbatim, producing a file that looked like
+  assembly and could not build.
+- **`memory({op:'regions'})`** — the regions valid for a platform, split into
+  generic and platform-specific. There are 126 region ids and the only index
+  was a truncated enum inside an error message, so a caller saw the first ~40
+  (all `nes_*`) and concluded the platform-specific ones did not exist; one
+  inferred palette correctness from rendered pixels rather than diffing the 32
+  bytes of `sms_cram`, which was there all along.
+- **`videoDebug({chip:'vdp'})`** — decoded SMS/GG/Genesis VDP state: mode
+  flags, the name-table / sprite-attribute / sprite-pattern bases multiplied
+  out to real VRAM addresses, scroll, line counter, border. The control latch,
+  status register and VRAM address/code are NOT returned and the response says
+  so in `unavailable` with the reason, rather than omitting them silently.
+- **`input({op:'timeline'})`** — a frame-exact absolute schedule
+  (`[{frame, buttons, until|holdFrames, port}]`). Overlapping windows on a port
+  are OR'd into a chord, frames outside every window are explicitly neutral,
+  and the pad is released at the end.
+- `disasm({target:'range'})` as an alias of `'rom'` — the natural guess.
+
+### Changed
+
+- **`disasm({target:'functions'})` returns EVERY function by default.** The old
+  cap of 25 got worse the bigger the ROM (25 of 116 on NES, 25 of 406 on
+  Genesis) while the array was still called `functions`, which reads as a
+  complete list. A capped response now names the array `functionsPage`, so a
+  partial read cannot be mistaken for the whole set.
+- `breakpoint`/`watch` `pressDuring` accepts the same bare button string
+  `input({op:'press'})` takes. The two tools had different vocabularies for the
+  same thing — `pressDuring:['1']` was rejected with "must be a object" — and
+  both forms now work.
+- `audioDebug({chip:'psg'})`: `tones[].frequency` is Hz and `tones[].period` is
+  the register value. They were ONE field named `frequency` that actually
+  carried the period, so it could not be reconciled with `raw.regsHex`; solving
+  for a clock gave a different answer per channel (3.45M/3.74M/5.67M), which is
+  the signature of a mislabelled field rather than an unknown encoding.
+  `raw.regsNote` now documents the derivation and `raw.psgClockHz` the clock.
+- `disasm({target:'rom'})` handles MSX (Z80, flat cartridge mapping); it fell
+  through to the 6502/iNES path and failed with "not a valid iNES file".
+
 ## 0.137.1 — 2026-09-06
 
 Cleanup after 0.137.0 shipped: the coverage bitmap is the ONLY coverage path.

@@ -803,6 +803,63 @@ async function memSearchNext(sessionKey, { compare, value, name = "default", max
       });
 }
 
+
+/**
+ * List the memory regions valid for a platform — the discoverability op.
+ *
+ * There are 126 region ids across all cores, and until now the only index was
+ * the enum inside an error message, which the response truncates. A caller who
+ * guessed wrong saw the first ~40 (all `nes_*`) and reasonably concluded the
+ * platform-specific regions did not exist -- one filed feedback asking for
+ * `sms_cram` to be ADDED when it had been there all along, after inferring
+ * palette correctness from rendered pixels instead of diffing 32 bytes.
+ *
+ * Defaults to the loaded platform, so the common call is `memory({op:'regions'})`.
+ */
+function listRegions(sessionKey, args) {
+  let platform = args.platform;
+  if (!platform) {
+    // The loaded platform lives on host.status, not on the host itself.
+    try { platform = getHost(sessionKey)?.status?.platform; } catch { /* no host: fall through */ }
+  }
+  const all = Object.keys(MemoryRegionToRetro);
+  if (!platform) {
+    return {
+      platform: null,
+      note: "No platform given and no ROM loaded — listing EVERY region across all cores. "
+        + "Pass `platform`, or load media first, to see just the ones that work here.",
+      count: all.length,
+      regions: all,
+    };
+  }
+  const allowed = CAPABILITIES[platform]?.memoryRegions;
+  if (!Array.isArray(allowed) || allowed.length === 0) {
+    return {
+      platform,
+      note: `No per-platform region manifest for '${platform}'; these are all ids the host knows. `
+        + "A read of one this core does not expose returns an error rather than wrong bytes.",
+      count: all.length,
+      regions: all,
+    };
+  }
+  const generic = allowed.filter((r) => GENERIC_REGION_NAMES.has(r));
+  const specific = allowed.filter((r) => !GENERIC_REGION_NAMES.has(r));
+  return {
+    platform,
+    count: allowed.length,
+    // Split rather than one flat list: the generic four are on every platform
+    // and are almost never what someone hunting a palette or a chip register
+    // wants, so burying the specific ones under them is what hid them.
+    generic,
+    specific,
+    regions: allowed,
+    ...(REGION_INFO ? { info: Object.fromEntries(allowed.filter((r) => REGION_INFO[r]).map((r) => [r, REGION_INFO[r]])) } : {}),
+    hint: specific.length
+      ? `Platform-specific regions carry the interesting state (palette/CRAM, chip registers, OAM): ${specific.join(", ")}.`
+      : "This platform exposes only the generic regions.",
+  };
+}
+
 export function registerMemoryTools(server, z, sessionKey) {
   // Shared sub-shapes reused across ops.
   const offsetsShape = z.array(z.union([
@@ -834,7 +891,7 @@ export function registerMemoryTools(server, z, sessionKey) {
     "• op:'searchUnknown' — the UNKNOWN-INITIAL-VALUE hunt (Cheat Engine's 'Unknown initial value'): seed the WHOLE region as candidates with NO value, then narrow across in-game events with op:'searchNext' compare 'dec'/'inc'/'unchanged'/'changed'/'gt'/'lt'. THE way to find a value you can't see (lives/timer/ammo not on the HUD): searchUnknown → lose a life → searchNext compare:'dec' → repeat. Use this when you don't know the number; use op:'search' when you do.\n" +
     "• op:'searchNext' — narrow the active candidate list against CURRENT memory. `compare`: 'eq'/'gt'/'lt' (need `value`), 'changed'/'unchanged'/'inc'/'dec' (vs the previous read — usable as the FIRST narrow too; baselines are recorded at seed). Comparisons happen in the seed's `as` representation. Repeat until 1-2 remain, then confirm with op:'write'. (For values an INPUT drives — position, velocity — op:'diffRuns' is usually one call instead of a narrowing loop.)",
     {
-      op: z.enum(["read", "write", "readCart", "snapshot", "diff", "diffRuns", "classify", "search", "searchUnknown", "searchNext"])
+      op: z.enum(["read", "write", "readCart", "regions", "snapshot", "diff", "diffRuns", "classify", "search", "searchUnknown", "searchNext"])
         .describe("read=bytes→hex; write=hex/base64→region; readCart=loaded cart ROM image; snapshot=capture a baseline; diff=changed bytes vs a baseline; diffRuns=run the SAME start state twice under two different held inputs and return only the DIVERGENT bytes (THE input→RAM mapping primitive — replaces save/run/dump/restore/run/dump/python-diff); classify=what kind of data is here; search=seed a value search (you know the number); searchUnknown=seed the whole region (you DON'T know the number); searchNext=narrow either."),
       region: z.enum(REGIONS).optional().describe("Memory region. Required for read/write/snapshot/diff; defaults to system_ram for classify/search. (readCart targets the cart ROM image, not a region.)"),
       /*
@@ -928,6 +985,7 @@ export function registerMemoryTools(server, z, sessionKey) {
       // above can tell "caller omitted offset" from "caller asked for 0".
       if (args.offset == null) args = { ...args, offset: 0 };
       switch (args.op) {
+        case "regions":    return jsonContent(listRegions(sessionKey, args));
         case "read":       return await memRead(sessionKey, args);
         case "write": {
           if (!args.region) throw new Error("memory({op:'write'}): `region` is required.");

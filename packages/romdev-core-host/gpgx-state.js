@@ -184,36 +184,67 @@ export function decodeGenesisPSG(blob) {
   const clocks = u32(0);
   const latch = u32(4);
   const noiseShiftValue = u32(8);
-  // regs[] starts at offset 12 (after 3 ints). 8 ints × 4 = 32 bytes.
+  // regs[] starts at offset 12 (after 3 ints). 8 ints x 4 = 32 bytes.
+  // gpgx stores each SN76489 register widened to a host int, so these are
+  // 32-bit reads of what the chip documents as 4/10-bit fields.
   const regs = [];
   for (let i = 0; i < 8; i++) regs.push(u32(12 + i * 4));
-  // Channels 0..2 are tone, channel 3 is noise.
+
+  // The SN76489 divides its input clock by 16, and each tone channel toggles
+  // its output every `period` ticks -- so one full cycle is TWO toggles:
+  //     Hz = clock / 16 / (2 * period)
+  // Both the Genesis and SMS/GG PSG run from the same 3.579545 MHz NTSC
+  // colourburst clock, so one constant covers every platform this decoder
+  // serves.
+  const PSG_CLOCK_HZ = 3579545;
+  const toneHz = (period) => (period > 0 ? PSG_CLOCK_HZ / 16 / (2 * period) : 0);
+
   const tones = [];
   for (let c = 0; c < 3; c++) {
-    // Frequency: regs[c*2] holds low 4 bits in bits 0-3 (when latched),
-    // regs[c*2+1] holds upper 6 bits. The "raw" value stored in the
-    // struct depends on the last write, so this is an approximation —
-    // the canonical way to read PSG state is to interpret writes, not
-    // read back. For a quick "is this channel making sound" check,
-    // (regs[c*2+1] << 4) | (regs[c*2] & 0x0F) gives the 10-bit freq.
-    const freq = ((regs[c * 2 + 1] & 0x3F) << 4) | (regs[c * 2] & 0x0F);
-    // Attenuation is on the OTHER register pair. Without parsing the
-    // write semantics we surface raw and let the agent interpret.
+    // 10-bit period: low 4 bits in the channel's first register, upper 6 in
+    // the second. (The raw struct value depends on the last write; reading
+    // writes is the canonical route, this is the cheap "what is it playing
+    // now" view.)
+    const period = ((regs[c * 2 + 1] & 0x3F) << 4) | (regs[c * 2] & 0x0F);
+    const attenuation = regs[c * 2 + 1] & 0x0F;
     tones.push({
       channel: c,
-      frequency: freq,
-      attenuationRaw: regs[c * 2 + 1] & 0x0F, // low 4 bits when type=vol
+      // `period` is the register value; `frequency` is Hz. These used to be
+      // one field named `frequency` that actually carried the PERIOD, which
+      // made the numbers irreconcilable with raw.regsHex and sent at least
+      // one caller hunting for a clock constant that could not exist (solving
+      // clock = f*32*period against a period-as-Hz gives 3.45M/3.74M/5.67M --
+      // three different "clocks", the signature of a mislabelled field).
+      period,
+      frequency: Math.round(toneHz(period) * 10) / 10,
+      attenuation,                 // 0 = loudest, 15 = silent
+      attenuationRaw: attenuation, // kept: older callers read this name
+      muted: attenuation === 0x0F,
     });
   }
+  const noiseAtt = regs[7] & 0x0F;
   const noise = {
-    rate: regs[6] & 0x03,                   // noise rate bits
+    rate: regs[6] & 0x03,                   // 0/1/2 = clock/512,1024,2048; 3 = ch2 period
     mode: (regs[6] & 0x04) ? 'white' : 'periodic',
-    attenuationRaw: regs[7] & 0x0F,
+    attenuation: noiseAtt,
+    attenuationRaw: noiseAtt,
+    muted: noiseAtt === 0x0F,
   };
   return {
     tones,
     noise,
-    raw: { clocks, latch, noiseShiftValue, regsHex: regs.map((r) => r.toString(16)).join(",") },
+    raw: {
+      clocks, latch, noiseShiftValue,
+      // Per-register values as gpgx stores them (host ints, hence >8 bits).
+      // tones[].period is derived from exactly these: for channel c,
+      //   period = ((regs[2c+1] & 0x3F) << 4) | (regs[2c] & 0x0F)
+      //   attenuation = regs[2c+1] & 0x0F
+      regsHex: regs.map((r) => r.toString(16)).join(","),
+      regsNote: "gpgx-internal SN76489 register file, one host int per register. "
+        + "Derive a channel with period = ((regs[2c+1] & 0x3F) << 4) | (regs[2c] & 0x0F), "
+        + "attenuation = regs[2c+1] & 0x0F. Hz = 3579545/16/(2*period).",
+      psgClockHz: PSG_CLOCK_HZ,
+    },
   };
 }
 
@@ -321,4 +352,69 @@ export function decodeGenesisSprites(vram, vdpRegs) {
     slot = link;
   }
   return sprites;
+}
+
+/**
+ * Decode the SMS/GG/Genesis VDP register file into named, interpreted fields.
+ *
+ * The raw 16-byte region is already readable via memory({region:'sms_vdp_regs'}),
+ * but a byte dump does not tell you that bit 6 of R1 is the display enable or
+ * that R2 holds the name-table base in units of $400. This is the same "decoded,
+ * named view of live chip state" shape audioDebug({chip:'psg'}) has.
+ *
+ * WHAT IS NOT HERE, and why: the VDP's control LATCH, STATUS register and
+ * current VRAM ADDRESS/CODE are genuinely not exposed by the core's memory API
+ * (the region is 16 bytes and stops at the register file). They live inside
+ * gpgx's own VDP struct, reachable only by decoding a savestate blob whose
+ * layout is not stable across gpgx versions -- the same reason this file
+ * refuses to decode the YM2612 channel structs. Guessing an offset there would
+ * produce confident, version-dependent nonsense.
+ *
+ * @param {Uint8Array} regs the sms_vdp_regs region (>= 11 bytes)
+ * @param {string} platform 'sms' | 'gg' | 'genesis'
+ */
+export function decodeVdpRegisters(regs, platform = "sms") {
+  const r = (i) => (regs?.[i] ?? 0) & 0xff;
+  const bit = (v, n) => ((v >> n) & 1) === 1;
+  const r0 = r(0), r1 = r(1);
+  return {
+    platform,
+    mode: {
+      // Mode-control 1 ($80) and 2 ($81) -- the two registers that decide what
+      // the chip is even doing, which a raw dump hides behind bit positions.
+      displayEnabled: bit(r1, 6),
+      vblankIrqEnabled: bit(r1, 5),
+      lineIrqEnabled: bit(r0, 4),
+      spriteSize16: bit(r1, 1),
+      spriteZoom: bit(r1, 0),
+      maskColumn0: bit(r0, 5),
+      hScrollLock: bit(r0, 6),
+      vScrollLock: bit(r0, 7),
+      shiftSprites: bit(r0, 3),
+      mode4: bit(r0, 2),
+      raw: { r0, r1 },
+    },
+    // Table bases. The VDP stores these divided down, so the multiplied value
+    // is what you actually compare against a VRAM address.
+    tables: {
+      nameTableBase: (r(2) & 0x0e) << 10,
+      nameTableBaseHex: `$${(((r(2) & 0x0e) << 10) >>> 0).toString(16).padStart(4, "0")}`,
+      spriteAttrBase: (r(5) & 0x7e) << 7,
+      spriteAttrBaseHex: `$${(((r(5) & 0x7e) << 7) >>> 0).toString(16).padStart(4, "0")}`,
+      spritePatternBase: (r(6) & 0x04) << 11,
+      spritePatternBaseHex: `$${(((r(6) & 0x04) << 11) >>> 0).toString(16).padStart(4, "0")}`,
+    },
+    scroll: { x: r(8), y: r(9) },
+    lineCounter: r(10),
+    borderColor: r(7) & 0x0f,
+    registers: Array.from({ length: 11 }, (_, i) => ({ index: i, value: r(i), hex: `$${r(i).toString(16).padStart(2, "0")}` })),
+    unavailable: {
+      fields: ["controlLatch", "statusRegister", "vramAddress", "vramCode"],
+      reason: "not exposed by the core's memory API (sms_vdp_regs is the 16-byte register file). "
+        + "They live in gpgx's internal VDP struct, whose savestate layout is not stable across "
+        + "core versions -- decoding it by offset would return confident nonsense after any core bump. "
+        + "For status-register behaviour (e.g. unused bits reading as 1), breakpoint({on:'read', address}) "
+        + "on the status port shows the value the game actually observes.",
+    },
+  };
 }

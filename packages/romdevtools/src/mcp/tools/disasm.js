@@ -22,7 +22,7 @@ export const DISASM_PLATFORMS = [...new Set([
 export function supportsDisasmTarget(platform, target) {
   const c = CAPABILITIES[platform];
   if (!c) return platform === "pico8" ? target === "source" : false;
-  const reEngine = new Set(["functions", "cfg", "xrefs", "decompile"]);
+  const reEngine = new Set(["functions", "cfg", "xrefs", "decompile", "reachable"]);
   if (c.tier === "mips" || c.tier === "sh") {
     if (reEngine.has(target)) return target === "decompile" ? !!c.ops.decompile : !!c.ops.disasm;
     return false; // bytes/rom/project/references are the 8/16-bit reassembly pipeline
@@ -30,7 +30,7 @@ export function supportsDisasmTarget(platform, target) {
   return target === "decompile" ? !!c.ops.decompile : !!c.ops.disasm;
 }
 import { findReferencesCore } from "./find-references.js";
-import { analyzeCfg, analyzeXrefs, analyzeFunctions, analyzeDecompile } from "../../analysis/analyze.js";
+import { analyzeCfg, analyzeXrefs, analyzeFunctions, analyzeDecompile, analyzeReachable } from "../../analysis/analyze.js";
 import { recompileNesToSnes, sliceFirstRoutine } from "../../analysis/recompile-65816.js";
 import { widthRanges, addrmode } from "../../toolchains/common/reassemble.js";
 import { decodePointerTable, reverseLookup } from "../../analysis/pointer-table.js";
@@ -682,9 +682,29 @@ export function mapC64Address(data, cpuAddr, length, _bank = 0) {
   };
 }
 
-async function disassembleCore({ path: inPath, base64, startAddress = 0x8000, cpu = "6502", addOrigin = true, symbolsPath, symbolsText, symbolsFormat, outputPath, inline }) {
+async function disassembleCore({ path: inPath, base64, startAddress = 0x8000, cpu = "6502", addOrigin = true, symbolsPath, symbolsText, symbolsFormat, outputPath, inline, platform }) {
       if (!inline && !outputPath) {
         throw new Error("disassemble: pass outputPath (write the asm to disk, returns {path}) or inline:true (return the asm in the response).");
+      }
+      // target:'bytes' is the da65 path, which is 6502-FAMILY ONLY (see the
+      // `cpu` enum). A `platform` whose CPU is something else was silently
+      // ignored, so `disasm({target:'bytes', platform:'sms'})` handed Z80 bytes
+      // to a 6502 disassembler and returned confident nonsense — `dd 7e 05`
+      // came back as `cmp $057E,x` instead of `ld a,(ix+5)`. Refuse instead,
+      // and name the op that does handle the platform.
+      const NON_6502_CPU = {
+        sms: "Z80", gg: "Z80", msx: "Z80", z80: "Z80",
+        gb: "SM83", gbc: "SM83",
+        genesis: "68000", megadrive: "68000", md: "68000",
+        gba: "ARM/Thumb", n64: "MIPS", ps1: "MIPS", dreamcast: "SH-4", saturn: "SH-2",
+      };
+      if (platform && NON_6502_CPU[platform]) {
+        throw new Error(
+          `disasm({target:'bytes'}) is the da65 path and decodes 6502-family CPUs only `
+          + `(${cpu}), but platform '${platform}' is ${NON_6502_CPU[platform]}. Decoding those bytes `
+          + `as 6502 would return plausible-looking wrong instructions. Use `
+          + `disasm({target:'rom', path, platform:'${platform}', startAddress, length}) — it dispatches `
+          + `to the right binutils objdump for the platform's CPU.`);
       }
       if (!inPath && !base64) {
         throw new Error("disassemble: pass `path` (a binary file on disk) or `base64` (the bytes).");
@@ -773,7 +793,9 @@ async function disassembleRomCore(args) {
       if (!resolved) {
         throw new Error(`could not detect platform from path '${romPath}'. Pass platform explicitly.`);
       }
-      const cpuFamily = (resolved === "sms" || resolved === "gg") ? "z80"
+      // MSX is a Z80 machine like SMS/GG; without it here the chain fell
+      // through to "6502" and objdump answered "Unsupported CPU".
+      const cpuFamily = (resolved === "sms" || resolved === "gg" || resolved === "msx") ? "z80"
                       : (resolved === "gb" || resolved === "gbc") ? "sm83"
                       : (resolved === "genesis") ? "m68k"
                       : (resolved === "gba") ? "arm"
@@ -865,7 +887,14 @@ async function disassembleRomCore(args) {
                   ? mapC64Address(data, startAddress, length, args.bank ?? 0)
                   : resolved === "genesis"
                     ? mapGenesisAddress(data, startAddress, length)
-                    : mapNesAddress(data, startAddress, length, args.bank);
+                    // MSX cartridges are FLAT: the image maps straight into the
+                    // Z80 address space with no header, exactly like SMS/GG.
+                    // Falling through to the NES mapper made every MSX request
+                    // fail with "not a valid iNES file", which is a confusing
+                    // way to say "this chain has no branch for your platform".
+                    : resolved === "msx"
+                      ? mapSmsAddress(data, startAddress, length)
+                      : mapNesAddress(data, startAddress, length, args.bank);
 
       // Build vector labels + data ranges. For SMS, no vector table to
       // auto-read (Z80 uses reset $0000 + interrupt vector based on IM
@@ -1637,11 +1666,52 @@ async function pointerTableCore(args) {
   return out;
 }
 
+/** Source platforms whose lifter consumes a Z80 disassembly. One lifter, four
+ *  platforms -- they share the ISA and differ only at the hardware seam. */
+const Z80_SOURCES = new Set(["sms", "gg", "msx", "z80"]);
+
+/**
+ * Z80 source path: disassemble the ROM region, lift, emit.
+ *
+ * Unlike the NES path there is no iNES header to parse, no mapper to reject
+ * and no reset VECTOR to chase -- an SMS/GG/MSX image is flat, and execution
+ * begins at $0000. `startAddress`/`length` pick the region to translate, so a
+ * caller can recompile one routine instead of a whole ROM.
+ */
+async function recompileZ80(args, targetPlatform) {
+  const platform = args.platform;
+  const romPath = requireRomPath(args);
+  const start = args.startAddress ?? 0;
+  const length = args.length ?? 0x1000;
+  // Reuse the SAME disassembly path the tool exposes as target:'rom', so what
+  // the lifter sees is exactly what a caller can read and check by hand.
+  const dis = await disassembleRomCore({ ...args, target: "rom", startAddress: start, length });
+  const asm = dis?.asm ?? (() => {
+    try { return JSON.parse(dis.content[0].text).asm; } catch { return null; }
+  })();
+  if (!asm) throw new Error(`disasm({target:'recompile'}): could not disassemble ${platform} ROM region $${start.toString(16)}+${length}.`);
+
+  const { recompile } = await import("../../analysis/recompile/index.js");
+  const res = recompile(asm, { source: platform, target: targetPlatform });
+  return {
+    ...res,
+    source: platform, targetPlatform,
+    romPath, startAddress: start, length,
+    note: `Z80 source lifted from ${platform} $${start.toString(16)}..$${(start + length).toString(16)}. `
+      + "Refusals in `residue` are instructions no static pass can translate — "
+      + "computed jumps (jp (hl)) need breakpoint({on:'jumptable'}) to resolve their arms, "
+      + "then re-run with those addresses. The hardware seam is Z80 I/O space (in/out), "
+      + "which the IR keeps separate so the target's own hardware can be wired in.",
+  };
+}
+
 async function recompileCore(args) {
   const { platform } = args;
   const targetPlatform = args.targetPlatform || "snes";
+  if (platform && Z80_SOURCES.has(platform)) return await recompileZ80(args, targetPlatform);
   if (platform && platform !== "nes") {
-    throw new Error(`disasm({target:'recompile'}): only NES source is supported today (got '${platform}'). The engine is generic (lift→IR→emit); other source lifters land as they're built.`);
+    const { supportedPairs } = await import("../../analysis/recompile/index.js");
+    throw new Error(`disasm({target:'recompile'}): no source lifter for '${platform}'. Supported source platforms: nes (6502), sms/gg/msx/z80 (Z80). The engine is generic (lift→IR→emit); pairs available: ${supportedPairs().join(", ")}.`);
   }
   // The generic engine targets any platform with a registered emitter. SNES is the
   // 1:1 emulation-mode path (with the PPU shim/runtime render layers); Genesis is a
@@ -1946,7 +2016,7 @@ export function registerDisasmTools(server, z) {
     "LLM folds it. `address` for all four comes from target:'functions' (a CPU/virtual address; the file-offset " +
     "mapping is handled for you).",
     {
-      target: z.enum(["bytes", "rom", "project", "references", "cfg", "xrefs", "functions", "decompile", "source", "resolveJumptable", "pointerTable", "recompile", "script", "accessScan", "sourceLookup"]).describe("bytes = raw chunk; rom = mapper-aware ROM (on SNES/65816 it runs the SAME per-instruction M/X width dataflow as target:'project' — in-window rep/sep are followed, entry width is inferred — so a re-decode of one range under corrected widths is one call, no project regen); project = full rebuildable disasm; references = flat da65 operand-refs to an address; functions/cfg/xrefs = Rizin RE engine (function list / control-flow graph / deep graph xrefs); decompile = Ghidra C pseudocode; resolveJumptable = recover a computed-jump dispatcher's targets (LIVE — redirects to breakpoint({on:'jumptable'}), which runs the emulator and records the real switch arms a static decompiler can't follow); recompile = EMIT backend — statically recompile a NES ROM's reset routine to SNES 65816 asar source that builds + boots (phase 1: NROM, 6502→65816 emulation mode, PPU/APU seam STUBBED). See the tool description for the RE loop + the decompile altitude rule + per-CPU quality (all 14 platforms)."),
+      target: z.enum(["bytes", "rom", "range", "project", "references", "cfg", "xrefs", "functions", "reachable", "decompile", "source", "resolveJumptable", "pointerTable", "recompile", "script", "accessScan", "sourceLookup"]).describe("bytes = raw chunk; rom = mapper-aware ROM (on SNES/65816 it runs the SAME per-instruction M/X width dataflow as target:'project' — in-window rep/sep are followed, entry width is inferred — so a re-decode of one range under corrected widths is one call, no project regen); project = full rebuildable disasm; references = flat da65 operand-refs to an address; functions/cfg/xrefs = Rizin RE engine (function list / control-flow graph / deep graph xrefs); decompile = Ghidra C pseudocode; resolveJumptable = recover a computed-jump dispatcher's targets (LIVE — redirects to breakpoint({on:'jumptable'}), which runs the emulator and records the real switch arms a static decompiler can't follow); range = alias of 'rom' (the natural guess for a ROM-range dump); reachable = the CLOSED SET of basic blocks reachable from one or more `entries`, following BOTH halves of every call (the callee AND the return site) — what a recompiler/decompiler/coverage tool needs; computed jumps are NOT followed and the response says so (resolve them with breakpoint({on:'jumptable'}) and pass the arms back as entries); recompile = EMIT backend — statically recompile a routine to target asm that builds + boots. Sources: nes (6502) and sms/gg/msx/z80 (Z80, one lifter for all four). Targets: snes (65816) and genesis (m68k); an unsupported source→target pair is REFUSED rather than emitting unassemblable text. Hardware is left at a stubbed seam (PPU/APU on 6502, Z80 I/O space on Z80). See the tool description for the RE loop + the decompile altitude rule + per-CPU quality (all 14 platforms)."),
       // shared
       path: z.string().optional().describe("target=bytes: raw binary path. target=rom/project/references: ROM file path."),
       base64: z.string().optional().describe("target=bytes: base64 of the bytes (OR `path`)."),
@@ -1983,7 +2053,9 @@ export function registerDisasmTools(server, z) {
       withShim: z.boolean().default(false).describe("target=recompile: phase-1 STATIC render (default off). Emit the NES-PPU-on-SNES shim — boots the original ROM, converts its tiles/nametable/palette to SNES VRAM/CGRAM data + a 65816 upload routine that draws the original's STATIC boot screen on SNES (verified on snes9x). Draws the first screen only; sprites don't animate. For a LIVE port use withRuntime instead."),
       withRuntime: z.boolean().default(false).describe("target=recompile: phase-2 LIVE render (default off). Implies withShim (BG) and adds the per-frame runtime: each vblank it flushes the game's shadow OAM to SNES sprites and runs the game's own NMI handler, so SPRITES ANIMATE and the game's per-frame logic runs — the port plays, not just boots to a screenshot. Background is static from the shim; live nametable/scroll streaming is phase 3. Verified on snes9x."),
       // references / cfg / xrefs
-      topN: z.number().int().min(1).max(2000).optional().describe("target=functions: how many functions to return, most code-like first (default 25). The response always reports `total` and sets `truncated` when it capped, so you know what you did not see."),
+      topN: z.number().int().min(1).max(20000).optional().describe("target=functions: how many functions to return, most code-like first. DEFAULT: all of them. Pass a number to cap. When capped, the array is named `functionsPage` (not `functions`) and `truncated`/`total` are set, so a truncated read cannot be mistaken for a complete one."),
+      entries: z.array(z.number().int().min(0).max(0xFFFFFFFF)).optional().describe("target=reachable: one or more CPU addresses to start the walk from (reset vector, IRQ/NMI handlers, jumptable arms recovered via breakpoint({on:'jumptable'})). `address` is accepted as a one-entry shorthand."),
+      maxBlocks: z.number().int().min(1).max(200000).optional().describe("target=reachable: stop after this many basic blocks (default 20000). Sets `truncated` when hit."),
       minSize: z.number().int().min(0).optional().describe("target=functions: drop functions smaller than this many bytes. A cc65 ROM is roughly half 1-15 byte runtime stubs with no RE signal; minSize:32 removes them."),
       address: z.number().int().min(0).max(0xFFFFFFFF).optional().describe("target=references: CPU address to find references TO. target=cfg: address inside the function to graph. target=xrefs: address to find cross-references TO. target=decompile: address of the function to decompile (use an address from target='functions')."),
       maxRefsReturned: z.number().int().min(1).max(2048).default(256).describe("target=references: cap the references returned."),
@@ -2035,6 +2107,13 @@ export function registerDisasmTools(server, z) {
           }));
         }
         case "cfg":        return jsonContent(await analyzeCfg(requireRomPath(args), args.address, args.platform));
+        // `range` is what everyone guesses for a ROM-range dump; it IS `rom`
+        // with startAddress/length, so alias it rather than make them find out.
+        case "range":      return await disassembleRomCore(args);
+        case "reachable":  return jsonContent(await analyzeReachable(
+                             requireRomPath(args),
+                             args.entries ?? (args.address != null ? [args.address] : []),
+                             args.platform, { maxBlocks: args.maxBlocks }));
         case "xrefs":      return jsonContent(await analyzeXrefs(requireRomPath(args), args.address, args.platform));
         case "functions":  return jsonContent(await analyzeFunctions(requireRomPath(args), args.platform, { topN: args.topN, minSize: args.minSize }));
         case "decompile": {
@@ -2114,17 +2193,21 @@ async function extractCodeSpans(romPath, platform) {
   // the 25 most interesting ones. The tool-facing default caps the response for
   // context reasons; truncating here would silently degrade the disassembly.
   const res = await analyzeFunctions(romPath, platform, { topN: Number.MAX_SAFE_INTEGER });
-  if (!res || !res.functions?.length) return null;
+  // Either key: a capped response names the array `functionsPage`. This call
+  // never caps, but reading both keeps the span map from silently emptying if
+  // that ever changes.
+  const allFns = res?.functions ?? res?.functionsPage;
+  if (!allFns?.length) return null;
   // rizin analyzes the ROM as one flat image at a load base. A function's FILE
   // offset = its address − baddr. For SNES LoROM every bank shares the $8000 CPU
   // window, so we round the min address down to the $8000-aligned base; for the
   // flat 6502 carts the base is `loadBase` (0 / the header base for a 1:1 cart).
   // We emit FILE-offset spans so they map unambiguously onto any region.
-  const minAddr = Math.min(...res.functions.filter((f) => f.address != null).map((f) => f.address >>> 0));
+  const minAddr = Math.min(...allFns.filter((f) => f.address != null).map((f) => f.address >>> 0));
   const baddr = fam === "65816"
     ? (minAddr & ~0xFFFF | (minAddr & 0x8000 ? 0x8000 : 0)) // SNES LoROM $8000 window
     : (res.loadBase ?? 0) >>> 0;                            // flat/1:1 6502 carts
-  const raw = res.functions
+  const raw = allFns
     .filter((f) => !f.looksLikeData && (f.size ?? 0) > 0 && f.address != null)
     .map((f) => ({ start: (f.address - baddr) >>> 0, end: (f.address - baddr + f.size) >>> 0 }))
     .filter((s) => s.end > s.start && s.start < 0x8000000) // guard against a bogus rebase

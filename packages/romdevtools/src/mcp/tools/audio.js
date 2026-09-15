@@ -3,6 +3,7 @@
 // is intricate enough that without tooling the agent burns hours.
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { decodeVdpRegisters } from "romdev-core-host/gpgx-state.js";
 import path from "node:path";
 import { jsonContent, safeTool } from "../util.js";
 import { getAudioStateCore } from "./platform-tools.js";
@@ -513,6 +514,39 @@ export function registerAudioTools(server, z, sessionKey) {
       });
     }),
   );
+
+  server.tool(
+    "videoDebug",
+    "Decode the running ROM's VIDEO chip state into named fields — the counterpart to audioDebug({op:'inspect'}).\n" +
+    "`chip:'vdp'` (SMS / Game Gear / Genesis): mode flags (displayEnabled, vblank/line IRQ enables, sprite size " +
+    "and zoom, mode4), the name-table / sprite-attribute / sprite-pattern BASES already multiplied out to real " +
+    "VRAM addresses, scroll x/y, the line counter, border colour, and every raw register.\n" +
+    "WHY: memory({region:'sms_vdp_regs'}) returns 16 raw bytes. That tells you nothing about which bit is the " +
+    "display enable or that R2 holds the name-table base in $400 units — the interpretation is where the bugs " +
+    "live.\n" +
+    "HONEST LIMIT: the control LATCH, STATUS register and current VRAM ADDRESS/CODE are NOT returned, because the " +
+    "core does not expose them (sms_vdp_regs stops at the register file). The response says so explicitly in " +
+    "`unavailable` rather than omitting them silently. For status-register behaviour — e.g. unused bits reading " +
+    "as 1, so the register reads $9F not $80 — use breakpoint({on:'read', address}) on the status port and see " +
+    "the value the GAME actually observes.",
+    {
+      op: z.enum(["inspect"]).default("inspect").describe("inspect the video chip's live decoded state."),
+      chip: z.enum(["vdp"]).default("vdp").describe("'vdp' = SMS/GG/Genesis VDP. (Other platforms' video state is reachable via memory regions; see memory({op:'regions'}).)"),
+    },
+    safeTool(async (args) => {
+      // Match this file's existing idiom (see the audioDebug record path):
+      // state.js is imported where it is used, not at module top level.
+      const { getHost } = await import("../state.js");
+      const host = getHost(sessionKey);
+      const platform = host?.status?.platform;
+      if (!["sms", "gg", "genesis", "megadrive", "md"].includes(platform)) {
+        throw new Error(`videoDebug({chip:'vdp'}) is for SMS / Game Gear / Genesis (loaded platform: '${platform ?? "none"}'). `
+          + "Other platforms expose their video state as memory regions — list them with memory({op:'regions'}).");
+      }
+      const regs = host.readMemory(platform === "gg" ? "sms_vdp_regs" : "sms_vdp_regs", 0, 16);
+      return jsonContent({ chip: "vdp", ...decodeVdpRegisters(regs, platform) });
+    }),
+  );
 }
 
 // ── audioDebug({op:'inspect', frames}) — chip note-timeline ──────────────────
@@ -595,6 +629,7 @@ async function traceAudioChip(sessionKey, { chip, platform, frames, sampleEvery 
       ? "No channel state changed across the trace — either nothing is playing (check op:'inspect' single-frame first), or your driver writes the chip less often than sampled. For PCM-only Genesis SFX (XGM2 PCM), inspect can't see it — record + FFT instead."
       : `Per-channel note-timeline: each entry is a value TRANSITION at frame N (held notes collapse to one entry). Assert your melody on the 'frequency'/'note' sequence per channel; compare frame deltas for rhythm.`,
   });
+
 }
 
 /**

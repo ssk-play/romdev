@@ -17,7 +17,7 @@ import path from "node:path";
 import { getHost } from "../state.js";
 import { jsonContent, safeTool } from "../util.js";
 import { getCPUState } from "romdev-core-host/cpu-state.js";
-import { resolveButtonAlias } from "./input.js";
+import { BUTTON_ENUM, resolveButtonAlias } from "./input.js";
 import { getCPUStateCore } from "./platform-tools.js";
 import { traceVramSourceCore } from "./trace-vram-source.js";
 import { sessionKeyForHost, compositeFrame } from "../active-bezel.js";
@@ -36,6 +36,22 @@ import { MemoryRegionToRetro } from "romdev-core-host/types.js";
  * @param {import("romdev-core-host/index.js").LibretroHost} host
  * @param {Object|null} regs   the `named` register snapshot (has the stack ptr)
  */
+
+/**
+ * Normalize a `pressDuring` schedule into the object form the drivers expect.
+ *
+ * The schema accepts either shape, because requiring an object here while
+ * input({op:'press'}) requires a bare string is exactly the inconsistency that
+ * costs callers round trips. A bare `"a"` means "press A on frame 0 with the
+ * default 2-frame tap" -- the same thing input({op:'press', button:'a'}) does.
+ */
+function normalizePressDuring(schedule) {
+  return (schedule ?? []).map((p) =>
+    typeof p === "string"
+      ? { frame: 0, button: p, port: 0, holdFrames: 2 }
+      : { frame: 0, port: 0, holdFrames: 2, ...p });
+}
+
 function backtraceForHit(host, regs) {
   if (!regs) return null;
   const platform = host.status?.platform;
@@ -910,7 +926,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         } catch { cheatLabelInfo = { matched: false }; }
       }
 
-      const presses = (pressDuring ?? []).slice().sort((a, b) => a.frame - b.frame);
+      const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       const pressDriver = makePressDriver(host, presses);
       const startFrame = host.status.frameCount;
       // Was execution parked at an un-cleared breakpoint when this watch was
@@ -1226,7 +1242,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       // last write of the frame. Core support is feature-detected; if the loaded
       // core build predates condition support, we fall back to a host-side
       // 'equals' filter on the reported value (inc/dec need the core's old byte).
-      const presses0 = (pressDuring ?? []).slice().sort((a, b) => a.frame - b.frame);
+      const presses0 = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       // Flush a prior run's held input BEFORE arming, so a back-to-back driven run
       // starts from a neutral pad (see settleHeldInput / 213831 #1).
       settleHeldInput(host, settleFrames, presses0.length > 0);
@@ -1394,7 +1410,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
 
   async function bpRunUntilWrite({ region, offset, length = 1, maxFrames = 600, pressDuring }) {
       const host = getHost(sessionKey);
-      const presses = (pressDuring ?? []).slice().sort((a, b) => a.frame - b.frame);
+      const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       const pressDriver = makePressDriver(host, presses);
       let prev = snap(host, region, offset, length);
       const startFrame = host.status.frameCount;
@@ -1448,7 +1464,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
             "Interim: use runUntilWrite/findWriter to anchor on a write, or stepFrames + getCPUState sampling.",
         });
       }
-      const presses = (pressDuring ?? []).slice().sort((a, b) => a.frame - b.frame);
+      const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       // Flush a prior run's held-button shadow BEFORE arming (so the settle frames
       // don't trip the breakpoint) — prevents a back-to-back negative control from
       // false-positiving on frame 0. See settleHeldInput.
@@ -1599,7 +1615,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         });
       }
       const restored = await maybeRestoreState(host, fromState, fromStatePath);
-      const presses = (pressDuring ?? []).slice().sort((a, b) => a.frame - b.frame);
+      const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       const pressDriver = makePressDriver(host, presses);
 
       // We separate COMPUTED targets from FIXED trampolines by what VARIES. As we
@@ -1719,7 +1735,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
           note: "This core build has no read watchpoint (shipped on all 14 platforms as of 0.5.0 — update the core package if you see this).",
         });
       }
-      const presses = (pressDuring ?? []).slice().sort((a, b) => a.frame - b.frame);
+      const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       const pressDriver = makePressDriver(host, presses);
       host.setReadWatch(address, true);
       let hit = false, framesRun = 0, last = null;
@@ -1796,15 +1812,22 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       conditionValue: z.number().int().min(0).max(65535).optional().describe("on:'write' condition:'equals' — the value to stop on (the NEW value written). > 255 implies conditionWidth:16."),
       conditionWidth: z.union([z.literal(8), z.literal(16)]).optional().describe("on:'write' precision:'exact' — condition width, default 8. 16 treats address/address+1 as one WORD in the platform CPU's byte order (little-endian on 6502/65816/Z80/SM83/ARM; BIG-endian on Genesis 68k): 'equals' arms the core watch on the word's HIGH byte (no useless $00-low-byte matches) + verifies the other byte host-side; 'increase'/'decrease' compare the word host-side so a 16-bit counter's carry can't lie. Inferred automatically when conditionValue > 255."),
       maxFrames: z.number().int().min(1).max(1_000_000).default(600).describe("Max frames to run while waiting for the condition."),
-      pressDuring: z.array(z.object({
-        frame: z.number().int().min(0),
-        button: z.string(),
-        port: z.number().int().min(0).max(3).default(0),
-        holdFrames: z.number().int().min(1).default(2).describe("How many frames to HOLD the button. Default 2 -- a TAP, which is "
-          + "right for a menu confirm and far too short for anything with movement: "
-          + "walking one screen typically needs 60+. A too-short hold returns a clean "
-          + "eventCount:0 that reads as 'the byte never changes'."),
-      })).optional().describe("Schedule input while waiting (drive the game to the state that triggers the condition). If OMITTED, this run inherits whatever input({op:'set'}) last held — same as frame({op:'step'}). If GIVEN, the schedule OWNS the pad for the whole run (a prior input({op:'set'}) is ignored); use it to drive the watched window itself. Entries with OVERLAPPING windows on the same port are OR'd into a chord (e.g. b+right held while a fires mid-window), not overwritten."),
+      pressDuring: z.array(z.union([
+        /* The SAME bare-string spelling input({op:'press'}) takes. It used to
+         * be rejected here ("must be a object"), so the vocabulary that worked
+         * in one tool was an error in the other. A bare string means "press
+         * this on frame 0 with the default hold". */
+        z.enum(BUTTON_ENUM),
+        z.object({
+          frame: z.number().int().min(0).default(0),
+          button: z.enum(BUTTON_ENUM),
+          port: z.number().int().min(0).max(3).default(0),
+          holdFrames: z.number().int().min(1).default(2).describe("How many frames to HOLD the button. Default 2 -- a TAP, which is "
+            + "right for a menu confirm and far too short for anything with movement: "
+            + "walking one screen typically needs 60+. A too-short hold returns a clean "
+            + "eventCount:0 that reads as 'the byte never changes'."),
+        }),
+      ])).optional().describe("Schedule input while waiting (drive the game to the state that triggers the condition). If OMITTED, this run inherits whatever input({op:'set'}) last held — same as frame({op:'step'}). If GIVEN, the schedule OWNS the pad for the whole run (a prior input({op:'set'}) is ignored); use it to drive the watched window itself. Entries with OVERLAPPING windows on the same port are OR'd into a chord (e.g. b+right held while a fires mid-window), not overwritten."),
       settleFrames: z.number().int().min(0).max(120).default(0).describe("on:'pc'/'write' with pressDuring — release the pad to NEUTRAL and step this many frames BEFORE the run, so the PRIOR run's held-button shadow (the game latches the pad into its own RAM each frame) doesn't bleed into this run's frame 0. Set ~10-30 for back-to-back A/B-discriminator / negative-control runs on the same live host (hold A to prove A does NOT reach a B-only branch) — without it the stale chord can false-positive on frame 1. No-op without pressDuring."),
       abortIf: z.array(z.object({
         region: regionStr("memory region (default system_ram)").optional(),
@@ -2035,7 +2058,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       let stateInfo = await maybeRestoreState(host, fromState, fromStatePath);
       // pressDuring is driven inside the frame loop; watchRange's host method owns
       // stepping, so for now apply presses up front if any (simple: hold for the run).
-      const presses = (pressDuring ?? []).slice().sort((a, b) => a.frame - b.frame);
+      const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       // autoNarrow (0.102.0): a truncated census can support a positive but never
       // a NEGATIVE — the dropped rows are exactly what could overturn "no PC
       // outside this cluster appeared". When the run overflows and a savestate
@@ -2133,7 +2156,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       }
       if (end < start) throw new Error("watch({on:'pc'}): end must be >= start.");
       const stateInfo = await maybeRestoreState(host, fromState, fromStatePath);
-      const presses = (pressDuring ?? []).slice().sort((a, b) => a.frame - b.frame);
+      const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       const pressDriver = makePressDriver(host, presses);
       if (presses.length) pressDriver.applyForFrame(0);
       // One bit per PC at the CPU's instruction granularity over [start, end]: every executed
@@ -2204,15 +2227,22 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       sourceFilter: z.enum(["all", "rom-only", "ram-only"]).default("all").describe("on:'dma' precision:'exact' — 'rom-only' drops the RAM→VRAM per-frame refresh noise; 'ram-only' keeps only it."),
       romPreviewBytes: z.number().int().min(0).max(64).default(0).describe("on:'dma' — bytes of the ROM source to preview per DMA (exact default 0; sampled default 16)."),
       minLengthBytes: z.number().int().min(0).max(65536).default(0).describe("on:'dma' precision:'sampled' — ignore DMAs shorter than this many bytes (filters tiny scroll/sprite updates so graphic uploads stand out)."),
-      pressDuring: z.array(z.object({
-        frame: z.number().int().min(0),
-        button: z.string(),
-        port: z.number().int().min(0).max(3).default(0),
-        holdFrames: z.number().int().min(1).default(2).describe("How many frames to HOLD the button. Default 2 -- a TAP, which is "
-          + "right for a menu confirm and far too short for anything with movement: "
-          + "walking one screen typically needs 60+. A too-short hold returns a clean "
-          + "eventCount:0 that reads as 'the byte never changes'."),
-      })).optional().describe("Schedule input while watching (drive the game to the state that touches the watched bytes/range, or uploads the graphic for on:'dma'). If OMITTED, this run inherits whatever input({op:'set'}) last held — same as frame({op:'step'}). If GIVEN, the schedule OWNS the pad for the whole run (a prior input({op:'set'}) is ignored). Entries with OVERLAPPING windows on the same port are OR'd into a chord (e.g. b+right held while a fires mid-window), not overwritten. MENU SCREENS: if a schedule never registers (some menus poll input in a way scheduled taps miss), hold the button via input({op:'set'}) and OMIT pressDuring — the run inherits the held state and the menu sees the edge."),
+      pressDuring: z.array(z.union([
+        /* The SAME bare-string spelling input({op:'press'}) takes. It used to
+         * be rejected here ("must be a object"), so the vocabulary that worked
+         * in one tool was an error in the other. A bare string means "press
+         * this on frame 0 with the default hold". */
+        z.enum(BUTTON_ENUM),
+        z.object({
+          frame: z.number().int().min(0).default(0),
+          button: z.enum(BUTTON_ENUM),
+          port: z.number().int().min(0).max(3).default(0),
+          holdFrames: z.number().int().min(1).default(2).describe("How many frames to HOLD the button. Default 2 -- a TAP, which is "
+            + "right for a menu confirm and far too short for anything with movement: "
+            + "walking one screen typically needs 60+. A too-short hold returns a clean "
+            + "eventCount:0 that reads as 'the byte never changes'."),
+        }),
+      ])).optional().describe("Schedule input while watching (drive the game to the state that touches the watched bytes/range, or uploads the graphic for on:'dma'). If OMITTED, this run inherits whatever input({op:'set'}) last held — same as frame({op:'step'}). If GIVEN, the schedule OWNS the pad for the whole run (a prior input({op:'set'}) is ignored). Entries with OVERLAPPING windows on the same port are OR'd into a chord (e.g. b+right held while a fires mid-window), not overwritten. MENU SCREENS: if a schedule never registers (some menus poll input in a way scheduled taps miss), hold the button via input({op:'set'}) and OMIT pressDuring — the run inherits the held state and the menu sees the edge."),
       fromState: z.string().optional().describe("on:'range'/'pc' — restore an in-memory savestate SLOT (from state({op:'save', name})) BEFORE tracing, so the log runs from a known moment (jump to the boss fight, then see what writes HP). Deterministic + repeatable."),
       fromStatePath: z.string().optional().describe("on:'range'/'pc' — like fromState but restore from a savestate FILE on disk (state({op:'save', path})). Relative path resolves against the loaded ROM's dir."),
     },
@@ -2247,7 +2277,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
   // ── watch({on:'copy'}) — the generic graphics source-trace ─────────────────
   async function wCopy({ start, end, frames = 120, limit = 200, pressDuring }) {
       const host = getHost(sessionKey);
-      const presses = (pressDuring ?? []).slice().sort((a, b) => a.frame - b.frame);
+      const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       const pressDriver = makePressDriver(host, presses);
       if (host.vramWatchSupported && host.vramWatchSupported()) {
         // Port-based video memory: the core hook logs {vramAddr, pc, value}
@@ -2308,7 +2338,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         return jsonContent({ notSupported: true, dmas: [],
           note: "watch({on:'dma'}) is Genesis-only (VDP DMA). On other platforms use breakpoint({on:'write'}) (CPU writes) or the platform's source tracer." });
       }
-      const presses = (pressDuring ?? []).slice().sort((a, b) => a.frame - b.frame);
+      const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       const pressDriver = makePressDriver(host, presses);
       if (presses.length) pressDriver.applyForFrame(0);
       const r = host.watchDma(frames);
@@ -2377,7 +2407,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         note: "watch({on:'dma', perFrame}) is Genesis-only (VDP DMA). On other cores there's no VDP DMA to count." });
     }
     const n = Math.min(frames, maxFrames);
-    const presses = (pressDuring ?? []).slice().sort((a, b) => a.frame - b.frame);
+    const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
     const pressDriver = makePressDriver(host, presses);
     const r = host.watchDmaPerFrame(n, (i) => pressDriver.applyForFrame(i));
     pressDriver.finish();

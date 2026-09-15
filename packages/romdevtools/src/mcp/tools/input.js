@@ -213,6 +213,107 @@ function inputSequenceCore({ steps }, sessionKey) {
 }
 
 /** op:'navigate' — drive menus by advancing on SCREEN CHANGE; reports consumed per step. */
+
+/**
+ * op:'timeline' — frame-EXACT input on an absolute schedule.
+ *
+ * `sequence` expresses input as consecutive relative runs ("hold this for 30
+ * frames, then that for 12"), which is fine for driving a menu and wrong for
+ * differential testing: to compare against a reference you need to say "hold
+ * button 1 on frames 600-609, then left on 700-729" and have frame 600 mean
+ * frame 600. Translating that into relative runs by hand is where phase drift
+ * comes from, and a one-frame drift is a different frame of animation.
+ *
+ * Entries are {frame, buttons[], port?} with `until` (exclusive) or
+ * `holdFrames`. The runner builds a per-frame pad state, so:
+ *   - OVERLAPPING entries on a port are OR'd into a chord, not overwritten;
+ *   - a frame with no entry is explicitly NEUTRAL, not "whatever was held";
+ *   - the schedule is absolute, so two runs with the same timeline are
+ *     frame-identical regardless of how the entries are ordered or split.
+ */
+function inputTimelineCore({ timeline, untilFrame }, sessionKey) {
+  const host = getHost(sessionKey);
+  const platform = host.status.platform;
+  if (!Array.isArray(timeline) || timeline.length === 0) {
+    throw new Error("input({op:'timeline'}): `timeline` must be a non-empty array of {frame, buttons[]}.");
+  }
+
+  const windows = [];
+  for (const e of timeline) {
+    const from = e.frame ?? 0;
+    const to = e.until != null ? e.until : from + (e.holdFrames ?? 1);
+    if (to <= from) {
+      throw new Error(`input({op:'timeline'}): entry at frame ${from} ends at ${to} — `
+        + "`until` is EXCLUSIVE and must be greater than `frame` (or use holdFrames).");
+    }
+    const buttons = Array.isArray(e.buttons) ? e.buttons : (e.button ? [e.button] : []);
+    if (!buttons.length) throw new Error(`input({op:'timeline'}): entry at frame ${from} names no buttons.`);
+    windows.push({ from, to, port: e.port ?? 0, buttons });
+  }
+
+  const lastFrame = Math.max(untilFrame ?? 0, ...windows.map((w) => w.to));
+  const startedAt = host.status.frameCount;
+  const firstFrame = Math.min(...windows.map((w) => w.from));
+
+  // ABSOLUTE means measured against the EMULATOR'S frame counter, not against
+  // "however many frames this call has run". Stepping `firstFrame` frames from
+  // wherever the session happens to sit put a window declared at frame 600 at
+  // frame 710 when the ROM had already run 100 frames -- the schedule silently
+  // became relative, which is precisely the phase drift this op exists to
+  // remove. Two runs of the same timeline must land on the same ROM frames.
+  if (startedAt > firstFrame) {
+    throw new Error(
+      `input({op:'timeline'}): the schedule is ABSOLUTE, but this session is already at frame `
+      + `${startedAt} and the timeline's first window starts at frame ${firstFrame} — that frame `
+      + `has already gone by, and frames cannot be un-run. Reset to a known point first `
+      + `(state({op:'load'}) a save state, or loadMedia to start from frame 0), or move the `
+      + `window to a frame at or after ${startedAt}.`);
+  }
+
+  // Step to the first frame that has input in ONE call: the pad is neutral
+  // until then, and stepping in bulk is far cheaper than frame-at-a-time.
+  if (firstFrame > startedAt) {
+    host.setInput({ ports: [{}, {}] });
+    host.stepFrames(firstFrame - startedAt);
+  }
+
+  let chordFrames = 0;
+  for (let f = firstFrame; f < lastFrame; f++) {
+    const ports = [{}, {}];
+    let anyHeld = false;
+    for (const w of windows) {
+      if (f < w.from || f >= w.to) continue;
+      for (const b of w.buttons) {
+        // Resolve the platform alias exactly as input({op:'press'}) does, so
+        // one button name means one physical button across both tools.
+        ports[w.port][resolveButtonAlias(b, platform)] = true;
+        anyHeld = true;
+      }
+    }
+    if (anyHeld) chordFrames++;
+    host.setInput({ ports });
+    host.stepFrames(1);
+  }
+  // Release, so a following step cannot inherit the last frame's chord.
+  host.setInput({ ports: [{}, {}] });
+
+  return {
+    entries: windows.length,
+    startedAtFrame: startedAt,
+    firstFrame, lastFrame,
+    framesRun: host.status.frameCount - startedAt,
+    framesWithInput: chordFrames,
+    frameCount: host.status.frameCount,
+    note: "Absolute schedule anchored to the EMULATOR's frame counter (this run began at frame "
+      + `${startedAt}, so a window at frame N was held on ROM frame N). `
+      + "`frame` is a frame NUMBER and `until` is exclusive. "
+      + "Overlapping entries on one port are OR'd into a chord; frames outside every "
+      + "window are explicitly neutral; the pad is released at the end — so the run is "
+      + "reproducible and nothing bleeds into the next call.",
+    ...coDriveFields(sessionKey),
+  };
+}
+
 function inputNavigateCore({ steps }, sessionKey) {
       const host = getHost(sessionKey);
       const platform = host.status.platform;
@@ -256,7 +357,13 @@ function inputNavigateCore({ steps }, sessionKey) {
       };
 }
 
-const BUTTON_ENUM = [
+/* The one button vocabulary. Exported so every tool that takes a button --
+ * input({op:'press'}) and the watch/breakpoint `pressDuring` schedules --
+ * validates against the SAME list. They used to diverge: `input` required a
+ * bare string from this enum while `pressDuring` demanded an object and
+ * rejected the bare string, so the spelling that worked in one tool was an
+ * error in the other. */
+export const BUTTON_ENUM = [
   "up", "down", "left", "right",
   "north", "east", "south", "west",
   "a", "b", "x", "y",
@@ -290,7 +397,7 @@ export function registerInputTools(server, z, sessionKey) {
     "when ITS code polls; re-apply immediately before the consuming stepFrames and verify via the held-buttons RAM " +
     "byte, not this echo.",
     {
-      op: z.enum(["set", "press", "sequence", "navigate", "layout", "pressKey", "typeText", "joyport", "pointer", "wheel"]).describe("set/hold buttons; press one button; run a sequence; navigate a menu; get the input layout. WASMCART: pointer (absolute mouse/touch — position the cursor at an exact {x,y} and click; for carts that declare FLAG_POINTER), wheel (scroll delta for the frame). C64-ONLY: pressKey/typeText/joyport."),
+      op: z.enum(["set", "press", "sequence", "timeline", "navigate", "layout", "pressKey", "typeText", "joyport", "pointer", "wheel"]).describe("set/hold buttons; press one button; run a sequence; navigate a menu; get the input layout. WASMCART: pointer (absolute mouse/touch — position the cursor at an exact {x,y} and click; for carts that declare FLAG_POINTER), wheel (scroll delta for the frame). C64-ONLY: pressKey/typeText/joyport."),
       // pointer (wasmcart absolute cursor)
       x: z.number().int().optional().describe("op=pointer: cursor X in cart pixels."),
       y: z.number().int().optional().describe("op=pointer: cursor Y in cart pixels."),
@@ -306,6 +413,15 @@ export function registerInputTools(server, z, sessionKey) {
       // set
       ports: z.array(port).min(1).max(2).optional().describe("op=set: per-port input. [{a:true,right:true}] holds A+Right on port 0."),
       // press
+      timeline: z.array(z.object({
+        frame: z.number().int().min(0).describe("ABSOLUTE frame number this entry starts on."),
+        buttons: z.array(z.enum(BUTTON_ENUM)).min(1).optional().describe("Buttons held for this window (chord). `button` accepts a single name."),
+        button: z.enum(BUTTON_ENUM).optional().describe("Shorthand for a one-button window."),
+        until: z.number().int().min(0).optional().describe("EXCLUSIVE end frame. Frames [frame, until) are held."),
+        holdFrames: z.number().int().min(1).optional().describe("Length in frames, if `until` is not given (default 1)."),
+        port: z.number().int().min(0).max(1).optional().describe("Controller port (default 0)."),
+      })).optional().describe("op=timeline: FRAME-EXACT schedule on absolute frame numbers, e.g. [{frame:600, button:'1', until:610}, {frame:700, button:'left', until:730}] = hold 1 on frames 600-609, then left on 700-729. Overlapping entries on a port are OR'd into a chord; frames outside every window are explicitly NEUTRAL; the pad is released at the end. Use this (not `sequence`) for differential comparison against a reference — `sequence` is relative runs, and converting a frame schedule into them by hand is where phase drift comes from."),
+      untilFrame: z.number().int().min(0).optional().describe("op=timeline: keep stepping (pad neutral) until this absolute frame, even if every window has ended."),
       button: z.enum(BUTTON_ENUM).optional().describe("op=press: button to press (native aliases + spatial names accepted)."),
       frames: z.number().int().min(1).max(600).default(2).describe("op=press: frames to hold the button. op=pressKey: frames to hold the C64 key (default 4)."),
       port: z.number().int().min(0).max(1).default(0).describe("op=press: which port (default 0)."),
@@ -388,6 +504,10 @@ export function registerInputTools(server, z, sessionKey) {
         case "sequence": {
           if (!args.steps) throw new Error("input({op:'sequence'}): `steps` is required.");
           return attachObserverFrame(jsonContent(inputSequenceCore(args, sessionKey)), getHost(sessionKey), "input sequence");
+        }
+        case "timeline": {
+          if (!args.timeline) throw new Error("input({op:'timeline'}): `timeline` is required — [{frame, buttons:[...], until?|holdFrames?, port?}].");
+          return attachObserverFrame(jsonContent(inputTimelineCore(args, sessionKey)), getHost(sessionKey), "input timeline");
         }
         case "navigate": {
           if (!args.steps) throw new Error("input({op:'navigate'}): `steps` is required.");
