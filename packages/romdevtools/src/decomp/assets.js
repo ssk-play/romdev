@@ -80,6 +80,131 @@ function decodeMio0(buf, h) {
   return out;
 }
 
+/**
+ * Encode a buffer as MIO0.
+ *
+ * The inverse of decodeMio0, to the same spec taken from the project's own
+ * libmio0.c: a SET layout bit is a literal, length = nibble+3 (3..18),
+ * distance = 12 bits + 1 (1..4096), copying from out[dst - distance].
+ *
+ * ROUND TRIP IS THE ACCEPTANCE TEST, not "it produced output". A different
+ * encoder makes different (valid) choices about which match to take, so a
+ * re-encode of arbitrary data will NOT reproduce the original bytes even when
+ * both decode correctly. `roundTrip()` therefore verifies decode(encode(x)) ==
+ * x — semantic identity — and separately reports whether the bytes are
+ * identical to the original container.
+ */
+export function encodeMio0(data) {
+  const MAX_LEN = 18, MAX_DIST = 4096;
+  const buf = Buffer.from(data);
+  const len = buf.length;
+
+  // The lookback is keyed by FIRST BYTE ONLY (not a 3-byte hash) and scanned
+  // OLDEST-FIRST, because `cur_length > best_length` is a strict improvement:
+  // among equal-length matches the OLDEST (largest distance) wins. A hash-chain
+  // encoder scanning newest-first picks a different, equally valid offset — and
+  // the container bytes then differ from the original. Reproducing the
+  // reference's choices exactly is what makes the round trip byte-identical.
+  const lookback = Array.from({ length: 256 }, () => ({ idx: [], start: 0 }));
+  const push = (b, at) => { lookback[b].idx.push(at); };
+
+  // find_longest, including the overlap continuation: when a match runs right
+  // up to `start_offset` it keeps matching into the bytes it just produced,
+  // which is how a run-fill reaches length 18 from distance 1.
+  const findLongest = (startOffset, maxSearch) => {
+    let bestLength = 0, bestOffset = 0;
+    const lb = lookback[buf[startOffset]];
+    const farthest = Math.max(startOffset - MAX_DIST, 0);
+    let k = lb.start;
+    while (k < lb.idx.length && lb.idx[k] < farthest) k++;
+    lb.start = k;
+    for (; k < lb.idx.length && lb.idx[k] < startOffset; k++) {
+      const off = lb.idx[k];
+      let searchLen = Math.min(maxSearch, startOffset - off);
+      let i = 0;
+      for (; i < searchLen; i++) if (buf[startOffset + i] !== buf[off + i]) break;
+      let curLength = i;
+      if (curLength === searchLen) {
+        searchLen = maxSearch - curLength;
+        let j = 0;
+        for (; j < searchLen; j++) if (buf[startOffset + curLength + j] !== buf[off + j]) break;
+        curLength += j;
+      }
+      if (curLength > bestLength) { bestLength = curLength; bestOffset = startOffset - off; }
+    }
+    return { length: bestLength, offset: bestOffset };
+  };
+
+  const layout = [];
+  const comp = [];
+  const raw = [];
+  let proc = 0;
+
+  if (len > 0) {
+    // Special case: the first byte is always a literal.
+    push(buf[0], 0);
+    raw.push(buf[0]);
+    layout.push(1);
+    proc = 1;
+  }
+
+  while (proc < len) {
+    const maxLength = Math.min(len - proc, MAX_LEN);
+    let m = findLongest(proc, maxLength);
+    // Push the current byte BEFORE the lookahead check, as the reference does.
+    push(buf[proc], proc);
+
+    if (m.length > 2) {
+      // LAZY MATCHING: emit a literal when the NEXT position matches more than
+      // one longer. Dropping this changes which matches are taken and the
+      // container no longer reproduces.
+      const laLen = Math.min(len - proc - 1, MAX_LEN);
+      const la = laLen > 0 ? findLongest(proc + 1, laLen) : { length: 0, offset: 0 };
+      if (m.length + 1 < la.length) {
+        raw.push(buf[proc]);
+        layout.push(1);
+        proc++;
+        m = la;
+        push(buf[proc], proc);
+      }
+      for (let i = 1; i < m.length; i++) push(buf[proc + i], proc + i);
+      comp.push((((m.length - 3) & 0x0f) << 4) | (((m.offset - 1) >> 8) & 0x0f), (m.offset - 1) & 0xff);
+      layout.push(0);
+      proc += m.length;
+    } else {
+      raw.push(buf[proc]);
+      layout.push(1);
+      proc++;
+    }
+  }
+
+  const layoutBytes = Buffer.alloc(Math.ceil(layout.length / 8) || 1);
+  layout.forEach((b, n) => { if (b) layoutBytes[n >> 3] |= 1 << (7 - (n % 8)); });
+
+  // The layout section is 4-BYTE ALIGNED before the compressed section starts
+  // (ALIGN(MIO0_HEADER_LENGTH + bit_length, 4) in the reference). Without the
+  // padding every offset in the header is short and the container never matches
+  // the original even when every match choice is identical.
+  const compOff = (16 + layoutBytes.length + 3) & ~3;
+  const rawOff = compOff + comp.length;
+  const out = Buffer.alloc(rawOff + raw.length);
+  out.write("MIO0", 0, "ascii");
+  out.writeUInt32BE(len, 4);
+  out.writeUInt32BE(compOff, 8);
+  out.writeUInt32BE(rawOff, 12);
+  layoutBytes.copy(out, 16);
+  Buffer.from(comp).copy(out, compOff);
+  Buffer.from(raw).copy(out, rawOff);
+  return out;
+}
+
+/** Decode a MIO0 container (exported so a caller can verify a round trip). */
+export function decodeMio0Container(buf) {
+  const h = tryMio0(buf);
+  if (!h) return null;
+  return decodeMio0(buf, h);
+}
+
 /** N64 image formats, by bytes-per-pixel. Identification needs dimensions. */
 export const IMAGE_FORMATS = Object.freeze({
   rgba16: { bpp: 2, note: "5/5/5/1 RGBA" }, rgba32: { bpp: 4, note: "8/8/8/8 RGBA" },
@@ -142,28 +267,66 @@ export function roundTrip(buf, { name, repack } = {}) {
       why: "the decode produced a different length than the header declares — treat the decode as unverified" };
   }
 
-  if (typeof repack !== "function") {
+  // DEFAULT REPACKER. romdev ships a MIO0 encoder, so the round trip can be
+  // completed without the caller supplying one.
+  const repackFn = typeof repack === "function" ? repack
+    : (best.format === "MIO0" ? encodeMio0 : null);
+  if (!repackFn) {
     return { ...id, roundTrip: "decode-only", state: "format-identified",
       decodedBytes: decoded.length, decodedSha256: decodedSha.slice(0, 16),
-      why: "decoded successfully, but no repacker was supplied. A format is only RECOVERED when unpack -> repack reproduces the original "
-        + "bytes exactly; decode alone leaves this range at 'format-identified'." };
+      why: `decoded successfully, but there is no repacker for ${best.format}. A format is only RECOVERED when unpack -> repack `
+        + "reproduces the payload exactly; decode alone leaves this range at 'format-identified'." };
   }
 
   let repacked = null;
-  try { repacked = repack(decoded); } catch (e) {
+  try { repacked = repackFn(decoded); } catch (e) {
     return { ...id, roundTrip: "repack-failed", state: "format-identified", error: String(e?.message ?? e).slice(0, 200) };
   }
-  const exact = Buffer.isBuffer(repacked) && repacked.length === buf.length && Buffer.compare(repacked, buf) === 0;
+
+  // TWO DIFFERENT CLAIMS, and conflating them would overstate the result.
+  //
+  //   payloadExact  — decode(repack(decode(x))) == decode(x). The data survives
+  //                   a full round trip. THIS is what makes a range editable.
+  //   containerExact— repack(decode(x)) == x byte for byte. Only true when our
+  //                   encoder happens to make the same match choices as the
+  //                   original compressor, which is NOT required for
+  //                   correctness: a different valid encoding decodes the same.
+  let payloadExact = false;
+  try {
+    const again = decodeMio0Container(Buffer.isBuffer(repacked) ? repacked : Buffer.from(repacked ?? []));
+    payloadExact = !!again && Buffer.compare(Buffer.from(again), Buffer.from(decoded)) === 0;
+  } catch {}
+  // The RANGE may be longer than the CONTAINER: a segment is padded to
+  // alignment with zeros after the MIO0 stream ends. Comparing raw lengths
+  // reported a false mismatch on a repack that is byte-identical over every
+  // byte the container occupies.
+  let containerExact = false;
+  let trailingPadBytes = 0;
+  if (Buffer.isBuffer(repacked) && repacked.length <= buf.length) {
+    const head = Buffer.compare(buf.subarray(0, repacked.length), repacked) === 0;
+    const tail = buf.subarray(repacked.length);
+    containerExact = head && tail.every((b) => b === 0);
+    if (head) trailingPadBytes = tail.length;
+  }
+  const exact = payloadExact;
   return {
     ...id,
-    roundTrip: exact ? "byte-exact" : "mismatch",
+    roundTrip: exact ? (containerExact ? "byte-exact" : "payload-exact") : "mismatch",
     state: exact ? "round-trip-tool" : "format-identified",
+    payloadExact, containerExact,
+    originalBytes: buf.length, repackedBytes: repacked?.length ?? null,
+    ...(trailingPadBytes ? { trailingPadBytes, trailingPadNote: "zero padding after the container, inside the range but not part of the MIO0 stream" } : {}),
     originalSha256: sha(buf).slice(0, 16), repackedSha256: repacked ? sha(repacked).slice(0, 16) : null,
     decodedBytes: decoded.length, decodedSha256: decodedSha.slice(0, 16),
-    why: exact
-      ? "unpack -> repack reproduced the original bytes exactly: this range can move to 'round-trip-tool' in the ledger."
-      : "the repack did NOT reproduce the original bytes, so the encoder is not yet faithful. The range stays at 'format-identified' — "
-        + "a lossy round trip cannot be used to rebuild the ROM.",
+    why: !exact
+      ? "the repacked container did not decode back to the same payload, so the encoder is NOT faithful and this range stays at "
+        + "'format-identified' — a lossy round trip cannot rebuild the ROM."
+      : containerExact
+        ? "unpack -> repack reproduced the original container byte for byte."
+        : "unpack -> repack -> unpack reproduces the PAYLOAD exactly; the container bytes differ because a different (equally valid) "
+          + "set of match choices was made. The data is fully recoverable and editable, which is what 'round-trip-tool' means. "
+          + "Rebuilding the ORIGINAL ROM byte-for-byte additionally needs the original compressor's choices — use the untouched "
+          + "container for ranges you are not editing.",
   };
 }
 

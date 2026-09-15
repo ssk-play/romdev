@@ -4,6 +4,99 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 —
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.142.0 — 2026-09-15
+
+Two verification rounds against 0.141.0. The client re-verified round 2 (4 of 4
+shipped, 2 small gaps) and a separate black-box audit drove ONLY the public HTTP
+tool API against the decomp campaign claims — and found eight defects.
+
+**The audit's headline finding is correct and worth stating plainly: the
+previous response's "every item is implemented" claim was false.** Every one of
+these shipped because a module was tested in-process while the PUBLIC SCHEMA was
+never driven. A handler that works is not a feature if the validator rejects the
+call before it runs, or if the op reads a path the caller cannot produce.
+
+### Fixed — the public schema blocked five whole operations
+
+`action` was declared TWICE on `decomp` and the second (job-only) declaration
+overwrote the first, so every other op's action vocabulary was rejected BEFORE
+its handler ran: scenario save/run, experiment create/control/conclude, skill
+preview/write and artifact prune were all unreachable. `artifacts
+action:'status'` appeared to work only because 'status' is a job action. One
+enum now covers every op.
+
+### Fixed — comparison used a stale, over-long target
+
+`func_i9_802C802C` still compared 37 instructions / 148 bytes against a
+34-instruction function, reproducing the exact false mismatch reported in the
+first round — because the assembled TARGET is cached under a key derived only
+from the asm text, and neither `refresh` nor `noCache:true` clears it. The key
+now carries a parser version, so every stale target invalidates on first use.
+`resolve` and `compare` agree at 136 bytes.
+
+### Fixed — the library known-source lane was empty
+
+The ledger counted 27 remaining library functions while `plan` reported zero,
+because real projects build libultra from an asm/ TREE
+(`build/asm/us/rev1/libultra/exceptasm.o`) and the classifier tested the asm/
+prefix BEFORE the libultra pattern. All 27 fell into handwritten-asm-retain,
+emptying the lane the policy text says to search first. Library is now checked
+first: 27 functions / 3,532 bytes, with 2 genuinely handwritten.
+
+### Fixed — `knownSource` never ran
+
+It read the asm path RELATIVE to the project root without resolving it (ENOENT
+on every function), and assembled a target it does not need — which also failed
+outright on library functions. A structural fingerprint needs the .s text only.
+
+### Fixed — workbench flags were injected unconditionally
+
+`--objdump` was appended to every command. Correct for `object diagnose`, fatal
+for `project show`, which has no such flag. The bridge now asks the command's
+own `--help` and injects only where accepted.
+
+### Fixed — the capability probe contradicted the runtime
+
+`capabilities` reported `instructionStep: unsupported` while `coverage` proved
+it working on the same host in the same session, because the probe used method
+names that do not exist: `stepInstructions` (the host has `stepInstruction`),
+`setWriteWatch` (it has `setWatchpoint`), `saveState` (it has
+`serializeState`). A capability report that contradicts a runtime proof is
+worse than none — it is the thing a caller consults BEFORE trying. All seven
+capabilities now probe the real API and report `proven` on a live N64 core.
+
+### Fixed — type proposals were not valid C
+
+A 4-byte load proves "s32/u32/ptr", which is a SET of possibilities, not a type.
+Emitting it produced `s32/u32/ptr unk_4;`, which does not parse and cannot seed
+the context experiment the proposal exists for. Ambiguous widths resolve to the
+unsigned integer of that width with the evidence kept in a comment; 25/25
+proposals now compile under `gcc -fsyntax-only`.
+
+### Added — MIO0 repacker, so the round trip actually completes
+
+`assets` identified and decoded ranges but could never advance one past
+`format-identified`. romdev now ships an encoder that reproduces the reference
+implementation's match choices exactly — first byte literal, lazy lookahead
+(`longest+1 < lookahead`), oldest-match-wins tie-breaking, and a 4-byte-aligned
+layout section. Verified on the real ROM: **128 of 131 chunks repack
+BYTE-IDENTICAL**, 131/131 payload-exact. `payloadExact` and `containerExact` are
+reported separately, because "the data is recoverable and editable" and "this
+rebuilds the original ROM" are different claims.
+
+### Fixed — round-3 gaps
+
+- **Per-op validation reached only some tools.** The scope parser matched
+  `op=step:` and `target=rom:` but not `op:'readCart' —` or `target:'decompile'
+  —`, which is why it fired on disasm/frame and did nothing on memory/playtest.
+  All four spellings now parse, so 4c (the playtest case) is fixed. A marker
+  that appears as an ASIDE in prose is no longer read as a whitelist, and the
+  shared-parameter exemption is per TOOL rather than global.
+- **`unresolved.kind` was missing** from the response that described it. The
+  field was set only where analysis SUCCEEDED and returned no blocks; an unused
+  vector arrives through the EXCEPTION path, so it was absent from exactly the
+  case a caller hits. Both paths carry it now.
+
 ## 0.141.0 — 2026-09-15
 
 Round 2 from the SMS static-recompiler client after 0.138.0. They re-verified

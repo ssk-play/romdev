@@ -778,7 +778,15 @@ export async function analyzeReachable(romPath, entries, platformOverride, opts 
     try {
       cfg = await analyzeCfg(romPath, fnAddr, platformOverride, { bank });
     } catch (e) {
-      unresolved.push({ address: fnAddr, addressHex: hx(fnAddr), ...(bank != null ? { bank } : {}), reason: cleanRizinReason(e?.message ?? e) });
+      // BOTH failure paths must carry `kind`. This one (analysis threw) is how
+      // an unused RST vector actually arrives — the other path below only fires
+      // when analysis SUCCEEDS and returns no blocks. Tagging only that one
+      // meant the field was absent from exactly the case a caller hits, and a
+      // caller branching on `kind === 'no-code'` instead of string-matching
+      // `reason` would have seen undefined.
+      const reason = cleanRizinReason(e?.message ?? e);
+      unresolved.push({ address: fnAddr, addressHex: hx(fnAddr), ...(bank != null ? { bank } : {}),
+        reason, kind: classifyUnresolved(reason) });
       continue;
     }
     platform ??= cfg.platform; arch ??= cfg.arch;
@@ -869,6 +877,22 @@ function bankedWindow(platform) {
  * unresolved INDIRECT JUMPS, which is what `unresolved` is for; they are
  * entries with no code at all.
  */
+/**
+ * What KIND of unresolved entry this is.
+ *
+ * `unresolved` is the field a caller uses to decide what to feed back as new
+ * entries, and the two cases want opposite responses: an entry with NO CODE is
+ * done (drop it), while a genuine indirect jump is worth resolving with
+ * breakpoint({on:'jumptable'}). Branching on a stable `kind` beats
+ * string-matching an English `reason` that may be reworded.
+ */
+function classifyUnresolved(reason) {
+  const t = String(reason ?? "");
+  if (/no function at this address|no blocks/i.test(t)) return "no-code";
+  if (/computed|indirect|jumptable/i.test(t)) return "indirect-jump";
+  return "analysis-failed";
+}
+
 function cleanRizinReason(msg) {
   const text = String(msg ?? "");
   if (/No function found/i.test(text)) return "no function at this address";

@@ -203,6 +203,25 @@ export async function loadTypeGraph(project, { rebuild = false, callGraph } = {}
  * rather than being filled with a plausible guess — a fabricated field is worse
  * than a hole, because it reads as knowledge.
  */
+
+/**
+ * A VALID C type token for one evidence field.
+ *
+ * Evidence notation is not C: a 4-byte load proves "s32/u32/ptr", which is a
+ * set of possibilities. This picks one that parses and records the rest in a
+ * comment at the call site. Unsigned is the safe default for an ambiguous
+ * integer width — it makes no claim about sign that the evidence did not.
+ */
+function cTypeFor(f) {
+  const CT = { 1: "u8", 2: "u16", 4: "u32", 8: "u64" };
+  const t = String(f.type ?? "");
+  // A single definite spelling (s32, u16, f32) is already valid C.
+  if (/^[suf]\d+$/.test(t)) return t;
+  // A pointer is only unambiguous when nothing else is on the list.
+  if (/^ptr$/.test(t)) return "void*";
+  return CT[f.width] ?? "u32";
+}
+
 export function proposeStruct(base, { name } = {}) {
   const CT = { 1: "u8", 2: "u16", 4: "u32", 8: "u64" };
   const lines = [];
@@ -216,9 +235,13 @@ export function proposeStruct(base, { name } = {}) {
     if (f.offset > cursor) {
       lines.push(`    /* 0x${cursor.toString(16).toUpperCase()} */ u8 pad_${cursor.toString(16)}[0x${(f.offset - cursor).toString(16).toUpperCase()}]; /* UNKNOWN: no access observed */`);
     }
-    const ct = f.type && /^[suf]\d/.test(f.type) ? f.type
-      : f.type && /ptr/.test(f.type) ? "void*"
-      : CT[f.width] ?? null;
+    // THE EMITTED TOKEN MUST BE VALID C. The evidence notation "s32/u32/ptr" is
+    // what a 4-byte load proves — it is a set of possibilities, not a type —
+    // and emitting it verbatim produced `s32/u32/ptr unk_4;`, which does not
+    // parse and cannot be fed to the context experiment this proposal exists
+    // to seed. An ambiguous width resolves to the unsigned integer of that
+    // width, with the evidence kept in a comment so nothing is lost.
+    const ct = cTypeFor(f);
     if (!ct) {
       // No observed width means no honest declaration. Say so instead of
       // emitting a plausible-looking field.
@@ -227,7 +250,9 @@ export function proposeStruct(base, { name } = {}) {
       continue;
     }
     const conf = f.conflict ? `  /* CONFLICT: ${f.unionView.join(" | ")} */` : "";
-    lines.push(`    /* 0x${f.offset.toString(16).toUpperCase()} */ ${ct} unk_${f.offset.toString(16).toUpperCase()};${conf}`);
+    // Keep the raw evidence visible when the C type is a narrowing of it.
+    const eviNote = f.type && f.type !== ct && !conf ? `  /* observed: ${f.type} */` : "";
+    lines.push(`    /* 0x${f.offset.toString(16).toUpperCase()} */ ${ct} unk_${f.offset.toString(16).toUpperCase()};${conf}${eviNote}`);
     cursor = f.offset + (f.width ?? 4);
   }
   lines.push(`} ${structName}; /* size >= 0x${cursor.toString(16).toUpperCase()} (lower bound: only observed accesses) */`);

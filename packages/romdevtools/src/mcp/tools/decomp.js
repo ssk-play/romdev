@@ -59,7 +59,31 @@ export function registerDecompTools(server, z, sessionKey) {
       project: z.string().optional().describe("Project id (required by every op except list). op:'import' picks it."),
       // op:'workbench' — the n64-decomp-workbench bridge.
       // op:'experiment' / op:'gate'
-      action: z.enum(["status", "best", "cancel", "report", "create", "control", "candidate", "conclude", "list", "families"]).optional().describe("op:'job' — status/best/cancel/report. op:'experiment' — create, control, candidate, conclude, list, families."),
+      // ONE `action` FOR EVERY OP THAT HAS ONE. This was declared twice and the
+      // second declaration — the job-only set — overwrote the first, so every
+      // other op's action vocabulary was rejected by the validator BEFORE its
+      // handler ran: scenario save/run, experiment create/control/conclude,
+      // skill preview/write and artifact prune/restore were all unreachable
+      // through the public schema while their handlers sat there working.
+      // `artifacts action:'status'` appeared to work only because 'status'
+      // happened to be in the job enum.
+      action: z.enum([
+        // op:'job'
+        "status", "best", "cancel", "report",
+        // op:'experiment'
+        "create", "control", "candidate", "conclude", "list", "families",
+        // op:'scenario'
+        "save", "run",
+        // op:'skill'
+        "preview", "write",
+        // op:'artifacts'
+        "prune", "restore", "pin",
+      ]).optional().describe(
+        "op:'job' — status (default), best, cancel, report. "
+        + "op:'experiment' — create, control, candidate, conclude, list, families. "
+        + "op:'scenario' — save, run, list. "
+        + "op:'skill' — preview (default), write. "
+        + "op:'artifacts' — status (default), prune, pin."),
       experimentId: z.string().optional().describe("op:'experiment' — the record to act on (from action:'create' or action:'list')."),
       hypothesis: z.string().optional().describe("op:'experiment' action:'create' — ONE falsifiable causal claim. Required: an experiment without one is a sweep, and a sweep is what produced 264 undifferentiated candidates for a single function."),
       lever: z.string().optional().describe("op:'experiment' action:'create' — the SINGLE source change being varied. Required: varying two things at once cannot attribute the result."),
@@ -131,7 +155,7 @@ export function registerDecompTools(server, z, sessionKey) {
       seed: z.string().optional().describe("op:'search' — permuter seed for reproducibility."),
       jobId: z.string().optional().describe("op:'job' — the job to inspect/cancel/report."),
       resumeFrom: z.string().optional().describe("op:'search' — a previous jobId whose best candidate becomes the base."),
-      action: z.enum(["status", "best", "cancel", "report"]).default("status").describe("op:'job' — status (default), best (returns the best candidate's source), cancel (SIGINT the permuter; best result is kept), report (write + return a durable JSON/Markdown report of the job)."),
+
       apply: z.boolean().default(false).describe("op:'integrate' — apply the patch to the TU (else only write it)."),
       verify: z.boolean().default(true).describe("op:'integrate' — after apply, run the full build and compare the ROM (revert on mismatch)."),
       jobs: z.number().int().min(1).max(64).default(8).describe("op:'integrate'/'verify' — make -j."),
@@ -262,7 +286,16 @@ export function registerDecompTools(server, z, sessionKey) {
           // without them, with an error that reads like a workbench bug.
           const wbArgs = [...(args.wbArgs ?? [])];
           const objdump = project.m.toolchain?.objdump?.path;
-          if (objdump && !wbArgs.includes("--objdump")) wbArgs.push("--objdump", objdump);
+          if (objdump && !wbArgs.includes("--objdump")) {
+            // ASK THE COMMAND, do not assume. Appending --objdump
+            // unconditionally is right for `object diagnose` and fatal for
+            // `project show`, which has no such flag and exits 2.
+            const { commandAcceptsFlag, workbenchCatalog, findCommand } = await import("../../decomp/workbench.js");
+            const cat = await workbenchCatalog();
+            const spec = findCommand(cat, args.wbGroup, args.wbCommand);
+            const inv = Array.isArray(spec?.invocation) ? spec.invocation.slice(1) : [args.wbGroup, args.wbCommand].filter(Boolean);
+            if (await commandAcceptsFlag(inv, "--objdump")) wbArgs.push("--objdump", objdump);
+          }
           const res = await invokeWorkbench({
             group: args.wbGroup, command: args.wbCommand, args: wbArgs,
             cwd: project.root, env: project.env, timeoutMs: args.timeoutMs ?? 600_000,
@@ -405,10 +438,15 @@ export function registerDecompTools(server, z, sessionKey) {
           // Look before you decompile: match by BYTES and SHAPE, never by name.
           const { findKnownSource } = await import("../../decomp/known-source.js");
           const fn = await resolveFn();
-          const { ensureTarget } = await import("../../decomp/compile.js");
-          const t = await ensureTarget(project, fn);
-          if (t.romOnly) throw Object.assign(new Error(`'${fn.symbol}' has no extracted asm to fingerprint.`), { code: "NO_TARGET_ASM" });
-          const asmText = await readFile(t.asmPath ?? t.targetAsm ?? t.path, "utf8");
+          // NO ensureTarget HERE. A structural fingerprint needs the .s TEXT and
+          // nothing else; assembling the target was both unnecessary work and a
+          // hard failure on library functions whose object cannot be built in
+          // isolation. `resolve` already reports the path — and it is RELATIVE
+          // to the project root, which is the ENOENT that made this lane
+          // non-operational on every real function.
+          const asmRel = fn.targetAsm?.path ?? fn.source?.asmPath ?? null;
+          if (!asmRel) throw Object.assign(new Error(`'${fn.symbol}' has no extracted asm to fingerprint.`), { code: "NO_TARGET_ASM" });
+          const asmText = await readFile(project.abs(asmRel), "utf8");
           return jsonContent(await findKnownSource(project, { symbol: fn.symbol, asmText, workClass: args.workClass }));
         }
         case "scenario": {

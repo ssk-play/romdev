@@ -139,6 +139,31 @@ export async function workbenchCatalog({ force = false } = {}) {
   return _catalog;
 }
 
+const _flagCache = new Map();
+
+/**
+ * Does a workbench command accept a given flag?
+ *
+ * Asked of the COMMAND ITSELF via `--help`, not guessed. romdev used to append
+ * `--objdump <path>` to every invocation so a project-local binutils would
+ * load — correct for `object diagnose`, and fatal for `project show`, which
+ * has no such flag and exits 2. A read-only command must be called only with
+ * flags its own schema accepts.
+ *
+ * Cached per process: the workbench is a fixed install for the session.
+ */
+export async function commandAcceptsFlag(inv, flag) {
+  const key = `${inv.join(" ")}::${flag}`;
+  if (_flagCache.has(key)) return _flagCache.get(key);
+  let ok = false;
+  try {
+    const r = await runWorkbench([...inv, "--help"], { timeoutMs: 30_000, json: false });
+    ok = new RegExp(`(^|\\s)${flag.replace(/[-]/g, "[-]")}(\\s|=|$)`, "m").test(r.stdout ?? "");
+  } catch { ok = false; }
+  _flagCache.set(key, ok);
+  return ok;
+}
+
 /** Find one command in the catalog by "<group> <command>" or a flat name. */
 export function findCommand(catalog, group, command) {
   if (!catalog?.available) return null;

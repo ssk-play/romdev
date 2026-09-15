@@ -105,13 +105,18 @@ export function makeWorkClassifier(splatMap, manifest) {
     // handwritten-asm would hide that no CPU toolchain applies to it at all.
     if (/(^|\/)rsp(\/|_)|\bucode\b|\bmicrocode\b/i.test(objectPath) || type === "rsp") return "rsp-source";
 
+    // LIBRARY CODE IS CHECKED FIRST, because libultra objects are BUILT FROM
+    // AN asm/ TREE on a real project: `build/asm/us/rev1/libultra/exceptasm.o`.
+    // Testing the asm/ prefix before the libultra pattern therefore swallowed
+    // all 27 remaining SDK functions into handwritten-asm-retain, emptying the
+    // known-source lane the policy text tells you to search FIRST. The ledger
+    // counted them as library the whole time, so the two disagreed.
+    if (/(^|\/)libultra(\/|_)/.test(objectPath) || /(^|\/)ultra(\/)/.test(objectPath)) return "libultra-known-source";
+
     // Handwritten assembly: hasm/hcode subsegments, plus anything built out of
     // an asm/ tree rather than the source tree.
     if (type === "hasm" || type === "hcode" || type === "asm") return "handwritten-asm-retain";
     if (objectPath.startsWith(buildPath + "/asm/")) return "handwritten-asm-retain";
-
-    // Library code.
-    if (/(^|\/)libultra(\/|_)/.test(objectPath) || /(^|\/)ultra(\/)/.test(objectPath)) return "libultra-known-source";
 
     // Pure data subsegments carry no functions; if one ever yields a symbol,
     // it is ledger material, not a decompilation task.

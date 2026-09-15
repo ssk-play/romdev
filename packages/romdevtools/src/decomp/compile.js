@@ -135,7 +135,12 @@ export async function ensureTarget(project, fn) {
   const asmAbs = project.abs(asmRel);
   const asmText = await readFile(asmAbs, "utf8");
   const dir = path.join(project.ws, "targets", fn.symbol);
-  const key = sha256Text(asmText).slice(0, 16);
+  // The cache key must change when the PARSER changes, not only when the asm
+  // does. A target assembled before the end-label fix kept reporting 37
+  // instructions / 148 bytes for a 34-instruction function, and neither
+  // `refresh` nor `noCache:true` repaired it — both leave this file alone.
+  // Bumping this tag invalidates every stale target on first use.
+  const key = sha256Text(`v2:${asmText}`).slice(0, 16);
   const meta = path.join(dir, "target.json");
   if (fs.existsSync(meta)) {
     try { const m = JSON.parse(await readFile(meta, "utf8")); if (m.key === key && fs.existsSync(m.targetO)) return m; } catch {}

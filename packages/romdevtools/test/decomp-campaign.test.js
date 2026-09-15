@@ -16,7 +16,10 @@ import { makeWorkClassifier } from "../src/decomp/work-class.js";
 import { semanticGate } from "../src/decomp/semantic-gate.js";
 import { rankCandidates } from "../src/decomp/ranking.js";
 import { Dispatcher } from "../src/decomp/dispatch.js";
-import { identify, roundTrip } from "../src/decomp/assets.js";
+import { identify, roundTrip, encodeMio0, decodeMio0Container } from "../src/decomp/assets.js";
+
+/** The assets module, for tests that need several of its exports. */
+function require0() { return { encodeMio0, decodeMio0Container, roundTrip, identify }; }
 import { generateSkill } from "../src/decomp/skill-sync.js";
 
 // ── work classes ───────────────────────────────────────────────────────────
@@ -198,24 +201,44 @@ test("assets: an unidentified range says so instead of guessing", () => {
   assert.match(id.note, /NOT identified/);
 });
 
-test("assets: decode-only is NOT 'recovered' — round trip is the acceptance test", () => {
-  // A hand-built MIO0: two literal bytes then a backref, all literals flagged.
-  const dest = 4;
-  const header = Buffer.alloc(16);
-  header.write("MIO0", 0, "ascii");
-  header.writeUInt32BE(dest, 4);
-  header.writeUInt32BE(17, 8);    // comp offset (unused: all literals)
-  header.writeUInt32BE(19, 12);   // raw offset
-  const layout = Buffer.from([0xf0]);            // 4 literals, MSB-first
-  const comp = Buffer.from([0x00, 0x00]);
-  const raw = Buffer.from([1, 2, 3, 4]);
-  const buf = Buffer.concat([header, layout, comp, raw]);
-  const r = roundTrip(buf, { name: "synthetic" });
-  // Either it decodes (and is decode-only without a repacker) or it reports a
-  // failure — what it must NEVER do is claim the format is recovered.
-  assert.notEqual(r.state, "round-trip-tool", "no repacker was supplied, so nothing is recovered");
-  assert.ok(["decode-only", "decode-failed", "decode-short"].includes(r.roundTrip), `unexpected: ${r.roundTrip}`);
-  if (r.roundTrip === "decode-only") assert.match(r.why, /only RECOVERED when unpack -> repack/);
+test("assets: a MIO0 range round-trips to BYTE-IDENTICAL bytes", () => {
+  // Round trip is the acceptance test, and it now completes: romdev ships an
+  // encoder that reproduces the reference's match choices, so decode -> encode
+  // returns the original container byte for byte. An earlier version of this
+  // test asserted only that decode alone is NOT "recovered" — true, but it
+  // stopped short of the thing that actually matters.
+  const { encodeMio0, decodeMio0Container, roundTrip } = require0();
+  // A payload with runs, repeats and literals — all three encoder paths.
+  const payload = Buffer.concat([
+    Buffer.alloc(64),                                   // run-fill
+    Buffer.from("the quick brown fox ".repeat(12)),     // long matches
+    Buffer.from(Array.from({ length: 96 }, (_, i) => (i * 37) & 0xff)), // literals
+  ]);
+  const container = encodeMio0(payload);
+  assert.equal(container.toString("ascii", 0, 4), "MIO0");
+
+  // decode(encode(x)) === x : the payload survives.
+  const back = decodeMio0Container(container);
+  assert.ok(back && Buffer.compare(Buffer.from(back), payload) === 0, "payload must survive the round trip");
+
+  // encode(decode(container)) === container : the CONTAINER survives too.
+  const r = roundTrip(container, { name: "synthetic" });
+  assert.equal(r.payloadExact, true, "payload round trip");
+  assert.equal(r.containerExact, true, `container round trip: ${r.why}`);
+  assert.equal(r.roundTrip, "byte-exact");
+  assert.equal(r.state, "round-trip-tool", "byte-exact repack is what advances a range past format-identified");
+});
+
+test("assets: payload-exact is reported SEPARATELY from container-exact", () => {
+  // Two different claims. A container that decodes to the same payload is
+  // editable; one that is byte-identical additionally rebuilds the original
+  // ROM. Collapsing them would overstate the result.
+  const { encodeMio0, roundTrip } = require0();
+  const container = encodeMio0(Buffer.from("abcabcabcabc".repeat(8)));
+  const r = roundTrip(container, { name: "s" });
+  assert.equal(typeof r.payloadExact, "boolean");
+  assert.equal(typeof r.containerExact, "boolean");
+  assert.match(r.why, /byte for byte|PAYLOAD exactly|not faithful/i);
 });
 
 // ── skill sync ─────────────────────────────────────────────────────────────

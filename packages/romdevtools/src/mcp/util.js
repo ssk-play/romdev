@@ -308,14 +308,36 @@ export function coerceHexNumber(v) {
  */
 function scopesFromDescription(desc) {
   if (!desc) return null;
+  const text = String(desc);
+  // A scope marker only counts when the description LEADS with it. These texts
+  // are prose: `project` says "Required by every op except list. op:'import'
+  // picks it." — the marker is an aside, not a whitelist, and reading it as one
+  // rejected `project` on every decomp op. A real scope declaration starts the
+  // description or starts a sentence within it.
+  // The marker must OPEN the description. When it appears later it is an aside
+  // inside prose — `project` reads "Required by every op except list.
+  // op:'import' picks it.", where the leading sentence is the real scope and
+  // the marker names one special case. Treating that as a whitelist rejected
+  // `project` on every decomp op.
+  if (!/^\s*(?:op|target)\s*[=:]/.test(text)) return null;
+
   const scopes = new Set();
-  // "target=a/b:" or "op=a:" possibly several times in one description.
-  for (const m of String(desc).matchAll(/\b(?:op|target)\s*=\s*([A-Za-z0-9'|/,\s]+?)\s*:/g)) {
-    for (const part of m[1].split(/[\/,|]/)) {
-      const name = part.trim().replace(/^'|'$/g, "");
-      if (name) scopes.add(name);
+  // FOUR SPELLINGS ARE IN USE, and matching only the first two is why this
+  // fired on `disasm`/`frame` and not on `memory`/`playtest`:
+  //   op=step/stepAndShot:   (160 uses)   target=rom:          (57)
+  //   op:'readCart' —        (~80)        target:'decompile' — (25)
+  // The `=`-form ends at a colon; the `:`-form ends at an em-dash, a colon or
+  // the first sentence break. Both are the author saying the same thing.
+  const add = (list) => {
+    for (const part of String(list).split(/[/,|]| or /)) {
+      const name = part.trim().replace(/^['"]|['"]$/g, "");
+      if (name && /^[A-Za-z][A-Za-z0-9]*$/.test(name)) scopes.add(name);
     }
-  }
+  };
+  // "op=a/b:" / "target=a:"
+  for (const m of String(desc).matchAll(/\b(?:op|target)\s*=\s*([A-Za-z0-9'"|/,\s]+?)\s*:/g)) add(m[1]);
+  // "op:'a' —" / "op:a —" / "target:'a' —", ending at an em-dash, hyphen or colon.
+  for (const m of String(desc).matchAll(/\b(?:op|target)\s*:\s*((?:'[A-Za-z0-9]+'|[A-Za-z0-9]+)(?:\s*[/,|]\s*(?:'[A-Za-z0-9]+'|[A-Za-z0-9]+))*)\s*(?=[—–:-]|\s)/g)) add(m[1]);
   return scopes.size ? scopes : null;
 }
 
@@ -356,9 +378,20 @@ export function makeScopeChecker(shape, toolName) {
   // So a small SHARED list is exempt. Everything else with an explicit scope is
   // enforced, however many ops it names: `address` naming four targets is a
   // complete list, and 'recompile' genuinely is not one of them.
-  const SHARED = new Set(["path", "platform", "outputPath", "inline", "echo", "session", "format", "limit", "romPath", "projectDir"]);
+  // The exemption is PER TOOL, not global. `path` on `disasm` is genuinely
+  // under-documented — its text names some targets and it is required by others
+  // (recompile) that the text never mentions — so enforcing it there rejects
+  // valid calls. On `playtest` the same NAME means one specific thing
+  // ("op:framebuffer — absolute path to write the PNG to"), and passing it to
+  // op:'open' really is a silent drop. A global exemption made the second case
+  // unreachable in order to fix the first.
+  const SHARED_BY_TOOL = {
+    disasm: ["path", "romPath", "projectDir", "outputPath"],
+  };
+  const SHARED_ALWAYS = ["platform", "inline", "echo", "session", "format", "limit"];
+  const exempt = new Set([...SHARED_ALWAYS, ...(SHARED_BY_TOOL[toolName] ?? [])]);
   for (const key of [...scopeOf.keys()]) {
-    if (SHARED.has(key)) scopeOf.delete(key);
+    if (exempt.has(key)) scopeOf.delete(key);
   }
   if (!scopeOf.size) return null;
 
