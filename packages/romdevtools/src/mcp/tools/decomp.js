@@ -42,7 +42,7 @@ export function registerDecompTools(server, z, sessionKey) {
     "Every result names the project, function {symbol, segment, va}, candidate sha, compiler fingerprint and artifact paths; errors carry a typed [CODE]. `exactFunctionMatch` and `romLinked.status:'exact'` are the acceptance signals; `distance` is a ranking hint, never proof. " +
     "Ghidra pseudocode stays in disasm({target:'decompile'}) for understanding; it is never counted as matched.",
     {
-      op: z.enum(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage"]).describe(
+      op: z.enum(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage", "workbench", "dispatch"]).describe(
         "import=register a project (root; splat yaml auto-detected; ROM sha1 verified; toolchain fingerprinted; compile invocation captured from make); " +
         "status=manifest + backend identities + segment table; list=registered projects; map=TU → object → segment → functions associations; " +
         "plan=payoff-ordered queue of remaining asm functions + batches that call each other inside one TU (call graph from the built objects' relocations); batch=generate+compare every function of a batch (`symbols`), sharing the context; " +
@@ -57,6 +57,20 @@ export function registerDecompTools(server, z, sessionKey) {
         "overlays=which overlay is resident at each shared VA in the live session (`session`), by comparing RAM with each candidate's ROM bytes; symbolize=live `va` → symbol/segment using the resident overlay; state=is `session`'s emulator alive, else a machine-readable loss reason + recovery; " +
         "trace=stop at a function's entry on the live session and read a0-a3/f12/f14/stack args, then v0/v1/f0 at return (N64: load the session with coreOptions {'parallel-n64-cpucore':'pure_interpreter'}; the result carries the core probe and says PC_BREAK_UNSUPPORTED with evidence otherwise); coverage=instruction-exact function + basic-block observed/unobserved/unreferenced over `frames` with `inputs` from the core's PC log (interpreter), else frame-boundary samples with the method stated."),
       project: z.string().optional().describe("Project id (required by every op except list). op:'import' picks it."),
+      // op:'workbench' — the n64-decomp-workbench bridge.
+      // op:'dispatch' — parallel, memory-bounded triage.
+      symbols: z.array(z.string()).optional().describe("op:'dispatch' — explicit function symbols to triage. Omit to take the top of the plan queue (game-matching-c only)."),
+      maxFunctions: z.number().int().min(1).max(512).optional().describe("op:'dispatch' — cap on functions processed this run (default 64)."),
+      budgetMiB: z.number().int().min(512).optional().describe("op:'dispatch' — memory ceiling for the worker pool. Default: total RAM minus a reserve for the server and the build. Admission is by MEASURED peak RSS per worker class, not by a thread count."),
+      maxWorkers: z.number().int().min(1).max(64).optional().describe("op:'dispatch' — hard cap on concurrent workers (default: cpus-2, max 12). The per-TU lock usually binds first."),
+      timeBudgetS: z.number().int().min(10).max(86400).optional().describe("op:'dispatch' — wall-clock budget; remaining functions come back as `skipped`."),
+      wbGroup: z.string().optional().describe("op:'workbench' — command group (object, campaign, experiment, probe, trace, permute, sweep, oracle, pass, instrument, ...). Omit wbCommand to list the discovered catalog."),
+      wbCommand: z.string().optional().describe("op:'workbench' — the command inside the group (e.g. 'diagnose', 'compare', 'collateral', 'staleness', 'linked-compare', 'reloc-proof'). Omit to get the catalog instead of running anything."),
+      wbArgs: z.array(z.string()).optional().describe("op:'workbench' — positional args and flags passed through verbatim (e.g. [targetObj, candidateObj]). The project's --objdump is appended automatically when you do not pass one."),
+      allowDestructive: z.boolean().default(false).describe("op:'workbench' — required to run a command the workbench's OWN catalog marks destructive."),
+      allowNetwork: z.boolean().default(false).describe("op:'workbench' — required to run a command the workbench's OWN catalog marks as reaching the network."),
+      timeoutMs: z.number().int().min(1000).max(3_600_000).optional().describe("op:'workbench' — per-command timeout (default 600000)."),
+      force: z.boolean().default(false).describe("op:'workbench' — re-read the command catalog instead of using the cached one."),
       root: z.string().optional().describe("op:'import' — absolute path of the decompilation checkout (the dir with the splat yaml + Makefile)."),
       splatYaml: z.string().optional().describe("op:'import' — splat yaml (relative to root) when auto-detection finds more than one."),
       rom: z.string().optional().describe("op:'import' — base ROM path when it differs from the yaml's target_path."),
@@ -189,6 +203,67 @@ export function registerDecompTools(server, z, sessionKey) {
             before, ...after,
             evidencePreserved: "candidates/, jobs/ and every stored result file are untouched — refresh re-reads the world, it never discards campaign history.",
           });
+        }
+        case "workbench": {
+          // The BRIDGE to n64-decomp-workbench: romdev's comparator is
+          // first-pass triage and cannot diagnose allocator webs, uopt global
+          // coloring, ugen temporary provenance, stack homes or as1 scheduling.
+          // The workbench does, and it is the tool this campaign already uses
+          // by hand — so romdev calls it rather than growing a second, shallower
+          // copy that would disagree with it.
+          const { workbenchCatalog, invokeWorkbench } = await import("../../decomp/workbench.js");
+          const catalog = await workbenchCatalog({ force: !!args.force });
+          if (!args.wbCommand) {
+            // No command: report the discovered catalog. Discovery means the
+            // workbench can grow without romdev being edited.
+            return jsonContent({ workbench: catalog,
+              usage: "decomp({op:'workbench', wbGroup:'object', wbCommand:'diagnose', wbArgs:[targetObj, candidateObj]}). "
+                + "Objects are resolved against the project root; the project's objdump and LD_LIBRARY_PATH are supplied automatically. "
+                + "Exit 1 means gate/no-result — a real answer, not an error.",
+              note: catalog.available
+                ? `${catalog.commandCount} commands in ${catalog.groupCount} groups, read from the workbench itself.`
+                : "workbench not installed; see `setup`." });
+          }
+          if (!catalog.available) {
+            throw Object.assign(new Error(`workbench unavailable: ${catalog.reason}. ${catalog.setup ?? ""}`), { code: "MISSING_WORKBENCH" });
+          }
+          // Supply what the workbench cannot know: this project's objdump and
+          // its runtime library path. A project-local binutils fails to load
+          // without them, with an error that reads like a workbench bug.
+          const wbArgs = [...(args.wbArgs ?? [])];
+          const objdump = project.m.toolchain?.objdump?.path;
+          if (objdump && !wbArgs.includes("--objdump")) wbArgs.push("--objdump", objdump);
+          const res = await invokeWorkbench({
+            group: args.wbGroup, command: args.wbCommand, args: wbArgs,
+            cwd: project.root, env: project.env, timeoutMs: args.timeoutMs ?? 600_000,
+            allowDestructive: !!args.allowDestructive, allowNetwork: !!args.allowNetwork,
+          });
+          return jsonContent({ project: project.id, ...res,
+            exitCodes: catalog.exitCodes,
+            interpretation: res.isGate
+              ? "exit 1 = gate/no-result: the workbench answered, and the answer is 'no'. This is NOT a failure."
+              : res.exitCode === 0 ? "exit 0 = success; `report` is the workbench's own versioned document, unflattened."
+              : "exit 2/3 = usage, capability or census failure; see `report.error` (schema decomp-workbench-error-v1)." });
+        }
+        case "dispatch": {
+          // PARALLEL CANDIDATE PRODUCTION. Independent translation units run
+          // concurrently under a measured memory ceiling; a per-TU lock keeps
+          // two workers off the same owner. It NEVER integrates and never edits
+          // the checkout — parallelism ends at evidence, and shared source
+          // edits stay serialized behind the real gates.
+          const { triage } = await import("../../decomp/dispatch.js");
+          let symbols = args.symbols;
+          if (!symbols?.length) {
+            const { planWork } = await import("../../decomp/plan.js");
+            const plan = await planWork(project, { limit: args.maxFunctions ?? 64 });
+            symbols = plan.queue.map((q) => q.symbol);
+          }
+          if (!symbols.length) throw Object.assign(new Error("decomp({op:'dispatch'}): nothing to do — no symbols given and the plan queue is empty."), { code: "BAD_ARGS" });
+          const out = await triage(project, symbols, {
+            maxFunctions: args.maxFunctions ?? 64, budgetMiB: args.budgetMiB,
+            maxWorkers: args.maxWorkers, timeBudgetS: args.timeBudgetS ?? 3600,
+          });
+          return jsonContent({ project: project.id, ...out });
         }
         case "map": {
           const ld = await project.linkerMap();

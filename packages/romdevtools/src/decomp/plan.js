@@ -13,15 +13,75 @@ import { dumpObject, symbolTable } from "./mips-obj.js";
 import { parseSplatAsm } from "./splat-map.js";
 import { VERIFIER_VERSION } from "./verdict.js";
 
-/** Build (and cache by object mtimes) the static call graph of the project. */
+/** The parser/producer version baked into the call-graph fingerprint: bump it
+ *  when the graph's SHAPE changes, so old caches are rejected on sight. */
+export const CALLGRAPH_VERSION = 2;
+
+/**
+ * Content-addressed fingerprint of everything the call graph is derived from.
+ *
+ * The old stamp was the SUM of object mtimes. A sum collides trivially (two
+ * files swapping timestamps, or any compensating pair of changes), carries no
+ * path or size information, is blind to a file being replaced by a
+ * same-length, same-time variant, and was not tied to the linker map or to the
+ * parser version at all — so a graph built by an older romdev stayed "valid"
+ * forever.
+ *
+ * This hashes the linker map's identity plus every contributing object's path,
+ * size and content hash, under a version tag. Content hashing the objects of
+ * one N64 game is a few hundred files and is cheap next to the objdump pass the
+ * cache exists to avoid.
+ */
+async function callGraphFingerprint(project, ld, objects) {
+  const { createHash } = await import("node:crypto");
+  const h = createHash("sha256");
+  h.update(`callgraph-v${CALLGRAPH_VERSION}\n`);
+  // The linker map itself: a relink changes the graph even if no object did.
+  const mapPath = project.m.built?.map ? project.abs(project.m.built.map) : null;
+  if (mapPath && fs.existsSync(mapPath)) {
+    const st = fs.statSync(mapPath);
+    h.update(`map ${path.basename(mapPath)} ${st.size} ${await sha256File(mapPath)}\n`);
+  } else h.update("map (none)\n");
+  h.update(`symbols ${ld.symbols.size} objects ${objects.length}\n`);
+  // Sorted, so the fingerprint does not depend on directory iteration order.
+  const parts = [];
+  for (const o of [...objects].sort()) {
+    const abs = project.abs(o);
+    try {
+      const st = fs.statSync(abs);
+      parts.push(`${o} ${st.size} ${await sha256File(abs)}`);
+    } catch { parts.push(`${o} MISSING`); }
+  }
+  for (const line of parts) h.update(line + "\n");
+  return { fingerprint: h.digest("hex").slice(0, 32), objectCount: objects.length, version: CALLGRAPH_VERSION };
+}
+
+/** sha256 of a file, streamed. */
+async function sha256File(p) {
+  const { createHash } = await import("node:crypto");
+  const h = createHash("sha256");
+  const fd = await (await import("node:fs/promises")).open(p, "r");
+  try {
+    const buf = Buffer.alloc(1 << 16);
+    for (;;) { const { bytesRead } = await fd.read(buf, 0, buf.length, null); if (!bytesRead) break; h.update(buf.subarray(0, bytesRead)); }
+  } finally { await fd.close(); }
+  return h.digest("hex").slice(0, 16);
+}
+
+/** Build (and cache, keyed by a content-addressed fingerprint) the static call graph. */
 export async function callGraph(project, { force = false } = {}) {
   const ld = await project.linkerMap();
   if (!ld) throw Object.assign(new Error("no linker map — build the project first"), { code: "NO_BUILD" });
   const cache = path.join(project.ws, "callgraph.json");
   const objects = [...ld.objects.keys()].filter((o) => o.startsWith(project.m.splat.buildPath + "/" + project.m.splat.srcPath + "/"));
-  const stamp = objects.map((o) => { try { return fs.statSync(project.abs(o)).mtimeMs; } catch { return 0; } }).reduce((a, b) => a + b, 0);
+  const fp = await callGraphFingerprint(project, ld, objects);
   if (!force && fs.existsSync(cache)) {
-    try { const c = JSON.parse(await readFile(cache, "utf8")); if (c.stamp === stamp) return c; } catch {}
+    try {
+      const c = JSON.parse(await readFile(cache, "utf8"));
+      // Fingerprint AND version must both match: a graph written by an older
+      // producer is rejected even if the inputs are byte-identical.
+      if (c.fingerprint === fp.fingerprint && c.callgraphVersion === CALLGRAPH_VERSION) return c;
+    } catch {}
   }
   const objdump = project.m.toolchain.objdump?.path ?? "mips-linux-gnu-objdump";
   const edges = new Map(); // caller → Set(callee)
@@ -42,7 +102,7 @@ export async function callGraph(project, { force = false } = {}) {
   }
   const callers = new Map();
   for (const [a, set] of edges) for (const b of set) { if (!callers.has(b)) callers.set(b, new Set()); callers.get(b).add(a); }
-  const out = { stamp, builtAt: new Date().toISOString(), functions: [...sizes.keys()].length,
+  const out = { fingerprint: fp.fingerprint, callgraphVersion: CALLGRAPH_VERSION, objectCount: fp.objectCount, builtAt: new Date().toISOString(), functions: [...sizes.keys()].length,
     edges: Object.fromEntries([...edges].map(([k, v]) => [k, [...v]])), callers: Object.fromEntries([...callers].map(([k, v]) => [k, [...v]])),
     sizes: Object.fromEntries(sizes), state: Object.fromEntries(state), object: Object.fromEntries(objOf) };
   await mkdir(project.ws, { recursive: true });
@@ -56,9 +116,29 @@ export async function callGraph(project, { force = false } = {}) {
  * each other (connected components of the asm-only subgraph), plus their
  * already-C neighbours as context. Score = expected payoff.
  */
-export async function planWork(project, { limit = 40, tu, evidence } = {}) {
-  const g = await callGraph(project);
-  const asm = Object.keys(g.state).filter((n) => g.state[n] === "asm" && (!tu || objectToTu(g.object[n], project) === tu));
+export async function planWork(project, { limit = 40, tu, evidence, forceGraph = false, workClass, includeAllClasses = false } = {}) {
+  const g = await callGraph(project, { force: forceGraph });
+  const { makeWorkClassifier, DEFAULT_QUEUE_CLASSES, WORK_CLASSES, WORK_CLASS_POLICY, emptyClassTally } = await import("./work-class.js");
+  const classify = makeWorkClassifier(await project.map(), project.m);
+
+  const allAsm = Object.keys(g.state).filter((n) => g.state[n] === "asm" && (!tu || objectToTu(g.object[n], project) === tu));
+
+  // WHAT KIND OF WORK IS THIS. The queue used to collapse game C targets,
+  // libultra routines and handwritten assembly into one list, which contradicts
+  // the project's own policy (handwritten asm is excluded from the
+  // decompilation denominator) and makes the count unreadable.
+  const classOf = new Map(allAsm.map((n) => [n, classify(g.object[n], n)]));
+  const byClass = emptyClassTally();
+  for (const n of allAsm) {
+    const c = byClass[classOf.get(n)];
+    if (c) { c.functions++; c.bytes += g.sizes[n] ?? 0; }
+  }
+
+  const wanted = new Set(
+    includeAllClasses ? WORK_CLASSES
+      : workClass ? (Array.isArray(workClass) ? workClass : [workClass])
+      : DEFAULT_QUEUE_CLASSES);
+  const asm = allAsm.filter((n) => wanted.has(classOf.get(n)));
   // Compute the CURRENT dependency hash of every TU that owns a remaining
   // function, so evidence is matched against the source tree as it is now
   // rather than against whichever result file was written most recently.
@@ -78,6 +158,7 @@ export async function planWork(project, { limit = 40, tu, evidence } = {}) {
     const payoff = Math.round(size * (1 - 0.5 * uncertainty) * (1 + 0.1 * Math.min(typedNeighbours, 5)));
     return { symbol: n, sizeBytes: size, object: g.object[n], tu: objectToTu(g.object[n], project), asmCallees, cCallees: cCallees.length, asmCallers, cCallers: cCallers.length, statically: callersOf.length === 0 ? "unreferenced (no static caller: a table/pointer target or dead)" : `${callersOf.length} static callers`,
       attempts: h.attempts ?? 0, lastDistance: h.lastDistance ?? null, lastCompile: h.lastCompile ?? null, placeholderPrototype: h.placeholderPrototype ?? null, payoff,
+      workClass: classOf.get(n),
       // Evidence identity, so a score can be traced to the tree it was measured on.
       evidenceDependencyHash: h.dependencyHash ?? null,
       ...(h.historicalAttempts ? { historicalAttempts: h.historicalAttempts, historicalBestDistance: h.historicalBestDistance ?? null } : {}),
@@ -100,6 +181,11 @@ export async function planWork(project, { limit = 40, tu, evidence } = {}) {
   }
   batches.sort((a, b) => b.payoff - a.payoff);
   return { functionsRemaining: rows.length, bytesRemaining: rows.reduce((s, r) => s + r.sizeBytes, 0), queue: rows.slice(0, limit), batches: batches.slice(0, Math.max(10, Math.ceil(limit / 3))),
+    workClasses: { selected: [...wanted], counts: byClass, policy: WORK_CLASS_POLICY,
+      allRemainingFunctions: allAsm.length, allRemainingBytes: allAsm.reduce((s, n) => s + (g.sizes[n] ?? 0), 0),
+      note: "functionsRemaining/queue cover the SELECTED classes only. Pass workClass:'libultra-known-source' (or includeAllClasses:true) to see the others; `counts` is every class regardless of selection." },
+    callGraph: { fingerprint: g.fingerprint, version: g.callgraphVersion, objects: g.objectCount, builtAt: g.builtAt,
+      note: "content-addressed over the linker map + every contributing object's path/size/content hash. Pass forceGraph:true to rebuild it." },
     evidencePolicy: `Ranking uses ONLY evidence whose dependency hash matches the TU's CURRENT hash (${currentDependencyHashes.size} live TU hashes). Attempts measured against a different source tree appear as historicalAttempts/historicalBestDistance and never affect payoff — a stale best that still looks good is what misranks a queue. \`lastCompile\` is the newest compatible attempt, not the last file read.`,
     scoring: "payoff = bytes × (1 − 0.5 × uncertainty) × (1 + 0.1 × min(typed C neighbours, 5)); uncertainty = 0.5 untried, else lastDistance / instruction count. Static caller counts come from R_MIPS_26 relocations in the built objects; 'unreferenced' means no static jal — a jump-table or function-pointer target, or dead code — NOT proof of unreachability." };
 }
