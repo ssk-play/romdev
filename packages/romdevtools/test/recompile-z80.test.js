@@ -330,3 +330,124 @@ test("e2e: indexed addressing with negative displacements ASSEMBLES", async () =
   assert.equal(asar.exitCode, 0, `asar failed: ${(asar.log || "").slice(0, 800)}`);
   assert.ok(asar.binary?.length > 0);
 });
+
+// ── branch range, and the three other bugs only real code exposes ───────────
+//
+// The assembly gate above passes on short routines and MISSED all four of
+// these, because each needs something a small synthetic sample does not have:
+// ~130 bytes of expansion between a branch and its target, a register-indirect
+// ALU source, a Z80-only register, or a slice big enough to include the vector
+// table. A gate whose coverage does not reach the failure is not a gate.
+
+/** The reporter's synthetic fixture: one djnz over 40 pair-ops. No ROM needed. */
+function branchRangeFixture() {
+  const ORG = 0x0100;
+  const body = Buffer.concat(Array.from({ length: 40 }, () => Buffer.from([0x23, 0x1b]))); // inc hl ; dec de
+  const code = Buffer.concat([
+    Buffer.from([0x06, 0x10]),                       // ld b,$10
+    body,
+    Buffer.from([0x10, (-(body.length + 2)) & 0xff]), // djnz back
+    Buffer.from([0xc9]),                              // ret
+  ]);
+  const rom = Buffer.alloc(0x8000, 0xc9);
+  code.copy(rom, ORG);
+  Buffer.from("TMR SEGA", "ascii").copy(rom, 0x7ff0);
+  return { rom, org: ORG };
+}
+
+test("a branch whose target is out of short range still assembles", async () => {
+  // A Z80 jr/djnz and a 65816 beq/bne share a +/-128 range, so a 1:1 emission
+  // looks safe — but this emitter expands ONE Z80 instruction into MANY (every
+  // 16-bit pair op is a rep/op/sep sandwich), so a loop that fit in Z80 no
+  // longer fits. Measured on real ROMs at -139, -482 and +252: BOTH directions,
+  // so it is not an off-by-one on one edge.
+  const { writeFile, mkdtemp } = await import("node:fs/promises");
+  const os = await import("node:os"), path = await import("node:path");
+  const { rom, org } = branchRangeFixture();
+  const dir = await mkdtemp(path.join(os.tmpdir(), "z80-branch-"));
+  const romPath = path.join(dir, "branchtest.sms");
+  await writeFile(romPath, rom);
+
+  const { runObjdumpDisasm } = await import("../src/toolchains/binutils/objdump.js").catch(() => ({}));
+  // Drive the same path the tool uses: lift the fixture's own instructions.
+  const asm = [
+    "        ld b,$10",
+    ...Array.from({ length: 40 }, () => ["        inc hl", "        dec de"]).flat(),
+    "L000102:",
+    "        djnz L000102",
+    "        ret",
+  ].join("\n");
+  const r = recompile(asm, { source: "sms", target: "snes" });
+  const asar = await runAsar({ source: r.mainAsm, includes: { [r.seamFile]: r.seamAsm } });
+  assert.equal(asar.exitCode, 0, `asar failed: ${(asar.log || "").slice(0, 400)}`);
+  assert.doesNotMatch(asar.log ?? "", /relative_branch_out_of_bounds/i);
+});
+
+test("every conditional branch is emitted as branch-over-long-jump", () => {
+  // brl is +/-32767 and stays RELATIVE, so the output remains
+  // position-independent — a jmp to an absolute label would not be.
+  const { ir } = liftZ80("\tjr z,L001234\n\tjr nz,L005678\n\tdjnz L009999");
+  const out = emit65816FromZ80Body(ir);
+  assert.match(out, /\bbrl\s+L001234/, "the long jump carries the distance");
+  assert.match(out, /\bbne\s+Lz80_br_/, "jr z inverts to bne over the jump");
+  assert.match(out, /\bbeq\s+Lz80_br_/, "jr nz inverts to beq over the jump");
+  // and the skip labels must be unique, or the second one redefines the first.
+  const labels = [...out.matchAll(/^(Lz80_br_\d+):/gm)].map((m) => m[1]);
+  assert.equal(labels.length, new Set(labels).size, "branch-over labels must be unique");
+});
+
+test("a register-indirect ALU source is not read as a LABEL", () => {
+  // `absolute()` also accepts the `(LABEL)` spelling, so it matched `(hl)` and
+  // returned the bare text `hl` — emitting `eor hl`, an ALU op against a label
+  // named hl that does not exist. asar: Elabel_not_found.
+  for (const [src, want] of [["xor (hl)", /eor\s+\[\$06\]/], ["and (hl)", /and\s+\[\$06\]/],
+                             ["or (hl)", /ora\s+\[\$06\]/], ["cp (hl)", /cmp\s+\[\$06\]/]]) {
+    const out = joined(src);
+    assert.match(out, want, `${src} must use [dp] indirect`);
+    assert.doesNotMatch(out, /\b(eor|and|ora|cmp)\s+hl\b/, `${src} must not emit a bare 'hl' operand`);
+  }
+  // A genuine label operand still works.
+  assert.match(joined("or (L001234)"), /ora\s+L001234/);
+  // and (ix+d) as an ALU source indexes rather than refusing.
+  assert.match(joined("cp (ix+5)"), /cmp\s+\[\$08\],y/);
+});
+
+test("the Z80-only I and R registers are REFUSED, not emitted as labels", () => {
+  // I is the interrupt-vector register and R the refresh counter; neither
+  // exists on a 65816, and both are plain identifiers, so `ld a,r` passed
+  // through as `lda r`. `ld a,r` is a cheap pseudo-random source in real games.
+  for (const src of ["ld a,r", "ld a,i", "ld r,a", "ld i,a"]) {
+    const out = joined(src);
+    assert.match(out, /UNTRANSLATED/, `${src} must be refused`);
+    assert.doesNotMatch(out, /^\s*(lda|sta)\s+[ir]\s*$/m, `${src} must not emit a bare i/r operand`);
+  }
+  // Ordinary registers are unaffected.
+  assert.match(joined("ld a,b"), /lda\s+\$01/);
+});
+
+test("a label is DEFINED once even when it arrives twice", async () => {
+  // A label can come as its own LABEL node AND attached to the next
+  // instruction. Emitting both produced `reset:` twice -> Elabel_redefined,
+  // visible only on a slice big enough to include the vector table.
+  const asm = ["reset:", "        di", "        ret"].join("\n");
+  const r = recompile(asm, { source: "sms", target: "snes" });
+  const defs = [...r.mainAsm.matchAll(/^reset:/gm)];
+  assert.equal(defs.length, 1, "a duplicate definition is dropped, never renamed");
+  const asar = await runAsar({ source: r.mainAsm, includes: { [r.seamFile]: r.seamAsm } });
+  assert.equal(asar.exitCode, 0, `asar failed: ${(asar.log || "").slice(0, 300)}`);
+});
+
+test("the bank budget warns BEFORE the assembler does", () => {
+  // Cross-ISA translation expands ~5x, so a slice that looks small in source
+  // bytes overflows a 32KB 65816 bank. asar's own Ebank_border_crossed says
+  // nothing about why.
+  const small = recompile("\tld a,$01\n\tret", { source: "sms", target: "snes" });
+  assert.equal(small.bankBudget.fitsOneBank, true);
+  assert.equal(small.bankBudget.warning, undefined);
+
+  // Enough pair-ops to blow a bank.
+  const big = recompile(Array.from({ length: 6000 }, () => "\tinc hl").join("\n"), { source: "sms", target: "snes" });
+  assert.equal(big.bankBudget.fitsOneBank, false);
+  assert.match(big.bankBudget.warning, /bank/i);
+  assert.match(big.bankBudget.warning, /smaller region|split/i, "the warning must say what to do about it");
+});

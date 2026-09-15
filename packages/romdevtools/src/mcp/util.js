@@ -222,6 +222,24 @@ export function withClearToolErrors(server, z) {
         Object.values(x).some((v) => v && typeof v === "object" && "_def" in v),
     );
     const shape = shapeIdx >= 0 ? rest[shapeIdx] : null;
+
+    // PER-OP PARAMETER VALIDATION runs on the handler's own arguments, which
+    // are exactly what the caller sent — no schema defaults applied yet. A
+    // parameter that is real for a SIBLING op is refused here instead of being
+    // accepted and silently ignored.
+    if (shape) {
+      const checkScope = makeScopeChecker(shape, name);
+      const hIdx = rest.findIndex((x) => typeof x === "function");
+      if (checkScope && hIdx >= 0) {
+        const orig = rest[hIdx];
+        rest = rest.slice();
+        rest[hIdx] = async (args, ...extra) => {
+          const msg = checkScope(args);
+          if (msg) return { isError: true, content: [{ type: "text", text: `[BAD_ARGS] ${msg}` }] };
+          return await orig(args, ...extra);
+        };
+      }
+    }
     const result = origTool(name, ...rest);
     if (shape) {
       try {
@@ -272,6 +290,108 @@ export function coerceHexNumber(v) {
  * @param {Record<string, any>} shape
  * @param {string} toolName
  */
+/**
+ * Which ops/targets a parameter belongs to, read from its own description.
+ *
+ * The descriptions already say this — "target=recompile: ...", "op=timeline: ...",
+ * "op=bytes/rom: ..." — so the scope is declared data, not something this has to
+ * be told separately. A parameter with no such prefix is treated as global.
+ *
+ * WHY THIS EXISTS. Validation was per-TOOL: every key valid on ANY op was
+ * accepted on EVERY op. So a parameter that belongs to a sibling op is taken
+ * and silently ignored, and the caller gets a plausible answer to a question
+ * they did not ask. Three measured cases: `address` on target:'recompile'
+ * (always lifted the reset vector, so on NES — where reset IS $8000 — it
+ * returned a believable result for the wrong address), `bank` on
+ * target:'reachable' (a silently wrong closure), and `path` on
+ * playtest({op:'open'}) (dropped, then an error that never mentions it).
+ */
+function scopesFromDescription(desc) {
+  if (!desc) return null;
+  const scopes = new Set();
+  // "target=a/b:" or "op=a:" possibly several times in one description.
+  for (const m of String(desc).matchAll(/\b(?:op|target)\s*=\s*([A-Za-z0-9'|/,\s]+?)\s*:/g)) {
+    for (const part of m[1].split(/[\/,|]/)) {
+      const name = part.trim().replace(/^'|'$/g, "");
+      if (name) scopes.add(name);
+    }
+  }
+  return scopes.size ? scopes : null;
+}
+
+/**
+ * Build a per-op checker. Returns null when the tool has no op/target
+ * discriminator or no parameter declares a scope — in which case per-tool
+ * validation is all there is and nothing changes.
+ */
+export function makeScopeChecker(shape, toolName) {
+  const discriminator = ["op", "target", "action"].find((k) => shape[k]);
+  if (!discriminator) return null;
+  const scopeOf = new Map();
+  let any = false;
+  for (const [key, schema] of Object.entries(shape)) {
+    if (key === discriminator) continue;
+    const sc = scopesFromDescription(schema?.description);
+    if (sc) { scopeOf.set(key, sc); any = true; }
+  }
+  if (!any) return null;
+
+  // DESCRIPTIONS ARE NOT AN EXHAUSTIVE WHITELIST. Several are written for the
+  // reader rather than the validator — `path` says "target=bytes: raw binary
+  // path. target=rom/project/references: ROM file path." and is ALSO required
+  // by target:'recompile', which the text never mentions. Treating a scope list
+  // as complete therefore rejects valid calls, which is a worse failure than
+  // the silent drop it was meant to catch.
+  //
+  // So only a parameter whose scope is UNAMBIGUOUS is enforced: one that names
+  // exactly one op, and whose name is not shared vocabulary used across the
+  // tool. That is enough to catch every reported case (`address` on
+  // 'recompile', `bank` on 'reachable', `path` on playtest 'open') while a
+  // parameter with a broad or under-documented scope is left alone.
+  // DESCRIPTIONS ARE NOT ALWAYS AN EXHAUSTIVE WHITELIST. Some are written for
+  // the reader: `path` says "target=bytes ... target=rom/project/references"
+  // and is ALSO required by target:'recompile', which the text never mentions.
+  // Enforcing those rejects valid calls — a worse failure than the silent drop.
+  //
+  // So a small SHARED list is exempt. Everything else with an explicit scope is
+  // enforced, however many ops it names: `address` naming four targets is a
+  // complete list, and 'recompile' genuinely is not one of them.
+  const SHARED = new Set(["path", "platform", "outputPath", "inline", "echo", "session", "format", "limit", "romPath", "projectDir"]);
+  for (const key of [...scopeOf.keys()]) {
+    if (SHARED.has(key)) scopeOf.delete(key);
+  }
+  if (!scopeOf.size) return null;
+
+  // A parameter that still holds its DECLARED DEFAULT is indistinguishable from
+  // one the caller never passed — the SDK applies defaults before the handler
+  // runs. Flagging those rejected every valid call on the tool (`cpu` defaults
+  // to "6502" on every disasm target). Read each default off the schema and
+  // treat a value equal to it as absent.
+  const defaultOf = new Map();
+  for (const key of scopeOf.keys()) {
+    const def = shape[key]?._def;
+    if (def && "defaultValue" in def) {
+      try { defaultOf.set(key, typeof def.defaultValue === "function" ? def.defaultValue() : def.defaultValue); } catch {}
+    }
+  }
+
+  return (args) => {
+    const op = args?.[discriminator];
+    if (!op) return null;
+    for (const [key, scopes] of scopeOf) {
+      if (args[key] === undefined) continue;
+      if (defaultOf.has(key) && args[key] === defaultOf.get(key)) continue;  // default, not a choice
+      if (scopes.has(String(op))) continue;
+      // The parameter is real, just not for THIS op. Name where it does apply:
+      // the caller is usually one word away from the right call.
+      const where = [...scopes].map((x) => `${discriminator}:'${x}'`).join(" or ");
+      return `${toolName}: '${key}' does not apply to ${discriminator}:'${op}' — it belongs to ${where}. `
+        + `Passing it here would be silently ignored, so it is refused instead.`;
+    }
+    return null;
+  };
+}
+
 function strictFriendlyObject(z, shape, toolName) {
   // Wrap address-like fields with a hex-string→number preprocessor. z.preprocess
   // runs the coercion first, then the field's own schema (number().int()…)
@@ -315,6 +435,13 @@ function strictFriendlyObject(z, shape, toolName) {
         return undefined; // zod's default message for anything else
     }
   };
+  // PER-OP validation, on top of the per-tool strictness above. A key that is
+  // real for a SIBLING op is refused here rather than accepted and dropped.
+  // The per-op scope check does NOT run here. A zod `.default()` is already
+  // applied by the time a schema refinement sees the object, so refining it
+  // flags defaults the caller never wrote (`cpu` on every disasm target). It
+  // runs in the HANDLER wrapper instead (see server.tool above), where the
+  // caller's own arguments are intact.
   return z.object(shape, { error: errorMap }).strict();
 }
 

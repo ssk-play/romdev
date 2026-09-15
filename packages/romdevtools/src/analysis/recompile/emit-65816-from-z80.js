@@ -41,6 +41,8 @@ export const DP = Object.freeze({
 const dp = (n) => `$${n.toString(16).padStart(2, "0")}`;
 /** Unique label counter for emitted block-op loops. */
 let blkSeq = 0;
+/** Unique label counter for branch-over-long-jump expansions. */
+let brSeq = 0;
 const I = "        ";
 
 /** 8-bit register name → its direct-page slot, or null if not a plain reg. */
@@ -58,6 +60,21 @@ function pairSlot(name) {
   const map = { hl: DP.L, de: DP.E, bc: DP.C, ix: DP.IX, iy: DP.IY, sp: 0x0c, af: DP.A };
   return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : null;
 }
+
+/**
+ * Z80-only registers with NO 65816 equivalent.
+ *
+ * `I` is the interrupt-vector register and `R` the memory-refresh counter.
+ * Neither exists on a 65816, and both are plain identifiers, so `ld a,r` sailed
+ * through `labelToken()` and emitted `lda r` — an ALU op against a LABEL NAMED
+ * r that does not exist, rejected by asar as Elabel_not_found. Emitting a
+ * marker keeps the line visible in the output AND counted in residue, which is
+ * the honest outcome: refusing to translate is not the same as pretending the
+ * instruction was not there. (`ld a,r` is used as a cheap pseudo-random source
+ * in real games, so this appears in commercial code and not in short samples.)
+ */
+const Z80_ONLY_REGS = new Set(["i", "r"]);
+const isZ80OnlyReg = (t) => Z80_ONLY_REGS.has(String(t ?? "").trim().toLowerCase());
 
 /** Parse `dst,src` into trimmed halves (either may be absent). */
 function operands(operand) {
@@ -213,6 +230,10 @@ function untranslated(node, why) {
 function emitLd(node, out) {
   const [dst, src] = operands(node.operand);
   if (!dst || !src) { out.push(untranslated(node, "ld needs two operands")); return; }
+  if (isZ80OnlyReg(dst) || isZ80OnlyReg(src)) {
+    out.push(untranslated(node, `Z80-only register (I/R) has no 65816 equivalent`));
+    return;
+  }
   // 16-bit pair loads (`ld hl,$1234`) set two dp bytes.
   const pair = pairSlot(dst);
   if (pair != null && regSlot(dst) == null) {
@@ -298,9 +319,24 @@ function emitAlu(op65, node, out) {
     const ind = indirect(src);
     const pr = pairSlot(src);
     const albl = labelToken(src) ?? absolute(src);
+    // ORDER MATTERS. `absolute()` also accepts the `(LABEL)` spelling, so it
+    // matches `(hl)` and hands back the bare text `hl` — which then emitted
+    // `eor hl`, an ALU op against a LABEL NAMED hl that does not exist. asar
+    // rejects it with Elabel_not_found, and only on real code: a register
+    // indirect as an ALU source is common in commercial ROMs and absent from
+    // short synthetic routines. REGISTER-INDIRECT is checked before anything
+    // that could read it as a name.
     if (r != null) out.push(`${I}${op65}     ${dp(r)}`);
-    else if (albl && pr == null) out.push(`${I}${op65}     ${albl}`);
     else if (ind && !ind.disp) out.push(`${I}${op65}     [${dp(ind.slot)}]`);
+    else if (ind && ind.disp) {
+      // (ix+d)/(iy+d) as an ALU source: index in Y, then [dp],y.
+      const d = parseDisp(ind.disp);
+      if (!Number.isFinite(d)) { out.push(untranslated(node, `unsupported ALU displacement '${ind.disp}'`)); return; }
+      const w = emitIndexForDisp(d, out);
+      out.push(`${I}${op65}     [${dp(ind.slot)}],y`);
+      restoreIndexWidth(w, out);
+    }
+    else if (albl && pr == null) out.push(`${I}${op65}     ${albl}`);
     else if (pr != null) {
       // 16-bit ALU (`add hl,de`): the accumulator load above was 8-bit, so
       // redo the whole thing in 16-bit mode against the pair.
@@ -343,6 +379,12 @@ function emitIncDec(which, node, out) {
 }
 
 /** IR condition → the 65816 branch that tests it. */
+/** The INVERSE branch, for the branch-over-long-jump expansion below. */
+const BRANCH_INVERSE = {
+  beq: "bne", bne: "beq", bcs: "bcc", bcc: "bcs",
+  bmi: "bpl", bpl: "bmi", bvs: "bvc", bvc: "bvs",
+};
+
 const BRANCH_OF = {
   [COND.EQ]: "beq", [COND.NE]: "bne",
   [COND.CS]: "bcs", [COND.CC]: "bcc",
@@ -507,15 +549,48 @@ function emitReg(node, out) {
  */
 export function emit65816FromZ80Body(ir) {
   const out = [];
-  blkSeq = 0;
+  blkSeq = 0; brSeq = 0;
+  // ONE DEFINITION PER LABEL. A label can arrive twice for the same address:
+  // once as its own LABEL node and again attached to the instruction that
+  // follows it. Emitting both produced `reset:` twice and asar rejected the
+  // file with Elabel_redefined — visible only on a slice big enough to include
+  // the vector table, which is why a small region assembled fine. Defining a
+  // label a second time is never meaningful here, so the duplicate is dropped
+  // rather than renamed: a renamed label would silently break the branch that
+  // targets it.
+  const defined = new Set();
+  const define = (name) => {
+    if (!name || defined.has(name)) return;
+    defined.add(name);
+    out.push(`${name}:`);
+  };
   for (const node of ir) {
-    if (node.label && node.op !== IR.LABEL) out.push(`${node.label}:`);
+    if (node.label && node.op !== IR.LABEL) define(node.label);
     switch (node.op) {
-      case IR.LABEL: out.push(`${node.name}:`); break;
+      case IR.LABEL: define(node.name); break;
       case IR.REG:   emitReg(node, out); break;
       case IR.BRANCH: {
+        // THE RANGE PROBLEM, and why a short branch cannot be emitted directly.
+        //
+        // A Z80 `jr`/`djnz` and a 65816 `beq`/`bne` have the SAME +/-128 range,
+        // so a naive 1:1 emission looks safe. It is not: this emitter expands
+        // ONE Z80 instruction into MANY 65816 instructions — every 16-bit pair
+        // op becomes a rep/op/sep sandwich — so a loop that fit comfortably in
+        // Z80 no longer fits. Real code fails in both directions (measured
+        // -139, -482 and +252 on commercial ROMs); a short synthetic routine
+        // survives, which is exactly why an assembly gate on a small fixture
+        // did not catch it.
+        //
+        // The fix is the standard assembler expansion: invert the condition,
+        // branch OVER a long jump, and let the long jump carry the distance.
+        // `brl` is +/-32767 and stays relative, so the output remains
+        // position-independent — which a `jmp` to an absolute label would not.
         const b = BRANCH_OF[node.cond] ?? "bne";
-        out.push(`${I}${b}     ${node.target}`);
+        const inv = BRANCH_INVERSE[b] ?? "beq";
+        const over = `Lz80_br_${brSeq++}`;
+        out.push(`${I}${inv}     ${over}`);
+        out.push(`${I}brl     ${node.target}`);
+        define(over);
         break;
       }
       case IR.JUMP:  out.push(`${I}jmp     ${node.target}`); break;

@@ -2021,8 +2021,8 @@ export function registerDisasmTools(server, z) {
       path: z.string().optional().describe("target=bytes: raw binary path. target=rom/project/references: ROM file path."),
       base64: z.string().optional().describe("target=bytes: base64 of the bytes (OR `path`)."),
       platform: z.enum(DISASM_PLATFORMS).optional().describe("target=rom/project/references: override platform (else sniffed from extension). target=source: pico8 (.p8 carts are Lua source). n64/ps1/dreamcast: functions/cfg/xrefs/decompile (the MIPS/SH-4 RE engine); their bytes/rom/project/references targets are not implemented and return a capability error."),
-      startAddress: z.number().int().min(0).max(0xffffffff).default(0x8000).describe("target=bytes/rom: address of the first byte (GBA auto-bumped to 0x08000000)."),
-      length: z.number().int().min(1).max(65536).optional().describe("target=rom: bytes to disassemble (default 256; mutually exclusive with endAddress)."),
+      startAddress: z.number().int().min(0).max(0xffffffff).default(0x8000).describe("target=bytes/rom/range/recompile: address of the first byte (GBA auto-bumped to 0x08000000). On target=recompile this is the routine to lift — NOT `address`, which belongs to the analysis targets."),
+      length: z.number().int().min(1).max(65536).optional().describe("target=rom/range/recompile: bytes to disassemble or lift (default 256; mutually exclusive with endAddress)."),
       addOrigin: z.boolean().default(true).describe("target=bytes/rom: prepend `.org` so the asm re-assembles through ca65."),
       outputPath: z.string().optional().describe("target=bytes/rom: write asm to disk and return {path}; required for bytes unless inline:true."),
       inline: z.boolean().default(false).describe("target=bytes: return asm in the response instead of writing to disk."),
@@ -2032,7 +2032,7 @@ export function registerDisasmTools(server, z) {
       symbolsText: z.string().optional().describe("target=bytes: inline symbol-file text."),
       symbolsFormat: z.enum(["wla", "cc65-lbl"]).optional().describe("target=bytes: explicit symbol-file format override."),
       // rom
-      bank: z.number().int().min(0).max(255).optional().describe("target=rom / pointerTable / decompile: switchable ROM bank to map into the windowed slot. NES (mapper>0, $8000), GB/GBC ($4000), SMS/GG (Sega-mapper slot 2, $8000), Atari 2600/7800 (SuperGame $8000). SNES: the bank IS the address high byte — pass either a full 24-bit startAddress ($02AF86) OR a bank-local address + bank:2 (composed to $02AF86 internally); both map correctly. Flat platforms (Genesis/GBA/Lynx/C64) have no cart banking — a non-zero `bank` is REJECTED, never silently applied to bank 0. target=decompile NEEDS this for a switchable-mapper address: a live CPU address like $AAC5 on MMC1 has no bank in it, so without `bank` the decompiler reads bank 0 — which usually holds $FF filler there and returns \"bad instruction data\". Take the bank from a breakpoint/watch result (they report bank + prgOffset) or from where you know the code lives."),
+      bank: z.number().int().min(0).max(255).optional().describe("target=rom / range / pointerTable / decompile / reachable: switchable ROM bank to map into the windowed slot. NES (mapper>0, $8000), GB/GBC ($4000), SMS/GG (Sega-mapper slot 2, $8000), Atari 2600/7800 (SuperGame $8000). SNES: the bank IS the address high byte — pass either a full 24-bit startAddress ($02AF86) OR a bank-local address + bank:2 (composed to $02AF86 internally); both map correctly. Flat platforms (Genesis/GBA/Lynx/C64) have no cart banking — a non-zero `bank` is REJECTED, never silently applied to bank 0. target=decompile NEEDS this for a switchable-mapper address: a live CPU address like $AAC5 on MMC1 has no bank in it, so without `bank` the decompiler reads bank 0 — which usually holds $FF filler there and returns \"bad instruction data\". Take the bank from a breakpoint/watch result (they report bank + prgOffset) or from where you know the code lives."),
       thumb: z.boolean().default(false).describe("target=rom: GBA — disassemble as THUMB (16-bit) instead of ARM."),
       widths: z.object({ a: z.union([z.literal(8), z.literal(16)]).optional(), i: z.union([z.literal(8), z.literal(16)]).optional() }).optional().describe("target=rom, SNES/65816 — FORCE the ENTRY width (a = accumulator/M, i = index/X, default 8) instead of inferring it. Use when YOU know the width (live P capture, surrounding code) for a window with no in-window caller — e.g. widths:{a:16,i:16} to decode a blob entered in 16-bit mode. In-window rep/sep are still followed."),
       endAddress: z.number().int().min(0).max(0xffffff).optional().describe("target=rom: CPU end address (inclusive); alternative to length."),
@@ -2054,7 +2054,11 @@ export function registerDisasmTools(server, z) {
       withRuntime: z.boolean().default(false).describe("target=recompile: phase-2 LIVE render (default off). Implies withShim (BG) and adds the per-frame runtime: each vblank it flushes the game's shadow OAM to SNES sprites and runs the game's own NMI handler, so SPRITES ANIMATE and the game's per-frame logic runs — the port plays, not just boots to a screenshot. Background is static from the shim; live nametable/scroll streaming is phase 3. Verified on snes9x."),
       // references / cfg / xrefs
       topN: z.number().int().min(1).max(20000).optional().describe("target=functions: how many functions to return, most code-like first. DEFAULT: all of them. Pass a number to cap. When capped, the array is named `functionsPage` (not `functions`) and `truncated`/`total` are set, so a truncated read cannot be mistaken for a complete one."),
-      entries: z.array(z.number().int().min(0).max(0xFFFFFFFF)).optional().describe("target=reachable: one or more CPU addresses to start the walk from (reset vector, IRQ/NMI handlers, jumptable arms recovered via breakpoint({on:'jumptable'})). `address` is accepted as a one-entry shorthand."),
+      entries: z.array(z.union([
+        z.number().int().min(0).max(0xFFFFFFFF),
+        z.tuple([z.number().int().min(0).max(0xFFFFFFFF), z.number().int().min(0)]),
+        z.object({ address: z.number().int().min(0).max(0xFFFFFFFF), bank: z.number().int().min(0).optional() }),
+      ])).optional().describe("target=reachable: entry points for the walk (reset vector, IRQ/NMI handlers, jumptable arms recovered via breakpoint({on:'jumptable'})). On a BANKED cart an address in the paged window means different code per bank, so pass [address, bank] pairs or {address, bank} objects there — a bare address is walked against whichever bank the flat image holds, and the response says so. `address` is accepted as a one-entry shorthand; a top-level `bank` applies to every bare entry."),
       maxBlocks: z.number().int().min(1).max(200000).optional().describe("target=reachable: stop after this many basic blocks (default 20000). Sets `truncated` when hit."),
       minSize: z.number().int().min(0).optional().describe("target=functions: drop functions smaller than this many bytes. A cc65 ROM is roughly half 1-15 byte runtime stubs with no RE signal; minSize:32 removes them."),
       address: z.number().int().min(0).max(0xFFFFFFFF).optional().describe("target=references: CPU address to find references TO. target=cfg: address inside the function to graph. target=xrefs: address to find cross-references TO. target=decompile: address of the function to decompile (use an address from target='functions')."),
@@ -2113,7 +2117,7 @@ export function registerDisasmTools(server, z) {
         case "reachable":  return jsonContent(await analyzeReachable(
                              requireRomPath(args),
                              args.entries ?? (args.address != null ? [args.address] : []),
-                             args.platform, { maxBlocks: args.maxBlocks }));
+                             args.platform, { maxBlocks: args.maxBlocks, bank: args.bank }));
         case "xrefs":      return jsonContent(await analyzeXrefs(requireRomPath(args), args.address, args.platform));
         case "functions":  return jsonContent(await analyzeFunctions(requireRomPath(args), args.platform, { topN: args.topN, minSize: args.minSize }));
         case "decompile": {

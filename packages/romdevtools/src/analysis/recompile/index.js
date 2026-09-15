@@ -255,13 +255,56 @@ export function recompile(sourceAsm, opts = {}) {
   });
   const seamAsm = emitter.emitSeam();
 
+  // BANK BUDGET. Cross-ISA translation EXPANDS: a Z80 instruction becomes
+  // several 65816 ones (a 16-bit pair op is a rep/op/sep sandwich), measured at
+  // roughly 5x. A 65816 bank is 32KB, so a slice that looks modest in source
+  // bytes can overflow one bank and the assembler reports a raw
+  // `Ebank_border_crossed` that says nothing about WHY. Estimating the emitted
+  // size here lets the caller see the limit before the assembler does.
+  const emittedBytes = estimateEmittedBytes(mainAsm);
+  const BANK_BYTES = 0x8000;
+  const bankBudget = {
+    estimatedBytes: emittedBytes,
+    bankBytes: BANK_BYTES,
+    fitsOneBank: emittedBytes <= BANK_BYTES,
+    ...(emittedBytes > BANK_BYTES ? {
+      warning: `the translated body is roughly ${emittedBytes} bytes, past the ${BANK_BYTES}-byte ${emitter.targetIsa} bank. `
+        + "Cross-ISA translation expands (about 5x for z80->65816), so a slice that looks small in source bytes can overflow a bank. "
+        + "Recompile a SMALLER region, or split the output across banks — the assembler's own error for this "
+        + "(Ebank_border_crossed) does not say why it happened.",
+    } : {}),
+  };
+
   return {
     mainAsm, seamAsm, seamFile: emitter.seamFile,
     residue: [...residue, ...nmiResidue],
     entry, nmiEntry,
     instrCount: lifted.instrCount + nmiInstr,
     seamCount: lifted.seamCount + nmiSeam,
-    stubbed,
+    stubbed, bankBudget,
     source, target, targetIsa: emitter.targetIsa,
   };
+}
+
+/**
+ * Rough emitted size of an assembly body, for the bank-budget check.
+ *
+ * Counts instruction lines only — labels, comments and directives occupy no
+ * space. Sizes are approximate per-instruction averages, which is enough to
+ * tell "comfortably inside a bank" from "past it"; the assembler remains the
+ * authority on the exact number.
+ */
+function estimateEmittedBytes(asm) {
+  let bytes = 0;
+  for (const raw of String(asm ?? "").split("\n")) {
+    const line = raw.replace(/;.*$/, "").trim();
+    if (!line || line.endsWith(":") || line.startsWith(".") || /^(org|lorom|hirom|incsrc|dw|db)\b/i.test(line)) continue;
+    const op = (/^([a-z]+)/i.exec(line) ?? [])[1]?.toLowerCase() ?? "";
+    // brl/jmp/jsr are 3; rep/sep and immediates 2; the rest average ~2.5.
+    bytes += /^(brl|jmp|jsr|jml|jsl)$/.test(op) ? 3
+      : /^(rep|sep)$/.test(op) ? 2
+      : /^(nop|rts|rti|txs|xce|sec|clc|sei|cli|pha|pla|phx|plx)$/.test(op) ? 1
+      : 3;
+  }
+  return bytes;
 }

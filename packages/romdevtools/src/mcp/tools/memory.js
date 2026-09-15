@@ -31,6 +31,37 @@ import { CAPABILITIES } from "../../cores/capabilities.js";
  * platform and lists what IS available, so a refusal is a redirect rather than
  * a dead end.
  */
+/**
+ * Refuse a memory read on a host that HAS no memory regions.
+ *
+ * A wasmcart/jsgame cart is not an emulated machine: there is no CPU address
+ * space to name, and the host says so with `hasMemoryRegions: false`. That fact
+ * was not reaching this tool, so every region read returned a success-SHAPED
+ * response with `length: 0` and `hex: ""` — indistinguishable from "this region
+ * is legitimately all zeroes", which on a freshly booted cart is exactly what a
+ * caller expects to see. One reporter briefly believed they were reading a
+ * cart's RAM and getting valid data.
+ *
+ * Empty-as-success is the worst shape available here: an error would have said
+ * in one call that the whole approach was wrong.
+ */
+function assertHostHasRegions(host, region) {
+  // The host exposes this as a METHOD, not a property — reading it as a field
+  // silently yielded undefined and the gate never fired.
+  const caps = (typeof host?.getCapabilities === "function" ? host.getCapabilities() : null)
+    ?? host?.status?.capabilities ?? host?.capabilities ?? null;
+  if (!caps || caps.hasMemoryRegions !== false) return;
+  const platform = host?.status?.platform ?? "this host";
+  const alt = caps.hasWasmIntrospection
+    ? `Read the cart's own linear memory instead: wasm({op:'memory'}) / wasm({op:'exports'}) expose the real cart heap, which is the introspection an emulator cannot give.`
+    : `This host exposes no emulated address space.`;
+  throw Object.assign(new Error(
+    `memory: '${platform}' has NO memory regions (the host reports hasMemoryRegions:false)`
+    + `${region ? `, so region '${region}' cannot be read` : ""}. ${alt} `
+    + `Refusing rather than returning length:0/hex:"" — an empty read is indistinguishable from a region that is legitimately all zeroes.`),
+    { code: "NO_MEMORY_REGIONS" });
+}
+
 function assertRegionOnPlatform(host, region) {
   if (!region) return;
   const platform = host?.status?.platform;
@@ -150,6 +181,7 @@ function genericEndianness(platform) {
  */
 async function memRead(sessionKey, { region, offset = 0, length, offsets, outputPath, inline, echo, compact }) {
       const host = getHost(sessionKey);
+      assertHostHasRegions(host, region);
       assertRegionOnPlatform(host, region);
       const info0 = REGION_INFO[region] ?? {};
       const endianness0 = info0.endianness ?? genericEndianness(host.status.platform);
@@ -445,6 +477,7 @@ async function memReadCart(sessionKey, { offset = 0, length = 16, cpuAddress, ba
 // ── snapshotMemory / diffMemory — "which bytes changed across this event?" ──
 async function memSnapshot(sessionKey, { region, name = "default", offset = 0, length }) {
       const host = getHost(sessionKey);
+      assertHostHasRegions(host, region);
       assertRegionOnPlatform(host, region);
       const bytes = host.readMemory(region, offset, length ?? regionLength(host, region, offset));
       memSnapshots(sessionKey).set(snapKey(region, name), { offset, bytes: Uint8Array.from(bytes) });
@@ -459,6 +492,7 @@ async function memSnapshot(sessionKey, { region, name = "default", offset = 0, l
 // (0.27.0 feedback #6). The emulator is left at the END OF RUN B.
 async function memDiffRuns(sessionKey, { region, frames = 60, portsA, portsB, offset = 0, length, minDelta, maxClusters = 64, gap = 4 }) {
       const host = getHost(sessionKey);
+      assertHostHasRegions(host, region);
       assertRegionOnPlatform(host, region);
       const baseline = host.serializeState();
       let bufA, bufB;
@@ -515,6 +549,7 @@ async function memDiffRuns(sessionKey, { region, frames = 60, portsA, portsB, of
 
 async function memDiff(sessionKey, { region, name = "default", view = "summary", maxChanges = 4096, maxClusters = 64, gap = 4, minDelta, changeDir, beforeMin, beforeMax, afterMin, afterMax, deltaEq, outputPath, echo = true }) {
       const host = getHost(sessionKey);
+      assertHostHasRegions(host, region);
       assertRegionOnPlatform(host, region);
       const snap = memSnapshots(sessionKey).get(snapKey(region, name));
       if (!snap) throw new Error(`memory({op:'diff'}): no snapshot named '${name}' for region '${region}'. Call memory({op:'snapshot', region, name}) first.`);
@@ -625,6 +660,7 @@ function diffOut(result, { outputPath, echo, region, heavyKey, count }) {
 // ── classifyRegion — "what kind of data is at this offset?" ──────────────
 async function memClassify(sessionKey, { region = "system_ram", offset = 0, length = 256 }) {
       const host = getHost(sessionKey);
+      assertHostHasRegions(host, region);
       assertRegionOnPlatform(host, region);
       const bytes = host.readMemory(region, offset, length);
       const cls = classifyBytes(bytes, { bigEndian: genericEndianness(host.status.platform) === "big" });
@@ -673,6 +709,7 @@ function decodeAt(buf, i, s, k = 0) {
 
 async function memSearch(sessionKey, { value, size = 1, as = "raw", region = "system_ram", name = "default", maxCandidates = 64 }) {
       const host = getHost(sessionKey);
+      assertHostHasRegions(host, region);
       assertRegionOnPlatform(host, region);
       const info = REGION_INFO[region] ?? {};
       const little = (info.endianness ?? genericEndianness(host.status.platform)) !== "big";
@@ -734,6 +771,7 @@ async function memSearch(sessionKey, { value, size = 1, as = "raw", region = "sy
 // op:'search' (requires a value) can't do. (0.28.0 feedback #1.)
 async function memSearchUnknown(sessionKey, { size = 1, as = "raw", region = "system_ram", name = "default", maxCandidates: _maxCandidates = 64 }) {
       const host = getHost(sessionKey);
+      assertHostHasRegions(host, region);
       assertRegionOnPlatform(host, region);
       if (as === "digits") throw new Error("memory({op:'searchUnknown'}): as:'digits' needs a value; use as:'raw' or 'bcd' for an unknown-value hunt.");
       const info = REGION_INFO[region] ?? {};
@@ -818,10 +856,34 @@ async function memSearchNext(sessionKey, { compare, value, name = "default", max
  */
 function listRegions(sessionKey, args) {
   let platform = args.platform;
+  let host = null;
   if (!platform) {
     // The loaded platform lives on host.status, not on the host itself.
-    try { platform = getHost(sessionKey)?.status?.platform; } catch { /* no host: fall through */ }
+    try { host = getHost(sessionKey); platform = host?.status?.platform; } catch { /* no host: fall through */ }
+  } else {
+    try { host = getHost(sessionKey); } catch { /* listing by name needs no host */ }
   }
+
+  // A HOST WITH NO REGIONS GETS A SENTENCE, NOT A CATALOGUE. Listing 126 ids
+  // that will all return empty is the same wall of `nes_*` that hid a real
+  // region for a whole project — and the generic note promised "a read of one
+  // this core does not expose returns an error rather than wrong bytes", which
+  // was FALSE on this host before the gate above existed. Say the true thing.
+  const caps = (typeof host?.getCapabilities === "function" ? host.getCapabilities() : null)
+    ?? host?.status?.capabilities ?? null;
+  if (caps && caps.hasMemoryRegions === false) {
+    return {
+      platform: platform ?? null,
+      count: 0, regions: [], generic: [], specific: [],
+      hasMemoryRegions: false,
+      note: `'${platform ?? "this host"}' carts are not emulated machines: there is no CPU address space, so there are NO memory regions. `
+        + (caps.hasWasmIntrospection
+          ? "Read the cart's own linear memory through its WASM exports instead — wasm({op:'memory'}) and wasm({op:'exports'}) give you the real cart heap, which an emulator cannot."
+          : "This host exposes no address space to read."),
+      reads: "memory({op:'read'}) on this host ERRORS rather than returning an empty success — an empty read is indistinguishable from a region that is legitimately all zeroes.",
+    };
+  }
+
   const all = Object.keys(MemoryRegionToRetro);
   if (!platform) {
     return {

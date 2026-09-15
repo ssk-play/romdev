@@ -486,9 +486,37 @@ export async function analyzeFunctions(romPath, platformOverride, opts = {}) {
  * Control-flow graph for the function containing `address`.
  * @returns {{platform, address, nodes: Array<{id,address,size,instructions,jump,fail,out}>, edges}}
  */
-export async function analyzeCfg(romPath, address, platformOverride) {
+
+/**
+ * Copy a 16KB bank into its platform's paged window, returning a new image.
+ *
+ * Returns the image unchanged when the platform is not banked, no bank was
+ * asked for, or the bank is out of range — a silent no-op is correct for the
+ * first two and the third is reported by the caller's own bounds handling.
+ */
+function pageBankIntoWindow(romBytes, platform, bank) {
+  if (bank == null) return romBytes;
+  const win = bankedWindow(platform);
+  if (!win) return romBytes;
+  const size = win.end - win.start;
+  const src = bank * size;
+  if (src < 0 || src + size > romBytes.length) return romBytes;
+  const out = new Uint8Array(romBytes);          // copy: never mutate the caller's image
+  out.set(romBytes.subarray(src, src + size), win.start);
+  return out;
+}
+
+export async function analyzeCfg(romPath, address, platformOverride, cfgOpts = {}) {
   if (address == null) throw new Error("analyze cfg: address required");
-  const { platform, romBytes, arch, bits, endian, loadBase, codeStart } = await loadContext(romPath, platformOverride);
+  const ctx = await loadContext(romPath, platformOverride);
+  const { platform, arch, bits, endian, loadBase, codeStart } = ctx;
+  // BANK PAGING. rizin analyzes the FLAT image, so a paged address always lands
+  // on whatever the file holds at that offset — bank 2 on a Sega-mapper cart,
+  // whatever the caller asked for. Paging the requested bank into the window
+  // before analysis is what makes `bank` mean anything here; without it the
+  // parameter is accepted and silently ignored, and the walk returns byte-
+  // identical results for banks whose bytes are completely different.
+  const romBytes = pageBankIntoWindow(ctx.romBytes, platform, cfgOpts.bank);
   // afbj = basic blocks of the function as JSON: each block has addr/size/jump/
   // fail/ninstr. `jump` is the taken edge; `fail` (present only on conditional
   // blocks) is the fall-through. This is the structured CFG source — `agf json`
@@ -711,65 +739,146 @@ async function blockTerminators({ blocks, romBytes, arch, bits, endian, baddr, s
  * @param {{maxBlocks?: number}} [opts]
  */
 export async function analyzeReachable(romPath, entries, platformOverride, opts = {}) {
-  const list = (Array.isArray(entries) ? entries : [entries]).filter((a) => a != null);
+  // ENTRIES MAY CARRY A BANK. On a banked cart a bare CPU address in the paged
+  // window is AMBIGUOUS: `$8000` means different code in every bank, and a walk
+  // that ignores the bank follows whichever one the flat image happens to hold
+  // while reporting `unresolved: 0`. Accept `[addr, bank]` pairs and
+  // `{address, bank}` objects alongside plain numbers.
+  const list = (Array.isArray(entries) ? entries : [entries]).filter((a) => a != null).map((e) => {
+    if (typeof e === "number") return { address: e >>> 0, bank: opts.bank ?? null };
+    if (Array.isArray(e)) return { address: (e[0] ?? 0) >>> 0, bank: e[1] ?? opts.bank ?? null };
+    return { address: (e.address ?? e.addr ?? 0) >>> 0, bank: e.bank ?? opts.bank ?? null };
+  });
   if (!list.length) throw new Error("analyze reachable: entries required (one or more CPU addresses)");
   const maxBlocks = Math.max(1, Math.min(opts.maxBlocks ?? 20000, 200000));
 
-  const seenFn = new Set();      // function entries already expanded
-  const blocks = new Map();      // block addr -> node
-  const queue = list.map((a) => (a >>> 0));
-  const entrySet = new Set(queue);
-  const unresolved = [];         // computed jumps we cannot follow statically
+  const seenFn = new Set();      // "bank:addr" of function entries already expanded
+  const blocks = new Map();      // "bank:addr" -> node
+  const queue = [...list];
+  const unresolved = [];         // entries that yielded nothing
   let platform, arch, truncated = false;
 
+  // Which platforms page a window, and where that window starts. Outside the
+  // window an address is unambiguous and the bank is irrelevant.
+  const banked = bankedWindow(platformOverride ?? sniffPlatform(romPath));
+  const inWindow = (addr) => banked != null && addr >= banked.start && addr < banked.end;
+  // A block's IDENTITY. Inside the paged window it is (bank, addr); outside it
+  // is the address alone. Keying everything by address collapsed all eight
+  // banks of a real 128KB cart onto one arm per address -- 880 paged blocks
+  // over exactly 880 distinct addresses -- while reporting unresolved: 0.
+  const keyOf = (addr, bank) => (inWindow(addr) && bank != null ? `${bank}:${addr}` : `-:${addr}`);
+
   while (queue.length) {
-    const fnAddr = queue.shift();
-    if (seenFn.has(fnAddr)) continue;
-    seenFn.add(fnAddr);
+    const { address: fnAddr, bank } = queue.shift();
+    const key = keyOf(fnAddr, bank);
+    if (seenFn.has(key)) continue;
+    seenFn.add(key);
 
     let cfg;
     try {
-      cfg = await analyzeCfg(romPath, fnAddr, platformOverride);
+      cfg = await analyzeCfg(romPath, fnAddr, platformOverride, { bank });
     } catch (e) {
-      unresolved.push({ address: fnAddr, addressHex: hx(fnAddr), reason: String(e?.message ?? e) });
+      unresolved.push({ address: fnAddr, addressHex: hx(fnAddr), ...(bank != null ? { bank } : {}), reason: cleanRizinReason(e?.message ?? e) });
       continue;
     }
     platform ??= cfg.platform; arch ??= cfg.arch;
     if (!cfg.nodes?.length) {
-      unresolved.push({ address: fnAddr, addressHex: hx(fnAddr), reason: cfg.note ?? "no blocks" });
+      unresolved.push({ address: fnAddr, addressHex: hx(fnAddr), ...(bank != null ? { bank } : {}),
+        reason: "no function at this address", kind: "no-code" });
       continue;
     }
     for (const n of cfg.nodes) {
-      if (!blocks.has(n.address)) blocks.set(n.address, n);
+      const k = keyOf(n.address, bank);
+      if (!blocks.has(k)) {
+        // The bank rides on the block, so a caller can tell two same-address
+        // blocks apart -- which is the whole point of the identity above.
+        blocks.set(k, inWindow(n.address) && bank != null ? { ...n, bank } : { ...n });
+      }
       if (blocks.size >= maxBlocks) { truncated = true; break; }
     }
     if (truncated) break;
 
-    // A call edge leaves this function: its target is a new entry to expand.
-    // A call_return edge stays inside it and is already a node here, so it
-    // needs no queueing -- that it EXISTS is the point.
+    // A call edge leaves this function: its target is a new entry to expand,
+    // IN THE SAME BANK -- a call from paged code reaches the bank that is
+    // currently mapped, and nothing static says otherwise.
     for (const e of cfg.edges) {
-      if (e.type === "call" && !seenFn.has(e.to)) queue.push(e.to);
+      if (e.type !== "call") continue;
+      if (!seenFn.has(keyOf(e.to, bank))) queue.push({ address: e.to, bank });
     }
   }
 
-  const sorted = [...blocks.values()].sort((a, b) => a.address - b.address);
+  const sorted = [...blocks.values()].sort((a, b) => (a.bank ?? -1) - (b.bank ?? -1) || a.address - b.address);
   const byteSize = sorted.reduce((n, b) => n + (b.size || 0), 0);
+  const pagedBlocks = sorted.filter((b) => inWindow(b.address));
+  const banksSeen = [...new Set(pagedBlocks.map((b) => b.bank).filter((b) => b != null))].sort((a, z) => a - z);
+  // A walk that entered the paged window with NO bank is the silently-wrong
+  // case: say so rather than let `unresolved: 0` imply the closure is sound.
+  const unbankedPaged = pagedBlocks.filter((b) => b.bank == null).length;
+
   return {
     platform, arch,
-    entries: [...entrySet].sort((a, b) => a - b).map((a) => ({ address: a, addressHex: hx(a) })),
+    entries: list.map((e) => ({ address: e.address, addressHex: hx(e.address), ...(e.bank != null ? { bank: e.bank } : {}) })),
     functionCount: seenFn.size,
     blockCount: sorted.length,
     byteSize,
     blocks: sorted,
+    ...(banked ? {
+      banking: {
+        window: `${hx(banked.start)}-${hx(banked.end - 1)}`,
+        pagedBlocks: pagedBlocks.length,
+        banksSeen,
+        ...(unbankedPaged ? {
+          warning: `${unbankedPaged} block(s) in the paged window were walked with NO bank. On a banked cart an address in `
+            + `${hx(banked.start)}-${hx(banked.end - 1)} means different code per bank, so this closure follows whichever bank the flat `
+            + `image holds and is NOT a reliable answer. Pass bank-keyed entries — entries:[[addr, bank], ...] or [{address, bank}] — `
+            + `or a top-level bank.`,
+        } : {}),
+      },
+    } : {}),
     ...(unresolved.length ? { unresolved } : {}),
     ...(truncated ? { truncated: true, hint: `stopped at maxBlocks=${maxBlocks}; raise it or narrow entries` } : {}),
-    // Computed jumps are the one thing no static walk can close. Saying so is
-    // the difference between "this set is complete" and "this set is complete
-    // except where the ROM jumps through a register", which changes what a
-    // recompiler must do about it (see breakpoint({on:'jumptable'})).
-    note: "static reachability: computed/indirect jumps are NOT followed — resolve those with breakpoint({on:'jumptable'}) and pass the recovered targets back as additional `entries`",
+    note: "static reachability: computed/indirect jumps are NOT followed — resolve those with breakpoint({on:'jumptable'}) and pass the recovered targets back as additional `entries`"
+      + (banked ? ". Block identity inside the paged window is (bank, address): the same address in two banks is two different blocks." : ""),
   };
+}
+
+/**
+ * The paged window of a banked platform, or null when every address is
+ * unambiguous. Only the window matters: a fixed slot needs no bank.
+ */
+function bankedWindow(platform) {
+  switch (platform) {
+    // Sega mapper: slots 0/1 fixed, slot 2 ($8000-$BFFF) paged.
+    case "sms": case "gg": return { start: 0x8000, end: 0xc000 };
+    // GB MBC: $0000-$3FFF fixed, $4000-$7FFF paged.
+    case "gb": case "gbc": return { start: 0x4000, end: 0x8000 };
+    // NES mappers: PRG windows at $8000/$C000 depending on the mapper.
+    case "nes": return { start: 0x8000, end: 0x10000 };
+    // MSX megaROM pages $4000-$BFFF.
+    case "msx": return { start: 0x4000, end: 0xc000 };
+    default: return null;
+  }
+}
+
+/**
+ * Make a failed-entry reason readable.
+ *
+ * rizin's stderr arrives with an ANSI erase sequence, an internal assertion
+ * warning and a header dump that reports a wrong ROM size — all of which read
+ * as romdev being confused about the ROM. And semantically these are not
+ * unresolved INDIRECT JUMPS, which is what `unresolved` is for; they are
+ * entries with no code at all.
+ */
+function cleanRizinReason(msg) {
+  const text = String(msg ?? "");
+  if (/No function found/i.test(text)) return "no function at this address";
+  return text
+    .replace(/\x1b\[[0-9;]*[A-Za-z]/g, "")     // ANSI
+    .replace(/\r/g, "")
+    .split("\n").map((l) => l.trim())
+    .filter((l) => l && !/^(WARNING|Checksum|ProductCode|RomSize):/i.test(l) && !/assertion '.*' failed/i.test(l))
+    .join("; ")
+    .slice(0, 200) || "analysis produced no result";
 }
 
 export async function analyzeXrefs(romPath, address, platformOverride) {

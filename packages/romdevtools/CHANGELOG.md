@@ -4,6 +4,107 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 —
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.141.0 — 2026-09-15
+
+Round 2 from the SMS static-recompiler client after 0.138.0. They re-verified
+all ten items of the previous round live before filing; these are the four
+things they hit afterwards. Three were SILENT WRONG ANSWERS — a success-shaped
+response that was wrong, so a caller had no signal to distrust it.
+
+### Fixed — BLOCKING: z80→snes output did not assemble
+
+The assembly gate added in 0.138.0 passed on short routines and caught none of
+these: each needs something a small synthetic sample does not have. Fixing the
+first exposed the next three. All four of the reporter's commercial ROMs now
+assemble (asar exit 0).
+
+- **Relative branch out of bounds, in BOTH directions** (measured -139, -482,
+  +252). A Z80 `jr`/`djnz` and a 65816 `beq`/`bne` share a +/-128 range, so a
+  1:1 emission looks safe — but this emitter expands ONE Z80 instruction into
+  MANY (every 16-bit pair op is a rep/op/sep sandwich), so a loop that fit in
+  Z80 no longer fits. Every conditional branch is now emitted as
+  invert-and-branch-over-`brl`; `brl` keeps it relative, so the output stays
+  position-independent.
+- **A register-indirect ALU source was read as a LABEL.** `absolute()` also
+  accepts the `(LABEL)` spelling, so it matched `(hl)` and returned the bare
+  text `hl` — emitting `eor hl`, rejected with `Elabel_not_found`.
+  Register-indirect is checked first now, and `(ix+d)` as an ALU source (which
+  had no path at all) indexes properly.
+- **The Z80-only I and R registers passed through as labels.** Neither exists
+  on a 65816 and both are plain identifiers, so `ld a,r` emitted `lda r`. They
+  are refused and counted in residue. (`ld a,r` is a cheap pseudo-random source
+  in real games, which is why it never appears in a short sample.)
+- **`Elabel_redefined` on any slice containing the vector table.** A label can
+  arrive twice for one address — as its own node and attached to the following
+  instruction — and both were emitted. It is defined once now; the duplicate is
+  dropped rather than renamed, because renaming would silently break the branch
+  that targets it.
+
+Also added: `recompile` returns a `bankBudget`. Cross-ISA translation expands
+about 5x, so past roughly 10KB of Z80 the body overflows a 32KB 65816 bank and
+asar reports `Ebank_border_crossed`, which explains nothing. The budget says so
+first, with what to do about it.
+
+### Fixed — `disasm({target:'reachable'})` was not bank-aware
+
+On a Sega-mapper cart `$8000-$BFFF` means different code in every bank. Block
+identity was a plain ADDRESS, so a 128KB cart's eight banks collapsed onto one
+arm per address — 880 paged blocks over exactly 880 distinct addresses — while
+reporting `unresolved: 0`. `bank` was accepted and ignored: three banks with
+completely different bytes returned byte-identical results.
+
+- **Entries are bank-keyed**: `[[addr, bank], ...]` or `[{address, bank}]`,
+  plus a top-level `bank`. Identity inside the paged window is `(bank, addr)`
+  and every block there carries its `bank`.
+- **A bare paged address WARNS.** A `banking` section reports the window, the
+  banks seen, and that a no-bank walk follows whichever bank the flat image
+  holds and is not a reliable answer — with the exact shape to pass instead.
+- Windows are declared per platform (SMS/GG, GB/GBC, NES, MSX). Only SMS is
+  verified against real banked code.
+- **`unresolved` no longer leaks rizin stderr** — it carried an ANSI escape, an
+  internal assertion warning and a header dump reporting the wrong ROM size. An
+  entry with no code now reads "no function at this address" with
+  `kind: "no-code"`, which separates it from a genuine unresolved indirect jump.
+
+### Fixed — wasmcart `memory` returned empty-as-success
+
+With a `.wasc` cart loaded, every region read returned `length: 0, hex: ""` with
+no error. An empty read is indistinguishable from a region that is legitimately
+all zeroes, and on a freshly booted cart zeroes are exactly what a caller
+expects — one reporter briefly believed they were reading a cart's RAM. The host
+already reported `hasMemoryRegions: false`; that fact was not reaching `memory`.
+
+- Reads now ERROR on such a host, naming the capability and pointing at the
+  cart's WASM exports. Applied at all 8 region-reading call sites.
+- A foreign region id no longer gets a confident platform-specific decode note
+  (a wasmcart read of `nes_oam` returned the 64-sprite layout note).
+- `op:'regions'` returns `count: 0` and one sentence instead of 126 ids that
+  would all read empty — and drops a note that promised "a read of one this core
+  does not expose returns an error rather than wrong bytes", which was false on
+  precisely the host reading it.
+
+### Fixed — parameters were validated per-TOOL, not per-OP
+
+Three silent drops with one root cause: a parameter valid on a SIBLING op was
+accepted and ignored. `address` on `target:'recompile'` always lifted the reset
+vector — invisible on NES, where reset IS $8000, so it returned a believable
+result for the wrong address.
+
+Scope is read from each parameter's OWN description (`target=cfg: ...`), so it
+is declared data rather than a second list to maintain. Three design notes,
+each from getting it wrong first:
+
+- A schema refinement sees zod DEFAULTS as caller values (`cpu` defaults to
+  "6502"), which rejected every call on the tool. The check runs in the handler
+  wrapper and skips any value equal to its declared default.
+- Descriptions are not an exhaustive whitelist — `path` documents some targets
+  and is required by others the text never mentions — so a small shared list is
+  exempt. Enforcing an incomplete list rejects valid calls, which is worse than
+  the drop it was meant to catch.
+- Two descriptions were genuinely wrong and the DOCS were fixed rather than the
+  validator special-cased: `startAddress` never mentioned `recompile`, and
+  `bank` never mentioned `reachable`.
+
 ## 0.140.0 — 2026-09-15
 
 The rest of the decomp acceleration audit: items 3 and 5-20. 0.139.0 fixed
