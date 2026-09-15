@@ -4,6 +4,80 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 —
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.139.0 — 2026-09-15
+
+The Wave Race 64 decomp round: six correctness defects, all of which turned
+"I could not check this" or "this is old evidence" into a confident wrong
+answer. Two came from an overlay-comparison report, four from a read-only audit
+of the live campaign. The audit's larger asks (a campaign backend, a parallel
+dispatcher, a completion ledger — items 5-20) are NOT in this release.
+
+### Fixed — false mismatches in comparison
+
+- **Function bounds included trailing alignment padding.** `parseSplatAsm`
+  collected `.text` words to the end of the file, so the zero words the
+  assembler emits after `endlabel`/`.size` counted as instructions: a real
+  0x88 function with 34 instructions was compared against 37 words and reported
+  as "missing instructions at indices 34-36" — a false mismatch on a candidate
+  whose every real instruction matched and whose ROM bytes were identical.
+  Parsing now stops at the end label (or `.size`), and the padding is REPORTED
+  as `trailingPadWords` rather than silently dropped, because whole-ROM layout
+  still has to account for it.
+- **Absolute linker-script assignments were invisible.** `NAME = 0xADDR` lines
+  were rejected twice over by the map parser (the `= 0x...` tail, and the
+  no-input-object guard), so 834 real symbols did not exist as far as the
+  comparator was concerned — it substituted zero into every relocation against
+  them and reported the fabricated words as byte mismatches (12 on one
+  function). They now resolve, with size 0 and kept OUT of the size-adjacency
+  pass: they carry no object or section, and including them truncates their
+  neighbours' sizes.
+- **An unresolved relocation is now INCOMPLETE, not a wrong byte.**
+  `applyRelocations` left an unresolvable word un-relocated and the comparison
+  diffed that fabricated value against the ROM. Unresolved words are now marked
+  and excluded from `mismatches`, surfacing as `uncheckableWords`/
+  `uncheckableAt` with an explicit note that they are not evidence of a
+  difference. A real mismatch always takes precedence; only with zero
+  mismatches does the verdict become `unresolved-relocations`. Same for an
+  unhandled relocation type.
+
+### Fixed — evidence integrity
+
+- **`plan` ranked functions with evidence from obsolete source trees.**
+  `loadCandidateEvidence` scanned every result ever written, took the global
+  minimum distance regardless of which source tree produced it, and set
+  `lastCompile` by directory iteration order. Measured on a real campaign: 2609
+  result files across 258 dependency hashes, 80 symbols whose evidence spans
+  more than one, and 12 where the stale score beats the current one — including
+  a function ranked at distance 6.8 that the current tree scores 82.45. The
+  identity was already recorded (results are keyed
+  `<dependencyHash>-<candidateSha>-v<verifier>`, which is why the compare cache
+  was correct while the planner was not); it is now honoured. `planWork`
+  computes each remaining TU's current dependency hash and ranks only on
+  matching evidence; older attempts remain visible as `historicalAttempts`/
+  `historicalBestDistance` with a `staleEvidenceWarning`, and every queue row
+  carries `evidenceDependencyHash`.
+- **`status` presented an import-time snapshot as current state.** A project
+  registered nine days earlier still reported its registration-time git HEAD
+  and dirty count while the checkout had moved on (a51b38a/18 vs cb9043fa/141),
+  with nothing marking it stale. `status` now returns `registeredGit` and
+  `liveGit` separately plus `manifestState`, `staleReasons`, and a
+  `buildFreshness` computed from the built ROM against every source and header.
+  "unknown" is a real answer and is never upgraded to "fresh".
+- **Completed search jobs reported their age, not their duration.**
+  `jobStatus` computed `now - startedAt` even with `endedAt` recorded (and
+  stamped `endedAt` after the calculation, so even a just-finished job got
+  wall-clock-to-now): four real jobs that ran 20-212 seconds against
+  minute-scale budgets reported roughly nine DAYS, which reads as a runaway
+  permuter rather than normal completion. Cancelled jobs measure to
+  `cancelledAt`.
+
+### Added
+
+- **`decomp({op:'refresh'})`** — re-captures git state, ROM sha1, compiler
+  identity, the splat map, symbol addrs and the linker map, and drops the
+  derived call-graph cache. Campaign evidence is untouched: verified at 2609
+  candidate result files before and after.
+
 ## 0.138.0 — 2026-09-15
 
 The static-recompilation round: a client shipped an SMS→WAT static recompiler

@@ -181,6 +181,17 @@ export async function loadLinkerMap(mapPath) {
   const sectionRe2 = /^ (\.[\w.]+)\s*$/; // section name alone, va/size on the next line
   const contRe = /^\s+(0x[0-9a-f]+)\s+(0x[0-9a-f]+)\s+(\S+)\s*$/;
   const symRe = /^\s+(0x[0-9a-f]+)\s+([A-Za-z_$.][\w$.]*)\s*$/;
+  // ABSOLUTE ASSIGNMENTS: `0x802c8e90   D_802C8E90 = 0x802c8e90`.
+  //
+  // ld prints a linker-script assignment with the value on BOTH sides, and the
+  // symbol belongs to no input object. `symRe` rejects it twice over (the
+  // trailing `= 0x...`, and the `curObject` guard), so these symbols simply did
+  // not exist as far as the comparator was concerned. It then substituted zero
+  // into every relocation against them and reported the fabricated words as
+  // byte MISMATCHES -- a false negative on a candidate whose text and
+  // relocations were exactly right. Four such symbols produced twelve reported
+  // mismatches on one real Wave Race function.
+  const absAssignRe = /^\s*(0x[0-9a-f]+)\s+([A-Za-z_$.][\w$.]*)\s*=\s*(0x[0-9a-f]+|\.)\s*$/;
   let pendingSection = null;
   const lines = text.split("\n");
   const order = [];
@@ -196,6 +207,20 @@ export async function loadLinkerMap(mapPath) {
       pushObj(); continue;
     }
     pendingSection = null;
+    // Absolute assignments first: they carry no object, and their `= 0x...`
+    // tail means symRe would never match them anyway.
+    if ((m = absAssignRe.exec(line))) {
+      const va = Number(m[1]) >>> 0;
+      const name = m[2];
+      if (!symbols.has(name)) {
+        // Size 0 and NOT in `order`: these are addresses, not sized objects,
+        // and the size pass below walks `order` looking for the next symbol in
+        // the same object+section. An absolute symbol has neither, so letting
+        // it into that list corrupts its neighbours' sizes.
+        symbols.set(name, { name, va, section: null, object: null, sectionVa: va, sectionEnd: va, size: 0, absolute: true });
+      }
+      continue;
+    }
     if (curObject && (m = symRe.exec(line))) {
       const va = Number(m[1]) >>> 0;
       const name = m[2];
@@ -262,14 +287,34 @@ export function parseSplatAsm(text) {
   let section = ".text";
   let name = null;
   const rodataSyms = [];
+  // THE FUNCTION ENDS AT ITS END LABEL, NOT AT THE END OF THE FILE.
+  //
+  // splat emits `endlabel <name>` and `.size <name>, . - <name>` after the last
+  // real instruction, and the assembler then pads to alignment with zero words.
+  // Counting those padding words as instructions made a CORRECT candidate look
+  // short: a 0x88-byte function with 34 instructions was compared against 37
+  // words and reported as "missing instructions at indices 34-36", a false
+  // mismatch on a function whose every real instruction matched and whose ROM
+  // bytes were identical. The linker reproduces the padding; the C is not
+  // expected to emit it.
+  let textEnded = false;
+  let padWords = 0;
   for (const line of text.split("\n")) {
     let m;
-    if ((m = /^\s*\.section\s+(\S+)/.exec(line))) { section = m[1]; continue; }
+    if ((m = /^\s*\.section\s+(\S+)/.exec(line))) { section = m[1]; textEnded = false; continue; }
+    if (/^\s*endlabel\b/.test(line)) { if (section === ".text") textEnded = true; continue; }
+    // `.size f, . - f` marks the same boundary for emitters that omit endlabel.
+    if (/^\s*\.size\s+/.test(line)) { if (section === ".text" && name) textEnded = true; continue; }
     if ((m = /^\s*glabel\s+(\S+)/.exec(line))) { if (!name) name = m[1]; continue; }
     if ((m = /^\s*dlabel\s+(\S+)/.exec(line))) { rodataSyms.push({ name: m[1], section }); continue; }
     if ((m = /^\s*\/\*\s*([0-9A-Fa-f]+)\s+([0-9A-Fa-f]{8})\s+([0-9A-Fa-f]{8})\s*\*\/\s*(.*)$/.exec(line))) {
       const rec = { romOffset: parseInt(m[1], 16), va: parseInt(m[2], 16) >>> 0, word: parseInt(m[3], 16) >>> 0, text: m[4].trim(), section };
-      if (section === ".text") instrs.push(rec); else data.push(rec);
+      if (section === ".text") {
+        // Past the end label these words are alignment padding the linker
+        // reproduces, not part of the function body.
+        if (textEnded) { padWords++; continue; }
+        instrs.push(rec);
+      } else data.push(rec);
       continue;
     }
     if ((m = /^\s*\/\*\s*([0-9A-Fa-f]+)\s+([0-9A-Fa-f]{8})\s+([0-9A-Fa-f]+)\s*\*\/\s*(\.\w+.*)$/.exec(line))) {
@@ -277,7 +322,9 @@ export function parseSplatAsm(text) {
     }
   }
   return { name, instructions: instrs, data, rodataSymbols: rodataSyms, sizeBytes: instrs.length * 4,
-    va: instrs[0]?.va ?? null, romOffset: instrs[0]?.romOffset ?? null };
+    va: instrs[0]?.va ?? null, romOffset: instrs[0]?.romOffset ?? null,
+    // Reported, not hidden: whole-ROM layout still has to account for these.
+    ...(padWords ? { trailingPadWords: padWords } : {}) };
 }
 
 export { hx };

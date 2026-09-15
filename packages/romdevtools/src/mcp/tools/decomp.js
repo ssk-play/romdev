@@ -42,7 +42,7 @@ export function registerDecompTools(server, z, sessionKey) {
     "Every result names the project, function {symbol, segment, va}, candidate sha, compiler fingerprint and artifact paths; errors carry a typed [CODE]. `exactFunctionMatch` and `romLinked.status:'exact'` are the acceptance signals; `distance` is a ranking hint, never proof. " +
     "Ghidra pseudocode stays in disasm({target:'decompile'}) for understanding; it is never counted as matched.",
     {
-      op: z.enum(["import", "status", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage"]).describe(
+      op: z.enum(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage"]).describe(
         "import=register a project (root; splat yaml auto-detected; ROM sha1 verified; toolchain fingerprinted; compile invocation captured from make); " +
         "status=manifest + backend identities + segment table; list=registered projects; map=TU → object → segment → functions associations; " +
         "plan=payoff-ordered queue of remaining asm functions + batches that call each other inside one TU (call graph from the built objects' relocations); batch=generate+compare every function of a batch (`symbols`), sharing the context; " +
@@ -135,7 +135,60 @@ export function registerDecompTools(server, z, sessionKey) {
           const { backendStatus } = await import("../../decomp/m2c.js");
           const map = await project.map();
           const romOk = fs.existsSync(project.abs(project.m.rom.path));
-          return jsonContent({ project: project.id, root: project.root, platform: project.m.platform, workspace: project.ws, registeredAt: project.m.registeredAt, rom: { ...project.m.rom, present: romOk }, toolchain: project.m.toolchain, build: project.m.build, built: project.m.built, git: project.m.git, segments: map.table(), backends: await backendStatus() });
+          const { projectFreshness } = await import("../../decomp/project.js");
+          const fresh = await projectFreshness(project);
+          return jsonContent({ project: project.id, root: project.root, platform: project.m.platform, workspace: project.ws, registeredAt: project.m.registeredAt, rom: { ...project.m.rom, present: romOk }, toolchain: project.m.toolchain, build: project.m.build, built: project.m.built,
+            // `git` was the IMPORT-TIME snapshot presented as current state.
+            // Both are reported now, and a difference is named rather than left
+            // for the reader to notice.
+            ...fresh,
+            git: project.m.git,
+            gitNote: "`git` is the snapshot taken at registration. `liveGit` is the checkout right now. Trust `manifestState`.",
+            segments: map.table(), backends: await backendStatus() });
+        }
+        case "refresh": {
+          // Re-capture the state that goes stale as the checkout moves, WITHOUT
+          // touching stored campaign evidence. Every candidate result stays on
+          // disk; what changes is the manifest's view of the world and the
+          // derived caches keyed off it.
+          const { gitState, projectFreshness, fingerprintToolchain, sha1File } = await import("../../decomp/project.js");
+          const before = { git: project.m.git, compiler: project.m.toolchain?.compiler?.kind ?? null };
+          const refreshed = [];
+
+          project.m.git = await gitState(project.root);
+          refreshed.push("git");
+
+          // The ROM on disk may have been rebuilt.
+          try {
+            const romAbs = project.abs(project.m.rom.path);
+            if (fs.existsSync(romAbs)) {
+              const sha1 = await sha1File(romAbs);
+              if (sha1 !== project.m.rom.sha1) { project.m.rom.sha1 = sha1; refreshed.push("rom.sha1"); }
+            }
+          } catch {}
+
+          // Compiler identity can change when the toolchain is rebuilt.
+          try { await fingerprintToolchain(project.m); refreshed.push("toolchain"); } catch {}
+
+          // Derived caches: drop so they rebuild from the current tree. These
+          // are CACHES, not evidence — the candidates/ tree is untouched.
+          const dropped = [];
+          for (const f of ["callgraph.json"]) {
+            const fp = path.join(project.ws, f);
+            if (fs.existsSync(fp)) { try { fs.unlinkSync(fp); dropped.push(f); } catch {} }
+          }
+          project._map = null; project._syms = null; project._ld = null;
+          refreshed.push("splatMap", "symbolAddrs", "linkerMap");
+
+          const { writeFile: wf } = await import("node:fs/promises");
+          await wf(path.join(project.ws, "manifest.json"), JSON.stringify(project.m, null, 2));
+
+          const after = await projectFreshness(project);
+          return jsonContent({
+            project: project.id, refreshed, cachesDropped: dropped,
+            before, ...after,
+            evidencePreserved: "candidates/, jobs/ and every stored result file are untouched — refresh re-reads the world, it never discards campaign history.",
+          });
         }
         case "map": {
           const ld = await project.linkerMap();

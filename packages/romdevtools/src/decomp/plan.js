@@ -59,7 +59,12 @@ export async function callGraph(project, { force = false } = {}) {
 export async function planWork(project, { limit = 40, tu, evidence } = {}) {
   const g = await callGraph(project);
   const asm = Object.keys(g.state).filter((n) => g.state[n] === "asm" && (!tu || objectToTu(g.object[n], project) === tu));
-  const hints = evidence ?? (await loadCandidateEvidence(project));
+  // Compute the CURRENT dependency hash of every TU that owns a remaining
+  // function, so evidence is matched against the source tree as it is now
+  // rather than against whichever result file was written most recently.
+  // One hash per TU, not per function — the TUs are far fewer.
+  const currentDependencyHashes = await currentDepHashes(project, asm, g);
+  const hints = evidence ?? (await loadCandidateEvidence(project, { currentDependencyHashes }));
   const rows = asm.map((n) => {
     const size = g.sizes[n] ?? 0;
     const callees = g.edges[n] ?? [], callersOf = g.callers[n] ?? [];
@@ -72,7 +77,11 @@ export async function planWork(project, { limit = 40, tu, evidence } = {}) {
     // Payoff: bytes recovered, discounted by uncertainty, boosted when typed C neighbours already pin the types.
     const payoff = Math.round(size * (1 - 0.5 * uncertainty) * (1 + 0.1 * Math.min(typedNeighbours, 5)));
     return { symbol: n, sizeBytes: size, object: g.object[n], tu: objectToTu(g.object[n], project), asmCallees, cCallees: cCallees.length, asmCallers, cCallers: cCallers.length, statically: callersOf.length === 0 ? "unreferenced (no static caller: a table/pointer target or dead)" : `${callersOf.length} static callers`,
-      attempts: h.attempts ?? 0, lastDistance: h.lastDistance ?? null, lastCompile: h.lastCompile ?? null, placeholderPrototype: h.placeholderPrototype ?? null, payoff };
+      attempts: h.attempts ?? 0, lastDistance: h.lastDistance ?? null, lastCompile: h.lastCompile ?? null, placeholderPrototype: h.placeholderPrototype ?? null, payoff,
+      // Evidence identity, so a score can be traced to the tree it was measured on.
+      evidenceDependencyHash: h.dependencyHash ?? null,
+      ...(h.historicalAttempts ? { historicalAttempts: h.historicalAttempts, historicalBestDistance: h.historicalBestDistance ?? null } : {}),
+      ...(h.staleEvidenceWarning ? { staleEvidenceWarning: h.staleEvidenceWarning } : {}) };
   }).sort((a, b) => b.payoff - a.payoff);
   // Batches: connected components over asm↔asm edges within one TU.
   const byName = new Map(rows.map((r) => [r.symbol, r]));
@@ -91,7 +100,32 @@ export async function planWork(project, { limit = 40, tu, evidence } = {}) {
   }
   batches.sort((a, b) => b.payoff - a.payoff);
   return { functionsRemaining: rows.length, bytesRemaining: rows.reduce((s, r) => s + r.sizeBytes, 0), queue: rows.slice(0, limit), batches: batches.slice(0, Math.max(10, Math.ceil(limit / 3))),
+    evidencePolicy: `Ranking uses ONLY evidence whose dependency hash matches the TU's CURRENT hash (${currentDependencyHashes.size} live TU hashes). Attempts measured against a different source tree appear as historicalAttempts/historicalBestDistance and never affect payoff — a stale best that still looks good is what misranks a queue. \`lastCompile\` is the newest compatible attempt, not the last file read.`,
     scoring: "payoff = bytes × (1 − 0.5 × uncertainty) × (1 + 0.1 × min(typed C neighbours, 5)); uncertainty = 0.5 untried, else lastDistance / instruction count. Static caller counts come from R_MIPS_26 relocations in the built objects; 'unreferenced' means no static jal — a jump-table or function-pointer target, or dead code — NOT proof of unreachability." };
+}
+
+/**
+ * The dependency hash each remaining function's TU hashes to RIGHT NOW.
+ *
+ * compile.js keys every stored result on this hash, so it is the only honest
+ * way to ask "was this evidence measured against the tree I have?". Computed
+ * per TU (there are far fewer TUs than functions) and best-effort: a TU whose
+ * hash cannot be computed simply contributes nothing, and evidence for it
+ * falls back to the newest-written group.
+ */
+async function currentDepHashes(project, symbols, g) {
+  const { dependencyHash } = await import("./project.js");
+  const tus = new Set();
+  for (const n of symbols) { const t = objectToTu(g.object[n], project); if (t) tus.add(t); }
+  const hashes = new Set();
+  await Promise.all([...tus].map(async (tuRel) => {
+    try {
+      const inv = await project.compileInvocation(tuRel);
+      const dep = await dependencyHash(project, tuRel, inv);
+      if (dep?.hash) hashes.add(dep.hash);
+    } catch { /* unbuildable/missing TU: no current hash to match against */ }
+  }));
+  return hashes;
 }
 
 function objectToTu(obj, project) {
@@ -101,21 +135,74 @@ function objectToTu(obj, project) {
 }
 
 /** What every stored compare result says about a function, in one line per function. */
-export async function loadCandidateEvidence(project) {
+export async function loadCandidateEvidence(project, { currentDependencyHashes } = {}) {
   const dir = path.join(project.ws, "candidates");
   const out = {};
   if (!fs.existsSync(dir)) return out;
+  // A result's identity lives in its FILENAME: `<dependencyHash>-<candidateSha>-v<verifier>`.
+  // (compile.js builds exactly that key, so the cache already honours it.)
+  const ID = /^([0-9a-f]+)-([0-9a-f]+)-v(\d+)\.result\.json$/;
+  const currentSet = currentDependencyHashes ? new Set(currentDependencyHashes) : null;
+
   for (const sym of fs.readdirSync(dir)) {
     const d = path.join(dir, sym);
-    let best = null, attempts = 0, lastCompile = null, placeholder = null;
+    let placeholder = null;
+    // Per dependency hash, so evidence from a different source tree can never
+    // be mixed into the current score.
+    const byDep = new Map();
+    let unidentified = 0;
+
     for (const f of fs.readdirSync(d)) {
       if (f.endsWith(".result.json")) {
-        try { const r = JSON.parse(fs.readFileSync(path.join(d, f), "utf8")); attempts++; lastCompile = r.compileSucceeded; if (r.distance && (best == null || r.distance.value < best)) best = r.distance.value; if (r.verdict?.functionLocal === "exact" && r.verifierVersion === VERIFIER_VERSION) best = 0; } catch {}
+        const m = ID.exec(f);
+        let mtime = 0;
+        try { mtime = fs.statSync(path.join(d, f)).mtimeMs; } catch {}
+        try {
+          const r = JSON.parse(fs.readFileSync(path.join(d, f), "utf8"));
+          const dep = m?.[1] ?? null;
+          if (!dep) { unidentified++; continue; }   // pre-identity file: countable, never rankable
+          if (!byDep.has(dep)) byDep.set(dep, { dep, attempts: 0, best: null, lastCompile: null, newestMs: 0 });
+          const e = byDep.get(dep);
+          e.attempts++;
+          // `lastCompile` must be the NEWEST attempt, not whichever file the
+          // directory happened to yield last.
+          if (mtime >= e.newestMs) { e.newestMs = mtime; e.lastCompile = r.compileSucceeded; }
+          if (r.distance && (e.best == null || r.distance.value < e.best)) e.best = r.distance.value;
+          if (r.verdict?.functionLocal === "exact" && r.verifierVersion === VERIFIER_VERSION) e.best = 0;
+        } catch {}
       } else if (/^gen-\d+\.json$/.test(f)) {
         try { const g = JSON.parse(fs.readFileSync(path.join(d, f), "utf8")); if (g.contextPrototype?.placeholderPointerTypes != null) placeholder = g.contextPrototype.placeholderPointerTypes; } catch {}
       }
     }
-    out[sym] = { attempts, lastDistance: best, lastCompile, placeholderPrototype: placeholder };
+
+    const groups = [...byDep.values()].sort((a, b) => b.newestMs - a.newestMs);
+    // WHICH GROUP IS "CURRENT". When the caller knows the TU's dependency hash
+    // (planWork computes it), that is authoritative. Otherwise fall back to the
+    // most recently written group, which is the best available proxy.
+    const current = (currentSet && groups.find((g) => currentSet.has(g.dep))) ?? groups[0] ?? null;
+    const historical = groups.filter((g) => g !== current);
+
+    out[sym] = {
+      // Ranking fields describe the CURRENT tree only.
+      attempts: current?.attempts ?? 0,
+      lastDistance: current?.best ?? null,
+      lastCompile: current?.lastCompile ?? null,
+      placeholderPrototype: placeholder,
+      dependencyHash: current?.dep ?? null,
+      // Everything else stays VISIBLE but out of the score. A stale best that
+      // still looks good is exactly what misranks the queue: on this workspace
+      // func_801EB4F4 scored 6.8 from an old header layout while the current
+      // tree gives 82.45 — a 12x misranking that would send a permuter budget
+      // at a function that is not close.
+      historicalAttempts: historical.reduce((s, g) => s + g.attempts, 0),
+      historicalBestDistance: historical.length ? Math.min(...historical.map((g) => g.best).filter((v) => v != null)) : null,
+      dependencyHashesSeen: groups.length,
+      ...(unidentified ? { unidentifiedResults: unidentified } : {}),
+      ...(historical.length && current?.best != null
+        && historical.some((g) => g.best != null && g.best < current.best)
+        ? { staleEvidenceWarning: "an OLDER dependency hash scored better; that evidence is excluded from ranking because it was measured against a different source tree" }
+        : {}),
+    };
   }
   return out;
 }

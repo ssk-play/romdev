@@ -83,8 +83,13 @@ export function applyRelocations(stream, symbolVa, baseVa) {
     let word = ins.word >>> 0;
     if (ins.reloc) {
       const sv = symbolVa(ins.reloc.symbol);
-      if (sv == null) unresolved.add(ins.reloc.symbol);
-      else {
+      // An UNRESOLVED symbol leaves `word` un-relocated, which then compares
+      // against the real ROM word and counts as a byte mismatch -- a defect
+      // reported as an observed difference when the only thing actually known
+      // is that the address could not be looked up. Mark the word instead, so
+      // the comparison can exclude it and say "incomplete", not "mismatch".
+      if (sv == null) { unresolved.add(ins.reloc.symbol); out.push({ ...ins, linkedWord: word, unresolvedReloc: ins.reloc.symbol }); continue; }
+      {
         const target = (sv + (ins.reloc.addend | 0)) >>> 0;
         switch (ins.reloc.type) {
           case "R_MIPS_26": word = ((word & 0xfc000000) | ((target >>> 2) & 0x03ffffff)) >>> 0; break;
@@ -97,7 +102,11 @@ export function applyRelocations(stream, symbolVa, baseVa) {
             word = ((word & 0xffff0000) | hi) >>> 0; break;
           }
           case "R_MIPS_LO16": { const lo = ((word << 16) >> 16); const full = (sv + lo + (ins.reloc.addend | 0)) >>> 0; word = ((word & 0xffff0000) | (full & 0xffff)) >>> 0; break; }
-          case "R_MIPS_GPREL16": case "R_MIPS_LITERAL": default: unresolved.add(`${ins.reloc.type}:${ins.reloc.symbol}`); break;
+          case "R_MIPS_GPREL16": case "R_MIPS_LITERAL": default:
+            // Relocation TYPE not handled: same honesty rule as an unknown symbol.
+            unresolved.add(`${ins.reloc.type}:${ins.reloc.symbol}`);
+            out.push({ ...ins, linkedWord: word, unresolvedReloc: `${ins.reloc.type}:${ins.reloc.symbol}` });
+            continue;
         }
       }
     }
@@ -347,16 +356,35 @@ async function compareAgainstRom(project, fn, cstream, csyms) {
   for (let i = 0; i + 4 <= rom.bytes.length; i += 4) romWords.push(readWord(profile, rom.bytes, i));
   const n = Math.max(romWords.length, linked.stream.length);
   let mismatches = 0; const first = [];
+  // Words whose relocation could not be resolved are UNCHECKABLE, not wrong.
+  // Counting them as mismatches turned "I could not look this address up" into
+  // "I observed a different byte" -- 12 fabricated mismatches on one real
+  // function whose text and relocations were exactly right. They are reported
+  // separately so a genuine mismatch elsewhere still takes precedence.
+  let uncheckable = 0; const uncheckableAt = [];
   for (let i = 0; i < n; i++) {
     const a = romWords[i], b = linked.stream[i]?.linkedWord;
     if (a === b) continue;
+    const u = linked.stream[i]?.unresolvedReloc;
+    if (u) {
+      uncheckable++;
+      if (uncheckableAt.length < 8) uncheckableAt.push({ index: i, symbol: u, rom: a == null ? null : "0x" + a.toString(16).padStart(8, "0"), mnemonic: linked.stream[i]?.mnemonic ?? null });
+      continue;
+    }
     mismatches++;
     if (first.length < 8) first.push({ index: i, rom: a == null ? null : "0x" + a.toString(16).padStart(8, "0"), candidate: b == null ? null : "0x" + b.toString(16).padStart(8, "0"), mnemonic: linked.stream[i]?.mnemonic ?? null, reloc: linked.stream[i]?.reloc ?? null });
   }
-  const exact = mismatches === 0 && linked.unresolved.length === 0;
+  const exact = mismatches === 0 && uncheckable === 0 && linked.unresolved.length === 0;
   const romStream = romWords.map((w, i) => ({ offset: i * 4, word: w, mnemonic: linked.stream[i]?.mnemonic ?? "?", operands: linked.stream[i]?.operands ?? "", reloc: null }));
   const linkedStream = linked.stream.map((s) => ({ offset: s.offset, word: s.linkedWord, mnemonic: s.mnemonic, operands: s.operands, reloc: null }));
-  return { romStream, linkedStream, status: exact ? "exact" : linked.unresolved.length && mismatches === 0 ? "unresolved-relocations" : "mismatch", romOffset: fn.romOffsetHex, romBytesSha1: rom.sha1, romWords: romWords.length, candidateWords: linked.stream.length, mismatches, first, unresolvedSymbols: linked.unresolved.slice(0, 12),
+  // A real mismatch always wins; otherwise unresolved relocations make the
+  // check INCOMPLETE rather than failed.
+  const status = mismatches > 0 ? "mismatch"
+    : (uncheckable > 0 || linked.unresolved.length) ? "unresolved-relocations"
+    : "exact";
+  return { romStream, linkedStream, status, romOffset: fn.romOffsetHex, romBytesSha1: rom.sha1, romWords: romWords.length, candidateWords: linked.stream.length, mismatches, first, unresolvedSymbols: linked.unresolved.slice(0, 12),
+    ...(uncheckable ? { uncheckableWords: uncheckable, uncheckableAt,
+      uncheckableNote: "these words differ ONLY because their relocation target could not be resolved, so the linked value is not the value the linker would produce. They are NOT evidence of a wrong byte — resolve the symbol (it may be an absolute linker-script assignment) and re-compare." } : {}),
     note: "candidate words linked with the project's symbol addresses vs the base ROM bytes at the resolved offset; independent of the extracted asm" };
 }
 

@@ -111,10 +111,79 @@ function builtArtifacts(manifest) {
   };
 }
 
-async function gitState(root) {
+export async function gitState(root) {
   const head = await run("git", ["-C", root, "rev-parse", "--short", "HEAD"]);
   const dirty = await run("git", ["-C", root, "status", "--porcelain"]);
   return { head: head.code === 0 ? head.stdout.trim() : null, dirtyFiles: dirty.code === 0 ? dirty.stdout.split("\n").filter(Boolean).length : null };
+}
+
+/**
+ * Registered-vs-live project state.
+ *
+ * `manifest.git` is a SNAPSHOT taken when the project was imported. Reporting
+ * it as `git` in a status response presents a possibly very old commit as the
+ * current one: a real campaign ran nine days past its registration at a
+ * different HEAD with 141 dirty paths while status still said the
+ * registration-time HEAD and 18 dirty files. Nothing marked it stale.
+ *
+ * `buildFreshness` answers the other half — whether the built artifact is
+ * newer than every source/header it was built from. "unknown" is a real
+ * answer here and is never upgraded to "fresh".
+ */
+export async function projectFreshness(project) {
+  const m = project.m;
+  const liveGit = await gitState(m.root);
+  const registeredGit = m.git ?? { head: null, dirtyFiles: null };
+  const staleReasons = [];
+  if (registeredGit.head && liveGit.head && registeredGit.head !== liveGit.head) {
+    staleReasons.push(`HEAD moved: registered ${registeredGit.head} -> live ${liveGit.head}`);
+  }
+  if (registeredGit.dirtyFiles != null && liveGit.dirtyFiles != null && registeredGit.dirtyFiles !== liveGit.dirtyFiles) {
+    staleReasons.push(`working tree changed: ${registeredGit.dirtyFiles} -> ${liveGit.dirtyFiles} modified/untracked paths`);
+  }
+
+  // Build freshness: is the built ROM newer than every source and header?
+  let buildFreshness = "unknown", newestSourceMtime = null, builtMtime = null, newerThanBuild = [];
+  try {
+    const builtRel = m.built?.rom ?? null;
+    const builtAbs = builtRel ? project.abs(builtRel) : null;
+    if (builtAbs && fs.existsSync(builtAbs)) {
+      builtMtime = fs.statSync(builtAbs).mtimeMs;
+      const roots = [m.splat?.srcPath, "include"].filter(Boolean).map((r) => project.abs(r));
+      for (const r of roots) {
+        for (const f of walkFiles(r)) {
+          if (!/\.(c|h|s|inc)$/i.test(f)) continue;
+          const mt = fs.statSync(f).mtimeMs;
+          if (newestSourceMtime == null || mt > newestSourceMtime) newestSourceMtime = mt;
+          if (mt > builtMtime && newerThanBuild.length < 12) newerThanBuild.push(path.relative(m.root, f));
+        }
+      }
+      buildFreshness = newerThanBuild.length ? "stale" : "fresh";
+      if (newerThanBuild.length) staleReasons.push(`${newerThanBuild.length}+ source/header files are newer than the built ROM`);
+    }
+  } catch { buildFreshness = "unknown"; }
+
+  return {
+    registeredGit, liveGit,
+    manifestState: staleReasons.length ? "stale" : "current",
+    buildFreshness,
+    builtAt: builtMtime ? new Date(builtMtime).toISOString() : null,
+    newestSourceAt: newestSourceMtime ? new Date(newestSourceMtime).toISOString() : null,
+    ...(newerThanBuild.length ? { sourcesNewerThanBuild: newerThanBuild } : {}),
+    staleReasons,
+    ...(staleReasons.length ? { nextAction: `decomp({op:'refresh', project:'${m.id}'}) re-captures git state, the splat map, the compiler identity and the call graph WITHOUT deleting stored evidence.` } : {}),
+  };
+}
+
+/** Every file under a directory, depth-first; missing dirs yield nothing. */
+function* walkFiles(dir) {
+  let ents;
+  try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+  for (const e of ents) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) yield* walkFiles(full);
+    else if (e.isFile()) yield full;
+  }
 }
 
 /** Compiler / assembler / python identities with content hashes. */

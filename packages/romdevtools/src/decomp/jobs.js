@@ -134,11 +134,22 @@ export async function jobStatus(project, jobId) {
   if (status === "running" && !alive) status = zero ? "complete-zero" : "complete-budget";
   if (rec.cancelledAt) status = "cancelled";
   if (errors > 0 && !best && !alive) status = "failed";
-  const elapsedS = Math.round((Date.now() - Date.parse(rec.startedAt)) / 1000);
+  // A FINISHED job's elapsed time is endedAt - startedAt, not now - startedAt.
+  //
+  // This read `Date.now()` unconditionally, so a completed run's elapsed time
+  // kept growing forever: four real Wave Race jobs that ran 45-210 seconds
+  // against minute-scale budgets reported ~9 DAYS, which reads as a runaway
+  // permuter rather than a job that finished normally. `endedAt` was already
+  // being recorded a few lines below — and note it is stamped AFTER this line,
+  // so a job detected as finished on THIS call had no endedAt to use yet.
+  // Stamp it first, then measure.
+  if (!alive && !rec.endedAt && rec.status === "running") rec.endedAt = new Date().toISOString();
+  const endMs = rec.endedAt ? Date.parse(rec.endedAt) : (rec.cancelledAt ? Date.parse(rec.cancelledAt) : Date.now());
+  const elapsedS = Math.round((endMs - Date.parse(rec.startedAt)) / 1000);
   const derived = { ...rec, status, alive, elapsedS, baseScore: Number.isNaN(baseScore) ? null : baseScore, bestScoreSeen: bestHits.length ? Math.min(...bestHits) : null, improvements: bestHits.length, candidatesWritten: (log.match(/^wrote to /gm) ?? []).length, zeroFound: zero, errorLines: errors, best,
     logTail: log.split("\n").filter(Boolean).slice(-6), note: status === "complete-budget" ? "budget exhausted — NOT a match unless best.score is 0 and compare confirms exact" : status === "complete-zero" ? "the permuter found a zero-score candidate; run decomp({op:'compare'}) on best.path to confirm strict equality" : undefined };
   if (status !== rec.status || (best && JSON.stringify(best) !== JSON.stringify(rec.best))) {
-    rec.status = status; rec.best = best; if (!alive && !rec.endedAt) rec.endedAt = new Date().toISOString();
+    rec.status = status; rec.best = best; if (!alive && !rec.endedAt) rec.endedAt = derived.endedAt ?? new Date().toISOString();
     await writeFile(path.join(jobDir, "job.json"), JSON.stringify(rec, null, 2));
   }
   return derived;
