@@ -24,7 +24,7 @@ import {
   framebufferToRgba,
 } from "romdev-core-runner";
 import { log } from "../mcp/log.js";
-import { getActiveBezel, compositeFrame, tickActiveBezel, releaseBezelGl, notifyActiveBezel, setActiveBezelBypassed } from "../mcp/active-bezel.js";
+import { getActiveBezel, compositeFrame, tickActiveBezel, releaseBezelGl, notifyActiveBezel, setActiveBezelBypassed, audioFrameActiveBezel, configureActiveBezelAudio } from "../mcp/active-bezel.js";
 import { framebufferToScreenshot } from "romdev-core-host/framebuffer-png.js";
 import { ROMDEV_PIXEL_FORMAT_RGBA8888 } from "romdev-core-host/retroConstants.js";
 import { initResampler, resampleS16Stereo } from "romdev-audio-resampler";
@@ -639,6 +639,10 @@ export async function playtest(args) {
     audio.play();
     log.debug(`[playtest] audio: ${deviceSampleRate} Hz, stereo, s16` +
       (needsResample ? ` (resampled from core ${coreSampleRate} Hz)` : ""));
+    /* Tell the bezel the CORE's rate, not the device's: its pass runs
+     * before the resampler, so that is the rate its filters must be
+     * designed against. Harmless when no bezel is attached. */
+    if (sessionKey) configureActiveBezelAudio(sessionKey, coreSampleRate);
   } catch (e) {
     log.error("[playtest] audio init failed (continuing silent):", e.message);
   }
@@ -1685,6 +1689,28 @@ export async function playtest(args) {
             merged.set(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength), off);
             off += buf.byteLength;
           }
+          // THE ACTIVE BEZEL'S AUDIO PASS, before the resampler.
+          //
+          // Order matters: the guest's filter coefficients are derived
+          // against the CORE's rate, which is what `merged` is still at
+          // here. Running after the resampler would detune every filter by
+          // the core/device ratio (and that ratio moves, because DRC below
+          // nudges it per frame).
+          //
+          // Frame count is preserved by contract -- the guest processes in
+          // place and cannot change the length. That is what keeps DRC's
+          // controller stable: a sustained frames-in != frames-out bias
+          // reads as buffer drift, which DRC fights by detuning until it
+          // saturates and under/overruns.
+          //
+          // Costs nothing when unused: audioFrameActiveBezel asks the
+          // guest's ab_audio_active() first and copies no samples when the
+          // answer is no.
+          if (sessionKey) {
+            audioFrameActiveBezel(sessionKey,
+              new Int16Array(merged.buffer, merged.byteOffset, merged.byteLength >> 1));
+          }
+
           // Dynamic rate control (the RetroArch model): nudge the effective
           // input rate by the queue error, clamped to +/-0.5%. Queue above
           // target -> pretend the core rate is a hair higher (fewer device

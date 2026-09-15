@@ -355,6 +355,49 @@ export function tickActiveBezel(sessionKey, gameRgba, width, height, frameNumber
 }
 
 /**
+ * Hand one frame's audio to the guest, in place, before the host resamples
+ * and enqueues it.
+ *
+ * `samples` is an Int16Array of interleaved stereo — the shape the core
+ * emitted and the shape the enqueue path already carries, so nothing is
+ * converted for a bezel that does not use audio.
+ *
+ * This runs on the PRODUCER side (the tick that just stepped the core),
+ * never on SDL's audio callback. A callback has a hard deadline measured in
+ * single-digit milliseconds; a guest that occasionally runs long is
+ * invisible in video and an audible click in audio. Here the worst case is a
+ * slow emulator, which is visible and recoverable.
+ *
+ * Returns true only when the guest actually processed the buffer. The zero-
+ * cost path is inside Runtime.audioFrame(): it asks the guest's own
+ * ab_audio_active() first and copies nothing when the answer is no, so a
+ * bezel that never mentions audio costs one wasm call per frame.
+ *
+ * A throwing guest is contained exactly like a throwing tick — the audio is
+ * left untouched and the frame still plays, because a broken package must
+ * not take the sound down with it.
+ */
+export function audioFrameActiveBezel(sessionKey, samples) {
+  const entry = sessions.get(sessionKey);
+  if (!entry || entry.bypassed) return false;
+  try {
+    return entry.runtime.audioFrame?.(samples) === true;
+  } catch (e) {
+    entry.lastError = String(e?.message ?? e);
+    return false;
+  }
+}
+
+/* Tell the guest the stream format. Called when the audio device opens, so
+ * filter coefficients are derived against the rate actually in use rather
+ * than the 48 kHz the core assumes before it is told. */
+export function configureActiveBezelAudio(sessionKey, sampleRate) {
+  const entry = sessions.get(sessionKey);
+  if (!entry) return false;
+  try { return entry.runtime.audioConfigure?.(sampleRate) === true; } catch { return false; }
+}
+
+/**
  * Tell the guest that continuity broke — a save-state load or a core reset.
  *
  * Without this a package keeps caches built from a timeline that no longer
