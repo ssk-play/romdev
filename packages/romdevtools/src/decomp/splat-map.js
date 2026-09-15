@@ -4,7 +4,7 @@
 // and answers "where is VA X" with explicit segment identity.
 //
 // Why a resolver and not a formula: an N64 ROM's header entry point maps ONLY
-// the boot segment. A relocated code segment (Wave Race: codeseg at ROM
+// the boot segment. A relocated code segment (e.g. codeseg at ROM
 // 0xA95D0 / VRAM 0x801DAFA0) and overlays (nineteen of them sharing VRAM
 // 0x802C5800) are invisible to `fileOff = va - entry + 0x1000`, and the wrong
 // offset still lands inside the 8 MiB image, so a bounds check cannot catch it.
@@ -190,7 +190,7 @@ export async function loadLinkerMap(mapPath) {
   // into every relocation against them and reported the fabricated words as
   // byte MISMATCHES -- a false negative on a candidate whose text and
   // relocations were exactly right. Four such symbols produced twelve reported
-  // mismatches on one real Wave Race function.
+  // mismatches on one real function.
   const absAssignRe = /^\s*(0x[0-9a-f]+)\s+([A-Za-z_$.][\w$.]*)\s*=\s*(0x[0-9a-f]+|\.)\s*$/;
   let pendingSection = null;
   const lines = text.split("\n");

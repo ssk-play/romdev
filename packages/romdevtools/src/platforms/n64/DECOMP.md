@@ -9,14 +9,14 @@ as matched.
 ## The loop, in the calls you actually make
 
 ```
-decomp({op:'import',   project:'wr64', root:'/abs/checkout'})          once
-decomp({op:'resolve',  project:'wr64', symbol:'func_801DEB08'})         segment, ROM offset, TU, target asm
-decomp({op:'generate', project:'wr64', symbol:'func_801DEB08'})         m2c draft with the TU's real type context
-decomp({op:'compare',  project:'wr64', symbol:'func_801DEB08', candidatePath:'…/gen-1.c'})
-decomp({op:'search',   project:'wr64', symbol:'func_801DEB08', candidatePath:'…'})   bounded permuter job
-decomp({op:'job',      project:'wr64', jobId:'…', action:'best'})
-decomp({op:'integrate',project:'wr64', symbol:'func_801DEB08', candidatePath:'…', apply:true})
-decomp({op:'progress', project:'wr64'})
+decomp({op:'import',   project:'myproj', root:'/abs/checkout'})          once
+decomp({op:'resolve',  project:'myproj', symbol:'func_801DEB08'})         segment, ROM offset, TU, target asm
+decomp({op:'generate', project:'myproj', symbol:'func_801DEB08'})         m2c draft with the TU's real type context
+decomp({op:'compare',  project:'myproj', symbol:'func_801DEB08', candidatePath:'…/gen-1.c'})
+decomp({op:'search',   project:'myproj', symbol:'func_801DEB08', candidatePath:'…'})   bounded permuter job
+decomp({op:'job',      project:'myproj', jobId:'…', action:'best'})
+decomp({op:'integrate',project:'myproj', symbol:'func_801DEB08', candidatePath:'…', apply:true})
+decomp({op:'progress', project:'myproj'})
 ```
 
 `compare` is the operation that matters. It compiles the candidate INSIDE
@@ -52,7 +52,7 @@ check cannot save you. An overlay VA is AMBIGUOUS by construction: the
 resolver returns the candidate segments and refuses to pick. Pass
 `segment:'ovl_i8'`.
 
-`disasm({target:'decompile', platform:'n64', project:'wr64', address:…})`
+`disasm({target:'decompile', platform:'n64', project:'myproj', address:…})`
 uses the same resolver, loads only that segment's bytes AT ITS TRUE VA (so
 absolute calls, globals and jump tables resolve during analysis), returns
 `provenance` (segment, ROM offset, loadedAt, bytes hash) and swaps in the

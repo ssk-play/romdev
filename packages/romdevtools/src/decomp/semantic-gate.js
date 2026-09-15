@@ -1,0 +1,171 @@
+// semantic-gate.js — a byte-exact candidate is not automatically a correct one.
+//
+// THE DISTINCTION THIS FILE EXISTS TO PRESERVE. A permuter or sweep optimises a
+// SCORE. It will happily reach zero by writing code that no human wrote and no
+// human should ship: a self-assignment that claims a register, an empty branch
+// that pads a delay slot, a comma-zero expression, an unused stack slot claimed
+// to shift the frame. Those candidates are genuinely byte-exact. They are also
+// artificial, and integrating one silently converts a matching build into a
+// source tree nobody can maintain.
+//
+// So the gate NEVER erases the exactness result. It classifies:
+//
+//   byte-exact/plausible      reads like source a person would write
+//   byte-exact/review-needed  something here needs a human's eyes
+//   byte-exact/artificial     contains constructs whose only purpose is the
+//                             byte match
+//
+// and it is advisory about semantics it cannot prove. A checker that claimed
+// certainty about pointer provenance from a regex would be worse than no
+// checker, so every finding carries its own confidence and the reason it fired.
+//
+// Plain JS ESM + JSDoc.
+
+/** @typedef {{id:string, severity:"artificial"|"review"|"info", confidence:"high"|"medium"|"low", message:string, evidence?:string, line?:number}} Finding */
+
+/** Strip strings, chars and comments so a lexical scan cannot fire inside them. */
+function stripLiterals(src) {
+  let out = "";
+  let i = 0;
+  const n = src.length;
+  while (i < n) {
+    const c = src[i], d = src[i + 1];
+    if (c === "/" && d === "/") { while (i < n && src[i] !== "\n") { out += src[i] === "\n" ? "\n" : " "; i++; } continue; }
+    if (c === "/" && d === "*") { i += 2; while (i < n && !(src[i] === "*" && src[i + 1] === "/")) { out += src[i] === "\n" ? "\n" : " "; i++; } i += 2; out += "  "; continue; }
+    if (c === '"' || c === "'") {
+      const q = c; out += " "; i++;
+      while (i < n && src[i] !== q) { if (src[i] === "\\") { out += " "; i++; } out += src[i] === "\n" ? "\n" : " "; i++; }
+      out += " "; i++; continue;
+    }
+    out += c; i++;
+  }
+  return out;
+}
+
+const lineOf = (src, index) => src.slice(0, index).split("\n").length;
+
+/**
+ * Lexical checks for the artificial constructs a score-optimiser produces.
+ * These are HIGH confidence: each pattern has no legitimate purpose in
+ * decompiled source, which is exactly why a mutation search reaches for them.
+ */
+function artificialConstructs(src) {
+  /** @type {Finding[]} */
+  const out = [];
+  const s = stripLiterals(src);
+
+  // `x = x;` — claims a register without changing anything.
+  for (const m of s.matchAll(/(?<![\w.>])([A-Za-z_]\w*)\s*=\s*\1\s*;/g)) {
+    out.push({ id: "self-assignment", severity: "artificial", confidence: "high",
+      message: `'${m[1]} = ${m[1]};' is a self-assignment: it exists to claim a register, not to compute anything`,
+      evidence: m[0], line: lineOf(s, m.index) });
+  }
+  // `if (...) { }` / `else { }` — an empty branch shifts scheduling only.
+  for (const m of s.matchAll(/\b(if|else|while|for)\s*(\([^;{}]*\))?\s*\{\s*\}/g)) {
+    out.push({ id: "empty-branch", severity: "artificial", confidence: "high",
+      message: `empty '${m[1]}' body: it changes scheduling or block layout and nothing else`,
+      evidence: m[0].replace(/\s+/g, " ").slice(0, 80), line: lineOf(s, m.index) });
+  }
+  // `(x, 0)` — a comma expression discarding its left operand.
+  for (const m of s.matchAll(/\(\s*[A-Za-z_]\w*\s*,\s*0\s*\)/g)) {
+    out.push({ id: "comma-zero", severity: "artificial", confidence: "high",
+      message: "comma-zero expression: the left operand's value is discarded; this is a codegen lever, not logic",
+      evidence: m[0], line: lineOf(s, m.index) });
+  }
+  // A declared local that is never read again — often a claimed stack slot.
+  for (const m of s.matchAll(/\b(?:s32|u32|f32|s16|u16|s8|u8|int|float|void\s*\*)\s+(pad\w*|unused\w*|dummy\w*|sp[0-9A-Fa-f]+)\s*;/g)) {
+    out.push({ id: "claimed-slot", severity: "review", confidence: "medium",
+      message: `'${m[1]}' looks like a claimed stack slot rather than a real local`,
+      evidence: m[0], line: lineOf(s, m.index) });
+  }
+  // A `FAKE`/`HACK` marker the author left behind.
+  for (const m of s.matchAll(/\b(FAKE|HACK|BUG|NONMATCHING|PERMUTER)\b/g)) {
+    out.push({ id: "author-marker", severity: "review", confidence: "high",
+      message: `'${m[1]}' marker present: the author flagged this as not-real source`,
+      evidence: m[0], line: lineOf(s, m.index) });
+  }
+  return out;
+}
+
+/**
+ * Checks that compare a candidate against the source it was derived from.
+ * These are the behaviour-changing classes the reporter listed. They are
+ * MEDIUM/LOW confidence by construction: proving them needs dataflow, and a
+ * lexical pass that claimed otherwise would be the worse failure.
+ */
+function behaviouralDeltas(baseline, candidate) {
+  /** @type {Finding[]} */
+  const out = [];
+  if (!baseline) return out;
+  const a = stripLiterals(baseline), b = stripLiterals(candidate);
+
+  const count = (re, s) => (s.match(re) ?? []).length;
+
+  // volatile is an ORDERING contract: dropping it lets the compiler move or
+  // fold hardware accesses.
+  const va = count(/\bvolatile\b/g, a), vb = count(/\bvolatile\b/g, b);
+  if (vb < va) out.push({ id: "volatile-dropped", severity: "artificial", confidence: "high",
+    message: `'volatile' count fell ${va} -> ${vb}: this changes the ordering guarantees of hardware or shared-memory accesses` });
+
+  // A call disappearing changes observable behaviour even if bytes match by
+  // coincidence of inlining.
+  const callsA = new Set([...a.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)].map((m) => m[1]));
+  const callsB = new Set([...b.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)].map((m) => m[1]));
+  const KEYWORDS = new Set(["if", "while", "for", "switch", "return", "sizeof", "do"]);
+  const lost = [...callsA].filter((n) => !callsB.has(n) && !KEYWORDS.has(n));
+  if (lost.length) out.push({ id: "call-removed", severity: "review", confidence: "medium",
+    message: `call(s) present in the baseline and absent from the candidate: ${lost.slice(0, 6).join(", ")}`,
+    evidence: lost.slice(0, 6).join(", ") });
+
+  // Signed/unsigned and division changes alter overflow and rounding.
+  const ua = count(/\bunsigned\b|\bu(8|16|32)\b/g, a), ub = count(/\bunsigned\b|\bu(8|16|32)\b/g, b);
+  if (ua !== ub) out.push({ id: "signedness-changed", severity: "review", confidence: "low",
+    message: `unsigned-type mentions changed ${ua} -> ${ub}: check overflow, shift and division semantics` });
+  const da = count(/[^/]\/[^/*=]|%/g, a), db = count(/[^/]\/[^/*=]|%/g, b);
+  if (da !== db) out.push({ id: "division-changed", severity: "review", confidence: "low",
+    message: `division/modulo operator count changed ${da} -> ${db}: check signed division and modulo-by-zero behaviour` });
+
+  // && / || carry short-circuit semantics; converting to & / | evaluates both.
+  const sa = count(/&&|\|\|/g, a), sb = count(/&&|\|\|/g, b);
+  if (sb < sa) out.push({ id: "short-circuit-lost", severity: "artificial", confidence: "medium",
+    message: `short-circuit operators fell ${sa} -> ${sb}: if && / || became & / |, the right operand is now ALWAYS evaluated` });
+
+  return out;
+}
+
+/**
+ * Gate a candidate.
+ *
+ * @param {{candidateText:string, baselineText?:string|null, exactFunctionMatch?:boolean, functionLocal?:string|null}} a
+ */
+export function semanticGate({ candidateText, baselineText = null, exactFunctionMatch = false, functionLocal = null }) {
+  const findings = [
+    ...artificialConstructs(candidateText ?? ""),
+    ...behaviouralDeltas(baselineText, candidateText ?? ""),
+  ];
+  const artificial = findings.filter((f) => f.severity === "artificial");
+  const review = findings.filter((f) => f.severity === "review");
+
+  const isExact = !!exactFunctionMatch && functionLocal === "exact";
+  const classification = !isExact ? "not-exact"
+    : artificial.length ? "byte-exact/artificial"
+    : review.length ? "byte-exact/review-needed"
+    : "byte-exact/plausible";
+
+  return {
+    classification,
+    // The exactness result is REPORTED, never overwritten. These are separate
+    // dimensions: a candidate can be exact AND artificial, and collapsing them
+    // is how an unmaintainable source tree gets integrated.
+    exactFunctionMatch: !!exactFunctionMatch,
+    functionLocal,
+    integrationEligible: classification === "byte-exact/plausible",
+    findings,
+    counts: { artificial: artificial.length, review: review.length, total: findings.length },
+    ...(baselineText ? {} : { baselineNote: "no baseline supplied: only the artificial-construct checks ran; behaviour-delta checks need the source the candidate was derived from" }),
+    policy: "exactness and source quality are SEPARATE dimensions and this gate never erases the exactness result. "
+      + "'byte-exact/artificial' means the bytes match and the source contains constructs whose only purpose is the match. "
+      + "Behavioural findings are advisory: a lexical pass cannot prove pointer provenance or aliasing, and claiming otherwise "
+      + "would be worse than not checking — each finding carries its own confidence.",
+  };
+}

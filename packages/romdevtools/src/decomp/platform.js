@@ -4,7 +4,7 @@
 // reader, and how a captured compile invocation maps to a compiler kind, an
 // m2c target and a decomp-permuter compiler_type.
 //
-// n64 is the proven profile (Wave Race 64, IDO 5.3). psx/psp/ps2 are the
+// n64 is the proven profile (IDO 5.3). psx/psp/ps2 are the
 // other splat layouts: the code paths are the same MIPS ones, parameterized
 // here, but no PS1 checkout has been run through them yet — the capability
 // manifest says so and `import` marks such a project `platformVerified:false`.

@@ -7,7 +7,7 @@
 // turns on: allocator webs, uopt global coloring, ugen temporary provenance,
 // stack homes, as1 ready-set scheduling, emitted-line-number ties, pass
 // ownership, frontend lineage. The workbench already does all of that, it is
-// the tool the Wave Race campaign used by hand, and building a second shallower
+// the tool real campaigns already use by hand, and building a second shallower
 // copy inside romdev would produce two tools that disagree.
 //
 // DISCOVERY, NOT HARDCODING. `decomp-workbench commands --json` is a versioned,

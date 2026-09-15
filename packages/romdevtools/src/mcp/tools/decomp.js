@@ -42,7 +42,7 @@ export function registerDecompTools(server, z, sessionKey) {
     "Every result names the project, function {symbol, segment, va}, candidate sha, compiler fingerprint and artifact paths; errors carry a typed [CODE]. `exactFunctionMatch` and `romLinked.status:'exact'` are the acceptance signals; `distance` is a ranking hint, never proof. " +
     "Ghidra pseudocode stays in disasm({target:'decompile'}) for understanding; it is never counted as matched.",
     {
-      op: z.enum(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage", "workbench", "dispatch"]).describe(
+      op: z.enum(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage", "workbench", "dispatch", "experiment", "gate", "typeGraph", "rank", "ledger", "scenario", "capabilities", "knownSource", "assets", "artifacts", "handoff", "skill"]).describe(
         "import=register a project (root; splat yaml auto-detected; ROM sha1 verified; toolchain fingerprinted; compile invocation captured from make); " +
         "status=manifest + backend identities + segment table; list=registered projects; map=TU → object → segment → functions associations; " +
         "plan=payoff-ordered queue of remaining asm functions + batches that call each other inside one TU (call graph from the built objects' relocations); batch=generate+compare every function of a batch (`symbols`), sharing the context; " +
@@ -58,6 +58,36 @@ export function registerDecompTools(server, z, sessionKey) {
         "trace=stop at a function's entry on the live session and read a0-a3/f12/f14/stack args, then v0/v1/f0 at return (N64: load the session with coreOptions {'parallel-n64-cpucore':'pure_interpreter'}; the result carries the core probe and says PC_BREAK_UNSUPPORTED with evidence otherwise); coverage=instruction-exact function + basic-block observed/unobserved/unreferenced over `frames` with `inputs` from the core's PC log (interpreter), else frame-boundary samples with the method stated."),
       project: z.string().optional().describe("Project id (required by every op except list). op:'import' picks it."),
       // op:'workbench' — the n64-decomp-workbench bridge.
+      // op:'experiment' / op:'gate'
+      action: z.enum(["status", "best", "cancel", "report", "create", "control", "candidate", "conclude", "list", "families"]).optional().describe("op:'job' — status/best/cancel/report. op:'experiment' — create, control, candidate, conclude, list, families."),
+      experimentId: z.string().optional().describe("op:'experiment' — the record to act on (from action:'create' or action:'list')."),
+      hypothesis: z.string().optional().describe("op:'experiment' action:'create' — ONE falsifiable causal claim. Required: an experiment without one is a sweep, and a sweep is what produced 264 undifferentiated candidates for a single function."),
+      lever: z.string().optional().describe("op:'experiment' action:'create' — the SINGLE source change being varied. Required: varying two things at once cannot attribute the result."),
+      family: z.string().optional().describe("op:'experiment' action:'create' — the source family this belongs to (e.g. 'stack-homes', 'global-coloring'), so exhausted families are queryable."),
+      controlKind: z.enum(["positive", "negative", "determinism"]).optional().describe("op:'experiment' action:'control' — positive MUST move the metric, negative MUST NOT, determinism runs the same input twice."),
+      moved: z.boolean().optional().describe("op:'experiment' action:'control' — did the metric actually move?"),
+      verdict: z.enum(["accepted", "rejected", "exhausted"]).optional().describe("op:'experiment' action:'conclude'."),
+      scope: z.string().optional().describe("op:'experiment' action:'conclude' — what the conclusion covers."),
+      rationale: z.string().optional().describe("op:'experiment' action:'conclude' — why."),
+      exactFunctionMatch: z.boolean().default(false).describe("op:'gate'/'experiment' — did the compare report a byte-exact function match? The gate classifies source QUALITY and never overwrites this."),
+      functionLocal: z.string().optional().describe("op:'gate'/'experiment' — the compare's function-local verdict ('exact', 'mismatch', ...)."),
+      distance: z.number().optional().describe("op:'experiment' action:'candidate' — the candidate's distance metric."),
+      notes: z.string().optional().describe("op:'experiment' — free-text detail for a control or the record."),
+      baseline: z.record(z.any()).optional().describe("op:'experiment' action:'create' — baseline identities (source/object/target/toolchain) this experiment varies from."),
+      parentId: z.string().optional().describe("op:'experiment' action:'create' — the experiment this one descends from."),
+      workClass: z.union([z.string(), z.array(z.string())]).optional().describe("op:'plan' — restrict the queue to these work classes (game-matching-c, libultra-known-source, handwritten-asm-retain, rsp-source, asset-data). Default: game-matching-c. op:'knownSource' — hint the class so the response can say whether published SDK source should be searched first."),
+      includeAllClasses: z.boolean().default(false).describe("op:'plan' — include EVERY work class in the queue, not just game targets."),
+      forceGraph: z.boolean().default(false).describe("op:'plan' — rebuild the call graph instead of using the content-addressed cache."),
+      apply: z.boolean().default(false).describe("op:'artifacts' action:'prune' — actually delete. Default is a DRY RUN; only byte-identical duplicates are ever proposed and files backing an accepted conclusion are always skipped."),
+      romOffset: z.number().int().optional().describe("op:'assets' — ROM offset of a range to identify/round-trip. Omit to scan every bin range."),
+      length: z.number().int().optional().describe("op:'assets' — byte length of the range at `romOffset`."),
+      scenarioName: z.string().optional().describe("op:'scenario' — the scenario to run or save."),
+      scenarioDef: z.record(z.any()).optional().describe("op:'scenario' action:'save' — {name, frames, inputs:[{frame,buttons,until}], checkpoints:[{frame,regions}], expectedOverlays}."),
+      rebuild: z.boolean().default(false).describe("op:'typeGraph' — rebuild from every stored per-function record instead of using the cached graph."),
+      base: z.string().optional().describe("op:'typeGraph' — propose a C struct for this base (from `bases[].base`)."),
+      preferTemporaryPrefix: z.boolean().default(false).describe("op:'rank' — request temporary-prefix ranking. It is applied ONLY when its precondition holds (a single gap state); otherwise the safe fallback runs and the response says why."),
+      candidates: z.array(z.record(z.any())).optional().describe("op:'rank' — candidate records to rank (workbench comparison blocks or romdev compare results)."),
+      baselineText: z.string().optional().describe("op:'gate' — the source the candidate was derived from; enables the behaviour-delta checks (volatile, removed calls, short-circuit, signedness)."),
       // op:'dispatch' — parallel, memory-bounded triage.
       symbols: z.array(z.string()).optional().describe("op:'dispatch' — explicit function symbols to triage. Omit to take the top of the plan queue (game-matching-c only)."),
       maxFunctions: z.number().int().min(1).max(512).optional().describe("op:'dispatch' — cap on functions processed this run (default 64)."),
@@ -265,6 +295,200 @@ export function registerDecompTools(server, z, sessionKey) {
           });
           return jsonContent({ project: project.id, ...out });
         }
+        case "gate": {
+          // A byte-exact candidate is not automatically a correct one. This
+          // classifies source quality WITHOUT ever erasing the exactness result.
+          const { semanticGate } = await import("../../decomp/semantic-gate.js");
+          const cand = await candidateSource();
+          return jsonContent({ project: project.id, symbol: args.symbol ?? null,
+            ...semanticGate({ candidateText: cand.text, baselineText: args.baselineText ?? null,
+              exactFunctionMatch: !!args.exactFunctionMatch, functionLocal: args.functionLocal ?? null }) });
+        }
+        case "experiment": {
+          const X = await import("../../decomp/experiment.js");
+          const action = args.action ?? "list";
+          switch (action) {
+            case "create": {
+              const rec = await X.createExperiment(project, {
+                symbol: args.symbol, hypothesis: args.hypothesis, lever: args.lever, family: args.family,
+                baseline: args.baseline ?? null, parentId: args.parentId ?? null, notes: args.notes });
+              return jsonContent({ ...rec, controlsRequired: X.CONTROL_KINDS,
+                nextStep: "run all three controls with action:'control' BEFORE concluding — a conclusion without them is refused, because a negative control that moves means the metric is responding to noise." });
+            }
+            case "control": {
+              if (!args.experimentId || !args.controlKind) throw Object.assign(new Error("decomp({op:'experiment', action:'control'}): `experimentId` and `controlKind` are required."), { code: "BAD_ARGS" });
+              return jsonContent(await X.recordControl(project, args.experimentId, { kind: args.controlKind, moved: args.moved, detail: args.notes }));
+            }
+            case "candidate": {
+              if (!args.experimentId) throw Object.assign(new Error("decomp({op:'experiment', action:'candidate'}): `experimentId` is required."), { code: "BAD_ARGS" });
+              const { semanticGate } = await import("../../decomp/semantic-gate.js");
+              const cand = await candidateSource();
+              const gate = semanticGate({ candidateText: cand.text, baselineText: args.baselineText ?? null,
+                exactFunctionMatch: !!args.exactFunctionMatch, functionLocal: args.functionLocal ?? null });
+              return jsonContent(await X.recordCandidate(project, args.experimentId, {
+                candidatePath: cand.path, distance: args.distance ?? null,
+                exactFunctionMatch: !!args.exactFunctionMatch, functionLocal: args.functionLocal ?? null, gate }));
+            }
+            case "conclude": {
+              if (!args.experimentId || !args.verdict) throw Object.assign(new Error("decomp({op:'experiment', action:'conclude'}): `experimentId` and `verdict` are required."), { code: "BAD_ARGS" });
+              return jsonContent(await X.concludeExperiment(project, args.experimentId, { verdict: args.verdict, scope: args.scope, rationale: args.rationale, force: !!args.force }));
+            }
+            case "families": {
+              if (!args.symbol) throw Object.assign(new Error("decomp({op:'experiment', action:'families'}): `symbol` is required."), { code: "BAD_ARGS" });
+              return jsonContent(await X.exhaustedFamilies(project, args.symbol));
+            }
+            default:
+              return jsonContent({ experiments: await X.listExperiments(project, { symbol: args.symbol }) });
+          }
+        }
+        case "typeGraph": {
+          // PROJECT-WIDE type evidence. Per-function records are stranded: the
+          // same struct is passed to a dozen functions and each rediscovers its
+          // layout. Bases are ordered by LEVERAGE (how many functions share
+          // them) because typing one of those lands the fix everywhere at once.
+          const { loadTypeGraph, proposeStruct } = await import("../../decomp/type-graph.js");
+          const { callGraph } = await import("../../decomp/plan.js");
+          let cg = null;
+          try { cg = await callGraph(project); } catch {}
+          const g = await loadTypeGraph(project, { rebuild: !!args.rebuild, callGraph: cg });
+          if (args.base) {
+            const b = g.bases.find((x) => x.base === args.base);
+            if (!b) throw Object.assign(new Error(`no base '${args.base}' in the type graph (${g.baseCount} bases). Call without \`base\` to list them.`), { code: "NO_SUCH_BASE" });
+            return jsonContent({ project: project.id, ...proposeStruct(b), evidence: b });
+          }
+          // The full field list of 707 bases is enormous; return the shape plus
+          // the high-leverage head, and let `base` fetch one in detail.
+          return jsonContent({ project: project.id, schema: g.schema, builtAt: g.builtAt,
+            baseCount: g.baseCount, totalFields: g.totalFields, conflictCount: g.conflictCount,
+            bases: g.bases.slice(0, args.limit ?? 30).map(({ fields, ...rest }) => ({ ...rest, fieldsOmitted: fields.length })),
+            confidenceLevels: g.confidenceLevels, policy: g.policy,
+            nextStep: "decomp({op:'typeGraph', base:'<name>'}) returns that base's full evidence and a PROPOSED struct." });
+        }
+        case "rank": {
+          // Mechanism-aware ranking. The rule that matters: aligned_total is
+          // only comparable within ONE gap state.
+          const { rankCandidates } = await import("../../decomp/ranking.js");
+          if (!args.candidates?.length) throw Object.assign(new Error("decomp({op:'rank'}): `candidates` is required (workbench comparison blocks or romdev compare results)."), { code: "BAD_ARGS" });
+          return jsonContent({ project: project.id, ...rankCandidates(args.candidates, { preferTemporaryPrefix: !!args.preferTemporaryPrefix }) });
+        }
+        case "ledger": {
+          // What "100% decompiled" means, per dimension. Deliberately produces
+          // NO single percentage: each dimension has its own denominator, and
+          // collapsing them needs weights the project must declare.
+          const { buildLedger } = await import("../../decomp/ledger.js");
+          const { computeProgress } = await import("../../decomp/progress.js");
+          const { planWork } = await import("../../decomp/plan.js");
+          let prog = null, wc = null;
+          try { prog = await computeProgress(project); } catch {}
+          try { wc = (await planWork(project, { limit: 1 })).workClasses; } catch {}
+          return jsonContent(await buildLedger(project, { progress: prog, workClasses: wc }));
+        }
+        case "capabilities": {
+          // PROVE the runtime's debug capabilities against the running core
+          // rather than describing them from three disagreeing sources.
+          const { probeCapabilities } = await import("../../decomp/capability.js");
+          const { getHost } = await import("../state.js");
+          let host = null;
+          try { host = getHost(live); } catch {}
+          // Core identity comes from the runtime module, which already knows how
+          // to map a platform to its core package and read that package's
+          // version. Guessing it here would be a fourth source of truth.
+          let info = { platform: project.m.platform };
+          try {
+            const rt = await import("../../decomp/runtime.js");
+            const id = rt.runtimeIdentity ? await rt.runtimeIdentity(project, live) : null;
+            if (id?.core) info = { ...info, package: id.core.package ?? null, version: id.core.version ?? null, coreName: id.core.name ?? null };
+          } catch { /* identity is best-effort; the probe still reports capabilities */ }
+          return jsonContent(await probeCapabilities(host, info));
+        }
+        case "knownSource": {
+          // Look before you decompile: match by BYTES and SHAPE, never by name.
+          const { findKnownSource } = await import("../../decomp/known-source.js");
+          const fn = await resolveFn();
+          const { ensureTarget } = await import("../../decomp/compile.js");
+          const t = await ensureTarget(project, fn);
+          if (t.romOnly) throw Object.assign(new Error(`'${fn.symbol}' has no extracted asm to fingerprint.`), { code: "NO_TARGET_ASM" });
+          const asmText = await readFile(t.asmPath ?? t.targetAsm ?? t.path, "utf8");
+          return jsonContent(await findKnownSource(project, { symbol: fn.symbol, asmText, workClass: args.workClass }));
+        }
+        case "scenario": {
+          // SEMANTIC evidence, never byte matching. Kept in its own op so a
+          // runtime agreement can never be mistaken for an exactness verdict.
+          const S = await import("../../decomp/scenario.js");
+          const action = args.action ?? "list";
+          if (action === "save") return jsonContent(await S.saveScenario(project, args.scenarioDef ?? {}));
+          if (action === "list") return jsonContent({ scenarios: await S.listScenarios(project) });
+          if (!args.scenarioName) throw Object.assign(new Error("decomp({op:'scenario'}): `scenarioName` is required to run one."), { code: "BAD_ARGS" });
+          const scenario = await S.loadScenario(project, args.scenarioName);
+          const { getHost } = await import("../state.js");
+          const { probeCapabilities } = await import("../../decomp/capability.js");
+          const host = getHost(live);
+          const cap = await probeCapabilities(host, { platform: project.m.platform });
+          return jsonContent(await S.runScenario(host, scenario, { capability: cap }));
+        }
+        case "assets": {
+          // Identify and ROUND-TRIP the non-code bytes. Round trip is the only
+          // acceptance test: a decoder that produces plausible output from the
+          // wrong offset is worse than none, because it looks like progress.
+          const A = await import("../../decomp/assets.js");
+          const rom = await readFile(project.abs(project.m.rom.path));
+          if (args.romOffset != null) {
+            const end = args.romOffset + (args.length ?? 0);
+            return jsonContent({ project: project.id, ...A.roundTrip(rom.subarray(args.romOffset, end || undefined), { name: `0x${args.romOffset.toString(16)}` }) });
+          }
+          const map = await project.map();
+          const ranges = [];
+          for (const seg of map.segments) {
+            if (!(seg.subsegments ?? []).length) ranges.push({ name: seg.name, romStart: seg.romStart, romEnd: seg.romEnd, type: seg.type });
+            for (const sub of seg.subsegments ?? []) if (sub.type === "bin") ranges.push({ name: sub.name, romStart: sub.romStart, romEnd: sub.romEnd, type: sub.type });
+          }
+          return jsonContent({ project: project.id, ...A.scanRanges(rom, ranges) });
+        }
+        case "artifacts": {
+          const A = await import("../../decomp/artifacts.js");
+          if (args.action === "prune") return jsonContent(await A.pruneArtifacts(project, { apply: !!args.apply }));
+          if (args.action === "pin") {
+            if (!args.candidatePath) throw Object.assign(new Error("decomp({op:'artifacts', action:'pin'}): `candidatePath` is required."), { code: "BAD_ARGS" });
+            return jsonContent(await A.pinArtifact(project, args.candidatePath, { reason: args.notes }));
+          }
+          return jsonContent(await A.surveyArtifacts(project));
+        }
+        case "handoff": {
+          // GENERATED from the workspace and the checkout, with every path it
+          // references audited — a handoff whose references have rotted sends
+          // the next agent to files that are gone.
+          const { generateHandoff } = await import("../../decomp/handoff.js");
+          return jsonContent(await generateHandoff(project, { limit: args.limit ?? 20 }));
+        }
+        case "skill": {
+          // A STALE SKILL IS WORSE THAN NO SKILL. An agent reading a
+          // confidently wrong document stops; an agent with no document asks.
+          // The installed skill declared ~14 platforms and never mentioned N64
+          // while the server had full N64 support and a whole decomp domain.
+          const SK = await import("../../decomp/skill-sync.js");
+          const { CAPABILITIES } = await import("../../cores/capabilities.js");
+          const pkgVersion = JSON.parse(await readFile(new URL("../../../package.json", import.meta.url), "utf8")).version;
+          const platforms = Object.keys(CAPABILITIES);
+          const decompPlatforms = platforms.filter((p) => CAPABILITIES[p]?.ops?.decompile || CAPABILITIES[p]?.decomp);
+          const server = { version: pkgVersion, platforms, hasDecomp: true };
+          const status = await SK.skillStatus(server);
+          if (args.action !== "write") {
+            return jsonContent({ ...status, serverPlatforms: platforms.length,
+              preview: "pass action:'write' to regenerate the skill from the live capability manifest (the previous file is backed up first)." });
+          }
+          const content = SK.generateSkill({
+            version: pkgVersion, platforms, decompPlatforms,
+            toolCount: null,
+            domains: [
+              { name: "build + run", description: "compile for a platform, load media, step frames, screenshot, script controller input" },
+              { name: "inspect", description: "memory regions, CPU and sound-chip state, sprites, palettes, tilemaps" },
+              { name: "reverse-engineer", description: "value search, write/read watchpoints, disassembly, control-flow graphs, cross-references, Ghidra pseudocode, live jumptable recovery" },
+              { name: "decomp", description: "matching decompilation against the project's own compiler and build system" },
+              { name: "port engine", description: "static recompilation between consoles (6502 and Z80 sources today)" },
+            ],
+          });
+          return jsonContent({ ...(await SK.writeSkill(content, { targetPath: args.outputPath })), previousStatus: status });
+        }
         case "map": {
           const ld = await project.linkerMap();
           if (!ld) throw Object.assign(new Error("no linker map — build the project first"), { code: "NO_BUILD" });
@@ -286,7 +510,7 @@ export function registerDecompTools(server, z, sessionKey) {
         }
         case "plan": {
           const { planWork } = await import("../../decomp/plan.js");
-          return jsonContent({ project: project.id, ...(await planWork(project, { limit: args.limit, tu: args.tu })) });
+          return jsonContent({ project: project.id, ...(await planWork(project, { limit: args.limit, tu: args.tu, workClass: args.workClass, includeAllClasses: !!args.includeAllClasses, forceGraph: !!args.forceGraph })) });
         }
         case "batch": {
           if (!args.symbols?.length) throw Object.assign(new Error("decomp({op:'batch'}): pass `symbols` (a batch from op:'plan')."), { code: "BAD_ARGS" });

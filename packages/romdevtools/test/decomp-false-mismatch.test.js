@@ -1,5 +1,5 @@
-// Four false-negative / stale-evidence defects reported from the Wave Race 64
-// campaign. All four turned "I could not check this" or "this is old" into a
+// Four false-negative / stale-evidence defects reported from a real N64
+// decompilation campaign. All four turned "I could not check this" or "this is old" into a
 // confident wrong answer, which is the failure class the decomp verdict
 // contract exists to prevent.
 //
@@ -163,7 +163,7 @@ test("loadCandidateEvidence: a better score from an OLD dependency hash cannot r
   // compile.js keys every result file `<dependencyHash>-<candidateSha>-v<verifier>`,
   // so the identity is already recorded — the planner simply ignored it, took
   // the global minimum distance across every result ever written, and set
-  // `lastCompile` by directory iteration order. On the real Wave Race workspace
+  // `lastCompile` by directory iteration order. On a real campaign workspace
   // that spanned 258 dependency hashes over 2609 result files, and ranked
   // func_801EB4F4 at distance 6.8 when the current tree gives 82.45: a 12x
   // misranking that sends a permuter budget at a function that is not close.
@@ -232,7 +232,7 @@ test("loadCandidateEvidence: an exact function-local verdict still scores 0", as
 
 test("jobStatus: a completed job's elapsed time is endedAt - startedAt, not now - startedAt", async () => {
   // This read Date.now() unconditionally, so a finished run's elapsed time kept
-  // growing forever: four real Wave Race jobs that ran 45-210 seconds against
+  // growing forever: four real jobs that ran 45-210 seconds against
   // minute-scale budgets reported ~9 DAYS, which reads as a runaway permuter
   // rather than a job that completed normally.
   const { jobStatus } = await import("../src/decomp/jobs.js");

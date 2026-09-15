@@ -623,6 +623,20 @@ async function main() {
     // matching "shutting down" line was KILLED (OOM, SIGKILL), not stopped --
     // which is otherwise indistinguishable from a truncated log.
     log.info(`romdev: server up pid=${process.pid} v${PKG_VERSION}`);
+    // A STALE DISTRIBUTED SKILL IS WORSE THAN NO SKILL: an agent reading a
+    // confidently wrong document stops, where an agent with no document asks.
+    // Reported once at startup so the mismatch is visible without anyone
+    // having to suspect it. Best-effort: never let this block the server.
+    (async () => {
+      try {
+        const SK = await import("../decomp/skill-sync.js");
+        const { CAPABILITIES } = await import("../cores/capabilities.js");
+        const st = await SK.skillStatus({ version: PKG_VERSION, platforms: Object.keys(CAPABILITIES), hasDecomp: true });
+        if (st.stale) log.info(`romdev: WARNING — the installed client skill is v${st.skillVersion} against server v${st.serverVersion}`
+          + (st.undocumentedCapabilities?.length ? `; it never mentions ${st.undocumentedCapabilities.join(", ")}` : "")
+          + `. Regenerate with decomp({op:'skill', action:'write'}).`);
+      } catch { /* the skill check must never affect startup */ }
+    })();
     log.info("");
     log.info(`romdev (v${PKG_VERSION}) listening on http://${bannerHost}:${port}/mcp`);
     log.info("");

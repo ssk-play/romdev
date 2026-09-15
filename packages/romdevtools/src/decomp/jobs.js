@@ -137,7 +137,7 @@ export async function jobStatus(project, jobId) {
   // A FINISHED job's elapsed time is endedAt - startedAt, not now - startedAt.
   //
   // This read `Date.now()` unconditionally, so a completed run's elapsed time
-  // kept growing forever: four real Wave Race jobs that ran 45-210 seconds
+  // kept growing forever: four real jobs that ran 45-210 seconds
   // against minute-scale budgets reported ~9 DAYS, which reads as a runaway
   // permuter rather than a job that finished normally. `endedAt` was already
   // being recorded a few lines below — and note it is stamped AFTER this line,

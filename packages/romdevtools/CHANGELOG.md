@@ -4,9 +4,128 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 —
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.140.0 — 2026-09-15
+
+The rest of the decomp acceleration audit: items 3 and 5-20. 0.139.0 fixed
+the correctness defects; this is the campaign system they were blocking.
+
+### Added — campaign layer
+
+- **`decomp({op:'workbench'})`** — a bridge to n64-decomp-workbench rather than
+  a second, shallower copy of it. romdev's comparator is first-pass triage and
+  cannot diagnose allocator webs, uopt global coloring, ugen temporary
+  provenance, stack homes or as1 scheduling; the workbench can, and it is the
+  tool this campaign already used by hand. The catalog is DISCOVERED from the
+  workbench itself (128 commands, 24 groups, schema
+  `decomp-workbench-command-map-v1`), so it can grow without romdev being
+  edited, and each command's OWN safety metadata gates it — destructive and
+  networked commands need an explicit opt-in. Exit 1 is reported as
+  gate/no-result (an answer, not a failure) and report schemas pass through
+  unflattened. One real trap: a project-local binutils is linked against
+  project-local shared objects, so the bridge must pass the project's
+  LD_LIBRARY_PATH or objdump fails with an error that reads like a workbench bug.
+- **`decomp({op:'dispatch'})`** — parallel candidate production across
+  INDEPENDENT translation units, replacing a serial `for` loop. Two rules shape
+  it: parallel work ENDS AT EVIDENCE (it never integrates and never edits the
+  checkout, so shared source edits stay serialized behind the function,
+  TU-collateral and full-ROM gates), and memory is the budget rather than cores
+  (a thread count cannot express "instrumented IDO takes 1.5GB", so workers are
+  admitted against a measured ceiling and real peak RSS replaces the seed
+  estimate). Per-TU locks are the correctness requirement: `compileAndCompare`
+  splices into the owning TU, so two workers on one TU would race. Results are
+  bucketed by blocker and carry the compiler's own diagnostics — a bucket name
+  without evidence just makes the next agent re-run everything.
+- **`decomp({op:'experiment'})`** — a campaign experiment as a durable record:
+  one falsifiable hypothesis, ONE source lever, and required positive, negative
+  and determinism controls. A conclusion is REFUSED while a control is missing
+  or failing; forcing one attaches an explicit unverified caveat. One function
+  had accumulated 264 candidate files recording what was built and nothing
+  about why, so `action:'families'` answers "am I about to repeat a dead end?".
+- **`decomp({op:'gate'})`** — a byte-exact candidate is not automatically a
+  correct one. Classifies `byte-exact/plausible` | `review-needed` |
+  `artificial` and NEVER erases the exactness result: they are separate
+  dimensions, and collapsing them is how an unmaintainable tree gets
+  integrated. Catches self-assignments, empty branches, comma-zero expressions,
+  claimed stack slots, dropped `volatile`, removed calls and lost
+  short-circuiting; string and comment contents are excluded so the checker
+  does not fire on its own documentation.
+- **`decomp({op:'rank'})`** — mechanism-aware ranking. The rule that matters:
+  `aligned_total` is only comparable within ONE gap state, because a candidate
+  with more gaps can post a LOWER total precisely because fewer rows lined up to
+  be counted. Mixed sets fall back to the alignment-independent distance and the
+  response says why; candidates compiling to the same object are deduplicated.
+- **`decomp({op:'typeGraph'})`** — project-wide type evidence. Per-function
+  records were stranded: the same struct is passed to a dozen functions and each
+  rediscovered its layout. Bases are ordered by LEVERAGE (how many functions
+  share them). It is an EVIDENCE graph, not an inferencer — conflicts are
+  recorded with a union view rather than resolved by last-writer-wins, and a
+  proposed struct leaves holes as explicit padding instead of inventing fields.
+- **`decomp({op:'knownSource'})`** — look before you decompile. Matches by
+  instruction words, relocation shape and CFG profile, NEVER by symbol name.
+  Found a genuine cross-overlay sibling on the first real try (identical opcode
+  sequence, same globals, differing only in an immediate and a register).
+- **`decomp({op:'capabilities'})`** — PROVES the runtime's debug capabilities
+  against the running core instead of describing them from three disagreeing
+  sources. A frame-sampled PC may never be reported as an exact trace or exact
+  coverage, and `unknown` is never promoted to `proven`.
+- **`decomp({op:'scenario'})`** — replayable gameplay evidence on an absolute
+  frame schedule, labelled `semantic` and kept structurally apart from byte
+  matching: two ROMs can play identically and differ in bytes.
+- **`decomp({op:'ledger'})`** — completion as independent dimensions with NO
+  single percentage. Reproduces the reporter's own figures independently: 54.4%
+  of game code bytes in C, 93.2% library, and 7,238,640 bytes (86.3%) in bin
+  ranges that must NOT be called "undecompiled" — they are assets and audio.
+- **`decomp({op:'assets'})`** — identify and round-trip the non-code bytes.
+  Round trip is the only acceptance test: decode alone leaves a range at
+  `format-identified`, because a decoder producing plausible output from the
+  wrong offset is worse than none. 130 MIO0 chunks decode on the real ROM
+  (4,718,944 bytes). The decoder's semantics were taken from the project's own
+  libmio0.c after four DIFFERENT wrong variants each produced exactly the
+  declared output length — "the decode reached destSize" proves nothing.
+- **`decomp({op:'artifacts'})`** — content-addressed survey and retention.
+  Dry-run by default, only byte-identical duplicates are ever proposed, and a
+  file backing an ACCEPTED conclusion is skipped even when duplicated: the
+  proof behind a settled result is the one thing a cache must never collect.
+  Real workspace: 14,875 files / 333.7MB, 433 duplicate groups, 52.6MB
+  reclaimable.
+- **`decomp({op:'handoff'})`** — a handoff GENERATED from the workspace and the
+  checkout, with every referenced path audited. The existing one grew by
+  prepending hundreds of narrative entries, which makes current facts expensive
+  to extract and impossible to verify; a broken reference is now reported as
+  broken rather than carried forward.
+- **`decomp({op:'skill'})`** + a startup warning — the installed client skill
+  was v0.14.0 describing "~14 platforms" with ZERO mentions of N64, against a
+  server with full N64/PS1/Dreamcast support and the whole decomp domain. An
+  agent reading it correctly concludes romdev cannot do what it is being asked
+  to do. A stale skill is worse than no skill: no skill makes an agent ask. The
+  mismatch is now reported at startup naming each undocumented capability, and
+  the skill can be regenerated from the live capability manifest (backing up the
+  previous file, which may have hand edits).
+
+### Fixed
+
+- **The call-graph cache stamp was a SUM of object mtimes** (item 3): it
+  collides trivially, carries no path/size/content identity, is blind to a
+  same-size same-time replacement, and was tied to neither the linker map nor
+  the parser version — so a graph built by an older romdev stayed "valid"
+  forever. Now a content-addressed fingerprint over the linker map plus every
+  object's path, size and content hash under a `CALLGRAPH_VERSION`. 966ms cold,
+  21ms cached over 205 objects; proven to invalidate on a content-only change.
+- **`plan` collapsed every work class into one queue** (item 5): 181 remaining
+  functions mixing game targets with libultra, entry code and cache primitives,
+  contradicting the project's own policy that handwritten asm is out of the
+  denominator. A shared `work-class.js` now classifies into five classes and the
+  default queue is game targets only — 152 functions / 359,232 bytes, matching
+  the reporter's independent count, with 29 handwritten-asm reported apart.
+  Two silent traps found while building it: a subsegment must be matched by its
+  FULL path (the map names objects `build/src/sys/sys_utils.o` while splat names
+  subsegments `sys/sys_utils`), and one TU is listed once PER SECTION — `c`,
+  `.rodata` AND `.bss` — so a plain `Map.set` keeps `.rodata` and misfiles every
+  such object as data. That emptied the queue entirely.
+
 ## 0.139.0 — 2026-09-15
 
-The Wave Race 64 decomp round: six correctness defects, all of which turned
+An N64 decomp round: six correctness defects, all of which turned
 "I could not check this" or "this is old evidence" into a confident wrong
 answer. Two came from an overlay-comparison report, four from a read-only audit
 of the live campaign. The audit's larger asks (a campaign backend, a parallel
@@ -211,7 +330,7 @@ Cleanup after 0.137.0 shipped: the coverage bitmap is the ONLY coverage path.
 
 ## 0.137.0 — 2026-09-06
 
-The matching-decompilation round (the Wave Race 64 handoff: "accelerate
+The matching-decompilation round (an N64 project handoff: "accelerate
 matching decompilation"). A new `decomp` domain tool runs the function-level
 generate → compile → compare → refine loop against a registered project's
 OWN compiler and build system; the N64 decompile path gets segment-exact
@@ -229,7 +348,7 @@ addressing with provenance.
 - N64 decompile mapped EVERY address with the boot-segment formula
   `fileOff = va - entry + 0x1000`. A relocated code segment or an overlay
   resolved to wrong bytes that still lay inside the 8 MiB image, so the bounds
-  check never fired (Wave Race codeseg 0x801DAFA0 → 0x1957A0 instead of
+  check never fired (a relocated codeseg 0x801DAFA0 → 0x1957A0 instead of
   0xA95D0; the decompiler then reported "bad instruction data" on zeros).
   `disasm({target:'decompile', platform:'n64', project|splatYaml, segment})`
   now resolves through the splat segment map, analyzes ONLY that segment's
@@ -419,7 +538,7 @@ word-granularity control that must collapse). All fourteen cores rebuilt again.
 === false || rodata.equal !== false)`: a thrown rodata comparison, an
 unavailable one, or a missing result all counted as equality, and
 `verification.functionLocal` said `exact` even on a real data mismatch.
-Reported by the Wave Race agent with the expression evaluated; it was right.
+Reported by the N64 decomp agent with the expression evaluated; it was right.
 Now every required check has a state — `exact`, `mismatch`, `error`,
 `unknown`, `not-applicable` — and ONE aggregate (`verdict.functionLocal`,
 policy: any mismatch → mismatch, else any error → error, else any unknown →
@@ -437,7 +556,7 @@ drives the production assembler with injected failures (thrown comparison,
 missing placement, missing/malformed result, changed literal, changed jump
 table, absent data, stale cache).
 
-### Fixed — the five gaps the Wave Race agent measured after the first pass
+### Fixed — the five gaps the N64 decomp agent measured after the first pass
 
 - **parallel_n64 PC breaks / single-step / coverage never worked**
   (romdev-core-parallel-n64 0.3.0). The instruction hook was wired only
@@ -486,7 +605,7 @@ table, absent data, stale cache).
   word over the code window, O(1) per instruction, no cap —
   `romdev_covbits_set/get`, romdev-core-host 0.13.0 `logPCBitmap`), and
   `decomp coverage` unions it per chunk and attributes to functions and
-  basic blocks. Measured on Wave Race: 5 frames = 759,452 executed
+  basic blocks. Measured on a real N64 project: 5 frames = 759,452 executed
   instructions, 32,140 distinct PCs in 24 ms (the 8192-entry ring took
   1.2 s and lost 3/4 of them). The method line still states the source.
 
