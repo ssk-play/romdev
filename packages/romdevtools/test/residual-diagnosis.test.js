@@ -254,7 +254,9 @@ test("trace provenance states its method, threshold, and what it CANNOT detect",
   // 0.322 on a trace of a different function, both live.
   const { readFile } = await import("node:fs/promises");
   const src = await readFile(new URL("../src/mcp/tools/decomp.js", import.meta.url), "utf8");
-  const block = src.match(/traceProvenance = \{[\s\S]*?\};/)?.[0] ?? "";
+  // Match the FULL provenance object (the one carrying `verdict`), not the
+  // small object-evidence stub assigned to the same name just above it.
+  const block = src.match(/traceProvenance = \{ \.\.\.traceProvenance[\s\S]*?verdict:[\s\S]*?\};/)?.[0] ?? "";
   assert.ok(block, "no trace provenance block");
   for (const field of ["method", "detects", "cannotDetect", "threshold", "uncoveredWords"]) {
     assert.match(block, new RegExp(field), `provenance omits '${field}'`);
@@ -263,4 +265,21 @@ test("trace provenance states its method, threshold, and what it CANNOT detect",
     "the output must not let word equality read as proof of provenance");
   assert.match(block, /different optimisation flags/i,
     "the one thing it cannot rule out must be named explicitly");
+});
+
+test("trace provenance uses the traced OBJECT when it sits beside the trace", async () => {
+  // Word coverage cannot separate two builds that emit the same words. A
+  // trace bundle usually carries the object from the traced compile; its
+  // bytes narrow the blind spot from "same words" to "byte-identical object".
+  const { readFile } = await import("node:fs/promises");
+  const src = await readFile(new URL("../src/mcp/tools/decomp.js", import.meta.url), "utf8");
+  const block = src.match(/const traceDir = path\.dirname[\s\S]*?evidenceStrength:[^,]+,/)?.[0] ?? "";
+  assert.ok(block, "no object-evidence branch");
+  assert.match(block, /"trace\.o", "target\.o"/, "should look for the traced object beside the trace");
+  assert.match(block, /evidenceStrength/);
+  // And when there is no object, the weaker claim must be stated, not implied.
+  assert.match(src, /instruction-word coverage only \(no trace\.o or target\.o beside the trace\)/,
+    "without an object the response must say the evidence is weaker");
+  assert.match(src, /byte-identical objects|byte-identical object/,
+    "the remaining blind spot must be named precisely");
 });

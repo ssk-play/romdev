@@ -13,6 +13,7 @@
 // CANDIDATE_REJECTED, SEARCH_IMPORT_FAILED, JOB_NOT_FOUND, CANCELLED,
 // LOST_RUNTIME_STATE, PC_BREAK_UNSUPPORTED, UNSUPPORTED_OP).
 import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { jsonContent, safeTool } from "../util.js";
@@ -527,6 +528,32 @@ export function registerDecompTools(server, z, sessionKey) {
           let traceText = null, traceProvenance = null;
           if (args.tracePath) {
             traceText = await readFile(args.tracePath, "utf8");
+            // STRONGER EVIDENCE THAN WORD COVERAGE, when it is available.
+            //
+            // Coverage compares instruction words, which cannot distinguish the
+            // same source built with different flags if both emit the same
+            // words. A trace bundle usually sits beside the OBJECT from the
+            // traced compile (`trace.o`); its .text bytes pin the build far
+            // harder than word equality does, and the compile invocation's
+            // fingerprint is recorded in the stored result. Use whichever of
+            // those exist, and say which was used.
+            const traceDir = path.dirname(args.tracePath);
+            let objectEvidence = null;
+            for (const name of ["trace.o", "target.o"]) {
+              const cand = path.join(traceDir, name);
+              try {
+                const bytes = await readFile(cand);
+                objectEvidence = { path: cand, bytes: bytes.length,
+                  sha256: createHash("sha256").update(bytes).digest("hex").slice(0, 16) };
+                break;
+              } catch {}
+            }
+            if (objectEvidence) {
+              const storedFp = stored.compilerFingerprint ?? null;
+              objectEvidence.note = "the object emitted by the traced compile sits beside the trace. Its bytes pin the traced build much harder than instruction-word coverage, which cannot separate two builds that emit the same words."
+                + (storedFp ? "" : " The stored comparison did not record a compiler fingerprint, so the invocation itself is still unverified.");
+            }
+            traceProvenance = { objectEvidence };
             const parsed = D.parseAs1Trace(traceText);
             // Compare with assembler-patched fields masked: a trace prints
             // instructions BEFORE branch displacements and relocated
@@ -543,12 +570,15 @@ export function registerDecompTools(server, z, sessionKey) {
             // what it can and cannot rule out, so nobody reads "byteInert" as
             // a proof of provenance it is not.
             const uncovered = candWords.length - covered;
-            traceProvenance = { path: args.tracePath, nodes: parsed.nodeCount, regions: parsed.regionCount,
+            traceProvenance = { ...traceProvenance, path: args.tracePath, nodes: parsed.nodeCount, regions: parsed.regionCount,
               candidateWordsCovered: covered, candidateWords: candWords.length, uncoveredWords: uncovered,
               coverage: Number(coverage.toFixed(3)), threshold: 0.9, byteInert,
               method: "each candidate instruction word is looked up among the trace's node words, with branch displacements and relocated immediates masked (the assembler fills those in after scheduling, so an unmasked comparison penalises every branch and store).",
               detects: "a trace of a DIFFERENT candidate, a different function, or a truncated/wrong-file trace: those diverge in instruction words and fall below the threshold.",
-              cannotDetect: "a trace of the SAME source compiled with different optimisation flags or a different compiler build, when that compile happens to emit the same instruction words. Word equality is necessary evidence of provenance, not sufficient — nothing in the trace records the invocation that produced it. If you need that guaranteed, generate the trace from the invocation `decomp({op:'resolve'})` reports for this TU and keep them together.",
+              cannotDetect: objectEvidence
+                ? "with the traced object present, a same-source/different-flags build would have to emit a byte-identical object to pass unnoticed. Word coverage alone could not rule that out; the object can. What is still unverified is the INVOCATION: compare `objectEvidence.sha256` against a build you made with the flags `decomp({op:'resolve'})` reports for this TU if you need that pinned."
+                : "a trace of the SAME source compiled with different optimisation flags or a different compiler build, when that compile happens to emit the same instruction words. Word equality is necessary evidence of provenance, not sufficient — nothing in the trace text records the invocation that produced it. Keep the traced OBJECT (trace.o) beside the trace: this check will use it and the blind spot narrows to byte-identical objects.",
+              evidenceStrength: objectEvidence ? "instruction-word coverage PLUS the traced object's bytes" : "instruction-word coverage only (no trace.o or target.o beside the trace)",
               verdict: byteInert
                 ? `the traced compile emits ${covered}/${candWords.length} of the candidate's words (>= the ${0.9} threshold), so the trace describes a build that agrees with THIS candidate instruction for instruction`
                 : `WARNING: the trace covers only ${covered}/${candWords.length} of the candidate's words (below the ${0.9} threshold). It is from a different compile. Source-line attribution from it is NOT trustworthy — regenerate the trace from the same invocation.` };

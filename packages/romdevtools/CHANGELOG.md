@@ -105,7 +105,15 @@ provenance, not sufficient, and nothing in an as1 trace records the invocation
 that produced it. Measured live: 0.962 for a matching trace, 0.322 for a trace
 of a different function (rejected).
 
-11 cases: 11 passed, 0 partial, 0 failed. Suite 1842 green.
+Trace provenance also got stronger rather than merely better-documented: when
+the traced OBJECT sits beside the trace (`trace.o`), its bytes are reported as
+evidence. The blind spot narrows from "a build that emits the same instruction
+words" to "a build that emits a byte-identical object". With no object present
+the response says `evidenceStrength: instruction-word coverage only` instead of
+implying the stronger check ran. The invocation itself is still unverified and
+the output says so.
+
+11 cases: 11 passed, 0 partial, 0 failed. Suite 1843 green.
 
 ## 0.143.0 — 2026-09-15
 
