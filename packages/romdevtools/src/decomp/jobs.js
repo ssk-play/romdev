@@ -10,6 +10,7 @@ import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { run } from "./mips-obj.js";
 import { toolPaths, backendStatus } from "./m2c.js";
 import { sha256Text } from "./project.js";
@@ -80,23 +81,64 @@ function shq(s) { return /^[A-Za-z0-9_\/.=:+-]+$/.test(s) ? s : "'" + String(s).
 async function copyFileSafe(src, dst) { const { copyFile } = await import("node:fs/promises"); await copyFile(src, dst); }
 
 /**
+ * Resolve a caller's seed to the BACKEND's grammar, or refuse it.
+ *
+ * decomp-permuter parses `--seed` as `map(int, s.split(","))`: one integer
+ * (the RNG seed) or `permuterIndex,rngSeed`. A descriptive string like
+ * `i5-schedule-rodata-297` passed argparse (type=str) and then crashed inside
+ * the backend AFTER the job directory existed and the process had been
+ * spawned — an orphan job and a stack trace instead of an error.
+ *
+ * Descriptive labels are genuinely useful, so rather than only refusing them
+ * this maps one deterministically onto the backend's integer space: the same
+ * string always yields the same seed, and the mapping is RETURNED so a run can
+ * be reproduced exactly. A numeric seed is passed through untouched.
+ *
+ * @param {string|undefined|null} seed
+ * @returns {{seed:string|null, resolved:string|null, from:string|null, mapping:string|null}}
+ */
+export function resolveSeed(seed) {
+  if (seed == null || seed === "") return { seed: null, resolved: null, from: null, mapping: null };
+  const raw = String(seed).trim();
+  // The backend's own grammar: N or N,N (32-bit, non-negative).
+  if (/^\d+(,\d+)?$/.test(raw)) {
+    const parts = raw.split(",").map(Number);
+    if (parts.some((n) => !Number.isSafeInteger(n) || n < 0 || n > 0xffffffff)) {
+      throw Object.assign(new Error(`seed '${raw}': each part must be an integer in 0..4294967295. The backend parses --seed as 'rngSeed' or 'permuterIndex,rngSeed'.`), { code: "BAD_ARGS" });
+    }
+    return { seed: raw, resolved: raw, from: "numeric", mapping: null };
+  }
+  // A descriptive label: map it deterministically instead of refusing outright.
+  if (/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(raw)) {
+    const h = createHash("sha256").update(raw).digest();
+    const n = h.readUInt32BE(0);
+    return { seed: String(n), resolved: String(n), from: "label",
+      mapping: `'${raw}' -> ${n} (sha256(label)[0..4) as a uint32; stable across runs and machines)` };
+  }
+  throw Object.assign(new Error(`seed '${raw}' is not usable. Supported: an integer ('297'), 'permuterIndex,rngSeed' ('0,297'), or a descriptive label matching [A-Za-z0-9][A-Za-z0-9._-]* which is mapped deterministically to an integer. The backend itself accepts ONLY integers, so an unmapped string crashes it.`), { code: "BAD_ARGS" });
+}
+
+/**
  * Start a search job.
  * @param {{project, fn, baseCandidateText, timeLimitS?:number, threads?:number, seed?:string, stopOnZero?:boolean, label?:string, resumeFrom?:string}} a
  */
 export async function startSearch({ project, fn, baseCandidateText, timeLimitS = 300, threads = 2, seed, stopOnZero = true, label, resumeFrom }) {
   const t = toolPaths();
+  // VALIDATE BEFORE ANYTHING EXISTS. This throws synchronously, so an invalid
+  // seed cannot leave a job directory or a spawned process behind.
+  const seedInfo = resolveSeed(seed);
   const jobId = `search-${fn.symbol}-${Date.now().toString(36)}${(counter++).toString(36)}`;
   const jobDir = path.join(jobsDir(project), jobId);
   await mkdir(jobDir, { recursive: true });
   const prep = await preparePermuterDir(project, fn, baseCandidateText, jobDir);
-  const args = [path.join(t.permuter, "permuter.py"), prep.permDir, "-j", String(Math.max(1, threads)), "--quiet", ...(stopOnZero ? ["--stop-on-zero"] : []), ...(seed ? ["--seed", seed] : [])];
+  const args = [path.join(t.permuter, "permuter.py"), prep.permDir, "-j", String(Math.max(1, threads)), "--quiet", ...(stopOnZero ? ["--stop-on-zero"] : []), ...(seedInfo.seed ? ["--seed", seedInfo.seed] : [])];
   const logPath = path.join(jobDir, "permuter.log");
   const out = fs.openSync(logPath, "a");
   const child = spawn("timeout", ["-s", "INT", "-k", "10", String(timeLimitS), t.python, ...args], { cwd: jobDir, env: { ...process.env, ...project.env, PYTHONUNBUFFERED: "1" }, detached: true, stdio: ["ignore", out, out] });
   child.unref();
   const rec = {
     jobId, project: project.id, function: { symbol: fn.symbol, segment: fn.segment, va: fn.vaHex }, label: label ?? null,
-    status: "running", pid: child.pid, startedAt: new Date().toISOString(), timeLimitS, threads, seed: seed ?? null, stopOnZero,
+    status: "running", pid: child.pid, startedAt: new Date().toISOString(), timeLimitS, threads, seed: seedInfo.seed, seedRequested: seed ?? null, seedFrom: seedInfo.from, seedMapping: seedInfo.mapping, stopOnZero,
     resumeFrom: resumeFrom ?? null, baseCandidateSha256: sha256Text(baseCandidateText).slice(0, 16),
     dir: jobDir, permuterDir: prep.permDir, log: logPath, importLog: prep.importLog,
     backend: { name: "decomp-permuter", commit: (await backendStatus()).permuter?.commit, argv: [t.python, ...args] },

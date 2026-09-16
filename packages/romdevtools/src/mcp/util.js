@@ -358,18 +358,6 @@ export function makeScopeChecker(shape, toolName) {
   }
   if (!any) return null;
 
-  // DESCRIPTIONS ARE NOT AN EXHAUSTIVE WHITELIST. Several are written for the
-  // reader rather than the validator — `path` says "target=bytes: raw binary
-  // path. target=rom/project/references: ROM file path." and is ALSO required
-  // by target:'recompile', which the text never mentions. Treating a scope list
-  // as complete therefore rejects valid calls, which is a worse failure than
-  // the silent drop it was meant to catch.
-  //
-  // So only a parameter whose scope is UNAMBIGUOUS is enforced: one that names
-  // exactly one op, and whose name is not shared vocabulary used across the
-  // tool. That is enough to catch every reported case (`address` on
-  // 'recompile', `bank` on 'reachable', `path` on playtest 'open') while a
-  // parameter with a broad or under-documented scope is left alone.
   // DESCRIPTIONS ARE NOT ALWAYS AN EXHAUSTIVE WHITELIST. Some are written for
   // the reader: `path` says "target=bytes ... target=rom/project/references"
   // and is ALSO required by target:'recompile', which the text never mentions.
@@ -385,6 +373,29 @@ export function makeScopeChecker(shape, toolName) {
   // ("op:framebuffer — absolute path to write the PNG to"), and passing it to
   // op:'open' really is a silent drop. A global exemption made the second case
   // unreachable in order to fix the first.
+  // DECLARED SCOPE BEATS PROSE. Deriving applicability from description text
+  // was wrong twice in the same week, both times by refusing a call the
+  // handler genuinely supports: `action` on op:'assets', and `candidatePath`
+  // on op:'gate' (whose handler calls candidateSource() — it REQUIRES the
+  // parameter it was rejecting). Prose is written for a reader; the validator
+  // needs a contract. This map is that contract: an entry here replaces the
+  // parsed scope entirely, so a handler's real needs cannot be overridden by
+  // the phrasing of a sentence. Tests assert every entry names a real op.
+  const DECLARED_SCOPE = {
+    decomp: {
+      candidatePath: ["compare", "search", "integrate", "gate", "artifacts"],
+      candidateText: ["compare", "search", "integrate", "gate"],
+      ownerPath: ["compare"],
+      baselineText: ["gate", "experiment"],
+      exactFunctionMatch: ["gate", "experiment"],
+      functionLocal: ["gate", "experiment"],
+      distance: ["gate", "experiment", "rank"],
+    },
+  };
+  for (const [key, ops] of Object.entries(DECLARED_SCOPE[toolName] ?? {})) {
+    if (shape[key]) scopeOf.set(key, new Set(ops));
+  }
+
   const SHARED_BY_TOOL = {
     disasm: ["path", "romPath", "projectDir", "outputPath"],
   };

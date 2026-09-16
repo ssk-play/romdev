@@ -169,29 +169,36 @@ export async function triage(project, symbols, {
   const { compileAndCompare } = await import("./compile.js");
   const started = Date.now();
   const d = new Dispatcher({ budgetMiB, maxWorkers, onEvent });
-  const picked = symbols.slice(0, maxFunctions);
+  // Entries may be bare names or {symbol, segment} target records. A bare name
+  // is not an identity when overlays share a VA, and keying anything by name
+  // alone would also let two different overlay functions collide in the maps
+  // below.
+  const { normalizeTarget, targetId } = await import("./plan.js");
+  const picked = symbols.slice(0, maxFunctions).map(normalizeTarget);
+  const keyOf = (t) => `${t.segment ?? ""}:${t.symbol}`;
 
-  const tasks = picked.map((sym) => ({
+  const tasks = picked.map((t) => ({
     cls: "compare",
-    label: sym,
+    label: t.symbol,
+    key: keyOf(t),
     // THE LOCK KEY IS THE TU: compileAndCompare splices the candidate into its
     // owning translation unit, so two workers on one TU would race.
     lockKey: null, // resolved below once we know the TU
     fn: async () => {
-      if ((Date.now() - started) / 1000 > timeBudgetS) return { symbol: sym, skipped: "time budget exhausted" };
-      const fn = await project.resolveFunction({ symbol: sym });
+      if ((Date.now() - started) / 1000 > timeBudgetS) return { symbol: t.symbol, segment: t.segment ?? null, skipped: "time budget exhausted" };
+      const fn = await project.resolveFunction({ symbol: t.symbol, segment: t.segment, va: t.va });
       const g = await generateCandidate(project, fn);
       const r = await compileAndCompare(project, fn, { candidateText: g.code, candidatePath: g.candidatePath, label: "triage" });
-      return { symbol: sym, fn, g, r };
+      return { symbol: t.symbol, targetId: targetId(fn), segment: fn.segment ?? null, fn, g, r };
     },
   }));
 
   // Resolve TUs first (cheap, and it gives us the lock keys + independence).
   const tuOf = new Map();
-  await Promise.all(picked.map(async (sym) => {
-    try { const f = await project.resolveFunction({ symbol: sym }); tuOf.set(sym, f.source?.tu ?? null); } catch { tuOf.set(sym, null); }
+  await Promise.all(picked.map(async (t) => {
+    try { const f = await project.resolveFunction({ symbol: t.symbol, segment: t.segment, va: t.va }); tuOf.set(keyOf(t), f.source?.tu ?? null); } catch { tuOf.set(keyOf(t), null); }
   }));
-  for (const t of tasks) t.lockKey = tuOf.get(t.label) ?? `__no_tu__${t.label}`;
+  for (const t of tasks) t.lockKey = tuOf.get(t.key) ?? `__no_tu__${t.key}`;
 
   const settled = await d.all(tasks);
 

@@ -183,7 +183,12 @@ export async function compileAndCompare(project, fn, opts) {
   await mkdir(candDir, { recursive: true });
   // The verifier version is part of the cache key: a result verified under an older policy
   // is never returned as a current verdict (and its file is ignored even if present).
-  const cacheKey = `${dep.hash}-${candSha}-v${VERIFIER_VERSION}`;
+  // A replay against a SAVED owner is a different measurement from the same
+  // candidate against the live tree, so it cannot share a cache entry. Without
+  // this, replaying an integrated function returns the pre-integration verdict
+  // (or overwrites it), and the fixture silently proves nothing.
+  const ownerTag = opts.ownerPath ? `-o${sha256Text(opts.ownerPath).slice(0, 8)}` : "";
+  const cacheKey = `${dep.hash}-${candSha}${ownerTag}-v${VERIFIER_VERSION}`;
   const cachedPath = path.join(candDir, `${cacheKey}.result.json`);
   if (fs.existsSync(cachedPath) && !opts.noCache) {
     const cached = JSON.parse(await readFile(cachedPath, "utf8"));
@@ -195,7 +200,14 @@ export async function compileAndCompare(project, fn, opts) {
   const newTuAbs = path.join(work, tuRel);
   const newObjAbs = path.join(work, path.basename(objRel));
   await mkdir(path.dirname(newTuAbs), { recursive: true });
-  const tuText = await readFile(project.abs(tuRel), "utf8");
+  // REPLAY FIXTURE SUPPORT. By default the owner TU comes from the current
+  // tree, which is correct for live work and WRONG for replaying a candidate
+  // that has since been integrated: the accepted function is already in the
+  // file, so re-splicing it yields `redeclaration of ...` and a compile
+  // failure that looks like the candidate's fault. `ownerPath` supplies the
+  // saved pre-integration owner instead, which is what makes an accepted
+  // recovery re-verifiable after the fact.
+  const tuText = await readFile(opts.ownerPath ? opts.ownerPath : project.abs(tuRel), "utf8");
   // m2c drafts use M2C_* helper macros; supply the ones the candidate references
   // (from m2c's own m2c_macros.h semantics) so a draft can compile as-is. They are
   // recorded in the result — a matched function must not keep them.
@@ -355,10 +367,32 @@ async function compareAgainstRom(project, fn, cstream, csyms) {
   const symbolVa = (name) => ld?.symbols.get(name)?.va ?? sa.get(name)?.va ?? local.get(name) ?? (name.startsWith(".") ? sectionVa(name) : null);
   const linked = applyRelocations(cstream, symbolVa, fn.va);
   const size = cstream.length * 4;
-  const rom = await project.romSlice(fn.romOffset, Math.max(size, (fn.sizeBytes ?? size)));
+  // THE TARGET'S EXTENT IS THE TARGET'S, NOT THE CANDIDATE'S.
+  //
+  // Reading max(candidateBytes, targetBytes) let a LONGER candidate silently
+  // redefine the target: a 932-byte/233-word function compared against a
+  // 1,212-byte candidate reported `romWords: 303` and a romBytesSha1 over
+  // bytes that belong to the NEXT function. The fields named the original
+  // boundary while describing a different region.
+  //
+  // So the target region is fixed at its declared size, and any read past it
+  // is labelled separately as overflow context.
+  const targetBytes = fn.sizeBytes ?? size;
   const profile = profileFor(project.m.splatPlatform ?? project.m.platform);
+  const rom = await project.romSlice(fn.romOffset, targetBytes);
   const romWords = [];
   for (let i = 0; i + 4 <= rom.bytes.length; i += 4) romWords.push(readWord(profile, rom.bytes, i));
+  // Bytes AFTER the function, read only to explain an overflowing candidate.
+  // They are never part of romWords, romBytesSha1, or the mismatch count.
+  let overflow = null;
+  if (size > targetBytes) {
+    const extra = await project.romSlice(fn.romOffset + targetBytes, size - targetBytes);
+    const words = [];
+    for (let i = 0; i + 4 <= extra.bytes.length; i += 4) words.push(readWord(profile, extra.bytes, i));
+    overflow = { candidateBytes: size, targetBytes, extraWords: words.length,
+      romOffset: "0x" + (fn.romOffset + targetBytes).toString(16), sha1: extra.sha1,
+      note: "the candidate is LONGER than the target function. These ROM words follow the function and belong to whatever the linker placed next; they are shown to explain the overflow and are NOT part of the target's extent, hash, or mismatch count." };
+  }
   const n = Math.max(romWords.length, linked.stream.length);
   let mismatches = 0; const first = [];
   // Words whose relocation could not be resolved are UNCHECKABLE, not wrong.
@@ -387,7 +421,18 @@ async function compareAgainstRom(project, fn, cstream, csyms) {
   const status = mismatches > 0 ? "mismatch"
     : (uncheckable > 0 || linked.unresolved.length) ? "unresolved-relocations"
     : "exact";
-  return { romStream, linkedStream, status, romOffset: fn.romOffsetHex, romBytesSha1: rom.sha1, romWords: romWords.length, candidateWords: linked.stream.length, mismatches, first, unresolvedSymbols: linked.unresolved.slice(0, 12),
+  // Size disagreement is its own fact. When the candidate is a different
+  // length, a positional word-by-word count conflates "this word is wrong"
+  // with "everything after the insertion shifted", so both are reported: the
+  // positional count, and how many words the two streams differ in length by.
+  const sizeDelta = linked.stream.length - romWords.length;
+  return { romStream, linkedStream, status, romOffset: fn.romOffsetHex,
+    // The ORIGINAL target's extent, always, independent of candidate size.
+    target: { bytes: targetBytes, words: romWords.length, romOffset: fn.romOffsetHex, sha1: rom.sha1 },
+    romBytesSha1: rom.sha1, romWords: romWords.length, candidateWords: linked.stream.length,
+    ...(sizeDelta ? { sizeDelta, sizeNote: `the candidate is ${Math.abs(sizeDelta)} word(s) ${sizeDelta > 0 ? "LONGER" : "SHORTER"} than the target. The ${mismatches} mismatch count below is POSITIONAL: once the streams diverge in length, every following word is compared against a shifted neighbour, so it is an upper bound rather than a count of independently wrong words.` } : {}),
+    ...(overflow ? { overflow } : {}),
+    mismatches, first, unresolvedSymbols: linked.unresolved.slice(0, 12),
     ...(uncheckable ? { uncheckableWords: uncheckable, uncheckableAt,
       uncheckableNote: "these words differ ONLY because their relocation target could not be resolved, so the linked value is not the value the linker would produce. They are NOT evidence of a wrong byte — resolve the symbol (it may be an absolute linker-script assignment) and re-compare." } : {}),
     note: "candidate words linked with the project's symbol addresses vs the base ROM bytes at the resolved offset; independent of the extracted asm" };
@@ -507,6 +552,35 @@ export async function compareRodata(project, fn, { objdump, targetO, candidateO,
   };
   const T = await side(targetO, tstream, fn.symbol), C = await side(candidateO, cstream, fn.symbol);
   if (T.refs.length === 0 && C.refs.length === 0) return { compared: true, equal: true, applicable: false, references: { target: 0, candidate: 0 }, items: [], reason: "neither the target nor the candidate references .rodata (no jump tables, no literals): nothing to compare" };
+
+  // MISSING DISCOVERY IS NOT A PROVED MISMATCH.
+  //
+  // The target's extracted .s references data that lives in a DIFFERENT object
+  // (a split overlay keeps `D_*` in its own .data.s), so those symbols are
+  // UNDEFINED in the function's object and carry no `.rodata` section. The
+  // candidate's compiler emits its own literal locally and does get a .rodata
+  // reference. Comparing the counts then reported "target 0, candidate 1" and
+  // set exactFunctionMatch:false on a function whose text, linked bytes and
+  // siblings were all exact — and which integrated byte-exact into the full
+  // ROM. The comparator had not found the target's data; it had not proved the
+  // candidate's was wrong.
+  //
+  // So: when the target side discovered NOTHING and the candidate references
+  // only externally-defined data, say the check is inapplicable and why. A
+  // target that genuinely has its own .rodata still compares normally below.
+  if (T.refs.length === 0 && C.refs.length > 0) {
+    const external = C.refs.filter((r) => r.symbol && C.syms.get(r.symbol)?.section !== ".rodata");
+    return { compared: false, applicable: false, references: { target: 0, candidate: C.refs.length },
+      items: C.refs.map((r, i) => ({ index: i, candidate: describe(r), target: null, equal: null })),
+      limitation: "target-rodata-not-discoverable",
+      reason: `the target object declares no .rodata references for this function, while the candidate has ${C.refs.length}. `
+        + "In a split build the target's extracted asm names data defined in ANOTHER object, so it is undefined here and "
+        + "carries no section — the reference cannot be enumerated from this object alone. "
+        + "This is a LIMIT OF DISCOVERY, not evidence that the candidate's data is wrong, so it does not make "
+        + "exactFunctionMatch false on its own. The ROM-linked comparison is the authority for these bytes."
+        + (external.length ? ` Candidate reference(s) to externally-defined symbols: ${external.map((r) => r.symbol).join(", ")}.` : "") };
+  }
+
   const items = [];
   const n = Math.max(T.refs.length, C.refs.length);
   let equal = T.refs.length === C.refs.length;

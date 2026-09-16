@@ -84,6 +84,24 @@ function artificialConstructs(src) {
       message: `'${m[1]}' marker present: the author flagged this as not-real source`,
       evidence: m[0], line: lineOf(s, m.index) });
   }
+  // A one-element array local. `Mtx m[1];` occupies a home and is addressed
+  // like a scalar, so it is a common way to buy an offset without declaring
+  // the object that actually lives there. REVIEW, not artificial: real code
+  // does declare `[1]` arrays, and calling that automatically wrong would be
+  // the same overreach as approving every cast.
+  for (const m of s.matchAll(/\b([A-Za-z_]\w*)\s+([A-Za-z_]\w*)\s*\[\s*1\s*\]\s*;/g)) {
+    out.push({ id: "one-element-array", severity: "review", confidence: "medium",
+      message: `'${m[2]}[1]' is a one-element array: it claims a stack home with the alignment of ${m[1]}. Confirm the original declares an array, not a scalar`,
+      evidence: m[0], line: lineOf(s, m.index) });
+  }
+  // A cast between two POINTER types, which can change what the callee is
+  // handed. The reporter's own case: passing Mtx_t* where Mtx* is declared
+  // matched the frame size but is a different contract with the callee.
+  for (const m of s.matchAll(/\(\s*([A-Za-z_]\w*)\s*\*\s*\)\s*(?:&\s*)?([A-Za-z_]\w*)/g)) {
+    out.push({ id: "pointer-cast", severity: "review", confidence: "low",
+      message: `cast to '${m[1]} *': a pointer cast can change the contract with the callee (element size, alignment, or how many bytes it writes). Check the callee's declared parameter, not just the frame size`,
+      evidence: m[0].replace(/\s+/g, " "), line: lineOf(s, m.index) });
+  }
   return out;
 }
 
@@ -129,6 +147,17 @@ function behaviouralDeltas(baseline, candidate) {
   const sa = count(/&&|\|\|/g, a), sb = count(/&&|\|\|/g, b);
   if (sb < sa) out.push({ id: "short-circuit-lost", severity: "artificial", confidence: "medium",
     message: `short-circuit operators fell ${sa} -> ${sb}: if && / || became & / |, the right operand is now ALWAYS evaluated` });
+
+  // A WRITE to a global the baseline never wrote. Storing to a `D_`/`g`-prefixed
+  // symbol to nudge register allocation changes memory another function reads;
+  // the bytes can match while the game does not. Assignments only — a global
+  // that is merely READ more often is not a behaviour change.
+  const GLOBAL_WRITE = /\b((?:D_|g[A-Z])\w*)\s*(?:\[[^\]]*\]|\.\w+|->\w+)*\s*(?:=(?!=)|\+\+|--|[-+*/&|^]=|<<=|>>=)/g;
+  const writesA = new Set([...a.matchAll(GLOBAL_WRITE)].map((m) => m[1]));
+  const gained = [...new Set([...b.matchAll(GLOBAL_WRITE)].map((m) => m[1]))].filter((n) => !writesA.has(n));
+  if (gained.length) out.push({ id: "global-write-added", severity: "artificial", confidence: "medium",
+    message: `the candidate WRITES global(s) the baseline never wrote: ${gained.slice(0, 6).join(", ")}. A store to a global to influence register allocation changes what other functions read, even when the bytes match`,
+    evidence: gained.slice(0, 6).join(", ") });
 
   return out;
 }

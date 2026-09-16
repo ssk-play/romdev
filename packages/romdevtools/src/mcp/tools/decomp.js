@@ -134,7 +134,7 @@ export function registerDecompTools(server, z, sessionKey) {
       expectedSha1: z.string().optional().describe("op:'import' — expected base-ROM sha1 (default: the yaml's)."),
       buildCommand: z.array(z.string()).optional().describe("op:'import' — argv of the full-build command run from root (default: tools/matching-build.sh if present, else make)."),
       symbol: z.string().optional().describe("Function symbol name (func_801DEB08). Alternative to `va`."),
-      symbols: z.array(z.string()).optional().describe("op:'batch' — the functions to run (a batch from op:'plan'). op:'dispatch' — explicit symbols to triage; omit to take the top of the plan queue."),
+      symbols: z.array(z.union([z.string(), z.object({ symbol: z.string(), segment: z.string().optional(), va: z.union([z.string(), z.number()]).optional(), targetId: z.string().optional() }).passthrough()])).optional().describe("op:'batch' — the functions to run (a batch from op:'plan'). op:'dispatch' — explicit symbols to triage; omit to take the top of the plan queue. Each entry is either a bare symbol name OR a target record {symbol, segment} — required when a VA is mapped by several overlays, since a bare name cannot say which overlay it belongs to. op:'plan' returns records in this shape, so a plan batch can be passed straight back."),
       va: z.union([z.number().int(), z.string()]).optional().describe("Virtual address (number, or hex string '0x801DEB08')."),
       segment: z.string().optional().describe("Segment name to disambiguate an overlay VA (the resolver lists candidates when ambiguous)."),
       tu: z.string().optional().describe("op:'plan'/'map' — restrict to one translation unit (relative path)."),
@@ -144,8 +144,9 @@ export function registerDecompTools(server, z, sessionKey) {
       // duplicate-key bug that made five `action` vocabularies unreachable.
       maxFunctions: z.number().int().min(1).max(512).default(12).describe("op:'batch' — cap on functions run (default 12). op:'dispatch' — cap on functions processed this run (default 64)."),
       timeBudgetS: z.number().int().min(10).max(86400).default(600).describe("op:'batch' — wall-clock budget (default 600). op:'dispatch' — wall-clock budget; remaining functions come back as `skipped`."),
-      candidatePath: z.string().optional().describe("op:'compare'/'search'/'integrate' — path to a C file holding the function definition (+ any local declarations it needs)."),
-      candidateText: z.string().optional().describe("op:'compare'/'search'/'integrate' — the candidate C inline (alternative to candidatePath)."),
+      candidatePath: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate' — path to a C file holding the function definition (+ any local declarations it needs). op:'artifacts' action:'pin' — the candidate to pin."),
+      candidateText: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate' — the candidate C inline (alternative to candidatePath)."),
+      ownerPath: z.string().optional().describe("op:'compare' — REPLAY FIXTURE: compile the candidate into this saved owner TU instead of the one in the current tree. Use the pre-integration backup to re-verify a function that has since been integrated; without it the accepted definition is already present and the compile fails with 'redeclaration'."),
       contextHash: z.string().optional().describe("op:'compare' — the context hash the candidate was generated against; the result flags contextStale when the TU/headers/flags changed since."),
       declarations: z.string().optional().describe("op:'compare'/'integrate' — extra declarations (proposed structs/prototypes) placed before the function in the TU copy; pair with the same text passed to generate as extraContext."),
       extraContext: z.string().optional().describe("op:'generate' — C declarations (proposed structs/prototypes, e.g. decomp({op:'types', propose:true}).text) appended to the TU's context so the draft is generated with those types WITHOUT editing a header."),
@@ -158,7 +159,7 @@ export function registerDecompTools(server, z, sessionKey) {
       verifyTu: z.boolean().default(true).describe("op:'compare' — also check every OTHER function in the TU's object is unchanged."),
       timeLimitS: z.number().int().min(10).max(86400).default(300).describe("op:'search' — wall-clock budget."),
       threads: z.number().int().min(1).max(32).default(2).describe("op:'search' — permuter worker threads."),
-      seed: z.string().optional().describe("op:'search' — permuter seed for reproducibility."),
+      seed: z.string().optional().describe("op:'search' — permuter seed. The backend accepts ONLY integers: 'rngSeed' (e.g. '297') or 'permuterIndex,rngSeed' (e.g. '0,297'). A descriptive label ([A-Za-z0-9][A-Za-z0-9._-]*) is accepted too and mapped DETERMINISTICALLY onto that space; the response returns the mapping so the run can be reproduced. An unusable seed is refused synchronously, before any job directory or process exists. Seed identity fixes the mutation stream, NOT thread scheduling: with threads>1 the ORDER results arrive still varies."),
       jobId: z.string().optional().describe("op:'job' — the job to inspect/cancel/report."),
       resumeFrom: z.string().optional().describe("op:'search' — a previous jobId whose best candidate becomes the base."),
 
@@ -652,7 +653,7 @@ export function registerDecompTools(server, z, sessionKey) {
           const fn = await resolveFn();
           const { compileAndCompare } = await import("../../decomp/compile.js");
           const c = await candidateSource();
-          const r = await compileAndCompare(project, fn, { candidateText: c.text, candidatePath: c.path, label: args.label, maxDiffInstructions: args.maxDiffInstructions, noCache: args.noCache, verifyTu: args.verifyTu, contextHash: args.contextHash, declarations: args.declarations });
+          const r = await compileAndCompare(project, fn, { candidateText: c.text, candidatePath: c.path, label: args.label, maxDiffInstructions: args.maxDiffInstructions, noCache: args.noCache, verifyTu: args.verifyTu, contextHash: args.contextHash, declarations: args.declarations, ownerPath: args.ownerPath });
           const { evidence, ...rest } = r;
           return jsonContent({ ...rest, evidence, nextStep: r.verdict?.functionLocal === "exact" ? `decomp({op:'integrate', project:'${project.id}', symbol:'${fn.symbol}', candidatePath:'${r.candidate.storedAt}', apply:true})` : r.code === "CANDIDATE_REJECTED" ? "remove the retained assembly / copied bytes: that is not a translation" : r.compileSucceeded ? `fix the classified differences, or decomp({op:'search', project:'${project.id}', symbol:'${fn.symbol}', candidatePath:'${r.candidate.storedAt}'})` : "fix the diagnostics (declarations/types) and compare again" });
         }
@@ -670,6 +671,7 @@ export function registerDecompTools(server, z, sessionKey) {
           if (lint.rejected) throw Object.assign(new Error(`base candidate rejected: ${lint.reasons.join("; ")}`), { code: "CANDIDATE_REJECTED" });
           const j = await startSearch({ project, fn, baseCandidateText: base.text, timeLimitS: args.timeLimitS, threads: args.threads, seed: args.seed, label: args.label, resumeFrom: args.resumeFrom });
           return jsonContent({ started: true, jobId: j.jobId, project: project.id, function: j.function, timeLimitS: j.timeLimitS, threads: j.threads, permuterDir: j.permuterDir, log: j.log, backend: j.backend,
+            ...(j.seed ? { seed: j.seed, ...(j.seedFrom === "label" ? { seedRequested: j.seedRequested, seedMapping: j.seedMapping } : {}) } : {}),
             nextStep: `decomp({op:'job', project:'${project.id}', jobId:'${j.jobId}'}) — poll; 'budget exhausted' is not 'decompiled': confirm any zero-score best with op:'compare'.` });
         }
         case "job": {

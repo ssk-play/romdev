@@ -156,7 +156,11 @@ export async function planWork(project, { limit = 40, tu, evidence, forceGraph =
     const typedNeighbours = cCallees.length + cCallers.length;
     // Payoff: bytes recovered, discounted by uncertainty, boosted when typed C neighbours already pin the types.
     const payoff = Math.round(size * (1 - 0.5 * uncertainty) * (1 + 0.1 * Math.min(typedNeighbours, 5)));
-    return { symbol: n, sizeBytes: size, object: g.object[n], tu: objectToTu(g.object[n], project), asmCallees, cCallees: cCallees.length, asmCallers, cCallers: cCallers.length, statically: callersOf.length === 0 ? "unreferenced (no static caller: a table/pointer target or dead)" : `${callersOf.length} static callers`,
+    // The overlay this function belongs to, when it has one. A bare symbol is
+    // ambiguous where overlays share VAs, so every row carries its own half of
+    // the identity rather than making the caller reconstruct it.
+    const segment = segmentOfObject(g.object[n]);
+    return { symbol: n, ...(segment ? { segment } : {}), sizeBytes: size, object: g.object[n], tu: objectToTu(g.object[n], project), asmCallees, cCallees: cCallees.length, asmCallers, cCallers: cCallers.length, statically: callersOf.length === 0 ? "unreferenced (no static caller: a table/pointer target or dead)" : `${callersOf.length} static callers`,
       attempts: h.attempts ?? 0, lastDistance: h.lastDistance ?? null, lastCompile: h.lastCompile ?? null, placeholderPrototype: h.placeholderPrototype ?? null, payoff,
       workClass: classOf.get(n),
       // Evidence identity, so a score can be traced to the tree it was measured on.
@@ -177,7 +181,14 @@ export async function planWork(project, { limit = 40, tu, evidence, forceGraph =
       for (const m of [...row.asmCallees, ...row.asmCallers]) if (byName.has(m) && byName.get(m).tu === row.tu) stack.push(m);
     }
     const bytes = comp.reduce((s, n) => s + byName.get(n).sizeBytes, 0);
-    batches.push({ tu: r.tu, functions: comp, bytes, payoff: comp.reduce((s, n) => s + byName.get(n).payoff, 0), reason: comp.length > 1 ? "call each other inside one TU — decompile together so the shared struct/prototype fixes land once" : "isolated in its TU" });
+    // `targets` carries the SEGMENT alongside each name so a batch can be fed
+    // straight back to op:'batch'. `functions` stays as bare names for
+    // backwards compatibility, but it cannot identify an overlay function.
+    const targets = comp.map((n) => {
+      const seg = segmentOfObject(byName.get(n).object);
+      return seg ? { symbol: n, segment: seg } : { symbol: n };
+    });
+    batches.push({ tu: r.tu, functions: comp, targets, bytes, payoff: comp.reduce((s, n) => s + byName.get(n).payoff, 0), reason: comp.length > 1 ? "call each other inside one TU — decompile together so the shared struct/prototype fixes land once" : "isolated in its TU" });
   }
   batches.sort((a, b) => b.payoff - a.payoff);
   return { functionsRemaining: rows.length, bytesRemaining: rows.reduce((s, r) => s + r.sizeBytes, 0), queue: rows.slice(0, limit), batches: batches.slice(0, Math.max(10, Math.ceil(limit / 3))),
@@ -297,20 +308,66 @@ export async function loadCandidateEvidence(project, { currentDependencyHashes }
  * Run generate → compare for every function of a batch (bounded), sharing
  * one context. Returns per-function verdicts; never integrates.
  */
+/**
+ * A STABLE IDENTITY for one target, carried through plan -> generate -> compare
+ * -> experiment -> search -> integrate.
+ *
+ * A bare symbol name is not an identity in a split overlay build: 20 segments
+ * map VA 0x802C5800 in this project, so `func_i3_802C5800` and
+ * `func_1B1FB0_802C5800` both resolved to AMBIGUOUS_OVERLAY when a batch could
+ * only carry names. `segment` is the missing half, and it is never
+ * reconstructible from the address.
+ */
+/**
+ * The overlay segment a build object belongs to, or null for a non-overlay.
+ * `build/src/overlays/ovl_i3/ovl_1B1FB0.o` -> `ovl_i3`. Derived from the path
+ * because that is where splat puts an overlay's sources; a function outside an
+ * overlay has an unambiguous VA and needs no segment.
+ */
+export function segmentOfObject(object) {
+  const m = /(?:^|\/)overlays\/([A-Za-z0-9_]+)\//.exec(String(object ?? ""));
+  return m ? m[1] : null;
+}
+
+export function targetId(fn) {
+  return `${fn.segment ?? "?"}:${fn.symbol}@${fn.vaHex ?? (fn.va != null ? "0x" + (fn.va >>> 0).toString(16) : "?")}`;
+}
+
+/** Normalize a batch entry: a bare name, or a {symbol, segment, va} record. */
+export function normalizeTarget(entry) {
+  if (typeof entry === "string") return { symbol: entry, segment: undefined, va: undefined };
+  if (entry && typeof entry === "object" && entry.symbol) {
+    const va = typeof entry.va === "string" ? parseInt(entry.va, 16) : entry.va;
+    return { symbol: entry.symbol, segment: entry.segment, va: Number.isFinite(va) ? va : undefined };
+  }
+  throw Object.assign(new Error(`batch entry must be a symbol name or a {symbol, segment} record, got ${JSON.stringify(entry)?.slice(0, 80)}`), { code: "BAD_ARGS" });
+}
+
 export async function runBatch(project, symbols, { maxFunctions = 12, timeBudgetS = 600 } = {}) {
   const { generateCandidate } = await import("./m2c.js");
   const { compileAndCompare } = await import("./compile.js");
   const started = Date.now();
   const results = [];
-  for (const sym of symbols.slice(0, maxFunctions)) {
-    if ((Date.now() - started) / 1000 > timeBudgetS) { results.push({ symbol: sym, skipped: "time budget exhausted" }); continue; }
+  for (const entry of symbols.slice(0, maxFunctions)) {
+    const t = normalizeTarget(entry);
+    const sym = t.symbol;
+    if ((Date.now() - started) / 1000 > timeBudgetS) { results.push({ symbol: sym, segment: t.segment ?? null, skipped: "time budget exhausted" }); continue; }
     const t0 = Date.now();
     try {
-      const fn = await project.resolveFunction({ symbol: sym });
+      const fn = await project.resolveFunction({ symbol: sym, segment: t.segment, va: t.va });
       const g = await generateCandidate(project, fn);
       const r = await compileAndCompare(project, fn, { candidateText: g.code, candidatePath: g.candidatePath, label: "batch" });
-      results.push({ symbol: sym, sizeBytes: fn.sizeBytes, candidatePath: g.candidatePath, compileSucceeded: r.compileSucceeded, exactFunctionMatch: r.exactFunctionMatch, functionLocal: r.verdict?.functionLocal ?? r.verification?.functionLocal ?? null, verdictReasons: r.verdict?.reasons ?? [], romLinked: r.romLinked?.status ?? null, distance: r.distance?.value ?? null, kinds: r.differenceKinds ?? [], hint: r.hint, placeholderPrototype: g.contextPrototype?.placeholderPointerTypes ?? null, missingDeclarations: g.missingDeclarations.map((m) => m.name), ms: Date.now() - t0, cacheHit: r.cacheHit });
-    } catch (e) { results.push({ symbol: sym, error: `${e.code ?? "ERROR"}: ${e.message.slice(0, 200)}`, ms: Date.now() - t0 }); }
+      results.push({ symbol: sym, targetId: targetId(fn), segment: fn.segment ?? null, va: fn.vaHex ?? null, tu: fn.source?.tu ?? null,
+        romOffset: fn.romOffset ?? null, romEnd: fn.romOffset != null && fn.sizeBytes ? fn.romOffset + fn.sizeBytes : null,
+        sizeBytes: fn.sizeBytes, candidatePath: g.candidatePath, compileSucceeded: r.compileSucceeded, exactFunctionMatch: r.exactFunctionMatch, functionLocal: r.verdict?.functionLocal ?? r.verification?.functionLocal ?? null, verdictReasons: r.verdict?.reasons ?? [], romLinked: r.romLinked?.status ?? null, distance: r.distance?.value ?? null, kinds: r.differenceKinds ?? [], hint: r.hint, placeholderPrototype: g.contextPrototype?.placeholderPointerTypes ?? null, missingDeclarations: g.missingDeclarations.map((m) => m.name), ms: Date.now() - t0, cacheHit: r.cacheHit });
+    } catch (e) {
+      // An ambiguous overlay is the caller missing a `segment`, not a defect.
+      // Say so, and name the segments, so the retry is one edit away.
+      const hint = e.code === "AMBIGUOUS_OVERLAY"
+        ? ` Pass a target record instead of a bare name: {"symbol":"${sym}","segment":"<one of the above>"}.`
+        : "";
+      results.push({ symbol: sym, segment: t.segment ?? null, error: `${e.code ?? "ERROR"}: ${e.message.slice(0, 200)}${hint}`, ms: Date.now() - t0 });
+    }
   }
   const exact = results.filter((r) => r.exactFunctionMatch && r.functionLocal === "exact").length;
   return { functions: results.length, exactMatches: exact, compiled: results.filter((r) => r.compileSucceeded).length, elapsedMs: Date.now() - started, results,
