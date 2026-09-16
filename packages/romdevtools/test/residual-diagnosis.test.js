@@ -205,7 +205,7 @@ test("single-register and zero-compare branches follow the same substitution rul
   }
 });
 
-test("a HI16/LO16 pair naming different symbols is data-ownership, not 'unclassified'", () => {
+test("a HI16/LO16 pair naming different symbols is a data-REFERENCE difference, not 'unclassified'", () => {
   // On the client's own artifact this sat in `unclassified` -- a shrug where a
   // specific answer exists: the target loads from a named symbol while the
   // candidate materialises its own anonymous literal. The linked bytes can
@@ -220,22 +220,37 @@ test("a HI16/LO16 pair naming different symbols is data-ownership, not 'unclassi
     { mnemonic: "lwc1", operands: "ft2,20(at)", word: 3, reloc: reloc("R_MIPS_LO16", ".rodata") },
   ];
   const cls = classifyGroup(groupResiduals(target, candidate, strictOf([0, 1]))[0], target, candidate);
-  assert.equal(cls.mechanism, "data-ownership");
+  assert.equal(cls.mechanism, "data-reference");
   assert.match(cls.why, /D_i15_802C6E34/);
-  assert.match(cls.why, /DECLARATION/);
+  assert.match(cls.why, /OBSERVED difference/);
+  // It must NOT assert what the original source contained.
+  assert.doesNotMatch(cls.why, /the original had a DECLARATION/i,
+    "a disassembler's label is not evidence of a named declaration in the original C");
+  assert.ok(cls.hypotheses?.length >= 2, "ownership must be offered as competing hypotheses with checks");
+  assert.ok(cls.hypotheses.some((h) => /literal pool/i.test(h.claim + h.check)),
+    "the generated-literal-pool possibility must be one of them");
   // The experiment must not tell the caller to invent a new symbol.
   assert.match(cls.evidence.targetSymbols.join(","), /D_i15_802C6E34/);
 });
 
-test("the data-ownership experiment refuses to invent a second name for the same bytes", () => {
+test("the data-reference experiment establishes what the symbol IS before prescribing", () => {
   const reloc = (t, s) => ({ type: t, symbol: s, addend: 0 });
   const target = [{ mnemonic: "lui", operands: "at,0x0", word: 1, reloc: reloc("R_MIPS_HI16", "D_REAL") }];
   const candidate = [{ mnemonic: "lui", operands: "at,0x0", word: 1, reloc: reloc("R_MIPS_HI16", ".rodata") }];
   const g = groupResiduals(target, candidate, strictOf([0]))[0];
   const cls = classifyGroup(g, target, candidate);
-  const exp = experimentsFor(cls, g)[0];
-  assert.match(exp.caution, /second name for bytes that already have one/i);
-  assert.doesNotMatch(exp.do, /D_REAL, D_REAL/, "the symbol list must be deduplicated");
+  const exps = experimentsFor(cls, g);
+  // The FIRST experiment must establish what the symbol is, not prescribe a
+  // change: a `D_` label can be a compiler-generated literal pool that a
+  // disassembler named, and "declare this global" would then make the source
+  // wrong while possibly still matching bytes.
+  assert.equal(exps[0].id, "establish-what-the-symbol-is");
+  assert.match(exps[0].do, /layout/, "it must point at the check that settles it");
+  assert.match(exps[0].refutes, /generated pool/i);
+  const prescribe = exps.find((e) => e.id === "use-the-existing-symbol");
+  assert.ok(prescribe, "the prescriptive experiment should still be offered, second");
+  assert.match(prescribe.caution, /second name for bytes that already have one/i);
+  assert.doesNotMatch(prescribe.do, /D_REAL, D_REAL/, "the symbol list must be deduplicated");
 });
 
 test("identical reloc symbols are NOT data-ownership", () => {
@@ -245,7 +260,7 @@ test("identical reloc symbols are NOT data-ownership", () => {
   const target = [{ mnemonic: "lwc1", operands: "ft2,0(at)", word: 2, reloc: reloc("R_MIPS_LO16", "D_SAME") }];
   const candidate = [{ mnemonic: "lwc1", operands: "ft2,4(at)", word: 3, reloc: reloc("R_MIPS_LO16", "D_SAME") }];
   const cls = classifyGroup(groupResiduals(target, candidate, strictOf([0]))[0], target, candidate);
-  assert.notEqual(cls.mechanism, "data-ownership");
+  assert.notEqual(cls.mechanism, "data-reference");
 });
 
 test("trace provenance states its method, threshold, and what it CANNOT detect", async () => {
@@ -293,4 +308,17 @@ test("the policy does not claim causal independence the analysis cannot prove", 
     "the policy must not assert independence");
   assert.match(d.policy, /correlation, not proved causal independence/i);
   assert.match(d.policy, /CAN still share an upstream cause/i);
+});
+
+test("hypotheses and the confidence note REACH the caller", () => {
+  // classifyGroup computed both and diagnoseResiduals dropped them, so the
+  // qualification existed in the classifier and was invisible over HTTP.
+  const reloc = (t, sym) => ({ type: t, symbol: sym, addend: 0 });
+  const target = [{ mnemonic: "lui", operands: "at,0x0", word: 1, reloc: reloc("R_MIPS_HI16", "D_X") }];
+  const candidate = [{ mnemonic: "lui", operands: "at,0x0", word: 1, reloc: reloc("R_MIPS_HI16", ".rodata") }];
+  const d = diagnoseResiduals({ target, candidate, strict: strictOf([0]) });
+  const g = d.groups[0];
+  assert.equal(g.mechanism, "data-reference");
+  assert.ok(g.hypotheses?.length >= 2, "hypotheses must reach the response, not stop at the classifier");
+  assert.match(g.confidenceNote, /NOT a claim about the original source/i);
 });

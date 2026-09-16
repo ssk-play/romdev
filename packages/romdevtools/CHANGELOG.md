@@ -119,7 +119,36 @@ evidence -- the same register mapping, or adjacency within a few instructions.
 Two separate groups can still share an upstream cause. The line now says that,
 and a test fails if the independence claim returns.
 
-11 cases: 11 passed, 0 partial, 0 failed. Suite 1844 green.
+### Three tests that passed the wrong thing
+
+All three were the same defect the acceptance matrix exists to prevent -- a test
+whose name promises more than its assertion checks -- shipped inside that matrix.
+
+- The i5 case resolved a job PREFIX and took the newest hit, so a 10s/2-thread
+  job created while testing seeds displaced the recorded 300s run and awarded
+  itself a pass. Cases now pin an exact jobId and assert its configured budget
+  and threads; a missing pinned job errors instead of falling back.
+- The "removes a required output argument" case asserted two unrelated findings.
+  The gate could not detect a nulled output argument at all. It can now
+  (`output-argument-nulled`, `call-argument-dropped`), the case asserts that,
+  and an unchanged-baseline control is its own case. Building it exposed a call
+  scanner that could not parse `f((Mtx*)0)` -- parentheses inside an argument
+  list -- so a cast NULL was invisible while a bare NULL was caught.
+- `data-ownership` claimed "the original had a DECLARATION this candidate does
+  not" from a `D_`-prefixed label. splat names every addressable datum,
+  including compiler-generated literal pools; the symbol in question is a lone
+  float in `.late_rodata` inside the function's own .s file. Renamed
+  `data-reference`, it reports the observed relocation difference and offers
+  ownership as two hypotheses with the check that settles each. Its first
+  experiment establishes what the symbol IS before prescribing anything.
+
+Two more found while fixing those: `classifyGroup` computed those hypotheses and
+`diagnoseResiduals` never forwarded them, so the qualification was invisible
+over HTTP; and the replay control fed every case one fixture with
+`findingIds: []`, which SATISFIED the new no-findings case -- the control
+passed vacuously inside the test written to prevent vacuous passes.
+
+12 cases: 12 passed, 0 partial, 0 failed. Suite 1845 green.
 
 ## 0.143.0 — 2026-09-15
 

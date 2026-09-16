@@ -124,8 +124,14 @@ export function defaultCases({ researchRoot, workspace }) {
       id: "i5-no-improvement-search-accounting",
       why: "§12.6 — a correct-size residual whose bounded search returned no improvement. Exercises the report's accounting over the recorded 300s job: termination reason, mutation family, and the recommendation to switch mechanism rather than re-run.",
       op: "job-accounting",
-      jobPrefix: "search-func_i5_802C5DC0",
-      expect: { hasAccounting: true, terminationReasonPresent: true, recommendsSwitchingMechanism: true },
+      // PIN THE JOB, not a prefix. `jobPrefix` matched the NEWEST job with that
+      // prefix, which turned out to be a 10s/2-thread job created while testing
+      // seeds -- so a case named for the recorded 300-second run passed against
+      // a different job entirely. A fixture that can be silently substituted is
+      // not a fixture.
+      jobId: "search-func_i5_802C5DC0-mu3bsfrq2",
+      expect: { jobId: "search-func_i5_802C5DC0-mu3bsfrq2", timeLimitS: 300, threads: 8,
+        hasAccounting: true, terminationReasonPresent: true, recommendsSwitchingMechanism: true },
     },
     {
       // The half that was labelled `unexercised` while this case sat at
@@ -142,13 +148,29 @@ export function defaultCases({ researchRoot, workspace }) {
       expect: { preflightRan: true, seedMapped: true, terminatedOnBudget: true, backendTraceback: false },
     },
     {
+      // §12.9 asks specifically about REMOVING A REQUIRED OUTPUT ARGUMENT.
+      // The first version asserted `pointer-cast` and `global-write-added`,
+      // which are two other checks firing on an unrelated candidate — green,
+      // and no evidence at all that the missing output was detected. The gate
+      // could not detect it; it can now, and this asserts THAT.
       id: "semantically-wrong-but-plausible",
-      why: "§12.9 — a candidate that removes a required output argument. The gate must flag it even if a score looks attractive.",
+      why: "§12.9 — a candidate that gives a required output pointer as NULL. Baseline and candidate differ ONLY in that argument, so the finding cannot come from anything else.",
       op: "gate",
       symbol: "func_i15_802C5800", segment: "ovl_i15",
-      candidateText: "void f(Mtx *out) { guMtxIdent((Mtx_t *)out); D_801C2C70 = 0; }",
-      baselineText: "void f(Mtx *out) { guMtxIdent(out); }",
-      expect: { findingIds: ["pointer-cast", "global-write-added"] },
+      baselineText: "void f(Mtx *out) { guMtxIdent(out); use(out); }",
+      candidateText: "void f(Mtx *out) { guMtxIdent(NULL); use(out); }",
+      expect: { findingIds: ["output-argument-nulled"] },
+    },
+    {
+      // The CONTROL for the case above: the unchanged baseline against itself.
+      // Without it, a gate that flagged everything would pass §12.9.
+      id: "semantically-wrong-control-unchanged-baseline",
+      why: "§12.9 control — the baseline compared against itself must raise NOTHING. A finding here would mean the detection above is noise.",
+      op: "gate",
+      symbol: "func_i15_802C5800", segment: "ovl_i15",
+      baselineText: "void f(Mtx *out) { guMtxIdent(out); use(out); }",
+      candidateText: "void f(Mtx *out) { guMtxIdent(out); use(out); }",
+      expect: { noFindings: true },
     },
   ];
 }
@@ -208,9 +230,16 @@ export function checkExpectations(kase, actual) {
   if (e.seedMapped != null) eq("seed mapped", actual.seedMapped, e.seedMapped);
   if (e.terminatedOnBudget != null) eq("terminated on budget", actual.terminatedOnBudget, e.terminatedOnBudget);
   if (e.backendTraceback != null) eq("backend traceback", actual.backendTraceback, e.backendTraceback);
+  if (e.jobId != null) eq("job id", actual.jobId, e.jobId);
+  if (e.timeLimitS != null) eq("configured time budget", actual.timeLimitS, e.timeLimitS);
+  if (e.threads != null) eq("configured threads", actual.threads, e.threads);
   if (e.hasAccounting != null) eq("has accounting", actual.hasAccounting, e.hasAccounting);
   if (e.terminationReasonPresent != null) eq("termination reason present", actual.terminationReasonPresent, e.terminationReasonPresent);
   if (e.recommendsSwitchingMechanism != null) eq("recommends switching mechanism", actual.recommendsSwitchingMechanism, e.recommendsSwitchingMechanism);
+  if (e.noFindings) {
+    const got = actual.findingIds ?? [];
+    if (got.length) fails.push(`expected NO findings on an unchanged baseline, got: ${got.join(", ")} — the detection this controls for is firing on noise`);
+  }
   if (e.findingIds) {
     for (const id of e.findingIds) {
       if (!(actual.findingIds ?? []).includes(id)) fails.push(`gate finding '${id}' not raised (got: ${(actual.findingIds ?? []).join(", ") || "none"})`);

@@ -135,6 +135,71 @@ function behaviouralDeltas(baseline, candidate) {
     message: `call(s) present in the baseline and absent from the candidate: ${lost.slice(0, 6).join(", ")}`,
     evidence: lost.slice(0, 6).join(", ") });
 
+  // AN ARGUMENT THAT BECAME NULL, or a call that lost arguments.
+  //
+  // `call-removed` above only fires when a call DISAPPEARS. A call that
+  // survives while one of its arguments is replaced with NULL -- or dropped
+  // entirely -- is the case the reporter named: a helper that writes through an
+  // output pointer is silently no longer given one. Bytes can still match; the
+  // callee no longer writes where the original wrote.
+  // Scan with a paren counter rather than a regex: `guMtxIdent((Mtx*)0)` has
+  // parentheses INSIDE its argument list, and `\(([^()]*)\)` cannot match it —
+  // so a cast NULL, the most natural way to write this defect in C, was
+  // invisible while a bare NULL was caught.
+  const callArgs = (src) => {
+    const out2 = new Map();
+    const re = /\b([A-Za-z_]\w*)\s*\(/g;
+    let m;
+    while ((m = re.exec(src))) {
+      if (KEYWORDS.has(m[1])) continue;
+      let depth = 1, i = re.lastIndex;
+      for (; i < src.length && depth > 0; i++) {
+        if (src[i] === "(") depth++;
+        else if (src[i] === ")") depth--;
+      }
+      if (depth !== 0) continue;                 // unbalanced: skip rather than guess
+      const inner = src.slice(re.lastIndex, i - 1);
+      // Split on top-level commas only, so `f(g(a, b), c)` is two arguments.
+      const args = [];
+      let cur = "", d = 0;
+      for (const ch of inner) {
+        if (ch === "(") d++;
+        else if (ch === ")") d--;
+        if (ch === "," && d === 0) { args.push(cur.trim()); cur = ""; continue; }
+        cur += ch;
+      }
+      if (cur.trim() !== "" || args.length) args.push(cur.trim());
+      // Keep the FIRST occurrence: a call repeated with different arguments is
+      // a different question, and guessing which one to compare would be worse
+      // than comparing the one we can name.
+      if (!out2.has(m[1])) out2.set(m[1], args);
+    }
+    return out2;
+  };
+  const argsA = callArgs(a), argsB = callArgs(b);
+  // NULL in the spellings real source uses: NULL, 0, nullptr, and any of those
+  // behind a cast -- `(Mtx*)0` is the same defect as `NULL` and was slipping
+  // through a pattern that only allowed the cast in one position.
+  const NULLISH = (x) => /^(?:\([^)]*\)\s*)*\(?\s*(?:\([^)]*\)\s*)*(?:NULL|0|0[xX]0+|nullptr)\s*\)?$/.test(String(x).trim());
+  for (const [name, aArgs] of argsA) {
+    const bArgs = argsB.get(name);
+    if (!bArgs) continue;                       // handled by call-removed
+    if (bArgs.length < aArgs.length) {
+      out.push({ id: "call-argument-dropped", severity: "artificial", confidence: "high",
+        message: `'${name}' is called with ${bArgs.length} argument(s) where the baseline passed ${aArgs.length}. If the dropped argument was an output pointer, the callee no longer writes where the original wrote`,
+        evidence: `${name}(${aArgs.join(", ")}) -> ${name}(${bArgs.join(", ")})` });
+      continue;
+    }
+    for (let i = 0; i < Math.min(aArgs.length, bArgs.length); i++) {
+      if (aArgs[i] === bArgs[i]) continue;
+      if (NULLISH(bArgs[i]) && !NULLISH(aArgs[i])) {
+        out.push({ id: "output-argument-nulled", severity: "artificial", confidence: "high",
+          message: `'${name}' argument ${i + 1} became ${bArgs[i]} where the baseline passed '${aArgs[i]}'. A helper given NULL instead of a destination does not write its result — the bytes can still match while the behaviour does not`,
+          evidence: `${name}(... ${aArgs[i]} ...) -> ${name}(... ${bArgs[i]} ...)` });
+      }
+    }
+  }
+
   // Signed/unsigned and division changes alter overflow and rounding.
   const ua = count(/\bunsigned\b|\bu(8|16|32)\b/g, a), ub = count(/\bunsigned\b|\bu(8|16|32)\b/g, b);
   if (ua !== ub) out.push({ id: "signedness-changed", severity: "review", confidence: "low",

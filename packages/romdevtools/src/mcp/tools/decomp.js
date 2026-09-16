@@ -1174,13 +1174,18 @@ async function runReplayCase(project, kase, { ownerFor, resolveFn }) {
     case "job-accounting": {
       // Exercises the REPORT over a recorded job, not a fresh search launch.
       // The distinction is the point: this case is labelled `partial`.
-      const { listJobs, jobReport } = await import("../../decomp/jobs.js");
-      const jobs = await listJobs(project);
-      const hit = jobs.find((j) => j.jobId.startsWith(kase.jobPrefix) && j.status === "complete-budget");
-      if (!hit) throw Object.assign(new Error(`no completed job matching '${kase.jobPrefix}' — this case replays the accounting over a RECORDED search, and none is on disk.`), { code: "ENOENT" });
-      const rep = await jobReport(project, hit.jobId);
+      const { jobReport } = await import("../../decomp/jobs.js");
+      // The case names ONE job. Resolving a prefix to "whichever matched most
+      // recently" let a 10s/2-thread job stand in for the recorded 300s run.
+      if (!kase.jobId) throw Object.assign(new Error("a job-accounting case must name an exact `jobId`; a prefix can be silently substituted."), { code: "BAD_ARGS" });
+      let rep;
+      try { rep = await jobReport(project, kase.jobId); }
+      catch (e) {
+        throw Object.assign(new Error(`the pinned job '${kase.jobId}' is not on disk, so this case CANNOT be verified. It is not satisfied by a different job with the same prefix. (${String(e?.message ?? e).slice(0, 120)})`), { code: "ENOENT" });
+      }
       const acc = rep.accounting ?? null;
-      return { jobId: hit.jobId, artifact: rep.reportJson ?? null,
+      return { jobId: rep.jobId, artifact: rep.reportJson ?? null,
+        timeLimitS: rep.timeLimitS ?? null, threads: rep.threads ?? null,
         hasAccounting: !!acc,
         terminationReasonPresent: !!acc?.terminationReason,
         terminationReason: acc?.terminationReason ?? null,

@@ -370,12 +370,29 @@ export function classifyGroup(group, target, candidate) {
       && tSyms.some((sym, k) => sym !== cSyms[k])) {
     const named = (x) => x && !x.startsWith(".");
     const targetNamed = tSyms.some(named), candNamed = cSyms.some(named);
-    return { mechanism: "data-ownership", confidence: "high",
-      why: targetNamed && !candNamed
-        ? `the target loads from the named symbol ${tSyms.find(named)} while the candidate materialises its own anonymous literal in ${cSyms[0]}. The linked bytes may match, but the original had a DECLARATION this candidate does not — the value belongs to an existing object`
-        : !targetNamed && candNamed
-          ? `the candidate loads from the named symbol ${cSyms.find(named)} while the target used an anonymous literal in ${tSyms[0]}: the candidate is attributing the value to an object the original did not reference`
-          : `the two sides reference different data symbols (${tSyms.join(", ")} vs ${cSyms.join(", ")})`,
+    // A `D_`-style name in extracted asm is a DISASSEMBLER'S label, not proof
+    // that the original C declared a global. splat names every addressable
+    // datum it finds, including compiler-generated float literal pools — and
+    // `.late_rodata` inside the function's own .s file is exactly what such a
+    // pool looks like. Claiming "the original had a DECLARATION this candidate
+    // does not" read source history out of a naming convention.
+    //
+    // So this reports the OBSERVED difference in reference representation and
+    // offers ownership as a hypothesis with the check that would settle it.
+    const tNamed = tSyms.find(named), cNamed = cSyms.find(named);
+    return { mechanism: "data-reference", confidence: "high",
+      why: tNamed && !candNamed
+        ? `the target's relocation names ${tNamed} while the candidate's names ${cSyms[0]} (an anonymous literal). That is an OBSERVED difference in how the datum is referenced, not proof about the original source: ${tNamed} may be a real global, or a label a disassembler assigned to a compiler-generated literal pool`
+        : !targetNamed && cNamed
+          ? `the candidate's relocation names ${cNamed} while the target's names ${tSyms[0]} (an anonymous literal): the candidate references a named object where the target's own object did not`
+          : `the two sides' relocations name different data symbols (${tSyms.join(", ")} vs ${cSyms.join(", ")})`,
+      confidenceNote: "HIGH confidence that the references differ. NOT a claim about the original source: whether the named symbol is a declared global or a generated literal pool entry is a separate question, and `hypotheses` below says how to settle it.",
+      hypotheses: tNamed ? [
+        { claim: `${tNamed} is a real declared object the candidate should reference`,
+          check: `decomp({op:'layout', va:'<its address>'}) — a symbol inside a larger object, or one referenced by OTHER functions, is a real datum` },
+        { claim: `${tNamed} is a compiler-generated literal pool entry that a disassembler named`,
+          check: `look at the section and the file: a lone value in .late_rodata inside this function's own .s is a generated pool, and the candidate emitting its own literal is CORRECT` },
+      ] : undefined,
       evidence: { targetSymbols: tSyms, candidateSymbols: cSyms,
         target: ta.map(key), candidate: ca.map(key) },
       phase: "uopt (data references) — decided by which declaration is in scope, not by scheduling" };
@@ -457,8 +474,13 @@ export function experimentsFor(cls, group, ctx = {}) {
         predict: "all offsets shift into place together",
         refutes: "if only some do, more than one object is misplaced",
       }];
-    case "data-ownership":
+    case "data-reference":
       return [{
+        id: "establish-what-the-symbol-is",
+        do: `BEFORE changing anything, decide what ${[...new Set((cls.evidence?.targetSymbols ?? []).filter((x) => x && !x.startsWith(".")))].join(", ") || "the named symbol"} actually is: resolve its address with decomp({op:'layout', va:...}) and check whether other functions reference it. A lone value in .late_rodata inside this function's own .s file is a compiler-generated literal pool, and your candidate emitting its own literal is then CORRECT`,
+        predict: "either the symbol resolves inside a larger declared object (it is real data you should reference), or it stands alone in the function's own late_rodata (it is a generated pool and this difference is not a defect)",
+        refutes: "if it is a generated pool, any 'fix' that declares a global here makes the source WRONG while possibly still matching bytes",
+      }, {
         id: "use-the-existing-symbol",
         do: `declare and reference the data symbol the target uses (${[...new Set((cls.evidence?.targetSymbols ?? []).filter((x) => x && !x.startsWith(".")))].join(", ") || "the named symbol in the evidence"}) instead of writing the value as a literal in this function`,
         predict: "the HI16/LO16 pair resolves to the same symbol as the target and the reference difference disappears",
@@ -503,6 +525,11 @@ export function diagnoseResiduals({ target, candidate, strict, trace = null, tra
       mechanism: cls.mechanism,
       confidence: cls.confidence,
       why: cls.why,
+      // Forwarded explicitly: these carry the "this is a hypothesis, here is
+      // the check" qualification. Computing them in the classifier and
+      // dropping them here left the mitigation invisible to every caller.
+      ...(cls.confidenceNote ? { confidenceNote: cls.confidenceNote } : {}),
+      ...(cls.hypotheses ? { hypotheses: cls.hypotheses } : {}),
       ...(cls.phase ? { earliestPhase: cls.phase } : {}),
       evidence: cls.evidence,
       ...(sourceLines ? { sourceLines } : { sourceLines: null, sourceLinesNote: "no as1 trace supplied: pass one to attribute these words to source statements" }),

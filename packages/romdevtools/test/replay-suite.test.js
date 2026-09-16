@@ -29,21 +29,35 @@ test("an integrated function replays against its PRE-INTEGRATION owner", () => {
 test("EVERY case rejects a wrong result", () => {
   // The control that must fail. A suite whose expectations accept anything
   // reports 7/7 and proves nothing.
-  const wrong = {
+  // One fixture cannot be "wrong" for every case: a case asserting NO findings
+  // is satisfied by an empty list, and a case asserting findings is satisfied
+  // by a populated one. So the control feeds each case a result that is wrong
+  // FOR IT -- otherwise the control itself passes vacuously, which is the exact
+  // defect this suite exists to catch.
+  const wrongFor = (k) => ({
     compileSucceeded: false, exactFunctionMatch: false, rodataState: "mismatch",
     traceAccepted: false, mechanisms: ["unclassified"], variantDeltaLinked: 99,
     frameDelta: 99, layoutShape: "identical", movedSlots: 0,
-    distinctTargets: 1, distinctTus: 1, hasDrafts: false, claimedBestDistance: null, findingIds: [],
-  };
+    distinctTargets: 1, distinctTus: 1, hasDrafts: false, claimedBestDistance: null,
+    // An expectation of "no findings" is only violated by findings.
+    findingIds: k.expect?.noFindings ? ["self-assignment"] : [],
+    groupCount: 0, jobId: "some-other-job", timeLimitS: 1, threads: 1,
+    preflightRan: false, seedMapped: false, terminatedOnBudget: false, backendTraceback: true,
+    hasAccounting: false, terminationReasonPresent: false, recommendsSwitchingMechanism: false,
+  });
   for (const k of cases()) {
-    const fails = checkExpectations(k, wrong);
+    const fails = checkExpectations(k, wrongFor(k));
     assert.ok(fails.length > 0, `case '${k.id}' accepted a deliberately wrong result`);
   }
 });
 
 test("a correct result passes the same check", () => {
+  // §12.9 now asserts the behaviour it is named for -- a nulled output
+  // argument -- rather than two unrelated checks firing.
   const k = cases().find((c) => c.id === "semantically-wrong-but-plausible");
-  assert.deepEqual(checkExpectations(k, { findingIds: ["pointer-cast", "global-write-added"] }), []);
+  assert.deepEqual(checkExpectations(k, { findingIds: ["output-argument-nulled"] }), []);
+  const ctrl = cases().find((c) => c.id === "semantically-wrong-control-unchanged-baseline");
+  assert.deepEqual(checkExpectations(ctrl, { findingIds: [] }), []);
 });
 
 test("percentiles are withheld until there are enough samples", () => {
