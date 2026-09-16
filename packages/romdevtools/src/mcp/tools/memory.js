@@ -331,7 +331,7 @@ async function memWrite(sessionKey, { region, offset = 0, hex, base64, data, byt
  * candidate is returned with its bank, and the caller decides. Picking one
  * silently is the failure mode this tool exists to avoid.
  */
-async function memProvenance(sessionKey, { region = "system_ram", offset = 0, length = 32, romPath, platform: romPlatform, maxCandidates = 8, minLength = 8, extendBy = 4096 }) {
+async function memProvenance(sessionKey, { region = "system_ram", offset = 0, length = 32, romPath, platform: romPlatform, maxCandidates = 8, minLength = 8, extendBy = 4096, nearDistance = 4 }) {
   if (length < minLength) {
     throw new Error(`memory({op:'provenance'}): \`length\` ${length} is below minLength ${minLength}. A short byte run matches many ROM offsets by coincidence — measured on a 256KB cart, a 4-byte range is ambiguous about half the time. Ask for at least ${minLength} bytes, or lower \`minLength\` deliberately and read the candidate count.`);
   }
@@ -413,21 +413,56 @@ async function memProvenance(sessionKey, { region = "system_ram", offset = 0, le
     }
   }
 
+  // NO VERBATIM MATCH IS NOT "GENERATED".
+  //
+  // Client finding (2026-09-16): a routine that returned zero candidates was in
+  // fact copied from ROM and PATCHED at runtime -- 2 of 12 bytes differed
+  // (`0f 19` -> `db 7e`, turning rrca/add hl,de into `in a,($7E)`). The bytes
+  // were real Z80 and sat 9 bytes after a run that did resolve. They checked by
+  // hand rather than accepting the verdict, and nearly stopped at "not copied
+  // verbatim from this cartridge", which reads as "give up".
+  //
+  // The distinction matters concretely to a recompiler: a patched copy is
+  // COMPILABLE (emit the ROM range; the patch is data), genuinely synthesised
+  // code is not. So when nothing matches exactly, look for near matches --
+  // measured at 4ms over a 256KB ROM with early abort, which is cheap here and
+  // slow on the client's side.
+  const nearMatches = [];
+  if (!uniform && !candidates.length && nearDistance > 0) {
+    for (let o = 0; o + needle.length <= hay.length; o++) {
+      let d = 0;
+      for (let i = 0; i < needle.length; i++) { if (hay[o + i] !== needle[i] && ++d > nearDistance) break; }
+      if (d > nearDistance) continue;
+      const diffPositions = [];
+      for (let i = 0; i < needle.length && diffPositions.length < 32; i++) if (hay[o + i] !== needle[i]) diffPositions.push(i);
+      nearMatches.push({ romOffset: o, romOffsetHex: `0x${o.toString(16).toUpperCase()}`,
+        bank: Math.floor(o / 0x4000), bankOffset: o % 0x4000, distance: d, diffPositions,
+        romBytesAtDiff: diffPositions.map((i) => hay[o + i].toString(16).padStart(2, "0")),
+        ramBytesAtDiff: diffPositions.map((i) => needle[i].toString(16).padStart(2, "0")) });
+      if (nearMatches.length >= maxCandidates * 4) break;
+    }
+    nearMatches.sort((a, b) => a.distance - b.distance);
+    nearMatches.length = Math.min(nearMatches.length, maxCandidates);
+  }
+
   return jsonContent({
     query: { region, offset, offsetHex: `0x${offset.toString(16).toUpperCase()}`, length,
       bytes: [...needle].map((b) => b.toString(16).padStart(2, "0")).join(" ") },
     romBytes: hay.length, romSha256: createHash("sha256").update(hay).digest("hex").slice(0, 16),
     candidates, candidateCount: candidates.length,
+    ...(nearMatches.length ? { nearMatches, nearMatchNote: "WEAKER EVIDENCE than an exact match, and deliberately labelled separately: these ranges are not identical to the RAM bytes. `diffPositions` names the bytes that differ, with the ROM and RAM values at each. A small distance on real code usually means the game patched the copy in place; a small distance on data can be coincidence." } : {}),
     ...(truncated ? { truncated: true, truncatedNote: `more than ${maxCandidates} ROM offsets hold these exact bytes; raise maxCandidates to see the rest. A range matching this many places is probably not distinctive enough to identify an origin.` } : {}),
     ...(uniform ? { uniform: true,
       uniformNote: `every byte in this range is 0x${needle[0].toString(16).padStart(2, "0")}. A uniform run matches padding all over the ROM, so no search was run: any "origin" would be coincidence. Ask about a range containing real code.` } : {}),
     resolved: candidates.length === 1,
     verdict: uniform ? "not-searched: uniform byte run"
-      : candidates.length === 0 ? "no ROM range holds these exact bytes. The bytes were not copied verbatim from this cartridge: they may be generated, assembled from pieces, patched after the copy, or come from a different ROM."
+      : candidates.length === 0 ? (nearMatches.length
+        ? `no EXACT match, but ${nearMatches.length} ROM range(s) differ by at most ${nearDistance} byte(s) — see nearMatches. A near match is usually a copy the game PATCHED after relocating it, which is still ROM-derived and still compilable: emit the ROM range and treat the differing bytes as data. Confirm by looking at the differing positions before relying on it.`
+        : `no ROM range holds these exact bytes, and none differs by ${nearDistance} byte(s) or fewer. That is evidence AGAINST a verbatim or lightly-patched copy from this cartridge — the bytes may be generated, assembled from pieces, more heavily patched (raise nearDistance), or come from elsewhere. It is not proof of any of those.`)
       : candidates.length === 1 ? "exactly one ROM range holds these bytes. That is the likely origin — but identical bytes CAN occur once by coincidence, so treat it as a strong lead, not proof of a copy."
       : `${candidates.length} ROM ranges hold these exact bytes. This tool does NOT choose between them: pick using the bank that was mapped when the code ran, or ask about a longer range.`,
     ...(candidates.length ? { verbatimNote: `\`verbatimBytes\` is how far each candidate stays identical BEYOND the queried range, found by extending the comparison. A copied routine usually runs longer than you asked about; where it stops, \`divergesAt\` names the first differing byte. That boundary is the end of the verbatim copy, not necessarily the end of the routine — the rest may be patched after the copy or built in place.` } : {}),
-    policy: "this answers 'which ROM bytes are identical to these RAM bytes', by searching the ROM image. It does NOT prove a copy happened, does not identify the copying instruction, and makes no claim about reachability. Longer ranges are more distinctive: on a 256KB cart ~13% of 32-byte ranges still match more than one offset.",
+    policy: "this answers 'which ROM bytes are identical to these RAM bytes' (plus, when nothing is identical, which are CLOSE), by searching the ROM image. It does NOT prove a copy happened, does not identify the copying instruction, and makes no claim about reachability. Longer ranges are more distinctive: on a 256KB cart ~13% of 32-byte ranges still match more than one offset.",
   });
 }
 
@@ -1132,6 +1167,7 @@ export function registerMemoryTools(server, z, sessionKey) {
       as: z.enum(["raw", "bcd", "digits"]).default("raw").describe("op:search — value representation: 'raw' (binary int, region endianness), 'bcd' (packed BCD, 2 decimal digits/byte — common for NES scores), 'digits' (one byte per ON-SCREEN digit, MSD first, any constant tile base — HUD/tile-index score buffers; the matched base is reported per candidate). searchNext compares in the SAME representation automatically."),
       compare: z.enum(["eq", "changed", "unchanged", "inc", "dec", "gt", "lt"]).optional().describe("op:searchNext — eq=now equals `value`; changed/unchanged vs the last read; inc/dec=went up/down. All of these work as the FIRST narrow too (baselines are recorded at seed). gt/lt=now >/< `value`."),
       maxCandidates: z.number().int().min(1).max(8192).default(64).describe("op:search/searchNext — cap the candidates RETURNED (the full list is kept server-side; `count` is the true total). op:'provenance' — cap the ROM offsets returned (default 8); a range matching many places is not distinctive enough to identify an origin."),
+      nearDistance: z.number().int().min(0).max(64).default(4).describe("op:'provenance' — when NOTHING matches exactly, also report ROM ranges differing by at most this many bytes. A game often patches a routine after copying it out of ROM, and a patched copy is still ROM-derived and still compilable, while genuinely generated code is not — 'zero exact matches' alone conflates the two. Set 0 to skip the near search."),
       extendBy: z.number().int().min(0).max(65536).default(4096).describe("op:'provenance' — how far past the queried range to keep comparing, to find the real length of the copied block. A run that reaches this cap is flagged `verbatimAtLeast` so the number is never mistaken for the end of the copy."),
       minLength: z.number().int().min(1).max(4096).default(8).describe("op:'provenance' — refuse a query shorter than this, because a short byte run matches many ROM offsets by coincidence (a 4-byte range on a 256KB cart is ambiguous about half the time). Lower it deliberately and read `candidateCount`."),
       // shared output

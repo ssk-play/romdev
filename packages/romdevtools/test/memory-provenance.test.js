@@ -83,3 +83,67 @@ test("provenance is registered as an op and documented", async () => {
   assert.match(s, /provenance=which ROM offset holds bytes identical to a RAM range/,
     "the op list description must cover it");
 });
+
+// ── near matches (client finding, 2026-09-16) ────────────────────────────────
+//
+// A routine that returned ZERO exact candidates turned out to be copied from
+// ROM and PATCHED at runtime: 2 of 12 bytes differed (`0f 19` -> `db 7e`,
+// rrca/add hl,de becoming `in a,($7E)`). The client checked by hand rather than
+// accepting the verdict and nearly stopped at "not copied verbatim from this
+// cartridge", which reads as "generated, give up".
+//
+// The distinction is load-bearing for a recompiler: a patched copy is
+// COMPILABLE (emit the ROM range, the patch is data); synthesised code is not.
+// "0 exact candidates" conflated the two.
+
+test("zero exact matches triggers a near search, not a dead end", async () => {
+  const s = await src();
+  const fn = s.match(/async function memProvenance\([\s\S]*?\n\}/)?.[0] ?? "";
+  assert.match(fn, /!candidates\.length && nearDistance > 0/,
+    "the near search must run precisely when nothing matched exactly");
+  assert.match(fn, /NO VERBATIM MATCH IS NOT "GENERATED"/,
+    "the reasoning belongs next to the code so it does not drift back");
+});
+
+test("near matches are labelled as WEAKER evidence, never as origins", async () => {
+  const s = await src();
+  assert.match(s, /WEAKER EVIDENCE than an exact match/i);
+  // They must not be folded into `candidates`, which means "identical".
+  const fn = s.match(/async function memProvenance\([\s\S]*?\n\}/)?.[0] ?? "";
+  assert.ok(!/candidates\.push\(\{[^}]*distance/.test(fn),
+    "a near match must never be pushed into the exact-candidate list");
+  assert.match(fn, /nearMatches,\s*nearMatchNote/, "near matches get their own field and note");
+});
+
+test("a near match names WHICH bytes differ, with both values", async () => {
+  // Without the positions a caller cannot tell a two-byte patch from a
+  // coincidental near-collision in data.
+  const s = await src();
+  const fn = s.match(/async function memProvenance\([\s\S]*?\n\}/)?.[0] ?? "";
+  for (const f of ["diffPositions", "romBytesAtDiff", "ramBytesAtDiff", "distance"]) {
+    assert.match(fn, new RegExp(f), `near matches omit '${f}'`);
+  }
+});
+
+test("near matches are ranked closest-first", async () => {
+  const s = await src();
+  const fn = s.match(/async function memProvenance\([\s\S]*?\n\}/)?.[0] ?? "";
+  assert.match(fn, /nearMatches\.sort\(\(a, b\) => a\.distance - b\.distance\)/,
+    "the most likely origin must come first, not whichever offset was scanned first");
+});
+
+test("a genuinely-absent origin still says so, without overclaiming", async () => {
+  // The other half: when nothing is close either, the verdict must report
+  // evidence AGAINST a copy without asserting the code was generated.
+  const s = await src();
+  assert.match(s, /evidence AGAINST a verbatim or lightly-patched copy/i);
+  assert.match(s, /It is not proof of any of those/i,
+    "absence of a near match is not proof the code was synthesised");
+});
+
+test("the near search can be turned off", async () => {
+  const s = await src();
+  assert.match(s, /nearDistance = 4/, "a default distance must exist");
+  assert.match(s, /Set 0 to skip the near search/,
+    "a caller who only wants exact answers should be able to say so");
+});

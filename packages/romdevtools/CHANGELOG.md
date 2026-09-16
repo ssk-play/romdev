@@ -39,6 +39,25 @@ result easy to misread as "not from ROM at all". A run that hits the scan window
 or the region end is flagged `verbatimAtLeast` so the number is never mistaken
 for the length of the copy.
 
+### Near matches: "no exact match" is not "generated"
+
+A routine that returned zero candidates turned out to be copied from ROM and
+PATCHED at runtime -- 2 of 12 bytes differed. The client checked by hand rather
+than accepting the verdict and nearly stopped at "not copied verbatim from this
+cartridge", which reads as "give up".
+
+That conflation is load-bearing for a recompiler: a patched copy is COMPILABLE
+(emit the ROM range, the patch is data), while genuinely synthesised code is
+not. When nothing matches exactly, provenance now reports ROM ranges within
+`nearDistance` bytes (default 4), ranked closest-first, each naming the
+differing positions with both the ROM and RAM values there. Measured at 4ms over
+a 256KB ROM with early abort.
+
+Near matches are a separate field with their own note, never folded into
+`candidates`, which means identical. And when nothing is close either, the
+verdict reports evidence AGAINST a copy without asserting the code was
+generated.
+
 ## 0.145.0 — 2026-09-16
 
 SMS/GG recompiler support, driven by a static Z80->WAT client. Their measured
