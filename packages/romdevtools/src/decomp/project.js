@@ -19,6 +19,7 @@ import { createHash } from "node:crypto";
 import { run } from "./mips-obj.js";
 import { loadSplatMap, loadSymbolAddrs, loadLinkerMap, findFunctionSource, parseSplatAsm, hx } from "./splat-map.js";
 import { profileFor, readRomHeader, classifyInvocation, binutilsPrefixFromAssembler } from "./platform.js";
+import { fileIdentities } from "./measurement.js";
 
 export const DECOMP_HOME = process.env.ROMDEV_DECOMP_HOME || path.join(os.homedir(), ".romdev", "decomp");
 export const MANIFEST_VERSION = 1;
@@ -258,13 +259,24 @@ export class Project {
   get env() { return projectEnv(this.m); }
   abs(p) { return path.resolve(this.root, p); }
 
-  async map() { if (!this._map) this._map = await loadSplatMap(this.abs(this.m.splat.yaml)); return this._map; }
-  async symbolAddrs() { if (!this._syms) this._syms = await loadSymbolAddrs(this.m.splat.symbolAddrs.map((p) => this.abs(p))); return this._syms; }
+  async map() {
+    const file = this.abs(this.m.splat.yaml), identity = JSON.stringify(await fileIdentities([file]));
+    if (!this._map || identity !== this._mapIdentity) { this._map = await loadSplatMap(file); this._mapIdentity = identity; }
+    return this._map;
+  }
+  async symbolAddrs() {
+    const files = this.m.splat.symbolAddrs.map((p) => this.abs(p));
+    const identity = JSON.stringify(await fileIdentities(files));
+    if (!this._syms || identity !== this._symsIdentity) { this._syms = await loadSymbolAddrs(files); this._symsIdentity = identity; }
+    return this._syms;
+  }
   async linkerMap() {
-    if (!this._ld) {
-      const p = this.m.built?.map ? this.abs(this.m.built.map) : null;
-      if (!p || !fs.existsSync(p)) return null;
+    const p = this.m.built?.map ? this.abs(this.m.built.map) : null;
+    if (!p || !fs.existsSync(p)) { this._ld = null; this._ldIdentity = null; return null; }
+    const identity = JSON.stringify(await fileIdentities([p]));
+    if (!this._ld || identity !== this._ldIdentity) {
       this._ld = await loadLinkerMap(p);
+      this._ldIdentity = identity;
     }
     return this._ld;
   }

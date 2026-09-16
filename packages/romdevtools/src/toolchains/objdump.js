@@ -90,6 +90,7 @@ export async function runObjdump(args) {
   const start = args.startAddress ?? 0;
   const argv = [
     "-D",                       // disassemble all sections
+    "-z",                       // include zero-filled regions (bulk IR must cover them)
     "-b", "binary",             // treat input as a flat binary
     "-m", spec.machine,
     "--adjust-vma=0x" + start.toString(16),
@@ -104,6 +105,7 @@ export async function runObjdump(args) {
   const raw = r.log ?? "";
   return {
     asm: normalizeObjdump(raw, start, arch),
+    instructions: parseObjdumpRows(raw, arch),
     raw,
     exitCode: r.exitCode ?? 0,
     available: true,
@@ -128,7 +130,7 @@ const LINE_RE = /^\s*([0-9a-fA-F]+):\t([0-9a-fA-F ]+?)\s*\t(.*)$/;
  * @param {string} [arch] the objdump arch — needed for byte order (see below)
  * @returns {string}
  */
-export function normalizeObjdump(raw, startAddress = 0, arch = "") {
+export function parseObjdumpRows(raw, arch = "") {
   const lines = raw.split("\n");
   // ARM/Thumb are LITTLE-ENDIAN: objdump DISPLAYS each opcode word big-endian
   // (`ea 00 00 06`) but the ROM stores it little-endian (`06 00 00 ea`). The
@@ -161,6 +163,11 @@ export function normalizeObjdump(raw, startAddress = 0, arch = "") {
     const ops = sp < 0 ? "" : text.slice(sp + 1).trim();
     rows.push({ addr, bytes, mnem, ops });
   }
+  return rows;
+}
+
+export function normalizeObjdump(raw, startAddress = 0, arch = "") {
+  const rows = parseObjdumpRows(raw, arch);
   if (!rows.length) return raw; // nothing parsed — return objdump output verbatim
 
   // Which addresses are branch/call targets that land inside the blob? Those get

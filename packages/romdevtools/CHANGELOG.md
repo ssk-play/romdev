@@ -4,6 +4,36 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 —
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.147.0 — 2026-09-16
+
+### `frame({op:'step', slot:'b'})` — advance the comparison host
+
+Slot B could be loaded but never advanced. `frame({op:'step'})` was slot-A-only,
+so a caller comparing a recompiled cart could only ever compare against slot B's
+power-on state. A client reported this as "slot B never executes a frame"; the
+frames do execute inside `findDiverge`, but there was no way to warm slot B to a
+chosen point BEFORE comparing -- which is what a cart that stays byte-exact for
+60 frames and breaks on the 61st actually requires.
+
+`slot:'b'` advances the comparison host alone. Slot A is untouched, and slot-B
+steps drive no presentation, no bezel, no livestream and no auto-snapshot: it is
+comparison scratch and stays that way.
+
+### `findDiverge` no longer reports structural zeros as observations
+
+A divergence at frame 0 returns BEFORE the stepping loop. `changedFramesA/B` are
+then `0` because nothing ran -- not because the slots sat still. Reported bare,
+that is indistinguishable from a frozen host, and it was read exactly that way.
+
+- `activity.framesStepped` is now always present.
+- When it is `0`, `activity.activityNote` says the counts are structural and
+  carry no information about whether either slot executes, and points at
+  `frame({op:'step', slot:'b'})` as the way to test that directly.
+- `meaningfulActivity` is gated on frames having actually been stepped.
+- A frame-0 divergence says so in its `note`: the slots differed before any
+  frame ran, so it is a difference in STARTING STATE, not an execution
+  divergence, and both sides should be warmed to a common point first.
+
 ## 0.146.0 — 2026-09-16
 
 ### `memory({op:'provenance'})` — which ROM bytes are these RAM bytes?

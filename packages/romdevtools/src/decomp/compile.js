@@ -7,16 +7,25 @@
 // what else the TU declares (types, statics, the -G 0 globals, literal pools).
 // A standalone snippet can compile to different code and then "match" a
 // target the real build never would.
-import { readFile, writeFile, mkdir, copyFile, rm } from "node:fs/promises";
+import { readFile, writeFile, mkdir, copyFile, rm, rename } from "node:fs/promises";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { run, assembleTarget, dumpObject, findSymbol, symbolTable, trimToSize } from "./mips-obj.js";
+import { run, assembleTarget, prepareTargetAsm, dumpObject, findSymbol, symbolTable, trimToSize } from "./mips-obj.js";
 import { strictCompare, scoreDistance, classifyDifferences, changedRanges, renderDiff } from "./diff.js";
 import { parseSplatAsm } from "./splat-map.js";
 import { dependencyHash, sha256Text } from "./project.js";
 import { assembleVerdictFields, cacheUsable, VERIFIER_VERSION } from "./verdict.js";
 import { profileFor, readWord } from "./platform.js";
+import { MEASUREMENT_SCHEMA, compilationIdentity, compilationEnvironment, compilerFiles, resolveToolFile, fileIdentities, fileRevisions, hashRecord, atomicJson, instructionIdentity } from "./measurement.js";
+
+const compiling = new Map();
+const assembling = new Map();
+async function atomicCopy(source, destination) {
+  const temp = `${destination}.${randomUUID()}.tmp`;
+  try { await copyFile(source, temp); await rename(temp, destination); }
+  finally { await rm(temp, { force: true }); }
+}
 
 /**
  * Replace a function in a TU's text with candidate C. Handles both states:
@@ -120,6 +129,21 @@ function retargetArgv(argv, { tuRel, objRel, newTu, newObj }) {
   return argv.map((a) => (a === tuRel ? newTu : a === objRel ? newObj : a));
 }
 
+async function assemblerInputs(project, asmAbs, asmText) {
+  const seen = new Set([asmAbs]);
+  async function visit(text, parent) {
+    for (const m of text.matchAll(/^\s*\.(include|incbin)\s+"([^"]+)"/gm)) {
+      const candidates = [project.abs(m[2]), path.resolve(project.abs("include"), m[2]), path.resolve(path.dirname(parent), m[2])];
+      const file = candidates.find(p => fs.existsSync(p)) ?? candidates[0];
+      if (seen.has(file)) continue;
+      seen.add(file);
+      if (m[1] === "include" && fs.existsSync(file)) await visit(await readFile(file, "utf8"), file);
+    }
+  }
+  await visit(prepareTargetAsm(asmText), asmAbs);
+  return [...seen];
+}
+
 /**
  * Assemble (and cache) the target object for a function from its extracted asm.
  */
@@ -140,20 +164,30 @@ export async function ensureTarget(project, fn) {
   // instructions / 148 bytes for a 34-instruction function, and neither
   // `refresh` nor `noCache:true` repaired it — both leave this file alone.
   // Bumping this tag invalidates every stale target on first use.
-  const key = sha256Text(`v2:${asmText}`).slice(0, 16);
-  const meta = path.join(dir, "target.json");
-  if (fs.existsSync(meta)) {
-    try { const m = JSON.parse(await readFile(meta, "utf8")); if (m.key === key && fs.existsSync(m.targetO)) return m; } catch {}
-  }
   const tc = project.m.toolchain;
   const profile = profileFor(project.m.splatPlatform ?? project.m.platform);
   const as = tc.assembler?.path ?? (tc.binutilsPrefix ?? profile.binutilsPrefixes[0]) + "as";
+  const key = hashRecord({ schema: "target-v3", prepared: prepareTargetAsm(asmText),
+    dependencies: await fileIdentities(await assemblerInputs(project, asmAbs, asmText)),
+    assembler: await fileIdentities([await resolveToolFile(project, as)]), flags: profile.asFlags, env: compilationEnvironment(project) }).slice(0, 24);
+  const meta = path.join(dir, `${key}.target.json`);
+  if (fs.existsSync(meta)) {
+    try { const m = JSON.parse(await readFile(meta, "utf8")); if (m.key === key && fs.existsSync(m.targetO)) return m; } catch {}
+  }
+  if (assembling.has(meta)) return assembling.get(meta);
+  const produce = async () => {
   const inc = [project.abs("include"), path.dirname(asmAbs)];
-  const t = await assembleTarget({ asmText, outDir: dir, as, asFlags: profile.asFlags, includeDirs: inc, cwd: project.root, env: project.env });
+  // Never assemble into a shared target.o: even independent server processes
+  // publish metadata pointing only at their own fully completed target object.
+  const targetDir = path.join(dir, `${key}-${randomUUID()}`);
+  const t = await assembleTarget({ asmText, outDir: targetDir, as, asFlags: profile.asFlags, includeDirs: inc, cwd: project.root, env: project.env });
   const parsed = parseSplatAsm(asmText);
   const m = { key, symbol: fn.symbol, asmPath: asmRel, targetFrom: fn.targetAsm?.from ?? "pragma", targetO: t.targetO, targetS: t.targetS, instructions: parsed.instructions.length, sizeBytes: parsed.sizeBytes, rodata: parsed.rodataSymbols.map((r) => r.name) };
-  await writeFile(meta, JSON.stringify(m, null, 2));
+  await atomicJson(meta, m);
   return m;
+  };
+  const pending = produce(); assembling.set(meta, pending);
+  try { return await pending; } finally { if (assembling.get(meta) === pending) assembling.delete(meta); }
 }
 
 /**
@@ -181,25 +215,13 @@ export async function compileAndCompare(project, fn, opts) {
   }
   const candDir = path.join(project.ws, "candidates", fn.symbol);
   await mkdir(candDir, { recursive: true });
-  // The verifier version is part of the cache key: a result verified under an older policy
-  // is never returned as a current verdict (and its file is ignored even if present).
-  // A replay against a SAVED owner is a different measurement from the same
-  // candidate against the live tree, so it cannot share a cache entry. Without
-  // this, replaying an integrated function returns the pre-integration verdict
-  // (or overwrites it), and the fixture silently proves nothing.
-  const ownerTag = opts.ownerPath ? `-o${sha256Text(opts.ownerPath).slice(0, 8)}` : "";
-  const cacheKey = `${dep.hash}-${candSha}${ownerTag}-v${VERIFIER_VERSION}`;
-  const cachedPath = path.join(candDir, `${cacheKey}.result.json`);
-  if (fs.existsSync(cachedPath) && !opts.noCache) {
-    const cached = JSON.parse(await readFile(cachedPath, "utf8"));
-    if (cacheUsable(cached)) return { ...cached, cacheHit: true, elapsedMs: Date.now() - startedAt };
-  }
   // Isolated work dir mirroring the TU's relative path (asm-processor mangles statics with the file name).
   const workId = randomUUID().slice(0, 8);
   const work = path.join(project.ws, "work", workId);
   const newTuAbs = path.join(work, tuRel);
   const newObjAbs = path.join(work, path.basename(objRel));
   await mkdir(path.dirname(newTuAbs), { recursive: true });
+  try {
   // REPLAY FIXTURE SUPPORT. By default the owner TU comes from the current
   // tree, which is correct for live work and WRONG for replaying a candidate
   // that has since been integrated: the accepted function is already in the
@@ -232,18 +254,107 @@ export async function compileAndCompare(project, fn, opts) {
     }
   }
   await writeFile(newTuAbs, spliced.text);
+  // Discover the INJECTED TU's dependencies too: a candidate/declaration can
+  // add an include that the original owner never referenced.
+  const candidateDep = await dependencyHash(project, newTuAbs, inv);
+  const targetAsmPath = fn.targetAsm?.path ?? fn.source?.asmPath;
+  const asmInputs = targetAsmPath ? await assemblerInputs(project, project.abs(targetAsmPath), await readFile(project.abs(targetAsmPath), "utf8")) : [];
+  const referencePaths = [...asmInputs,
+    project.m.splat.yaml && project.abs(project.m.splat.yaml),
+    project.m.rom?.path && project.abs(project.m.rom.path),
+    project.m.built?.map && project.abs(project.m.built.map),
+    ...(project.m.splat.symbolAddrs ?? []).map((p) => project.abs(p)),
+    ...(opts.verifyTu !== false ? [project.abs(objRel)] : [])];
+  const toolPaths = await compilerFiles(project, inv);
+  const effectiveEnv = compilationEnvironment(project);
+  const references = await fileIdentities(referencePaths);
+  const candidateDependencyFiles = await fileIdentities(candidateDep.deps.map(p => project.abs(p)));
+  const toolsIdentity = await fileIdentities(toolPaths);
+  const watchedPaths = [...referencePaths, ...toolPaths, opts.ownerPath ?? project.abs(tuRel),
+    ...dep.deps.map((p) => project.abs(p)), ...candidateDep.deps.map((p) => project.abs(p))];
+  const revisionsBefore = await fileRevisions(watchedPaths);
+  const functionReference = { symbol: fn.symbol, segment: fn.segment ?? null, va: fn.va, romOffset: fn.romOffset, sizeBytes: fn.sizeBytes };
+  const referenceHash = hashRecord({ files: references, function: functionReference });
+  const inputIdentity = compilationIdentity({ symbol: fn.symbol, segment: fn.segment, tu: tuRel,
+    dependencyHash: dep.hash, candidateText: opts.candidateText, declarations: opts.declarations ?? "",
+    ownerText: tuText, savedOwner: !!opts.ownerPath,
+    invocation: { compile: inv.compile, post: inv.post }, toolchain: toolsIdentity,
+    env: effectiveEnv, candidateDependencies: candidateDep.hash });
+  const verificationIdentity = hashRecord({ verifier: VERIFIER_VERSION, producer: MEASUREMENT_SCHEMA, referenceHash,
+    verifyTu: opts.verifyTu !== false, injectRodataError: !!(opts._injectRodataError || process.env.ROMDEV_DECOMP_INJECT_RODATA_ERROR) });
+  const cacheKey = `${dep.hash}-${candSha}-i${inputIdentity.sha256.slice(0, 20)}-q${verificationIdentity.slice(0, 16)}-v${VERIFIER_VERSION}`;
+  // Each execution owns an immutable bundle. Only the cache index is replaced:
+  // concurrent noCache calls (including other server processes) must never mix
+  // a result's object, diff, source and log from different executions.
+  const cachedPath = path.join(candDir, `${cacheKey}.cache.json`);
+  const artifactKey = `${cacheKey}-r${randomUUID()}`;
+  const resultPath = path.join(candDir, `${artifactKey}.result.json`);
+  const validate = async () => {
+    const afterInv = await project.compileInvocation(tuRel);
+    const afterDep = await dependencyHash(project, tuRel, afterInv);
+    const afterCandidate = await dependencyHash(project, newTuAbs, afterInv);
+    const ownerAfter = await readFile(opts.ownerPath ?? project.abs(tuRel), "utf8");
+    const afterReferences = await fileIdentities(referencePaths);
+    const afterTools = await fileIdentities(toolPaths);
+    const revisionsAfter = await fileRevisions(watchedPaths);
+    const valid = dep.hash === afterDep.hash && candidateDep.hash === afterCandidate.hash
+      && tuText === ownerAfter && referenceHash === hashRecord({ files: afterReferences, function: functionReference })
+      && hashRecord(toolsIdentity) === hashRecord(afterTools)
+      && hashRecord(effectiveEnv) === hashRecord(compilationEnvironment(project))
+      && hashRecord(revisionsBefore) === hashRecord(revisionsAfter)
+      && hashRecord({ compile: inv.compile, post: inv.post }) === hashRecord({ compile: afterInv.compile, post: afterInv.post });
+    return { state: !valid ? "invalid" : dep.depsOk && candidateDep.depsOk ? "valid" : "unknown",
+      method: "pre/post content, inode, nanosecond modification/change time, and invocation validation (not filesystem snapshot isolation)",
+      dependencyBefore: dep.hash, dependencyAfter: afterDep.hash,
+      limitation: "validation detects observed file edits, including restoring old bytes; it is not a filesystem transaction" };
+  };
+  const finish = async (r) => {
+    r.measurementValidity = await validate();
+    if (r.measurementValidity.state !== "valid") {
+      r.exactFunctionMatch = false;
+      r.verdict = { ...r.verdict, functionLocal: "unknown", exactFunctionMatch: false,
+        reasons: [...(r.verdict?.reasons ?? []), `measurement inputs ${r.measurementValidity.state}: retry against a stable tree`] };
+      r.verification = { ...r.verification, functionLocal: "unknown" };
+    }
+    r.elapsedMs = Date.now() - startedAt;
+    r.artifacts.result = resultPath;
+    await atomicJson(resultPath, r);
+    await atomicJson(cachedPath, r);
+    await rm(work, { recursive: true, force: true });
+    return r;
+  };
+  if (fs.existsSync(cachedPath) && !opts.noCache && dep.depsOk && candidateDep.depsOk) {
+    const cached = JSON.parse(await readFile(cachedPath, "utf8"));
+    if (cacheUsable(cached) && cached.measurementValidity?.state === "valid" && (await validate()).state === "valid") {
+      await rm(work, { recursive: true, force: true });
+      return { ...cached, cacheHit: true, elapsedMs: Date.now() - startedAt,
+        candidate: { ...cached.candidate, path: opts.candidatePath ?? null, label: opts.label ?? null } };
+    }
+  }
+  if (!opts.noCache && compiling.has(cachedPath)) {
+    const shared = await compiling.get(cachedPath);
+    if ((await validate()).state === "valid" && shared.measurementValidity?.state === "valid") {
+      return { ...shared, coalesced: true, cacheHit: false, compileMs: 0, elapsedMs: Date.now() - startedAt,
+        candidate: { ...shared.candidate, path: opts.candidatePath ?? null, label: opts.label ?? null } };
+    }
+  }
+  const execute = async () => {
   const compileArgv = retargetArgv(inv.compile, { tuRel, objRel, newTu: newTuAbs, newObj: newObjAbs });
   const t0 = Date.now();
   const cr = await run(compileArgv[0], compileArgv.slice(1), { cwd: project.root, env: project.env, timeoutMs: 180_000 });
   const compileMs = Date.now() - t0;
   const log = [`$ ${compileArgv.join(" ")}`, cr.stdout, cr.stderr].join("\n");
-  const logPath = path.join(candDir, `${cacheKey}.build.log`);
+  const logPath = path.join(candDir, `${artifactKey}.build.log`);
   await writeFile(logPath, log);
   const result = {
+    producerSchema: MEASUREMENT_SCHEMA, inputIdentity, referenceHash, verificationIdentity, referenceFiles: references, functionReference, candidateDependencyFiles,
     project: project.id, function: { symbol: fn.symbol, segment: fn.segment, va: fn.vaHex, tu: tuRel, replaced: spliced.replaced, atLine: spliced.line },
-    candidate: { sha256: candSha, path: opts.candidatePath ?? null, label: opts.label ?? null, storedAt: path.join(candDir, `${cacheKey}.c`) },
+    candidate: { sha256: candSha, path: opts.candidatePath ?? null, label: opts.label ?? null, storedAt: path.join(candDir, `${artifactKey}.c`) },
     compiler: { invocation: compileArgv, fingerprint: inv.fingerprint, compiler: project.m.toolchain.compiler, dependencyHash: dep.hash, dependencyCount: dep.deps.length },
-    compileSucceeded: cr.code === 0 && fs.existsSync(newObjAbs), compileMs, diagnostics: extractDiagnostics(cr.stdout + "\n" + cr.stderr),
+    compileSucceeded: cr.code === 0 && fs.existsSync(newObjAbs) && candidateDep.depsOk, compileMs,
+    compilerExitCode: cr.code,
+    diagnostics: [...extractDiagnostics(cr.stdout + "\n" + cr.stderr),
+      ...(!candidateDep.depsOk ? [{ severity: "error", from: "dependency-preprocessor", message: candidateDep.depsError ?? "candidate dependency preprocessing failed" }] : [])],
     injectedMacros: injected.names.length ? injected.names : undefined,
     lint: lint.flags.length ? lint : undefined, countsAsRecoveredC: lint.countsAsRecoveredC,
     contextStale: opts.contextHash ? opts.contextHash !== dep.hash : undefined,
@@ -269,13 +380,12 @@ export async function compileAndCompare(project, fn, opts) {
     result.verifierVersion = VERIFIER_VERSION;
     result.verdict = { functionLocal: "compile-failed", checks: {}, reasons: ["the candidate did not compile"], exactFunctionMatch: false, verifierVersion: VERIFIER_VERSION };
     result.verification = { functionLocal: "compile-failed", translationUnit: "not-run", fullRom: "not-run" };
-    await rm(work, { recursive: true, force: true });
-    await writeFile(cachedPath, JSON.stringify(result, null, 2));
-    return { ...result, elapsedMs: Date.now() - startedAt };
+    return finish(result);
   }
   for (const post of inv.post) {
     const pa = retargetArgv(post, { tuRel, objRel, newTu: newTuAbs, newObj: newObjAbs });
-    await run(pa[0], pa.slice(1), { cwd: project.root, env: project.env });
+    const postResult = await run(pa[0], pa.slice(1), { cwd: project.root, env: project.env });
+    if (postResult.code !== 0) throw Object.assign(new Error(`compile post-processing failed: ${postResult.stderr.slice(0, 400)}`), { code: "POST_COMPILE_FAILED" });
   }
   // Extract + compare.
   const tc = project.m.toolchain;
@@ -295,9 +405,7 @@ export async function compileAndCompare(project, fn, opts) {
     result.verdict = { functionLocal: "symbol-missing", checks: {}, reasons: ["the compiled object has no symbol for the function"], exactFunctionMatch: false, verifierVersion: VERIFIER_VERSION };
     result.verification = { functionLocal: "symbol-missing", translationUnit: "not-run", fullRom: "not-run" };
     result.error = { code: "SYMBOL_NOT_EMITTED", message: `the compiled object has no symbol '${fn.symbol}' (did the candidate define it with that exact name? static? a different name?)`, symbolsInText: [...(cdump.sections.get(".text")?.keys() ?? [])].slice(0, 20) };
-    await rm(work, { recursive: true, force: true });
-    await writeFile(cachedPath, JSON.stringify(result, null, 2));
-    return { ...result, elapsedMs: Date.now() - startedAt };
+    return finish(result);
   }
   const cstream = trimToSize(csym.instructions, csyms.get(fn.symbol)?.size ?? 0);
   // Ground truth: link the candidate's words with the project's symbol addresses and compare to the ROM bytes.
@@ -313,9 +421,10 @@ export async function compileAndCompare(project, fn, opts) {
   const classes = classifyDifferences(tstream, cstream, strict);
   const ranges = changedRanges(strict);
   const diffText = renderDiff(tstream, cstream, strict, opts.maxDiffInstructions ?? 40);
-  const diffPath = path.join(candDir, `${cacheKey}.diff.json`);
-  await writeFile(diffPath, JSON.stringify({ target: tstream, candidate: cstream, strict, classes }, null, 1));
-  const diffTxt = path.join(candDir, `${cacheKey}.diff.txt`);
+  const diffPath = path.join(candDir, `${artifactKey}.diff.json`);
+  await atomicJson(diffPath, { target: tstream, candidate: cstream, strict, classes, inputIdentity,
+    referenceHash, compilerFingerprint: inv.fingerprint });
+  const diffTxt = path.join(candDir, `${artifactKey}.diff.txt`);
   await writeFile(diffTxt, renderDiff(tstream, cstream, strict, 100000));
   // Function-local rodata (jump tables, float literals): compared directly, by reference order.
   let rodata;
@@ -340,10 +449,21 @@ export async function compileAndCompare(project, fn, opts) {
     translationUnitCheck: tu,
     diffPreview: diffText,
   });
-  result.artifacts.diff = diffPath; result.artifacts.diffText = diffTxt; result.artifacts.object = null;
-  await rm(work, { recursive: true, force: true });
-  await writeFile(cachedPath, JSON.stringify(result, null, 2));
-  return { ...result, elapsedMs: Date.now() - startedAt };
+  result.artifacts.diff = diffPath; result.artifacts.diffText = diffTxt;
+  result.artifacts.object = path.join(candDir, `${artifactKey}.o`);
+  await atomicCopy(newObjAbs, result.artifacts.object);
+  result.artifacts.translationUnit = path.join(candDir, `${artifactKey}.owner.c`);
+  await atomicCopy(newTuAbs, result.artifacts.translationUnit);
+  result.compileContext = { cwd: project.root, source: newTuAbs, object: newObjAbs };
+  result.artifacts.targetObject = target.targetO;
+  result.objectIdentity = (await fileIdentities([result.artifacts.object]))[0];
+  result.outputIdentity = instructionIdentity(cstream);
+  return finish(result);
+  };
+  const pending = execute();
+  if (!opts.noCache) compiling.set(cachedPath, pending);
+  try { return await pending; } finally { if (compiling.get(cachedPath) === pending) compiling.delete(cachedPath); }
+  } finally { await rm(work, { recursive: true, force: true }); }
 }
 
 /**
@@ -353,7 +473,7 @@ export async function compileAndCompare(project, fn, opts) {
  * the extracted asm and catches a changed call target or global reference
  * that word-equal relocatable objects could hide.
  */
-async function compareAgainstRom(project, fn, cstream, csyms) {
+export async function compareAgainstRom(project, fn, cstream, csyms) {
   if (fn.romOffset == null) return { status: "no-rom-offset" };
   const ld = await project.linkerMap();
   const sa = await project.symbolAddrs();
@@ -403,13 +523,13 @@ async function compareAgainstRom(project, fn, cstream, csyms) {
   let uncheckable = 0; const uncheckableAt = [];
   for (let i = 0; i < n; i++) {
     const a = romWords[i], b = linked.stream[i]?.linkedWord;
-    if (a === b) continue;
     const u = linked.stream[i]?.unresolvedReloc;
     if (u) {
       uncheckable++;
       if (uncheckableAt.length < 8) uncheckableAt.push({ index: i, symbol: u, rom: a == null ? null : "0x" + a.toString(16).padStart(8, "0"), mnemonic: linked.stream[i]?.mnemonic ?? null });
       continue;
     }
+    if (a === b) continue;
     mismatches++;
     if (first.length < 8) first.push({ index: i, rom: a == null ? null : "0x" + a.toString(16).padStart(8, "0"), candidate: b == null ? null : "0x" + b.toString(16).padStart(8, "0"), mnemonic: linked.stream[i]?.mnemonic ?? null, reloc: linked.stream[i]?.reloc ?? null });
   }
@@ -432,9 +552,11 @@ async function compareAgainstRom(project, fn, cstream, csyms) {
     romBytesSha1: rom.sha1, romWords: romWords.length, candidateWords: linked.stream.length,
     ...(sizeDelta ? { sizeDelta, sizeNote: `the candidate is ${Math.abs(sizeDelta)} word(s) ${sizeDelta > 0 ? "LONGER" : "SHORTER"} than the target. The ${mismatches} mismatch count below is POSITIONAL: once the streams diverge in length, every following word is compared against a shifted neighbour, so it is an upper bound rather than a count of independently wrong words.` } : {}),
     ...(overflow ? { overflow } : {}),
-    mismatches, first, unresolvedSymbols: linked.unresolved.slice(0, 12),
+    // A partial count is a lower bound, never the total residual (especially 0).
+    mismatches: uncheckable || linked.unresolved.length ? null : mismatches,
+    knownMismatches: mismatches, first, unresolvedSymbols: linked.unresolved.slice(0, 12),
     ...(uncheckable ? { uncheckableWords: uncheckable, uncheckableAt,
-      uncheckableNote: "these words differ ONLY because their relocation target could not be resolved, so the linked value is not the value the linker would produce. They are NOT evidence of a wrong byte — resolve the symbol (it may be an absolute linker-script assignment) and re-compare." } : {}),
+      uncheckableNote: "these words cannot be checked until their relocation targets are resolved, even if their unlinked placeholders equal the ROM. They are neither matching nor mismatching evidence — resolve the symbols (which may be linker-script aliases) and re-compare." } : {}),
     note: "candidate words linked with the project's symbol addresses vs the base ROM bytes at the resolved offset; independent of the extracted asm" };
 }
 

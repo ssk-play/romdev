@@ -50,7 +50,7 @@ export function defaultCases({ researchRoot, workspace }) {
       op: "diagnose",
       symbol: "func_i3_802C5800", segment: "ovl_i3",
       candidatePath: R("i3-init5800-299/candidate.c"),
-      tracePath: R("i3-init5800-300/as1-trace.log"),
+      traceMode: "scheduler", // capture and verify this build; do not trust a nearby historical log
       expect: { mechanisms: ["scheduling-permutation", "branch-lowering"], traceAccepted: true },
     },
     {

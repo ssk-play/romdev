@@ -12,6 +12,8 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dumpObject, symbolTable } from "./mips-obj.js";
 import { parseSplatAsm } from "./splat-map.js";
 import { VERIFIER_VERSION } from "./verdict.js";
+import { measurementSnapshot, storedMeasurementFreshness } from "./measurement.js";
+import { listExperiments, experimentCooldown } from "./experiment.js";
 
 /** The parser/producer version baked into the call-graph fingerprint: bump it
  *  when the graph's SHAPE changes, so old caches are rejected on sight. */
@@ -166,7 +168,8 @@ function objectiveScore(r, objective) {
   }
 }
 
-export async function planWork(project, { limit = 40, offset = 0, objective = "byte-coverage", tu, evidence, forceGraph = false, workClass, includeAllClasses = false } = {}) {
+export async function planWork(project, { limit = 40, offset = 0, objective = "byte-coverage", tu, evidence, forceGraph = false, workClass, includeAllClasses = false,
+  ignoreCooldown = false, cooldownBatches = 3, cooldownMinutes = 60, proposedLever } = {}) {
   if (!PLAN_OBJECTIVES[objective]) {
     throw Object.assign(new Error(`unknown plan objective '${objective}'. Choose one of: ${Object.keys(PLAN_OBJECTIVES).join(", ")}.`), { code: "BAD_ARGS" });
   }
@@ -198,6 +201,7 @@ export async function planWork(project, { limit = 40, offset = 0, objective = "b
   // One hash per TU, not per function — the TUs are far fewer.
   const currentDependencyHashes = await currentDepHashes(project, asm, g);
   const hints = evidence ?? (await loadCandidateEvidence(project, { currentDependencyHashes }));
+  const experiments = await listExperiments(project);
   // PRIOR ART. A queue row showing `attempts: 0` next to 54 drafts on disk is
   // what sent an agent to rebuild a function from scratch that was already one
   // difference away. Imported research never affects payoff or ranking — it is
@@ -219,23 +223,27 @@ export async function planWork(project, { limit = 40, offset = 0, objective = "b
     // The overlay this function belongs to, when it has one. A bare symbol is
     // ambiguous where overlays share VAs, so every row carries its own half of
     // the identity rather than making the caller reconstruct it.
-    const segment = segmentOfObject(g.object[n]);
+    // Comparison identity names ordinary segments too (e.g. main_segment).
+    // A path-only overlay heuristic erased that identity and disconnected
+    // otherwise-current measured experiments from the planner's cooldown.
+    const segment = h.latestSegment ?? segmentOfObject(g.object[n]);
     return { symbol: n, ...(segment ? { segment } : {}), sizeBytes: size, object: g.object[n], tu: objectToTu(g.object[n], project), asmCallees, cCallees: cCallees.length, asmCallers, cCallers: cCallers.length, statically: callersOf.length === 0 ? "unreferenced (no static caller: a table/pointer target or dead)" : `${callersOf.length} static callers`,
       attempts: h.attempts ?? 0, lastDistance: h.lastDistance ?? null, lastCompile: h.lastCompile ?? null, placeholderPrototype: h.placeholderPrototype ?? null, payoff,
       workClass: classOf.get(n),
       // Evidence identity, so a score can be traced to the tree it was measured on.
       evidenceDependencyHash: h.dependencyHash ?? null,
+      evidenceFreshness: h.freshness ?? "unmeasured",
       ...(h.historicalAttempts ? { historicalAttempts: h.historicalAttempts, historicalBestDistance: h.historicalBestDistance ?? null } : {}),
       ...(h.staleEvidenceWarning ? { staleEvidenceWarning: h.staleEvidenceWarning } : {}),
       // §10: four DIFFERENT states, previously collapsed into `attempts: 0`.
       // "Avoid treating low numerical distance as automatically easy: a
       // one-word branch residue can require deeper work than a larger
       // structural mismatch." So this states what is KNOWN, not how hard it is.
-      evidenceState: (h.attempts ?? 0) > 0 ? "active-current-tree-candidate"
+      evidenceState: h.freshness === "unknown" ? "current-identity-unavailable" : (h.attempts ?? 0) > 0 ? "active-current-tree-candidate"
         : h.historicalAttempts ? "historical-candidate-needs-refresh"
         : researchLeads.has(n) ? "research-drafts-exist-unmeasured"
         : "no-api-measurement",
-      evidenceStateMeaning: (h.attempts ?? 0) > 0
+      evidenceStateMeaning: h.freshness === "unknown" ? "current input identity could not be established; stored measurements are not current ranking evidence" : (h.attempts ?? 0) > 0
         ? "measured against the CURRENT tree: lastDistance is a real number for this source"
         : h.historicalAttempts
           ? "measured, but against a DIFFERENT tree: the numbers do not apply until refreshed"
@@ -254,7 +262,12 @@ export async function planWork(project, { limit = 40, offset = 0, objective = "b
     // The objective's score and the FACTORS behind it, so a caller can see why
     // a row ranks where it does instead of trusting an opaque number.
     const o = objectiveScore(r, objective);
-    return { ...r, objectiveScore: o.score, objectiveFactors: o.factors };
+    const hint = hints[r.symbol];
+    const cooldown = experimentCooldown(experiments, { symbol: r.symbol, segment: r.segment,
+      snapshot: hint?.latestSnapshot,
+      ignore: ignoreCooldown, threshold: cooldownBatches, durationMs: cooldownMinutes * 60_000, proposedLever });
+    return { ...r, cooldown, objectiveScore: o.score * cooldown.factor,
+      objectiveFactors: { ...o.factors, beforeCooldown: o.score, cooldownFactor: cooldown.factor } };
   }).sort((a, b) => b.objectiveScore - a.objectiveScore || b.payoff - a.payoff);
   // Batches: connected components over asm↔asm edges within one TU.
   const byName = new Map(rows.map((r) => [r.symbol, r]));
@@ -273,7 +286,7 @@ export async function planWork(project, { limit = 40, offset = 0, objective = "b
     // straight back to op:'batch'. `functions` stays as bare names for
     // backwards compatibility, but it cannot identify an overlay function.
     const targets = comp.map((n) => {
-      const seg = segmentOfObject(byName.get(n).object);
+      const seg = byName.get(n).segment;
       return seg ? { symbol: n, segment: seg } : { symbol: n };
     });
     batches.push({ tu: r.tu, functions: comp, targets, bytes, payoff: comp.reduce((s, n) => s + byName.get(n).payoff, 0), reason: comp.length > 1 ? "call each other inside one TU — decompile together so the shared struct/prototype fixes land once" : "isolated in its TU" });
@@ -305,22 +318,22 @@ export async function planWork(project, { limit = 40, offset = 0, objective = "b
  * compile.js keys every stored result on this hash, so it is the only honest
  * way to ask "was this evidence measured against the tree I have?". Computed
  * per TU (there are far fewer TUs than functions) and best-effort: a TU whose
- * hash cannot be computed simply contributes nothing, and evidence for it
- * falls back to the newest-written group.
+ * hash cannot be computed has UNKNOWN freshness. Historical results never
+ * stand in for a measurement against an unidentified tree.
  */
 async function currentDepHashes(project, symbols, g) {
   const { dependencyHash } = await import("./project.js");
   const tus = new Set();
   for (const n of symbols) { const t = objectToTu(g.object[n], project); if (t) tus.add(t); }
-  const hashes = new Set();
+  const hashes = new Map();
   await Promise.all([...tus].map(async (tuRel) => {
     try {
       const inv = await project.compileInvocation(tuRel);
       const dep = await dependencyHash(project, tuRel, inv);
-      if (dep?.hash) hashes.add(dep.hash);
+      if (dep?.hash && dep.depsOk) hashes.set(tuRel, dep.hash);
     } catch { /* unbuildable/missing TU: no current hash to match against */ }
   }));
-  return hashes;
+  return new Map(symbols.map((symbol) => [symbol, hashes.get(objectToTu(g.object[symbol], project)) ?? null]));
 }
 
 function objectToTu(obj, project) {
@@ -336,8 +349,10 @@ export async function loadCandidateEvidence(project, { currentDependencyHashes }
   if (!fs.existsSync(dir)) return out;
   // A result's identity lives in its FILENAME: `<dependencyHash>-<candidateSha>-v<verifier>`.
   // (compile.js builds exactly that key, so the cache already honours it.)
-  const ID = /^([0-9a-f]+)-([0-9a-f]+)-v(\d+)\.result\.json$/;
-  const currentSet = currentDependencyHashes ? new Set(currentDependencyHashes) : null;
+  const ID = /^([0-9a-f]+)-([0-9a-f]+)(?:-i[0-9a-f]+-q[0-9a-f]+)?-v(\d+)(?:-r[0-9a-f-]+)?\.result\.json$/;
+  const currentMap = currentDependencyHashes instanceof Map ? currentDependencyHashes : null;
+  const currentSet = currentDependencyHashes && !currentMap ? new Set(currentDependencyHashes) : null;
+  const freshnessMemo = new Map();
 
   for (const sym of fs.readdirSync(dir)) {
     const d = path.join(dir, sym);
@@ -354,14 +369,22 @@ export async function loadCandidateEvidence(project, { currentDependencyHashes }
         try { mtime = fs.statSync(path.join(d, f)).mtimeMs; } catch {}
         try {
           const r = JSON.parse(fs.readFileSync(path.join(d, f), "utf8"));
-          const dep = m?.[1] ?? null;
+          const dep = r.compiler?.dependencyHash ?? m?.[1] ?? null;
           if (!dep) { unidentified++; continue; }   // pre-identity file: countable, never rankable
-          if (!byDep.has(dep)) byDep.set(dep, { dep, attempts: 0, best: null, lastCompile: null, newestMs: 0 });
-          const e = byDep.get(dep);
+          const expected = currentMap?.get(sym) ?? (currentSet?.has(dep) ? dep : null);
+          const freshness = await storedMeasurementFreshness(project, r, { dependencyHash: expected, memo: freshnessMemo });
+          const eligible = freshness.state === "current" && r.inputIdentity?.schema === "romdev-compilation-input-v1"
+            && r.inputIdentity.ownerMode === "live" && r.measurementValidity?.state === "valid"
+            && r.verifierVersion === VERIFIER_VERSION;
+          const groupKey = `${dep}:${eligible ? "live" : "historical"}`;
+          if (!byDep.has(groupKey)) byDep.set(groupKey, { dep, eligible, attempts: 0, best: null, lastCompile: null, newestMs: 0 });
+          const e = byDep.get(groupKey);
           e.attempts++;
           // `lastCompile` must be the NEWEST attempt, not whichever file the
           // directory happened to yield last.
-          if (mtime >= e.newestMs) { e.newestMs = mtime; e.lastCompile = r.compileSucceeded; }
+          if (mtime >= e.newestMs) { e.newestMs = mtime; e.lastCompile = r.compileSucceeded;
+            e.latestInput = r.inputIdentity?.sha256 ?? null; e.latestSegment = r.inputIdentity?.segment ?? null;
+            e.latestSnapshot = measurementSnapshot(r); }
           if (r.distance && (e.best == null || r.distance.value < e.best)) e.best = r.distance.value;
           if (r.verdict?.functionLocal === "exact" && r.verifierVersion === VERIFIER_VERSION) e.best = 0;
         } catch {}
@@ -371,10 +394,10 @@ export async function loadCandidateEvidence(project, { currentDependencyHashes }
     }
 
     const groups = [...byDep.values()].sort((a, b) => b.newestMs - a.newestMs);
-    // WHICH GROUP IS "CURRENT". When the caller knows the TU's dependency hash
-    // (planWork computes it), that is authoritative. Otherwise fall back to the
-    // most recently written group, which is the best available proxy.
-    const current = (currentSet && groups.find((g) => currentSet.has(g.dep))) ?? groups[0] ?? null;
+    // Unknown or unmatched current identities have no current measurement.
+    // Recency is not a substitute for identity, including after a tree edit.
+    const expectedHash = currentMap?.get(sym) ?? null;
+    const current = groups.find((g) => g.eligible && (currentMap ? expectedHash && g.dep === expectedHash : currentSet?.has(g.dep))) ?? null;
     const historical = groups.filter((g) => g !== current);
 
     out[sym] = {
@@ -384,13 +407,17 @@ export async function loadCandidateEvidence(project, { currentDependencyHashes }
       lastCompile: current?.lastCompile ?? null,
       placeholderPrototype: placeholder,
       dependencyHash: current?.dep ?? null,
+      latestInput: current?.latestInput ?? null, latestSnapshot: current?.latestSnapshot ?? null,
+      latestSegment: current?.latestSegment ?? null,
+      expectedDependencyHash: expectedHash,
+      freshness: current ? "current" : expectedHash || currentSet?.size ? "current-unmeasured" : "unknown",
       // Everything else stays VISIBLE but out of the score. A stale best that
       // still looks good is exactly what misranks the queue: on this workspace
       // func_801EB4F4 scored 6.8 from an old header layout while the current
       // tree gives 82.45 — a 12x misranking that would send a permuter budget
       // at a function that is not close.
       historicalAttempts: historical.reduce((s, g) => s + g.attempts, 0),
-      historicalBestDistance: historical.length ? Math.min(...historical.map((g) => g.best).filter((v) => v != null)) : null,
+      historicalBestDistance: historical.some((g) => g.best != null) ? Math.min(...historical.map((g) => g.best).filter((v) => v != null)) : null,
       dependencyHashesSeen: groups.length,
       ...(unidentified ? { unidentifiedResults: unidentified } : {}),
       ...(historical.length && current?.best != null

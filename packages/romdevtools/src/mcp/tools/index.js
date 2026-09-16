@@ -33,6 +33,7 @@ import { registerSymbolTools } from "./symbols.js";
 import { registerRomIdTools } from "./rom-id.js";
 import { registerDiffRomsTools } from "./diff-roms.js";
 import { registerFreeSpaceTools } from "./free-space.js";
+import { requestStats } from "../../observer/request-stats.js";
 import { registerReinjectTools } from "./reinject.js";
 import { registerSpliceChrTools } from "./splice-chr.js";
 import { registerCartPartsTools } from "./cart-parts.js";
@@ -342,6 +343,7 @@ export function registerTools(server, z, sessionKey) {
           // reaped after hostIdleMs of disuse. (This server was OOM-killed
           // twice on 2026-08-19 with no such visibility.)
           serverHealth: {
+            requestTelemetry: requestStats.snapshot(),
             rssMb: Math.round(process.memoryUsage().rss / 1048576),
             ...hostLifetimeStats(),
             // HTTP sessions each hold a ~20 MB tool registry until shutdown,
@@ -461,4 +463,3 @@ export function registerTools(server, z, sessionKey) {
     console.error("[mcp] category registration failed:", e?.message ?? e);
   }
 }
-

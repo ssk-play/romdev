@@ -13,7 +13,6 @@
 // CANDIDATE_REJECTED, SEARCH_IMPORT_FAILED, JOB_NOT_FOUND, CANCELLED,
 // LOST_RUNTIME_STATE, PC_BREAK_UNSUPPORTED, UNSUPPORTED_OP).
 import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { jsonContent, safeTool } from "../util.js";
@@ -118,7 +117,7 @@ export function registerDecompTools(server, z, sessionKey) {
       forceGraph: z.boolean().default(false).describe("op:'plan' — rebuild the call graph instead of using the content-addressed cache."),
 
       inputPath: z.string().optional().describe("op:'assets' action:'repack' — the edited payload to compress back into a container."),
-      outputPath: z.string().optional().describe("op:'assets' — where action:'unpack' writes the decoded payload, and where action:'repack' writes the rebuilt container. Defaults to <workspace>/assets/."),
+      outputPath: z.string().optional().describe("op:'assets' — unpack/repack destination. op:'workbench' — complete JSON report destination; oversized reports otherwise go to the workspace automatically, with a compact response."),
       batch: z.string().optional().describe("op:'artifacts' action:'restore' — which prune batch to put back (default: the most recent). A batch id comes from a prune's `trash` path."),
       romOffset: z.number().int().optional().describe("op:'assets' — ROM offset of a range to identify/round-trip. Omit to scan every bin range."),
       length: z.number().int().optional().describe("op:'assets' — byte length of the range at `romOffset`."),
@@ -135,6 +134,7 @@ export function registerDecompTools(server, z, sessionKey) {
       wbGroup: z.string().optional().describe("op:'workbench' — command group (object, campaign, experiment, probe, trace, permute, sweep, oracle, pass, instrument, ...). Omit wbCommand to list the discovered catalog."),
       wbCommand: z.string().optional().describe("op:'workbench' — the command inside the group (e.g. 'diagnose', 'compare', 'collateral', 'staleness', 'linked-compare', 'reloc-proof'). Omit to get the catalog instead of running anything."),
       wbArgs: z.array(z.string()).optional().describe("op:'workbench' — positional args and flags passed through verbatim (e.g. [targetObj, candidateObj]). The project's --objdump is appended automatically when you do not pass one."),
+      traceMode: z.enum(["scheduler", "globalcolor"]).optional().describe("op:'workbench' with artifactId: scheduler captures native IDO -Wa,-R; globalcolor explicitly opts into building a workspace-only diagnostic IDO 5.3 uopt with the existing workbench's pinned profile. No project compiler is replaced. Both tracing-disabled and tracing-enabled diagnostic objects must equal the compared object before allocator attribution. Baseline optimization flags stay unchanged."),
       allowDestructive: z.boolean().default(false).describe("op:'workbench' — required to run a command the workbench's OWN catalog marks destructive."),
       allowNetwork: z.boolean().default(false).describe("op:'workbench' — required to run a command the workbench's OWN catalog marks as reaching the network."),
       timeoutMs: z.number().int().min(1000).max(3_600_000).optional().describe("op:'workbench' — per-command timeout (default 600000)."),
@@ -151,24 +151,29 @@ export function registerDecompTools(server, z, sessionKey) {
       tu: z.string().optional().describe("op:'plan'/'map' — restrict to one translation unit (relative path)."),
       limit: z.number().int().min(1).max(500).default(40).describe("op:'plan' — page size. The full ranked set is paged, so a small limit never silently excludes the rest: the response reports `page.hasMore` and `page.nextOffset`."),
       offset: z.number().int().min(0).default(0).describe("op:'plan' — start of the page into the ranked queue."),
+      ignoreCooldown: z.boolean().default(false).describe("op:'plan': deliberately rank hard targets without the temporary no-progress penalty; recorded reasons remain visible."),
+      cooldownBatches: z.number().int().min(1).max(100).default(3).describe("op:'plan': independent current-baseline no-progress batches before a temporary rank penalty."),
+      cooldownMinutes: z.number().int().min(1).max(10080).default(60).describe("op:'plan': duration of the no-progress rank penalty; no target is excluded."),
+      proposedLever: z.string().optional().describe("op:'plan': a genuinely new diagnosis lever bypasses cooldown; existing lever outcomes remain historical evidence, not family-wide exhaustion."),
       objective: z.enum(["byte-coverage", "function-count", "shared-type", "diagnostic-research"]).default("byte-coverage").describe("op:'plan' — what to optimise the queue FOR. byte-coverage ranks large routines first (default); function-count ranks small well-constrained targets first, which is the right queue for 'another N verified functions'; shared-type ranks functions whose typed neighbours already pin their structs; diagnostic-research ranks measured near-misses. Each row reports the factors behind its rank; no completion-time estimates are invented."),
       // DECLARED TWICE before: the op:'batch' version silently replaced the
       // op:'dispatch' one and narrowed its ceiling from 512 to 64. Same
       // duplicate-key bug that made five `action` vocabularies unreachable.
-      maxFunctions: z.number().int().min(1).max(512).default(12).describe("op:'batch' — cap on functions run (default 12). op:'dispatch' — cap on functions processed this run (default 64)."),
+      maxFunctions: z.number().int().min(1).max(512).default(12).describe("op:'batch'/'dispatch': cap on functions. op:'variants': cap on variants. op:'job' action:'report': cap on saved search outputs recompiled for residual/output-identity verification (default 12). Truncation remains explicit."),
       timeBudgetS: z.number().int().min(10).max(86400).default(600).describe("op:'batch' — wall-clock budget (default 600). op:'dispatch' — wall-clock budget; remaining functions come back as `skipped`."),
       candidatePath: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate'/'variants'/'experiment' — path to a C file holding the function definition (+ any local declarations it needs). op:'artifacts' action:'pin' — the candidate to pin."),
       candidateText: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate'/'variants'/'experiment' — the candidate C inline (alternative to candidatePath)."),
       variants: z.array(z.object({
         id: z.string().describe("stable id for this variant, used in the results table"),
         hypothesis: z.string().optional().describe("the ONE thing this variant tests"),
+        lever: z.string().optional().describe("op:'variants': diagnosis experiment id, e.g. declaration-order; links this exact measured input to prior outcomes without exhausting the whole lever"),
         find: z.string().optional().describe("literal text in the baseline to replace; must occur EXACTLY once"),
         replace: z.string().optional().describe("what to replace it with (omit to delete)"),
         candidateText: z.string().optional().describe("full replacement source, instead of find/replace"),
       })).optional().describe("op:'variants' — a bounded list of named source variants measured against one baseline under ONE dependency snapshot. Duplicate sources and byte-identical outputs are reported rather than silently dropped."),
       prefer: z.enum(["best", "newest"]).default("best").describe("op:'diagnose'/'layout' — which stored comparison a SYMBOL-ONLY call analyses. 'best' (default) = fewest ROM-linked mismatches, ties by recency; 'newest' = most recently compared. The chosen artifact, the policy and the alternatives are always reported, because a symbol-only call does not automatically describe your latest candidate."),
-      artifactId: z.string().optional().describe("op:'diagnose'/'layout' — a stored compare artifact (the `.diff.json` path from a compare's `artifacts.diff`, or its cache key). The diagnosis reuses that comparison's exact streams; no recompile."),
-      tracePath: z.string().optional().describe("op:'diagnose' — an as1 `-Wa,-R` trace of the SAME compile, for source-line attribution and scheduling priorities. Optional: without it mechanisms are inferred from the instruction streams alone and the response says so."),
+      artifactId: z.string().optional().describe("op:'diagnose'/'layout'/'workbench' — stored compare `.diff.json` path or cache key. Diagnose/layout reuse streams. Workbench object diagnose resolves and verifies retained objects; trace scheduler captures a verified native trace from the retained TU."),
+      tracePath: z.string().optional().describe("op:'diagnose' — as1 trace with its .manifest.json bundle from workbench trace capture. Source attribution requires verified invocation and emitted-object equality; loose logs remain explicitly unverified."),
       ownerPath: z.string().optional().describe("op:'compare' — REPLAY FIXTURE: compile the candidate into this saved owner TU instead of the one in the current tree. Use the pre-integration backup to re-verify a function that has since been integrated; without it the accepted definition is already present and the compile fails with 'redeclaration'."),
       contextHash: z.string().optional().describe("op:'compare' — the context hash the candidate was generated against; the result flags contextStale when the TU/headers/flags changed since."),
       declarations: z.string().optional().describe("op:'compare'/'integrate'/'variants'/'generate' — extra declarations (proposed structs/prototypes) placed before the function in the TU copy; pair with the same text passed to generate as extraContext."),
@@ -181,9 +186,13 @@ export function registerDecompTools(server, z, sessionKey) {
       noCache: z.boolean().default(false).describe("op:'compare'/'variants' — recompile even if this candidate was compared under the same dependency hash. op:'context' — rebuild the context cache."),
       verifyTu: z.boolean().default(true).describe("op:'compare'/'variants' — also check every OTHER function in the TU's object is unchanged."),
       timeLimitS: z.number().int().min(10).max(86400).default(300).describe("op:'search' — wall-clock budget."),
-      threads: z.number().int().min(1).max(32).default(2).describe("op:'search' — permuter worker threads."),
-      detail: z.boolean().default(false).describe("op:'compare' — return the FULL result (compiler invocation, per-word evidence, changed ranges, diff preview). Default false: the compact response carries the verdict and a residual summary, and every omitted field is on disk at the paths in `artifacts`."),
-      preflight: z.boolean().default(true).describe("op:'search' — compile and compare the base ONCE before spending the search budget. A base that does not compile cannot be permuted and one that is already exact needs no search; both are refused up front. Set false to skip."),
+      purpose: z.string().min(1).optional().describe("op:'search': required statement of which residual/hypothesis justifies spending this budget."),
+      mutationPasses: z.array(z.string()).min(1).optional().describe("op:'search': backend pass names to enable exclusively, e.g. perm_reorder_decls or perm_sameline. Validated against the installed backend; other randomization weights become zero."),
+      noImprovementS: z.number().int().min(1).max(86400).default(30).describe("op:'search': stop after this many seconds without a better backend score. Process-local watchdog; total budget remains enforced across server restart."),
+      repeatSearch: z.boolean().default(false).describe("op:'search': explicitly repeat an identical baseline/family/seed scope previously measured without improvement; previous jobs remain visible."),
+      threads: z.number().int().min(1).max(32).optional().describe("op:'search' — permuter workers (default 2). op:'variants' — bounded compile workers, 1 or 2 only (default 1); baseline always runs first. Same option, no separate batch tool."),
+      detail: z.boolean().default(false).describe("op:'compare' — return full evidence instead of the compact verdict/residuals. op:'workbench' — explicitly inline the full report even when large; default oversized reports are saved on disk with a bounded projection."),
+      preflight: z.boolean().default(true).describe("op:'search' — compile and identify the base before spending search budget. A non-compiling, invalid or already-exact base is refused. Legacy false is rejected because an unidentified baseline cannot support measured search conclusions."),
       seed: z.string().optional().describe("op:'search' — permuter seed. The backend accepts ONLY integers: 'rngSeed' (e.g. '297') or 'permuterIndex,rngSeed' (e.g. '0,297'). A descriptive label ([A-Za-z0-9][A-Za-z0-9._-]*) is accepted too and mapped DETERMINISTICALLY onto that space; the response returns the mapping so the run can be reproduced. An unusable seed is refused synchronously, before any job directory or process exists. Seed identity fixes the mutation stream, NOT thread scheduling: with threads>1 the ORDER results arrive still varies."),
       jobId: z.string().optional().describe("op:'job' — the job to inspect/cancel/report."),
       resumeFrom: z.string().optional().describe("op:'search' — a previous jobId whose best candidate becomes the base."),
@@ -320,7 +329,40 @@ export function registerDecompTools(server, z, sessionKey) {
           // Supply what the workbench cannot know: this project's objdump and
           // its runtime library path. A project-local binutils fails to load
           // without them, with an error that reads like a workbench bug.
-          const wbArgs = [...(args.wbArgs ?? [])];
+          let wbArgs = [...(args.wbArgs ?? [])], artifactProvenance = null, traceBundle = null;
+          if (args.traceMode && !args.artifactId) throw new Error("traceMode requires artifactId to establish the measured baseline");
+          if (args.artifactId) {
+            const scheduler = args.wbGroup === "trace" && args.wbCommand === "scheduler";
+            const globalcolor = args.wbGroup === "trace" && args.wbCommand === "globalcolor";
+            if (!scheduler && !globalcolor && (args.wbGroup !== "object" || args.wbCommand !== "diagnose")) throw new Error("artifactId resolves object diagnose, trace scheduler or trace globalcolor inputs automatically");
+            if (globalcolor && args.traceMode !== "globalcolor") throw new Error("trace globalcolor with artifactId requires traceMode:'globalcolor' to opt into a workspace diagnostic compiler build");
+            if (scheduler && args.traceMode === "globalcolor") throw new Error("scheduler command cannot consume a globalcolor trace");
+            const filters = wbArgs;
+            const allowed = globalcolor ? ["--proc", "--web", "--top", "--desired-register", "--lineage-table", "--dtype"]
+              : scheduler ? ["--proc", "--block", "--limit"] : [];
+            for (let i = 0; i < filters.length; i += 2) if (!allowed.includes(filters[i]) || !filters[i + 1] || filters[i + 1].startsWith("--")) throw new Error("artifact-bound wbArgs accepts only paired report filters, not input/identity overrides");
+            const artifact = args.artifactId.endsWith(".diff.json") || args.artifactId.endsWith(".result.json")
+              ? args.artifactId : path.join(project.ws, "candidates", (await resolveFn()).symbol, `${args.artifactId}.diff.json`);
+            const { artifactWorkbenchInput } = await import("../../decomp/workbench.js");
+            const bound = await artifactWorkbenchInput(project, artifact);
+            wbArgs = bound.args; artifactProvenance = bound.provenance;
+            if (args.traceMode === "globalcolor") {
+              const { captureGlobalcolorTrace } = await import("../../decomp/globalcolor-trace.js");
+              traceBundle = await captureGlobalcolorTrace(project, artifact);
+              if (traceBundle.verification?.equivalent) wbArgs = globalcolor
+                ? [traceBundle.tracePath, ...filters] : [...wbArgs, "--trace", traceBundle.tracePath];
+              else if (globalcolor) return jsonContent({ project: project.id, artifactProvenance, traceBundle,
+                unavailable: "diagnostic compiler failed off/on fidelity verification; no allocator attribution is claimed" });
+            } else if (args.traceMode === "scheduler" || scheduler) {
+              const { captureSchedulerTrace } = await import("../../decomp/workbench.js");
+              traceBundle = await captureSchedulerTrace(project, artifact);
+              if (traceBundle.verification?.equivalent) wbArgs = scheduler
+                ? [traceBundle.tracePath, "--from-as1-r", "--limit", "40", ...filters]
+                : [...wbArgs, "--as1-trace", traceBundle.tracePath];
+              else if (scheduler) return jsonContent({ project: project.id, artifactProvenance, traceBundle,
+                unavailable: "trace failed equivalence verification; no scheduler attribution is claimed" });
+            }
+          }
           const objdump = project.m.toolchain?.objdump?.path;
           if (objdump && !wbArgs.includes("--objdump")) {
             // ASK THE COMMAND, do not assume. Appending --objdump
@@ -332,12 +374,13 @@ export function registerDecompTools(server, z, sessionKey) {
             const inv = Array.isArray(spec?.invocation) ? spec.invocation.slice(1) : [args.wbGroup, args.wbCommand].filter(Boolean);
             if (await commandAcceptsFlag(inv, "--objdump")) wbArgs.push("--objdump", objdump);
           }
-          const res = await invokeWorkbench({
+          const { compactWorkbenchReport } = await import("../../decomp/workbench.js");
+          const res = await compactWorkbenchReport(project, await invokeWorkbench({
             group: args.wbGroup, command: args.wbCommand, args: wbArgs,
             cwd: project.root, env: project.env, timeoutMs: args.timeoutMs ?? 600_000,
             allowDestructive: !!args.allowDestructive, allowNetwork: !!args.allowNetwork,
-          });
-          return jsonContent({ project: project.id, ...res,
+          }), { outputPath: args.outputPath, detail: args.detail });
+          return jsonContent({ project: project.id, ...res, ...(artifactProvenance ? { artifactProvenance } : {}), ...(traceBundle ? { traceBundle } : {}),
             exitCodes: catalog.exitCodes,
             interpretation: res.isGate
               ? "exit 1 = gate/no-result: the workbench answered, and the answer is 'no'. This is NOT a failure."
@@ -431,13 +474,14 @@ export function registerDecompTools(server, z, sessionKey) {
           let diffPath = args.artifactId ?? null;
           let selection;
           if (!diffPath) {
-            selection = await selectArtifact(project, fn.symbol, { prefer: args.prefer });
+            selection = await selectArtifact(project, fn.symbol, { prefer: args.prefer, fn });
             diffPath = selection.path;
           } else {
             if (!String(diffPath).endsWith(".diff.json")) diffPath = path.join(project.ws, "candidates", fn.symbol, `${diffPath}.diff.json`);
             selection = { path: diffPath, policy: "explicit", why: "the caller named this artifact" };
           }
           const stored = JSON.parse(await readFile(diffPath, "utf8"));
+          if (selection?.policy === "explicit") selection = await (await import("../../decomp/artifact-select.js")).describeExplicitArtifact(project, diffPath);
           return jsonContent({ project: project.id, symbol: fn.symbol, segment: fn.segment ?? null, artifact: diffPath,
             selection,
             ...L.layoutReport({ targetStream: stored.target ?? [], candidateStream: stored.candidate ?? [] }) });
@@ -459,8 +503,10 @@ export function registerDecompTools(server, z, sessionKey) {
             const g = semanticGate({ candidateText: text, baselineText: base.text });
             return { classification: g.classification, counts: g.counts, findings: g.findings.slice(0, 4) };
           };
-          return jsonContent({ project: project.id,
-            ...(await V.runVariantBatch(project, fn, { baselineText: base.text, variants: args.variants, compare, gate, maxVariants: args.maxFunctions ?? 12, ownerPath: args.ownerPath ?? null })) });
+          const batch = await V.runVariantBatch(project, fn, { baselineText: base.text, variants: args.variants, compare, gate, maxVariants: args.maxFunctions ?? 12, ownerPath: args.ownerPath ?? null, threads: args.threads ?? 1 });
+          const { recordVariantExperiment } = await import("../../decomp/experiment.js");
+          const experiment = await recordVariantExperiment(project, batch, { hypothesis: args.hypothesis, lever: args.lever, family: args.family });
+          return jsonContent({ project: project.id, ...batch, experiment });
         }
         case "research": {
           // DISCOVERY, kept apart from measurement. Nothing imported here is a
@@ -507,7 +553,7 @@ export function registerDecompTools(server, z, sessionKey) {
           let selection = null;
           if (!diffPath) {
             const fn0 = await resolveFn();
-            selection = await selectArtifact(project, fn0.symbol, { prefer: args.prefer });
+            selection = await selectArtifact(project, fn0.symbol, { prefer: args.prefer, fn: fn0 });
             diffPath = selection.path;
           } else if (!diffPath.endsWith(".diff.json")) {
             const fn0 = await resolveFn();
@@ -519,6 +565,7 @@ export function registerDecompTools(server, z, sessionKey) {
           let stored;
           try { stored = JSON.parse(await readFile(diffPath, "utf8")); }
           catch (e) { throw Object.assign(new Error(`cannot read the comparison artifact '${diffPath}': ${e.message}`), { code: "NO_ARTIFACT" }); }
+          if (selection?.policy === "explicit") selection = await (await import("../../decomp/artifact-select.js")).describeExplicitArtifact(project, diffPath);
 
           // TRACE PROVENANCE. "Do not silently change optimization flags or
           // compiler binary to obtain a trace. First establish that the traced
@@ -527,62 +574,9 @@ export function registerDecompTools(server, z, sessionKey) {
           // so it is reported as such rather than used.
           let traceText = null, traceProvenance = null;
           if (args.tracePath) {
-            traceText = await readFile(args.tracePath, "utf8");
-            // STRONGER EVIDENCE THAN WORD COVERAGE, when it is available.
-            //
-            // Coverage compares instruction words, which cannot distinguish the
-            // same source built with different flags if both emit the same
-            // words. A trace bundle usually sits beside the OBJECT from the
-            // traced compile (`trace.o`); its .text bytes pin the build far
-            // harder than word equality does, and the compile invocation's
-            // fingerprint is recorded in the stored result. Use whichever of
-            // those exist, and say which was used.
-            const traceDir = path.dirname(args.tracePath);
-            let objectEvidence = null;
-            for (const name of ["trace.o", "target.o"]) {
-              const cand = path.join(traceDir, name);
-              try {
-                const bytes = await readFile(cand);
-                objectEvidence = { path: cand, bytes: bytes.length,
-                  sha256: createHash("sha256").update(bytes).digest("hex").slice(0, 16) };
-                break;
-              } catch {}
-            }
-            if (objectEvidence) {
-              const storedFp = stored.compilerFingerprint ?? null;
-              objectEvidence.note = "the object emitted by the traced compile sits beside the trace. Its bytes pin the traced build much harder than instruction-word coverage, which cannot separate two builds that emit the same words."
-                + (storedFp ? "" : " The stored comparison did not record a compiler fingerprint, so the invocation itself is still unverified.");
-            }
-            traceProvenance = { objectEvidence };
-            const parsed = D.parseAs1Trace(traceText);
-            // Compare with assembler-patched fields masked: a trace prints
-            // instructions BEFORE branch displacements and relocated
-            // immediates are filled in, so raw-word comparison penalises every
-            // branch and store and would reject correct traces.
-            const traceWords = new Set(parsed.nodes.map((n) => D.maskPatchable(n.word >>> 0)));
-            const candWords = (stored.candidate ?? []).map((i) => D.maskPatchable(i.word >>> 0));
-            const covered = candWords.filter((w) => traceWords.has(w)).length;
-            const coverage = candWords.length ? covered / candWords.length : 0;
-            const byteInert = coverage >= 0.9;
-            // Exactly how strong is this evidence? Coverage compares the
-            // trace's instruction words against the candidate's, with the
-            // fields the assembler patches masked out. State the threshold and
-            // what it can and cannot rule out, so nobody reads "byteInert" as
-            // a proof of provenance it is not.
-            const uncovered = candWords.length - covered;
-            traceProvenance = { ...traceProvenance, path: args.tracePath, nodes: parsed.nodeCount, regions: parsed.regionCount,
-              candidateWordsCovered: covered, candidateWords: candWords.length, uncoveredWords: uncovered,
-              coverage: Number(coverage.toFixed(3)), threshold: 0.9, byteInert,
-              method: "each candidate instruction word is looked up among the trace's node words, with branch displacements and relocated immediates masked (the assembler fills those in after scheduling, so an unmasked comparison penalises every branch and store).",
-              detects: "a trace of a DIFFERENT candidate, a different function, or a truncated/wrong-file trace: those diverge in instruction words and fall below the threshold.",
-              cannotDetect: objectEvidence
-                ? "with the traced object present, a same-source/different-flags build would have to emit a byte-identical object to pass unnoticed. Word coverage alone could not rule that out; the object can. What is still unverified is the INVOCATION: compare `objectEvidence.sha256` against a build you made with the flags `decomp({op:'resolve'})` reports for this TU if you need that pinned."
-                : "a trace of the SAME source compiled with different optimisation flags or a different compiler build, when that compile happens to emit the same instruction words. Word equality is necessary evidence of provenance, not sufficient — nothing in the trace text records the invocation that produced it. Keep the traced OBJECT (trace.o) beside the trace: this check will use it and the blind spot narrows to byte-identical objects.",
-              evidenceStrength: objectEvidence ? "instruction-word coverage PLUS the traced object's bytes" : "instruction-word coverage only (no trace.o or target.o beside the trace)",
-              verdict: byteInert
-                ? `the traced compile emits ${covered}/${candWords.length} of the candidate's words (>= the ${0.9} threshold), so the trace describes a build that agrees with THIS candidate instruction for instruction`
-                : `WARNING: the trace covers only ${covered}/${candWords.length} of the candidate's words (below the ${0.9} threshold). It is from a different compile. Source-line attribution from it is NOT trustworthy — regenerate the trace from the same invocation.` };
-            if (!byteInert) traceText = null;  // refuse to attribute from a mismatched trace
+            const { verifyTraceBundle } = await import("../../decomp/workbench.js");
+            traceProvenance = await verifyTraceBundle(project, diffPath, args.tracePath);
+            if (traceProvenance.equivalent) traceText = await readFile(args.tracePath, "utf8");
           }
 
           const diag = D.diagnoseResiduals({
@@ -590,9 +584,18 @@ export function registerDecompTools(server, z, sessionKey) {
             strict: stored.strict ?? { mismatches: [] },
             trace: traceText, traceProvenance,
           });
+          const { listExperiments, annotateExperimentHistory } = await import("../../decomp/experiment.js");
+          const { measurementSnapshot } = await import("../../decomp/measurement.js");
+          let comparison = null;
+          try { comparison = JSON.parse(await readFile(diffPath.replace(/\.diff\.json$/, ".result.json"), "utf8")); } catch {}
+          annotateExperimentHistory(diag, await listExperiments(project, { symbol: args.symbol }), {
+            symbol: comparison?.function?.symbol ?? args.symbol, segment: comparison?.function?.segment ?? args.segment,
+            baselineInput: comparison?.inputIdentity?.sha256, baselineOutput: comparison?.outputIdentity,
+            snapshot: comparison ? measurementSnapshot(comparison) : null,
+          });
           return jsonContent({ project: project.id, symbol: args.symbol ?? null, artifact: diffPath,
             selection,
-            ...(traceProvenance && !traceProvenance.byteInert ? { traceRejected: traceProvenance } : {}),
+            ...(traceProvenance && !traceProvenance.equivalent ? { traceRejected: traceProvenance } : {}),
             ...diag });
         }
         case "gate": {
@@ -870,7 +873,8 @@ export function registerDecompTools(server, z, sessionKey) {
         }
         case "plan": {
           const { planWork } = await import("../../decomp/plan.js");
-          return jsonContent({ project: project.id, ...(await planWork(project, { limit: args.limit, offset: args.offset, objective: args.objective, tu: args.tu, workClass: args.workClass, includeAllClasses: !!args.includeAllClasses, forceGraph: !!args.forceGraph })) });
+          return jsonContent({ project: project.id, ...(await planWork(project, { limit: args.limit, offset: args.offset, objective: args.objective, tu: args.tu, workClass: args.workClass, includeAllClasses: !!args.includeAllClasses, forceGraph: !!args.forceGraph,
+            ignoreCooldown: args.ignoreCooldown, cooldownBatches: args.cooldownBatches, cooldownMinutes: args.cooldownMinutes, proposedLever: args.proposedLever })) });
         }
         case "batch": {
           if (!args.symbols?.length) throw Object.assign(new Error("decomp({op:'batch'}): pass `symbols` (a batch from op:'plan')."), { code: "BAD_ARGS" });
@@ -923,19 +927,12 @@ export function registerDecompTools(server, z, sessionKey) {
           // result and diff artifacts, whose paths are in `artifacts`. `detail`
           // returns the full object for the one call that needs it.
           if (args.detail !== true) {
-            const { compiler, diffPreview, romLinked, evidence: ev, changedRanges, rodata, translationUnitCheck, ...core } = rest;
+            const { compiler, diffPreview, romLinked, changedRanges, rodata, translationUnitCheck, ...core } = rest;
+            const { residualSummary } = await import("../../decomp/measurement.js");
             return jsonContent({
               ...core,
               // The residual summary a caller acts on, without the word lists.
-              residuals: {
-                strictMismatches: rest.strictMismatches ?? null,
-                linkedMismatches: romLinked?.mismatches ?? null,
-                kinds: rest.differenceKinds ?? [],
-                changedRanges: changedRanges?.count ?? null,
-                registerSubstitutions: ev?.registerSubstitutions?.count ?? 0,
-                frame: ev?.stackFrame ?? null,
-                instructionCount: ev?.instructionCount ?? null,
-              },
+              residuals: residualSummary(r),
               romLinked: romLinked ? { status: romLinked.status, mismatches: romLinked.mismatches, target: romLinked.target ?? null, ...(romLinked.sizeDelta ? { sizeDelta: romLinked.sizeDelta } : {}), ...(romLinked.overflow ? { overflow: { candidateBytes: romLinked.overflow.candidateBytes, targetBytes: romLinked.overflow.targetBytes } } : {}) } : null,
               rodata: rodata ? { compared: rodata.compared ?? null, equal: rodata.equal ?? null, applicable: rodata.applicable ?? null, ...(rodata.limitation ? { limitation: rodata.limitation } : {}) } : null,
               translationUnit: translationUnitCheck?.status ?? rest.verification?.translationUnit ?? null,
@@ -948,7 +945,7 @@ export function registerDecompTools(server, z, sessionKey) {
         }
         case "search": {
           const fn = await resolveFn();
-          const { startSearch, jobStatus } = await import("../../decomp/jobs.js");
+          const { startSearch, jobStatus, searchBaseline } = await import("../../decomp/jobs.js");
           let base;
           if (args.resumeFrom) {
             const prev = await jobStatus(project, args.resumeFrom);
@@ -967,14 +964,13 @@ export function registerDecompTools(server, z, sessionKey) {
             const { compileAndCompare } = await import("../../decomp/compile.js");
             try {
               const r = await compileAndCompare(project, fn, { candidateText: base.text, candidatePath: base.path, label: "search-preflight" });
-              pre = { compileSucceeded: r.compileSucceeded, strictMismatches: r.strictMismatches ?? null,
-                linkedMismatches: r.romLinked?.mismatches ?? null, exactFunctionMatch: r.exactFunctionMatch,
-                firstDiagnostic: (r.diagnostics ?? []).find((d) => d.severity === "error")?.message?.slice(0, 200) ?? null };
+              pre = searchBaseline(r);
             } catch (e) {
               pre = { compileSucceeded: false, firstDiagnostic: String(e?.message ?? e).slice(0, 200) };
             }
           }
-          const j = await startSearch({ project, fn, baseCandidateText: base.text, timeLimitS: args.timeLimitS, threads: args.threads, seed: args.seed, label: args.label, resumeFrom: args.resumeFrom, preflight: pre });
+          const j = await startSearch({ project, fn, baseCandidateText: base.text, timeLimitS: args.timeLimitS, threads: args.threads, seed: args.seed, label: args.label, resumeFrom: args.resumeFrom, preflight: pre,
+            purpose: args.purpose, family: args.family, mutationPasses: args.mutationPasses, noImprovementS: args.noImprovementS, repeatSearch: args.repeatSearch });
           return jsonContent({ started: true, jobId: j.jobId, project: project.id, function: j.function, timeLimitS: j.timeLimitS, threads: j.threads, permuterDir: j.permuterDir, log: j.log, backend: j.backend,
             ...(j.seed ? { seed: j.seed, ...(j.seedFrom === "label" ? { seedRequested: j.seedRequested, seedMapping: j.seedMapping } : {}) } : {}),
             ...(pre ? { preflight: { compileSucceeded: pre.compileSucceeded, strictMismatches: pre.strictMismatches, linkedMismatches: pre.linkedMismatches, note: "the base was compiled and compared BEFORE the search launched, so a non-compiling or already-exact base costs one compile instead of the whole budget" } } : {}),
@@ -984,7 +980,7 @@ export function registerDecompTools(server, z, sessionKey) {
           if (!args.jobId) throw Object.assign(new Error("decomp({op:'job'}): jobId is required."), { code: "BAD_ARGS" });
           const { jobStatus, cancelJob, jobReport } = await import("../../decomp/jobs.js");
           if (args.action === "cancel") return jsonContent({ ...(await cancelJob(project, args.jobId)), code: "CANCELLED" });
-          if (args.action === "report") return jsonContent(await jobReport(project, args.jobId));
+          if (args.action === "report") return jsonContent(await jobReport(project, args.jobId, { maxOutputs: args.maxFunctions ?? 12 }));
           const s = await jobStatus(project, args.jobId);
           if (args.action === "best") {
             if (!s.best?.path) return jsonContent({ jobId: args.jobId, status: s.status, best: null, note: "no candidate written yet" });
@@ -1083,13 +1079,13 @@ async function runReplayCase(project, kase, { ownerFor, resolveFn }) {
       const text = await rf(kase.candidatePath, "utf8");
       const r = await compileAndCompare(project, fn, { candidateText: text, candidatePath: kase.candidatePath, label: `replay:${kase.id}`, noCache: true });
       const stored = JSON.parse(await rf(r.artifacts.diff, "utf8"));
-      const traceText = kase.tracePath ? await rf(kase.tracePath, "utf8") : null;
+      const WB = await import("../../decomp/workbench.js");
+      const tracePath = kase.traceMode === "scheduler"
+        ? (await WB.captureSchedulerTrace(project, r.artifacts.diff)).tracePath : kase.tracePath;
+      const traceText = tracePath ? await rf(tracePath, "utf8") : null;
       let traceAccepted = false, useTrace = null;
       if (traceText) {
-        const parsed = D.parseAs1Trace(traceText);
-        const tw = new Set(parsed.nodes.map((n) => D.maskPatchable(n.word >>> 0)));
-        const cw = (stored.candidate ?? []).map((i) => D.maskPatchable(i.word >>> 0));
-        traceAccepted = cw.length ? cw.filter((w) => tw.has(w)).length / cw.length >= 0.9 : false;
+        traceAccepted = (await WB.verifyTraceBundle(project, r.artifacts.diff, tracePath)).equivalent === true;
         useTrace = traceAccepted ? traceText : null;
       }
       const diag = D.diagnoseResiduals({ target: stored.target ?? [], candidate: stored.candidate ?? [], strict: stored.strict ?? { mismatches: [] }, trace: useTrace });
@@ -1142,16 +1138,16 @@ async function runReplayCase(project, kase, { ownerFor, resolveFn }) {
       // A REAL bounded search through the public path: preflight, seed
       // mapping, launch, budget termination, accounting. Short on purpose --
       // proving the path does not require re-spending the client's 300s.
-      const { startSearch, jobStatus, jobReport } = await import("../../decomp/jobs.js");
+      const { startSearch, jobStatus, jobReport, searchBaseline } = await import("../../decomp/jobs.js");
       const { compileAndCompare } = await import("../../decomp/compile.js");
       const fn = await project.resolveFunction({ symbol: kase.symbol, segment: kase.segment });
       const text = await rf(kase.candidatePath, "utf8");
       const pre = await compileAndCompare(project, fn, { candidateText: text, label: "replay-preflight" })
-        .then((r) => ({ compileSucceeded: r.compileSucceeded, strictMismatches: r.strictMismatches ?? null,
-          linkedMismatches: r.romLinked?.mismatches ?? null, exactFunctionMatch: r.exactFunctionMatch }))
+        .then(searchBaseline)
         .catch((e) => ({ compileSucceeded: false, firstDiagnostic: String(e?.message ?? e).slice(0, 160) }));
       const j = await startSearch({ project, fn, baseCandidateText: text,
-        timeLimitS: kase.timeLimitS ?? 20, threads: kase.threads ?? 2, seed: kase.seed, label: "replay", preflight: pre });
+        timeLimitS: kase.timeLimitS ?? 20, threads: kase.threads ?? 2, seed: kase.seed, label: "replay", preflight: pre,
+        purpose: "regression replay of preserved search transport/termination", repeatSearch: true });
       // Wait for the budget, then a moment for the process to reap.
       const deadline = Date.now() + (kase.timeLimitS ?? 20) * 1000 + 20_000;
       let st = null;

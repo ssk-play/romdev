@@ -40,6 +40,15 @@ const REG_RE = /\$?\b(zero|at|v[01]|a[0-3]|t[0-9]|s[0-7]|k[01]|gp|sp|fp|ra|f[0-9
 
 const regsOf = (ops) => (String(ops ?? "").match(REG_RE) ?? []);
 const relocSpelling = (i) => (i?.reloc == null ? "" : typeof i.reloc === "string" ? i.reloc : JSON.stringify(i.reloc));
+const instructionKey = i => i ? JSON.stringify([i.mnemonic, i.operands, i.word ?? null,
+  i.reloc == null ? null : typeof i.reloc === "string" ? i.reloc
+    : [i.reloc.type, i.reloc.symbol, i.reloc.addend ?? 0]]) : null;
+const isTransfer = i => /^(?:b|j)/.test(i?.mnemonic ?? "");
+
+function sameInstructionMultiset(a, b) {
+  return a.length === b.length && a.length > 1 && a.every(Boolean) && b.every(Boolean)
+    && a.map(instructionKey).sort().join("\n") === b.map(instructionKey).sort().join("\n");
+}
 
 /**
  * Did the two instructions exchange their register operands, rather than
@@ -201,7 +210,37 @@ export function groupResiduals(target, candidate, strict, { gap = 3 } = {}) {
   /** @type {Map<string, any>} */
   const byRegMapping = new Map();
 
-  for (const mm of strict.mismatches ?? []) {
+  // Find small, contiguous scheduling permutations BEFORE grouping operand
+  // mappings. Swapping `or a2,zero,zero` and `or a3,zero,zero` otherwise looks
+  // like two independent allocator decisions. Require full instruction and
+  // relocation identity, equal stream lengths, and no control-flow boundary.
+  const mismatches = [...(strict.mismatches ?? [])].sort((a, b) => a.index - b.index);
+  const permutations = new Map(), consumed = new Set();
+  if (target.length === candidate.length) for (let n = 0; n < mismatches.length; n++) {
+    const start = mismatches[n].index;
+    if (consumed.has(start)) continue;
+    for (let m = n + 1; m < mismatches.length; m++) {
+      const end = mismatches[m].index;
+      if (end - mismatches[m - 1].index > gap || end - start >= 64) break;
+      const ta = target.slice(start, end + 1), ca = candidate.slice(start, end + 1);
+      if (ta.some(isTransfer) || ca.some(isTransfer)) break;
+      if (!sameInstructionMultiset(ta, ca)) continue;
+      const indices = mismatches.slice(n, m + 1).map(mm => mm.index);
+      permutations.set(start, { start, end, indices, mapping: null, permutation: true });
+      indices.forEach(i => consumed.add(i));
+      break;
+    }
+  }
+
+  for (const mm of mismatches) {
+    if (permutations.has(mm.index)) {
+      const g = permutations.get(mm.index), last = groups.at(-1);
+      if (last?.permutation && last.end + 1 === g.start) {
+        last.end = g.end; last.indices.push(...g.indices);
+      } else groups.push(g);
+      continue;
+    }
+    if (consumed.has(mm.index)) continue;
     const a = target[mm.index], b = candidate[mm.index];
     // A pure register substitution: same mnemonic, same operand shape, only
     // the register names differ. Its "mapping" identifies the allocator choice.
@@ -213,7 +252,8 @@ export function groupResiduals(target, candidate, strict, { gap = 3 } = {}) {
     // Excluding every branch from register grouping split that one decision in
     // two and sent the caller off rewriting a condition that was never wrong.
     let mapping = null;
-    if (a && b && a.mnemonic === b.mnemonic && opsNoRegs(a.operands) === opsNoRegs(b.operands)
+    if (a && b && relocSpelling(a) === relocSpelling(b)
+        && a.mnemonic === b.mnemonic && opsNoRegs(a.operands) === opsNoRegs(b.operands)
         && !(BRANCH_RE.test(a.mnemonic) && isOperandSwap(a, b))) {
       const ra = regsOf(a.operands), rb = regsOf(b.operands);
       if (ra.length === rb.length && ra.some((r, i) => r !== rb[i])) {
@@ -233,7 +273,10 @@ export function groupResiduals(target, candidate, strict, { gap = 3 } = {}) {
       continue;
     }
     const last = groups[groups.length - 1];
-    if (!mapping && last && mm.index - last.end <= gap) {
+    // Adjacency cannot manufacture support for a register mapping. On the
+    // held-out water function, one mapped word swallowed sixty unrelated
+    // shifted instructions and was incorrectly reported as 61 mapped sites.
+    if (!mapping && last && !last.mapping && !last.permutation && mm.index - last.end <= gap) {
       last.indices.push(mm.index);
       last.end = mm.index;
       continue;
@@ -285,11 +328,13 @@ export function classifyGroup(group, target, candidate) {
 
   // A permutation: the same multiset of instructions in a different order.
   const key = (i) => `${i.mnemonic} ${i.operands}`;
-  if (ta.length === ca.length && ta.length > 1) {
-    const sa = ta.map(key).sort().join("|"), sb = ca.map(key).sort().join("|");
-    if (sa === sb) {
+  const regionStart = Math.min(...idx), regionEnd = Math.max(...idx) + 1;
+  if (target.length === candidate.length
+      && !target.slice(regionStart, regionEnd).some(isTransfer)
+      && !candidate.slice(regionStart, regionEnd).some(isTransfer)) {
+    if (sameInstructionMultiset(ta, ca)) {
       return { mechanism: "scheduling-permutation", confidence: "high",
-        why: "the group contains exactly the same instructions in a different order: the instruction selection agrees and only the SCHEDULE differs",
+        why: "the group contains exactly the same instructions and relocations in a different order: observed instruction ordering differs",
         evidence: { words: ta.length, targetOrder: ta.map(key), candidateOrder: ca.map(key) },
         phase: "as1 (instruction scheduling)" };
     }
@@ -331,7 +376,8 @@ export function classifyGroup(group, target, candidate) {
   // A repeated register mapping: one allocator decision.
   if (group.mapping) {
     return { mechanism: "register-assignment", confidence: "high",
-      why: `the same register substitution (${group.mapping}) appears at ${idx.length} site(s): this is ONE allocation decision, not ${idx.length} independent differences`,
+      why: `the same register substitution (${group.mapping}) appears at ${idx.length} positionally compared site(s); a shared allocation choice is a hypothesis, not proof of one causal decision`,
+      confidenceNote: "High confidence in the observed operand mapping, not source-variable identity. Unequal instruction counts can pair unrelated instructions; inspect aligned object evidence before choosing an allocator experiment.",
       evidence: { mapping: group.mapping, sites: idx.length },
       phase: "uopt/as1 (register allocation)" };
   }
@@ -340,7 +386,7 @@ export function classifyGroup(group, target, candidate) {
   const isFrame = (i) => i.mnemonic === "addiu" && /^sp,sp,/.test(i.operands);
   if (ta.some(isFrame) || ca.some(isFrame)) {
     return { mechanism: "frame-layout", confidence: "high",
-      why: "the stack adjustment differs: the frame's size or the set of homes in it is not the same",
+      why: "the stack adjustment differs: the frame's size or the set of homes in it is not the same. Other adjacent differences in this group are not thereby explained",
       evidence: { target: ta.filter(isFrame).map(key), candidate: ca.filter(isFrame).map(key) },
       phase: "uopt (storage allocation)" };
   }
@@ -453,7 +499,7 @@ export function experimentsFor(cls, group, ctx = {}) {
       return [{
         id: "declaration-order",
         do: "move the declaration of the variable(s) that live in these registers relative to its neighbours",
-        predict: `the ${group.mapping} mapping resolves at all ${group.indices.length} sites at once, since they are one decision`,
+        predict: `if these sites share one allocation choice, the ${group.mapping} mapping resolves at all ${group.indices.length} sites together`,
         refutes: "if only SOME sites change, the group was not a single allocation decision and needs splitting",
       }, {
         id: "lifetime-shortening",
@@ -466,7 +512,7 @@ export function experimentsFor(cls, group, ctx = {}) {
         id: "declared-types",
         do: "check declared types and array-ness of the locals homed in the frame (the report's case: Mtx vs Mtx_t restored the SIZE but left two homes four bytes high)",
         predict: "the frame size matches and the homes land on the original offsets",
-        refutes: "if size matches but offsets do not, the ORDER of declarations is the remaining variable",
+        refutes: "matching frame size with different homes rejects a size-only explanation; investigate alignment, lifetime and declaration order separately",
         caution: "never add padding or dummy locals to move an offset: that is a claimed slot, not a recovery",
       }, {
         id: "declaration-position",
@@ -541,6 +587,7 @@ export function diagnoseResiduals({ target, candidate, strict, trace = null, tra
     schema: "romdev-decomp-residual-diagnosis-v1",
     groupCount: out.length,
     totalMismatches: strict.mismatches?.length ?? 0,
+    ...(target.length !== candidate.length ? { alignmentWarning: "Instruction counts differ: these groups use positional pairs, not established semantic correspondence. Inspect aligned object evidence before interpreting repeated mappings as allocator decisions." } : {}),
     groups: out,
     trace: parsed
       ? { supplied: true, nodes: parsed.nodeCount, regions: parsed.regionCount, picks: parsed.pickCount,

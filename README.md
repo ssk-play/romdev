@@ -218,6 +218,8 @@ npm test            # runs each package's tests
 
 The bundled WASM is built from pinned upstream source in a reproducible Emscripten container — see [packages/romdevtools/BUILDING.md](./packages/romdevtools/BUILDING.md). You only need to rebuild it when bumping an upstream version or adding a platform; day-to-day work uses the already-built wasm in the binary packages.
 
+Development workflow notes: [measured decompilation, bounded search and SMS IR](./packages/romdevtools/docs/decomp-throughput.md). These extend existing tools; the notes distinguish implemented behavior, verification limits and deployment requirements.
+
 ## License
 
 romdev's code is **MIT**, and **the games you build are yours — including to

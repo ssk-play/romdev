@@ -1,7 +1,7 @@
 import { resolveCore } from "../../cores/registry.js";
 import {
   clearHost, clearHostB, disposeHost, getHost, getHostB, getHostBOrNull, getHostOrNull,
-  installHost, rememberLastMedia, resetHost, resetHostB,
+  installHost, installHostB, rememberLastMedia, resetHost, resetHostB,
 } from "../state.js";
 import { WasmcartHost } from "../../host/WasmcartHost.js";
 import { JsGameHost } from "../../host/JsGameHost.js";
@@ -43,7 +43,8 @@ export function registerLifecycleTools(server, z, sessionKey) {
     // their own host, load the game module, install it as the session host. They
     // share the frame/input/screenshot surface but not loadCore/cheats/regions.
     if (NATIVE_RUNTIME_HOSTS[platform]) {
-      if (slot === "b") throw new Error(`slot 'b' (side-by-side) is not supported for '${platform}'`);
+      const slotB = slot === "b";
+      if (slotB && (presentWindow || useActiveBezel)) throw new Error("comparison slot B does not own a presentation window or active bezel");
       // Tear the OUTGOING host down BEFORE the new one builds its GL context.
       // installHost() below also tears down, but by then the new cart has
       // already loaded -- and a GL cart creates (and for presentWindow,
@@ -54,7 +55,7 @@ export function registerLifecycleTools(server, z, sessionKey) {
       // (GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT every frame) while the load
       // after THAT was fine. Ordering the disposal explicitly is the fix;
       // installHost's own teardown then finds nothing left to do.
-      disposeHost(sessionKey);
+      if (slotB) clearHostB(sessionKey); else disposeHost(sessionKey);
       const host = NATIVE_RUNTIME_HOSTS[platform]();
       const bytes = base64 ? new Uint8Array(Buffer.from(base64, "base64")) : undefined;
       await host.loadMedia({
@@ -68,11 +69,12 @@ export function registerLifecycleTools(server, z, sessionKey) {
         // be swapped afterward.
         ...(presentWindow ? { presentWindow: true } : {}),
       });
-      installHost(sessionKey, host);
-      if (path || bytes) rememberLastMedia(sessionKey, { platform, path, fromBase64: !!bytes });
+      if (slotB) installHostB(sessionKey, host); else installHost(sessionKey, host);
+      if (!slotB && (path || bytes)) rememberLastMedia(sessionKey, { platform, path, fromBase64: !!bytes });
       const caps = host.getCapabilities();
       const result = {
         loaded: true, platform, kind: caps.kind,
+        ...(slotB ? { slot: "b" } : {}),
         mediaKind: host.status.mediaKind,
         ...(bytes ? { bytes: bytes.length } : { path: host.status.mediaPath }),
         fbWidth: host.status.fbWidth, fbHeight: host.status.fbHeight,
@@ -80,7 +82,7 @@ export function registerLifecycleTools(server, z, sessionKey) {
         capabilities: caps,
       };
       // Push the first frame to the /livestream observer, same as an emulator load.
-      attachObserverFrame(result, host, `${platform} loaded`);
+      if (!slotB) attachObserverFrame(result, host, `${platform} loaded`);
       return result;
     }
 

@@ -39,7 +39,8 @@ test("the ceremony transition is reported as a uniform shift, not N problems", (
   assert.equal(r.comparison.shape, "uniform-shift");
   assert.equal(r.comparison.moved.length, 2);
   assert.ok(r.comparison.moved.every((m) => m.delta === 4));
-  assert.match(r.comparison.why, /ONE object before them is the wrong size/);
+  assert.match(r.comparison.why, /object type\/alignment/);
+  assert.match(r.comparison.why, /Offsets alone do not identify the cause/);
 });
 
 test("one misplaced home among correct neighbours is NOT called a uniform shift", () => {

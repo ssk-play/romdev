@@ -13,26 +13,36 @@ import { selectArtifact, SELECTION_POLICIES } from "../src/decomp/artifact-selec
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { sha256Text } from "../src/decomp/project.js";
+import { currentMeasurement } from "./helpers/current-measurement.js";
+import { VERIFIER_VERSION } from "../src/decomp/verdict.js";
 
 async function fixture(cands) {
   const ws = await mkdtemp(path.join(tmpdir(), "romdev-sel-"));
   const dir = path.join(ws, "candidates", "f");
   await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, "owner.c"), "owner");
+  const project = { ws, resolveFunction: async () => ({ source: { tu: "x.c" } }),
+    compileInvocation: async () => ({ compile: [], post: [], fingerprint: "test" }),
+    tuDependencies: async () => ({ deps: [], ok: true }),
+    abs: () => path.join(dir, "owner.c") };
+  const measured = await currentMeasurement(project, "x.c");
   for (const c of cands) {
     const base = `dep-${c.sha}-v2`;
     await writeFile(path.join(dir, `${base}.diff.json`), "{}");
     await writeFile(path.join(dir, `${base}.result.json`), JSON.stringify({
       compileSucceeded: c.compiled !== false,
-      strictMismatches: c.strict, romLinked: { mismatches: c.linked },
+      strictMismatches: c.strict, romLinked: { status: "mismatch", mismatches: c.linked },
       exactFunctionMatch: !!c.exact,
-      candidate: { sha256: c.sha }, compiler: { dependencyHash: "dep" },
+      candidate: { sha256: c.sha }, compiler: { dependencyHash: sha256Text("testowner").slice(0, 20) },
+      ...measured, verifierVersion: VERIFIER_VERSION,
     }));
     // Stagger mtimes so "newest" is deterministic.
     const t = new Date(Date.now() - (c.ageMs ?? 0));
     const { utimes } = await import("node:fs/promises");
     for (const ext of [".diff.json", ".result.json"]) await utimes(path.join(dir, base + ext), t, t);
   }
-  return { ws };
+  return project;
 }
 
 test("the default picks the smallest residual, not the newest file", async () => {

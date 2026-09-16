@@ -38,6 +38,7 @@
 // get a replay of recent activity.
 
 import { EventEmitter } from "node:events";
+import { requestStats } from "./request-stats.js";
 
 // Replay buffer for a newly-connected observer: "what just happened", not a
 // session archive. NOTE this ring is GLOBAL, not per-session -- a busy sweep
@@ -109,6 +110,7 @@ class ObserverBus extends EventEmitter {
   }
 
   push(event) {
+    requestStats.record(event);
     // Retain a byte-bounded copy; emit the full-fidelity event to live clients.
     // Newest RING_IMAGE_KEEP image-bearing events keep their payload so a fresh
     // page still opens on a picture; older ones degrade to placeholders.

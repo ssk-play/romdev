@@ -191,7 +191,10 @@ export async function loadLinkerMap(mapPath) {
   // byte MISMATCHES -- a false negative on a candidate whose text and
   // relocations were exactly right. Four such symbols produced twelve reported
   // mismatches on one real function.
-  const absAssignRe = /^\s*(0x[0-9a-f]+)\s+([A-Za-z_$.][\w$.]*)\s*=\s*(0x[0-9a-f]+|\.)\s*$/;
+  // The FIRST column is ld's evaluated value, including aliases such as
+  // `D_801CE704 = (D_801CE6FC + 0x8)`. Never evaluate the expression ourselves.
+  // Undefined PROVIDE entries have no numeric value and are not accepted.
+  const absAssignRe = /^\s*(0x[0-9a-fA-F]+)\s+(?:PROVIDE(?:_HIDDEN)?\s*\(\s*)?([A-Za-z_$.][\w$.]*)\s*=\s*\S.*$/;
   let pendingSection = null;
   const lines = text.split("\n");
   const order = [];
@@ -212,7 +215,7 @@ export async function loadLinkerMap(mapPath) {
     if ((m = absAssignRe.exec(line))) {
       const va = Number(m[1]) >>> 0;
       const name = m[2];
-      if (!symbols.has(name)) {
+      if (name !== "." && !symbols.has(name)) {
         // Size 0 and NOT in `order`: these are addresses, not sized objects,
         // and the size pass below walks `order` looking for the next symbol in
         // the same object+section. An absolute symbol has neither, so letting

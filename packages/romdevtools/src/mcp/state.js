@@ -437,6 +437,13 @@ export function clearHostB(sessionKey) {
   hostsB.delete(sessionKey);
 }
 
+/** Install a native runtime in the existing comparison slot. */
+export function installHostB(sessionKey, host) {
+  teardownHost(hostsB.get(sessionKey));
+  hostsB.set(sessionKey, host);
+  touchHost(sessionKey);
+}
+
 /** Test-only: number of live hosts (both slots). */
 export function _liveHostCount() {
   return hosts.size + hostsB.size;

@@ -164,7 +164,7 @@ export function compareStackMaps(targetMap, candidateMap) {
     why = "every slot sits at the same offset and the frames are the same size";
   } else if (deltas.length === 1 && moved.length > 1) {
     shape = "uniform-shift";
-    why = `${moved.length} slots all moved by exactly ${deltas[0]} bytes. ONE object before them is the wrong size (or one declaration is missing/extra); the slots themselves are not individually misplaced. Find the object whose size differs by ${Math.abs(deltas[0])}, not ${moved.length} separate problems.`;
+    why = `${moved.length} slots all moved by exactly ${deltas[0]} bytes. This is consistent with a shared layout cause: actual object type/alignment, an earlier object's size, or a missing/extra declaration. Offsets alone do not identify the cause or prove an object's size is wrong. Check real types and their ABI alignment before treating these as ${moved.length} independent problems.`;
   } else if (moved.length && moved.length <= 3) {
     shape = "isolated-misplacement";
     why = `${moved.length} slot(s) moved while their neighbours did not. This is a declaration ORDER or alignment difference for those objects specifically, not a size error in an earlier one.`;

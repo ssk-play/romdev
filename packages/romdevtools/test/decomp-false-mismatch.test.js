@@ -8,6 +8,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { currentMeasurement } from "./helpers/current-measurement.js";
 import { writeFile, mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -176,14 +177,15 @@ test("loadCandidateEvidence: a better score from an OLD dependency hash cannot r
   await mkdir(dir, { recursive: true });
 
   const OLD = "a".repeat(20), CUR = "b".repeat(20);
+  const project = { ws }, measured = await currentMeasurement(project);
   const write = async (dep, cand, distance, compileSucceeded) =>
     writeFile(path.join(dir, `${dep}-${cand}-v${VERIFIER_VERSION}.result.json`),
-      JSON.stringify({ distance: { value: distance }, compileSucceeded, verifierVersion: VERIFIER_VERSION }));
+      JSON.stringify({ distance: { value: distance }, compileSucceeded, verifierVersion: VERIFIER_VERSION,
+        ...measured, compiler: { dependencyHash: dep } }));
 
   await write(OLD, "1".repeat(16), 6.8, true);     // great, but a different tree
   await write(CUR, "2".repeat(16), 82.45, true);   // what the current tree gives
 
-  const project = { ws };
   const ev = await loadCandidateEvidence(project, { currentDependencyHashes: new Set([CUR]) });
   const e = ev.func_x;
 
@@ -204,10 +206,12 @@ test("loadCandidateEvidence: restoring the exact dependency identity makes evide
   const dir = path.join(ws, "candidates", "func_y");
   await mkdir(dir, { recursive: true });
   const DEP = "c".repeat(20);
+  const project = { ws }, measured = await currentMeasurement(project);
   await writeFile(path.join(dir, `${DEP}-${"3".repeat(16)}-v${VERIFIER_VERSION}.result.json`),
-    JSON.stringify({ distance: { value: 12.5 }, compileSucceeded: true, verifierVersion: VERIFIER_VERSION }));
+    JSON.stringify({ distance: { value: 12.5 }, compileSucceeded: true, verifierVersion: VERIFIER_VERSION,
+      ...measured, compiler: { dependencyHash: DEP } }));
 
-  const ev = await loadCandidateEvidence({ ws }, { currentDependencyHashes: new Set([DEP]) });
+  const ev = await loadCandidateEvidence(project, { currentDependencyHashes: new Set([DEP]) });
   assert.equal(ev.func_y.lastDistance, 12.5, "the same tree makes prior evidence current again");
   assert.equal(ev.func_y.staleEvidenceWarning, undefined);
   assert.equal(ev.func_y.historicalAttempts, 0);
@@ -221,10 +225,11 @@ test("loadCandidateEvidence: an exact function-local verdict still scores 0", as
   const dir = path.join(ws, "candidates", "func_z");
   await mkdir(dir, { recursive: true });
   const DEP = "d".repeat(20);
+  const project = { ws }, measured = await currentMeasurement(project);
   await writeFile(path.join(dir, `${DEP}-${"4".repeat(16)}-v${VERIFIER_VERSION}.result.json`),
     JSON.stringify({ distance: { value: 40 }, compileSucceeded: true, verifierVersion: VERIFIER_VERSION,
-      verdict: { functionLocal: "exact" } }));
-  const ev = await loadCandidateEvidence({ ws }, { currentDependencyHashes: new Set([DEP]) });
+      verdict: { functionLocal: "exact" }, ...measured, compiler: { dependencyHash: DEP } }));
+  const ev = await loadCandidateEvidence(project, { currentDependencyHashes: new Set([DEP]) });
   assert.equal(ev.func_z.lastDistance, 0, "an exact verdict pins the distance to 0");
 });
 

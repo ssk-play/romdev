@@ -14,7 +14,7 @@
 // unknown; else exact. `not-applicable` satisfies a check. The version below is
 // part of the compare cache key: a result verified under an older policy is
 // never returned as a current verdict.
-export const VERIFIER_VERSION = 2;
+export const VERIFIER_VERSION = 3;
 export const VERDICT_STATES = ["exact", "mismatch", "error", "unknown", "not-applicable"];
 export const POLICY = "any mismatch → mismatch; else any error → error; else any unknown/not-run → unknown; else exact (not-applicable satisfies). exactFunctionMatch is true only for exact.";
 
@@ -45,7 +45,9 @@ export function romLinkedState(romLinked) {
   if (romLinked == null || typeof romLinked !== "object") return { state: "error", reason: "missing ROM-linked result" };
   switch (romLinked.status) {
     case "exact": return { state: "exact" };
-    case "mismatch": return { state: "mismatch", reason: `${romLinked.mismatches} words differ from the base ROM` };
+    case "mismatch": return { state: "mismatch", reason: romLinked.mismatches == null
+      ? `at least ${romLinked.knownMismatches ?? "an unknown number of"} words differ from the base ROM; other words could not be checked`
+      : `${romLinked.mismatches} words differ from the base ROM` };
     case "unresolved-relocations": return { state: "unknown", reason: `relocations against symbols with no known address: ${(romLinked.unresolvedSymbols ?? []).join(", ")}` };
     case "no-rom-offset": return { state: "unknown", reason: "the function has no ROM offset to compare against" };
     default: return { state: "error", reason: `unrecognized ROM-linked status '${romLinked.status}'` };

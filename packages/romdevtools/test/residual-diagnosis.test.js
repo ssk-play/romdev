@@ -81,6 +81,16 @@ test("one repeated register mapping is one allocation decision", () => {
     `expected a register-assignment group, got ${sched.map((c) => c.mechanism).join(", ")}`);
 });
 
+test("unrelated adjacent mismatches cannot inflate a register mapping's site count", () => {
+  const target = [ins("lw", "t5,0(v1)"), ins("mul.s", "f0,f2,f4"), ins("sw", "a0,4(v0)"), ins("lw", "t5,4(v1)")];
+  const candidate = [ins("lw", "t4,0(v0)"), ins("add.s", "f2,f4,f6"), ins("subu", "a1,a2,a3"), ins("lw", "t4,4(v0)")];
+  const groups = groupResiduals(target, candidate, strictOf([0, 1, 2, 3]));
+  const mapped = groups.find(g => g.mapping);
+  assert.deepEqual(mapped.indices, [0, 3]);
+  assert.equal(classifyGroup(mapped, target, candidate).evidence.sites, 2);
+  assert.equal(classifyGroup(groups.find(g => !g.mapping), target, candidate).mechanism, "unclassified");
+});
+
 test("every experiment states what would REFUTE it", () => {
   const target = [ins("bne", "t4,a1,fc")];
   const candidate = [ins("bne", "a1,t4,fc")];
@@ -263,40 +273,24 @@ test("identical reloc symbols are NOT data-ownership", () => {
   assert.notEqual(cls.mechanism, "data-reference");
 });
 
-test("trace provenance states its method, threshold, and what it CANNOT detect", async () => {
-  // "It's a heuristic" is a hand-wave. The output has to say how strong the
-  // evidence is and where it stops: measured 0.962 on a matching trace and
-  // 0.322 on a trace of a different function, both live.
-  const { readFile } = await import("node:fs/promises");
-  const src = await readFile(new URL("../src/mcp/tools/decomp.js", import.meta.url), "utf8");
-  // Match the FULL provenance object (the one carrying `verdict`), not the
-  // small object-evidence stub assigned to the same name just above it.
-  const block = src.match(/traceProvenance = \{ \.\.\.traceProvenance[\s\S]*?verdict:[\s\S]*?\};/)?.[0] ?? "";
-  assert.ok(block, "no trace provenance block");
-  for (const field of ["method", "detects", "cannotDetect", "threshold", "uncoveredWords"]) {
-    assert.match(block, new RegExp(field), `provenance omits '${field}'`);
-  }
-  assert.match(block, /necessary evidence of provenance, not sufficient/i,
-    "the output must not let word equality read as proof of provenance");
-  assert.match(block, /different optimisation flags/i,
-    "the one thing it cannot rule out must be named explicitly");
+test("loose trace logs cannot manufacture invocation/output provenance", async () => {
+  const { verifyTraceBundle } = await import("../src/decomp/workbench.js");
+  const result = await verifyTraceBundle({}, "/missing/comparison.diff.json", "/missing/trace.log");
+  assert.equal(result.equivalent, false);
+  assert.equal(result.state, "unverified");
+  assert.match(result.reason, /invocation|equivalence/);
 });
 
-test("trace provenance uses the traced OBJECT when it sits beside the trace", async () => {
-  // Word coverage cannot separate two builds that emit the same words. A
-  // trace bundle usually carries the object from the traced compile; its
-  // bytes narrow the blind spot from "same words" to "byte-identical object".
-  const { readFile } = await import("node:fs/promises");
-  const src = await readFile(new URL("../src/mcp/tools/decomp.js", import.meta.url), "utf8");
-  const block = src.match(/const traceDir = path\.dirname[\s\S]*?evidenceStrength:[^,]+,/)?.[0] ?? "";
-  assert.ok(block, "no object-evidence branch");
-  assert.match(block, /"trace\.o", "target\.o"/, "should look for the traced object beside the trace");
-  assert.match(block, /evidenceStrength/);
-  // And when there is no object, the weaker claim must be stated, not implied.
-  assert.match(src, /instruction-word coverage only \(no trace\.o or target\.o beside the trace\)/,
-    "without an object the response must say the evidence is weaker");
-  assert.match(src, /byte-identical objects|byte-identical object/,
-    "the remaining blind spot must be named precisely");
+test("a nearby object without a bundle does not strengthen a loose trace", async () => {
+  const { verifyTraceBundle } = await import("../src/decomp/workbench.js");
+  const { mkdtemp, writeFile } = await import("node:fs/promises");
+  const os = await import("node:os"), path = await import("node:path");
+  const dir = await mkdtemp(path.join(os.tmpdir(), "romdev-loose-trace-"));
+  await writeFile(path.join(dir, "trace.o"), "not the compared object");
+  await writeFile(path.join(dir, "trace.log"), "Node 0: inst 00000000");
+  const result = await verifyTraceBundle({}, "/missing/comparison.diff.json", path.join(dir, "trace.log"));
+  assert.equal(result.equivalent, false);
+  assert.match(result.reason, /no trace bundle/);
 });
 
 test("the policy does not claim causal independence the analysis cannot prove", () => {

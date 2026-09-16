@@ -319,11 +319,28 @@ export function compositeSideBySide(a, b, gap = 4) {
 }
 
 export function registerFrameTools(server, z, sessionKey) {
-  async function doStep({ frames }) {
-      const host = getHost(sessionKey);
+  async function doStep({ frames, slot }) {
+      // slot:'b' advances the COMPARISON host on its own. findDiverge steps both
+      // slots in lockstep from wherever they stand, which is the wrong tool when
+      // the two sides only diverge deep into a run: you need to warm each side to
+      // a chosen frame FIRST and compare from there. Slot B had no way to advance
+      // at all, so a caller could only compare against its power-on state.
+      const slotB = slot === "b";
+      const host = slotB ? getHostB(sessionKey) : getHost(sessionKey);
       // await: native-runtime hosts (jsgame) have an async stepFrames that yields for
       // the game's async work; awaiting a sync LibretroHost return is a harmless no-op.
       const n = await host.stepFrames(frames);
+      // Slot B is comparison scratch: it drives no presentation, owns no bezel,
+      // and must never touch the livestream, the auto-snapshot timeline, or the
+      // playtest co-drive check. Advance it and report, nothing else.
+      if (slotB) {
+        return jsonContent({
+          slot: "b",
+          framesRun: n,
+          frameCount: host.status.frameCount,
+          framebuffer: { width: host.status.fbWidth, height: host.status.fbHeight },
+        });
+      }
       // Tick the Active Bezel for the frame the core just produced.
       //
       // The contract is "once per emulated frame", and it has to hold here
@@ -670,65 +687,9 @@ export function registerFrameTools(server, z, sessionKey) {
   // afterward via unserializeState, so the agent keeps working from where it was.
   // (The frameCount COUNTER keeps climbing — a known core behavior of
   // unserializeState — but the actual emulated state is rewound.)
-  function findDiverge({ region = "system_ram", maxFrames = 600 }) {
-    const hostA = getHost(sessionKey);
-    const hostB = getHostB(sessionKey);
-    const sizeA = hostA.regionSize ? hostA.regionSize(region) : 0;
-    const sizeB = hostB.regionSize ? hostB.regionSize(region) : 0;
-    if (!sizeA || !sizeB) {
-      throw new Error(`frame({op:'findDiverge'}): region '${region}' not available on ${!sizeA ? "slot A (" + hostA.status.platform + ")" : "slot B (" + hostB.status.platform + ")"}. Both hosts must expose it; 'system_ram' is the portable default.`);
-    }
-    const len = Math.min(sizeA, sizeB);
-    // Save both so the search is non-destructive.
-    const saveA = hostA.serializeState();
-    const saveB = hostB.serializeState();
-    const startFrameA = hostA.status.frameCount;
-
-    const firstDiff = () => {
-      const a = hostA.readMemory(region, 0, len);
-      const b = hostB.readMemory(region, 0, len);
-      for (let i = 0; i < len; i++) if (a[i] !== b[i]) return { offset: i, a: a[i], b: b[i] };
-      return null;
-    };
-
-    let result;
-    // If they already differ at frame 0, that IS the divergence point.
-    let cur = firstDiff();
-    if (cur) {
-      result = { diverged: true, atFrame: 0, framesStepped: 0, offset: cur.offset, a: cur.a, b: cur.b };
-    } else {
-      // Step in lockstep, one frame at a time, until the first split or maxFrames.
-      let stepped = 0;
-      let found = null;
-      for (let f = 1; f <= maxFrames; f++) {
-        hostA.stepFrames(1);
-        hostB.stepFrames(1);
-        stepped = f;
-        cur = firstDiff();
-        if (cur) { found = { atFrame: f, offset: cur.offset, a: cur.a, b: cur.b }; break; }
-      }
-      result = found
-        ? { diverged: true, atFrame: found.atFrame, framesStepped: stepped, offset: found.offset, a: found.a, b: found.b }
-        : { diverged: false, framesStepped: stepped };
-    }
-
-    // Restore both hosts to where they were before the search.
-    try { hostA.unserializeState(saveA); } catch { /* best-effort */ }
-    try { hostB.unserializeState(saveB); } catch { /* best-effort */ }
-
-    const addrHex = result.offset != null ? "$" + result.offset.toString(16).toUpperCase().padStart(4, "0") : null;
-    return jsonContent({
-      op: "findDiverge",
-      region,
-      a: { platform: hostA.status.platform },
-      b: { platform: hostB.status.platform },
-      searchStartedAtFrame: startFrameA,
-      ...result,
-      ...(addrHex ? { address: addrHex } : {}),
-      note: result.diverged
-        ? `First divergence at frame ${result.atFrame} (relative to search start), address ${addrHex}: slot A = $${result.a.toString(16).padStart(2, "0")}, slot B = $${result.b.toString(16).padStart(2, "0")}. This is where the port's logic first split from the original — decompile/disasm around the code that writes ${addrHex} on BOTH sides to find why. Both hosts' machine state (RAM/CPU/PPU) restored to the pre-search point.`
-        : `No divergence in ${result.framesStepped} frames — the port's logic tracks the original across this window. Step further or raise maxFrames if you expect a later split. Both hosts' machine state restored to the pre-search point.`,
-    });
+  async function findDiverge(args) {
+    const { findDivergence } = await import("../../host/find-divergence.js");
+    return jsonContent(findDivergence(getHost(sessionKey), getHostB(sessionKey), args));
   }
 
   // op:'compareRender' — the PRESENTATION oracle. The graphics-side sibling of
@@ -947,7 +908,13 @@ export function registerFrameTools(server, z, sessionKey) {
       withRegisters: z.boolean().default(false).describe("op=stepInstructions: include the CPU register file at each step (heavier payload; omit if you only need pc/width/bytes for boundary+immediate-width analysis)."),
       stepFormat: z.enum(["full", "compact"]).default("full").describe("op=stepInstructions: 'full' = per-step objects (pc/flow/width/nextPc); 'compact' = one string per step (`$PC flow->$target`) + a `pcRanges` loop-map with hit counts (~90% fewer tokens for triage)."),
       frames: z.number().int().min(1).max(1_000_000).default(1).describe("op=step/stepAndShot/sideBySide/compareRam/compareRender: frames to advance (1-1,000,000). For the slot-A/B compare ops, BOTH hosts step the same amount. 36000 (10 min) usually completes in <1s — don't be conservative."),
+      slot: z.enum(["a", "b"]).default("a").describe("op=step: which host to advance. 'a' (default) = the session's primary host. 'b' = the comparison host loaded via loadMedia({slot:'b'}) — use it to WARM each side to a chosen frame before frame({op:'findDiverge'}), which is required when the two sides only split deep into a run (compare from frame 60, not from power-on). Slot-B steps drive no presentation, no bezel, no livestream and no auto-snapshot."),
       region: z.string().optional().describe("op=compareRam/findDiverge/portStatus: memory region to diff across the two slots (default 'system_ram', the portable work-RAM). Both hosts must expose it."),
+      regionB: z.string().optional().describe("op=findDiverge: slot-B region if different. wasmcart requires 'linear_memory' plus offsetB and compareLength locating the recompiled machine's RAM."),
+      offsetA: z.number().int().min(0).default(0).describe("op=findDiverge: byte offset into slot A's selected region."),
+      offsetB: z.number().int().min(0).default(0).describe("op=findDiverge: byte offset into slot B's selected region / WASM linear memory."),
+      compareLength: z.number().int().min(1).max(16777216).optional().describe("op=findDiverge: number of bytes to compare. Required for wasmcart; map the emulated RAM explicitly, not the whole heap."),
+      restore: z.boolean().default(true).describe("op=findDiverge: restore both machine states after searching. Native WASM runtimes cannot generally snapshot hidden VM state; pass false explicitly to advance both slots instead."),
       maxRanges: z.number().int().min(1).max(256).default(24).describe("op=compareRam: cap on the diverging address ranges returned (largest first)."),
       maxFrames: z.number().int().min(1).max(100000).default(600).describe("op=findDiverge: max frames to step in lockstep looking for the first divergence (default 600 = ~10s)."),
       format: z.enum(["png", "ascii"]).default("png").describe("op=screenshot: 'png' (default, real image) or 'ascii' (lossy text render)."),

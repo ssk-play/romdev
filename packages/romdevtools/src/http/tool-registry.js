@@ -143,7 +143,7 @@ export async function runTool(tool, args, sessionKey) {
       // surface the friendly first-issue message (withClearToolErrors / global map)
       const issue = parsed.error?.issues?.[0];
       const msg = (issue && issue.message) || "invalid arguments";
-      emit({ ok: false, error: msg });
+      emit({ ok: false, error: msg, phase: "validation" });
       return { ok: false, error: msg };
     }
     effectiveArgs = parsed.data;

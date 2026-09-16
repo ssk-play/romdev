@@ -16,9 +16,13 @@ const fn = { symbol: "f", segment: "seg", vaHex: "0x80000000", source: { tu: "sr
 // guessing the shape produced a table of nulls that still looked like it ran.
 const fakeResult = (over = {}) => ({
   compileSucceeded: true, strictMismatches: 5, targetBytes: 100, candidateBytes: 100,
-  romLinked: { mismatches: 2 }, evidence: { registerSubstitutions: { count: 1 }, reordered: false },
+  romLinked: { status: "mismatch", mismatches: 2 }, evidence: { registerSubstitutions: { count: 1 }, reordered: false },
   differenceKinds: ["register-allocation"], distance: { value: 5 },
-  artifacts: { dependencyHash: "hash1" }, ...over,
+  compiler: { dependencyHash: "hash1", fingerprint: "compiler1" },
+  measurementValidity: { state: "valid" },
+  inputIdentity: { ownerMode: "live", ownerSha256: "owner", toolchain: [], env: {} }, referenceHash: "reference",
+  outputIdentity: { scope: "function-instructions-and-relocations", sha256: "instructions1" },
+  artifacts: {}, ...over,
 });
 
 test("a patch that does not apply is refused, not silently ignored", () => {
@@ -90,13 +94,13 @@ test("byte-inert variants are reported rather than dropped", async () => {
       { id: "b", find: "return 3;", replace: "return  4;" },
     ],
   });
-  assert.equal(out.byteInert, 1);
-  assert.ok(out.rows.find((r) => r.byteIdenticalTo === "a"));
+  assert.equal(out.instructionIdentical, 2);
+  assert.ok(out.rows.find((r) => r.instructionIdenticalTo === "baseline"));
 });
 
 test("a moving dependency hash invalidates the batch instead of mixing trees", async () => {
   let n = 0;
-  const compare = async () => fakeResult({ artifacts: { dependencyHash: `hash${n++}` } });
+  const compare = async () => fakeResult({ compiler: { dependencyHash: `hash${n++}` } });
   const out = await runVariantBatch({}, fn, {
     baselineText: BASE, compare,
     variants: [{ id: "v1", find: "return 3;", replace: "return 4;" }],
@@ -126,4 +130,26 @@ test("metrics are never collapsed into one score", async () => {
     assert.ok(k in m, `metric '${k}' must be reported separately`);
   }
   assert.match(out.policy, /never collapsed into one score/i);
+});
+
+test("bounded workers keep requested row order and output attribution despite reversed completion", async () => {
+  let active = 0, peak = 0;
+  const compare = async ({ label }) => {
+    active++; peak = Math.max(peak, active);
+    await new Promise(resolve => setTimeout(resolve, label === "variant:slow" ? 25 : 1));
+    active--; return fakeResult();
+  };
+  const variants = [
+    { id: "slow", candidateText: BASE + "// one" },
+    { id: "fast", candidateText: BASE + "// two" },
+    { id: "duplicate", candidateText: BASE + "// one" },
+  ];
+  const parallel = await runVariantBatch({}, fn, { baselineText: BASE, variants, compare, threads: 2 });
+  assert.equal(peak, 2);
+  assert.deepEqual(parallel.rows.map(r => r.id), ["baseline", "slow", "fast", "duplicate"]);
+  assert.equal(parallel.rows[3].duplicateOf, "slow");
+  assert.equal(parallel.rows[1].instructionIdenticalTo, "baseline");
+  assert.equal(parallel.rows[2].instructionIdenticalTo, "baseline");
+  assert.equal(parallel.threads, 2);
+  await assert.rejects(runVariantBatch({}, fn, { baselineText: BASE, variants, compare, threads: 3 }), /1 or threads:2/);
 });
