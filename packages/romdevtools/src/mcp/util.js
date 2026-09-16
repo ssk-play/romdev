@@ -388,6 +388,7 @@ export function makeScopeChecker(shape, toolName) {
       candidateText: ["compare", "search", "integrate", "gate", "variants", "experiment"],
       ownerPath: ["compare", "variants"],
       artifactId: ["diagnose", "layout"],
+      prefer: ["diagnose", "layout"],
       variants: ["variants"],
       symbols: ["batch", "dispatch", "replay", "generate"],
       preflight: ["search"],

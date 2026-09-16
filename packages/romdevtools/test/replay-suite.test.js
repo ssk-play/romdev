@@ -65,7 +65,7 @@ test("a case that merely completed is not a case that passed", () => {
   const s = summarize([{ id: "x", passed: false, ms: 5, failures: ["exactFunctionMatch: expected true, got false"] }]);
   assert.equal(s.passed, 0);
   assert.equal(s.failed, 1);
-  assert.match(s.interpretation, /every case carries its expectation/i);
+  assert.match(s.interpretation, /every row carries its request/i);
 });
 
 test("a missing fixture is skipped, never counted as a pass", () => {
@@ -73,4 +73,71 @@ test("a missing fixture is skipped, never counted as a pass", () => {
   assert.equal(s.passed, 0);
   assert.equal(s.skipped, 1);
   assert.equal(s.failed, 0);
+});
+
+// --- Client reply 2026-09-15: the acceptance matrix ---
+//
+// "Publish an acceptance matrix with `passed`, `failed`, `partial`, `not run`,
+// and `unsupported` where appropriate ... Seven passing cases prove those
+// seven cases, not universal closure of the report."
+//
+// `partial` is the state the first summary lacked, and its absence is what let
+// "Nothing is deferred" sit above a list of cases that were not delivered.
+
+test("a case with unexercised scope is PARTIAL, never counted as passed", () => {
+  const kase = { id: "x", status: "partial", op: "job-accounting", unexercised: "a fresh search launch" };
+  const s = summarize([{ id: "x", passed: true, ms: 5, actual: {} }], [kase]);
+  assert.equal(s.matrix.partial, 1);
+  assert.equal(s.matrix.passed, 0, "a partial case must not be folded into passed");
+  assert.match(s.rows[0].unexercised, /fresh search launch/);
+});
+
+test("the matrix carries all five states", () => {
+  const s = summarize([], []);
+  for (const k of ["passed", "partial", "failed", "not run", "unsupported"]) {
+    assert.ok(k in s.matrix, `the matrix omits '${k}'`);
+  }
+});
+
+test("every row ties a claim to its request, assertion and observation", () => {
+  const kase = { id: "x", op: "diagnose", symbol: "func_A", segment: "ovl_1",
+    candidatePath: "/r/a.c", why: "because", expect: { groupCountAtLeast: 1 } };
+  const s = summarize([{ id: "x", passed: true, ms: 5, actual: { groupCount: 2 } }], [kase]);
+  const row = s.rows[0];
+  assert.equal(row.request.op, "diagnose");
+  assert.equal(row.request.symbol, "func_A");
+  assert.deepEqual(row.asserted, { groupCountAtLeast: 1 });
+  assert.deepEqual(row.observed, { groupCount: 2 });
+  assert.equal(row.requirement, "because");
+});
+
+test("coverage names the partial cases instead of rounding them up", () => {
+  const s = summarize(
+    [{ id: "a", passed: true, ms: 1 }, { id: "b", passed: true, ms: 1 }],
+    [{ id: "a" }, { id: "b", status: "partial", unexercised: "the other half" }],
+  );
+  assert.match(s.coverage, /1 PARTIAL/);
+  assert.match(s.interpretation, /proves THOSE cases and nothing wider/i);
+});
+
+test("a residual that is not merely scheduling must not be described as scheduling", () => {
+  // The number-renderer entry-branch case: its one difference is a branch, not
+  // a schedule, and an expectation that accepts "all scheduling" would hide it.
+  const kase = { id: "n", expect: { mechanismsNotAll: ["scheduling-permutation"] } };
+  assert.ok(checkExpectations(kase, { mechanisms: ["scheduling-permutation"] }).length > 0,
+    "an all-scheduling diagnosis must fail this case");
+  assert.equal(checkExpectations(kase, { mechanisms: ["branch-lowering"] }).length, 0);
+});
+
+test("the number-renderer cases are in the set, resolved from nonstandard filenames", () => {
+  const ids = defaultCases({ researchRoot: "/r", workspace: "/w" }).map((c) => c.id);
+  assert.ok(ids.some((i) => i.startsWith("number-renderer")),
+    "§12.4 was skipped for 'no .c fixture' when the drafts sit at the research root under .c.txt names");
+});
+
+test("the i5 search case is present and labelled partial", () => {
+  const k = defaultCases({ researchRoot: "/r", workspace: "/w" }).find((c) => c.id.startsWith("i5-"));
+  assert.ok(k, "§12.6 must appear in the matrix rather than being omitted");
+  assert.equal(k.status, "partial");
+  assert.match(k.unexercised, /fresh bounded search/);
 });

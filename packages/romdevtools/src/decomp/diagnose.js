@@ -32,6 +32,24 @@ const REG_RE = /\$?\b(zero|at|v[01]|a[0-3]|t[0-9]|s[0-7]|k[01]|gp|sp|fp|ra|f[0-9
 
 const regsOf = (ops) => (String(ops ?? "").match(REG_RE) ?? []);
 const relocSpelling = (i) => (i?.reloc == null ? "" : typeof i.reloc === "string" ? i.reloc : JSON.stringify(i.reloc));
+
+/**
+ * Did the two instructions exchange their register operands, rather than
+ * substitute one? `bne t4,a1` vs `bne a1,t4` is a swap (the comparison was
+ * written the other way round); `bne s1,s7` vs `bne s1,s6` is a substitution
+ * (the allocator chose a different home for the same value).
+ *
+ * The difference decides which experiment the caller runs, so it is computed
+ * from the operands rather than assumed from the mnemonic.
+ */
+export function isOperandSwap(a, b) {
+  const ra = regsOf(a?.operands), rb = regsOf(b?.operands);
+  if (ra.length !== rb.length || ra.length < 2) return false;
+  // Identical multiset, different order: the same registers, rearranged.
+  const sa = [...ra].sort().join(","), sb = [...rb].sort().join(",");
+  if (sa !== sb) return false;
+  return ra.some((r, i) => r !== rb[i]);
+}
 const opsNoRegs = (ops) => String(ops ?? "").replace(REG_RE, "%r");
 
 /**
@@ -179,14 +197,25 @@ export function groupResiduals(target, candidate, strict, { gap = 3 } = {}) {
     const a = target[mm.index], b = candidate[mm.index];
     // A pure register substitution: same mnemonic, same operand shape, only
     // the register names differ. Its "mapping" identifies the allocator choice.
-    // A branch's swapped operands are a comparison shape, not an allocator
-    // mapping, so branches never join a register-mapping group (see
-    // classifyGroup).
+    // A branch whose operands are SWAPPED is a comparison shape (lowering).
+    // A branch whose register is SUBSTITUTED, in the same position with the
+    // same sense and displacement, is the allocator — the reporter's case:
+    //   169  addiu s7,zero,128  ->  addiu s6,zero,128
+    //   294  bne   s1,s7,420    ->  bne   s1,s6,420
+    // Excluding every branch from register grouping split that one decision in
+    // two and sent the caller off rewriting a condition that was never wrong.
     let mapping = null;
-    if (a && b && a.mnemonic === b.mnemonic && !BRANCH_RE.test(a.mnemonic) && opsNoRegs(a.operands) === opsNoRegs(b.operands)) {
+    if (a && b && a.mnemonic === b.mnemonic && opsNoRegs(a.operands) === opsNoRegs(b.operands)
+        && !(BRANCH_RE.test(a.mnemonic) && isOperandSwap(a, b))) {
       const ra = regsOf(a.operands), rb = regsOf(b.operands);
       if (ra.length === rb.length && ra.some((r, i) => r !== rb[i])) {
-        mapping = ra.map((r, i) => `${r}->${rb[i]}`).filter((s) => s.split("->")[0] !== s.split("->")[1]).sort().join(",");
+        // DEDUPLICATE. One instruction that uses a mapping twice
+        // (`addiu s6,s6,0` -> `addiu s5,s5,0`) yields "s6->s5,s6->s5", which
+        // is a different STRING from "s6->s5" and so opened a second group for
+        // the same allocator decision. Repeating a substitution inside one
+        // instruction is not evidence of a second choice.
+        const pairs = ra.map((r, i) => `${r}->${rb[i]}`).filter((x) => x.split("->")[0] !== x.split("->")[1]);
+        mapping = [...new Set(pairs)].sort().join(",");
       }
     }
     if (mapping && byRegMapping.has(mapping)) {
@@ -255,17 +284,28 @@ export function classifyGroup(group, target, candidate) {
   // COMPARISON's operand order, which comes from how the condition was written
   // in C -- the reporter's i3 case, where declaration-order experiments would
   // have been the wrong lever entirely.
+  // ONLY a branch whose operands were exchanged is lowering. A branch that
+  // reads a different register in the SAME position, with the same sense and
+  // the same displacement, is the allocator's choice and belongs with the
+  // other uses of that mapping — classifying it as lowering sent the caller to
+  // rewrite a condition that was never wrong.
   const allBranch = ta.length > 0 && ta.every((a) => BRANCH_RE.test(a.mnemonic));
-  if (allBranch) {
-    const swapped = ta.every((a, k) => {
-      const ra = regsOf(a.operands), rb = regsOf(ca[k]?.operands);
-      return ra.length === 2 && rb?.length === 2 && ra[0] === rb[1] && ra[1] === rb[0];
-    });
+  const everySwapped = allBranch && ta.every((a, k) => ca[k] && isOperandSwap(a, ca[k]));
+  const senseChanged = allBranch && ta.some((a, k) => ca[k] && a.mnemonic !== ca[k].mnemonic);
+  const targetChanged = allBranch && ta.some((a, k) => {
+    const da = /(-?\d+|0x[0-9a-fA-F]+)\s*$/.exec(String(a.operands ?? ""))?.[1];
+    const db = /(-?\d+|0x[0-9a-fA-F]+)\s*$/.exec(String(ca[k]?.operands ?? ""))?.[1];
+    return da !== db;
+  });
+  if (allBranch && (everySwapped || senseChanged || targetChanged)) {
+    const swapped = everySwapped;
     return { mechanism: "branch-lowering", confidence: swapped ? "high" : "medium",
       why: swapped
         ? "the branch compares the same two registers in the OPPOSITE order. This is NOT a register-allocation difference even though it looks like one: the operand order follows the shape of the condition in source"
-        : "the differing words are branches: the condition's shape in source determines the operand order and sense",
-      evidence: { swapped, target: ta.map(key), candidate: ca.map(key) },
+        : senseChanged
+          ? "the branch's SENSE changed (a different branch mnemonic), which follows from how the condition is written in source"
+          : "the branch's DESTINATION changed, so the control-flow shape differs rather than the registers",
+      evidence: { swapped, senseChanged, targetChanged, target: ta.map(key), candidate: ca.map(key) },
       phase: "uopt (expression lowering) — an as1 trace cannot decide this" };
   }
 

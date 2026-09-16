@@ -108,3 +108,73 @@ test("the trace's limits are stated: as1 schedules, it does not choose expressio
   assert.match(d.trace.limits, /cannot explain which expressions exist/i,
     "an as1 trace must not be claimed to explain uopt decisions");
 });
+
+// --- Client reply 2026-09-15: branch-vs-register classification ---
+//
+// The first shipped version called this branch-lowering and proposed rewriting
+// the condition:
+//
+//   169  addiu s7,zero,128  ->  addiu s6,zero,128
+//   294  bne   s1,s7,420    ->  bne   s1,s6,420
+//
+// The operands did not exchange positions, the sense did not change, and the
+// displacement did not change. It is the SAME s7->s6 substitution already
+// found in the constant setup -- evidence for the register-allocation
+// explanation, not a reason to burn experiments reshaping a correct condition.
+
+test("a branch whose register is SUBSTITUTED joins its allocation group", () => {
+  const target = [ins("addiu", "s7,zero,128"), ins("bne", "s1,s7,420")];
+  const candidate = [ins("addiu", "s6,zero,128"), ins("bne", "s1,s6,420")];
+  const groups = groupResiduals(target, candidate, strictOf([0, 1]));
+  assert.equal(groups.length, 1, `the constant and its branch consumer were split into ${groups.length} groups`);
+  const cls = classifyGroup(groups[0], target, candidate);
+  assert.equal(cls.mechanism, "register-assignment",
+    "a same-position register substitution in a branch is the allocator, not condition lowering");
+  assert.equal(cls.evidence.mapping, "s7->s6");
+});
+
+test("a branch whose operands are SWAPPED is still branch-lowering", () => {
+  // The control for the fix above: it must not swing the other way.
+  const target = [ins("bne", "t4,a1,fc")];
+  const candidate = [ins("bne", "a1,t4,fc")];
+  const cls = classifyGroup(groupResiduals(target, candidate, strictOf([0]))[0], target, candidate);
+  assert.equal(cls.mechanism, "branch-lowering");
+  assert.equal(cls.evidence.swapped, true);
+});
+
+test("a branch whose SENSE changed is branch-lowering", () => {
+  const target = [ins("beq", "s1,s7,420")];
+  const candidate = [ins("bne", "s1,s7,420")];
+  const cls = classifyGroup(groupResiduals(target, candidate, strictOf([0]))[0], target, candidate);
+  assert.equal(cls.mechanism, "branch-lowering");
+  assert.equal(cls.evidence.senseChanged, true);
+});
+
+test("a branch whose DESTINATION changed is branch-lowering, not allocation", () => {
+  const target = [ins("bne", "s1,s7,420")];
+  const candidate = [ins("bne", "s1,s7,424")];
+  const cls = classifyGroup(groupResiduals(target, candidate, strictOf([0]))[0], target, candidate);
+  assert.equal(cls.mechanism, "branch-lowering");
+  assert.equal(cls.evidence.targetChanged, true);
+});
+
+test("a mapping repeated inside ONE instruction is not a second decision", () => {
+  // `addiu s6,s6,0` -> `addiu s5,s5,0` produced the mapping string
+  // "s6->s5,s6->s5", which differed from "s6->s5" and opened a second group
+  // for the same allocator choice.
+  const target = [ins("lw", "t0,0(s6)"), ins("addiu", "s6,s6,0")];
+  const candidate = [ins("lw", "t0,0(s5)"), ins("addiu", "s5,s5,0")];
+  const groups = groupResiduals(target, candidate, strictOf([0, 1]));
+  assert.equal(groups.length, 1, `repeated mapping opened ${groups.length} groups`);
+  assert.equal(groups[0].mapping, "s6->s5", "the mapping must be deduplicated");
+});
+
+test("genuinely different mappings stay separate groups", () => {
+  // The control: deduplication must not merge two real allocator decisions.
+  const target = [ins("lw", "t0,0(s5)"), ins("lw", "t1,0(s6)")];
+  const candidate = [ins("lw", "t0,0(s7)"), ins("lw", "t1,0(s5)")];
+  const groups = groupResiduals(target, candidate, strictOf([0, 1]));
+  const mappings = new Set(groups.map((g) => g.mapping));
+  assert.ok(mappings.has("s5->s7") && mappings.has("s6->s5"),
+    `two distinct mappings were merged: ${[...mappings].join(" | ")}`);
+});

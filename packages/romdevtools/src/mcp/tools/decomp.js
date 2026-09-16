@@ -165,6 +165,7 @@ export function registerDecompTools(server, z, sessionKey) {
         replace: z.string().optional().describe("what to replace it with (omit to delete)"),
         candidateText: z.string().optional().describe("full replacement source, instead of find/replace"),
       })).optional().describe("op:'variants' — a bounded list of named source variants measured against one baseline under ONE dependency snapshot. Duplicate sources and byte-identical outputs are reported rather than silently dropped."),
+      prefer: z.enum(["best", "newest"]).default("best").describe("op:'diagnose'/'layout' — which stored comparison a SYMBOL-ONLY call analyses. 'best' (default) = fewest ROM-linked mismatches, ties by recency; 'newest' = most recently compared. The chosen artifact, the policy and the alternatives are always reported, because a symbol-only call does not automatically describe your latest candidate."),
       artifactId: z.string().optional().describe("op:'diagnose'/'layout' — a stored compare artifact (the `.diff.json` path from a compare's `artifacts.diff`, or its cache key). The diagnosis reuses that comparison's exact streams; no recompile."),
       tracePath: z.string().optional().describe("op:'diagnose' — an as1 `-Wa,-R` trace of the SAME compile, for source-line attribution and scheduling priorities. Optional: without it mechanisms are inferred from the instruction streams alone and the response says so."),
       ownerPath: z.string().optional().describe("op:'compare' — REPLAY FIXTURE: compile the candidate into this saved owner TU instead of the one in the current tree. Use the pre-integration backup to re-verify a function that has since been integrated; without it the accepted definition is already present and the compile fails with 'redeclaration'."),
@@ -400,7 +401,7 @@ export function registerDecompTools(server, z, sessionKey) {
                 ...(missing ? { skipNote: "the fixture this case replays is not on disk; the case is SKIPPED rather than counted as a pass" } : {}) });
             }
           }
-          return jsonContent({ project: project.id, researchRoot, ...RP.summarize(results) });
+          return jsonContent({ project: project.id, researchRoot, ...RP.summarize(results, cases) });
         }
         case "layout": {
           // Stack map + data ownership. Reads a stored comparison, like
@@ -422,19 +423,22 @@ export function registerDecompTools(server, z, sessionKey) {
               ...L.resolveAddress(syms, hexOrInt(args.va)) });
           }
           const fn = await resolveFn();
+          // Same selection policy as op:'diagnose': ranked by residual, and
+          // the choice is always explained. A silent "newest file" default
+          // diagnosed a superseded layout problem for the client.
+          const { selectArtifact } = await import("../../decomp/artifact-select.js");
           let diffPath = args.artifactId ?? null;
-          if (!diffPath || !String(diffPath).endsWith(".diff.json")) {
-            const dir = path.join(project.ws, "candidates", fn.symbol);
-            let entries = [];
-            try { entries = (await readdir(dir)).filter((f) => f.endsWith(".diff.json")); } catch {}
-            if (!entries.length) throw Object.assign(new Error(`no stored comparison for '${fn.symbol}'. Run decomp({op:'compare', ...}) first.`), { code: "NO_ARTIFACT" });
-            const stats = await Promise.all(entries.map(async (f) => ({ f, t: (await stat(path.join(dir, f))).mtimeMs })));
-            stats.sort((a, b) => b.t - a.t);
-            diffPath = args.artifactId && !String(args.artifactId).endsWith(".diff.json")
-              ? path.join(dir, `${args.artifactId}.diff.json`) : path.join(dir, stats[0].f);
+          let selection;
+          if (!diffPath) {
+            selection = await selectArtifact(project, fn.symbol, { prefer: args.prefer });
+            diffPath = selection.path;
+          } else {
+            if (!String(diffPath).endsWith(".diff.json")) diffPath = path.join(project.ws, "candidates", fn.symbol, `${diffPath}.diff.json`);
+            selection = { path: diffPath, policy: "explicit", why: "the caller named this artifact" };
           }
           const stored = JSON.parse(await readFile(diffPath, "utf8"));
           return jsonContent({ project: project.id, symbol: fn.symbol, segment: fn.segment ?? null, artifact: diffPath,
+            selection,
             ...L.layoutReport({ targetStream: stored.target ?? [], candidateStream: stored.candidate ?? [] }) });
         }
         case "variants": {
@@ -497,20 +501,19 @@ export function registerDecompTools(server, z, sessionKey) {
           // fresh compile would also risk diagnosing a different build than the
           // one the caller is looking at.
           const D = await import("../../decomp/diagnose.js");
+          const { selectArtifact } = await import("../../decomp/artifact-select.js");
           let diffPath = args.artifactId ?? null;
+          let selection = null;
           if (!diffPath) {
-            // No artifact named: use the newest diff for this function.
             const fn0 = await resolveFn();
-            const dir = path.join(project.ws, "candidates", fn0.symbol);
-            let entries = [];
-            try { entries = (await readdir(dir)).filter((f) => f.endsWith(".diff.json")); } catch {}
-            if (!entries.length) throw Object.assign(new Error(`no stored comparison for '${fn0.symbol}'. Run decomp({op:'compare', ...}) first, then diagnose its artifacts.diff.`), { code: "NO_ARTIFACT" });
-            const stats = await Promise.all(entries.map(async (f) => ({ f, t: (await stat(path.join(dir, f))).mtimeMs })));
-            stats.sort((a, b) => b.t - a.t);
-            diffPath = path.join(dir, stats[0].f);
+            selection = await selectArtifact(project, fn0.symbol, { prefer: args.prefer });
+            diffPath = selection.path;
           } else if (!diffPath.endsWith(".diff.json")) {
             const fn0 = await resolveFn();
             diffPath = path.join(project.ws, "candidates", fn0.symbol, `${diffPath}.diff.json`);
+            selection = { path: diffPath, policy: "explicit", why: "the caller named this artifact" };
+          } else {
+            selection = { path: diffPath, policy: "explicit", why: "the caller named this artifact" };
           }
           let stored;
           try { stored = JSON.parse(await readFile(diffPath, "utf8")); }
@@ -549,6 +552,7 @@ export function registerDecompTools(server, z, sessionKey) {
             trace: traceText, traceProvenance,
           });
           return jsonContent({ project: project.id, symbol: args.symbol ?? null, artifact: diffPath,
+            selection,
             ...(traceProvenance && !traceProvenance.byteInert ? { traceRejected: traceProvenance } : {}),
             ...diag });
         }
@@ -1094,6 +1098,23 @@ async function runReplayCase(project, kase, { ownerFor, resolveFn }) {
       const { semanticGate } = await import("../../decomp/semantic-gate.js");
       const g = semanticGate({ candidateText: kase.candidateText, baselineText: kase.baselineText ?? null });
       return { findingIds: g.findings.map((f) => f.id), classification: g.classification };
+    }
+    case "job-accounting": {
+      // Exercises the REPORT over a recorded job, not a fresh search launch.
+      // The distinction is the point: this case is labelled `partial`.
+      const { listJobs, jobReport } = await import("../../decomp/jobs.js");
+      const jobs = await listJobs(project);
+      const hit = jobs.find((j) => j.jobId.startsWith(kase.jobPrefix) && j.status === "complete-budget");
+      if (!hit) throw Object.assign(new Error(`no completed job matching '${kase.jobPrefix}' — this case replays the accounting over a RECORDED search, and none is on disk.`), { code: "ENOENT" });
+      const rep = await jobReport(project, hit.jobId);
+      const acc = rep.accounting ?? null;
+      return { jobId: hit.jobId, artifact: rep.reportJson ?? null,
+        hasAccounting: !!acc,
+        terminationReasonPresent: !!acc?.terminationReason,
+        terminationReason: acc?.terminationReason ?? null,
+        mutationFamilies: acc?.mutationFamilies ?? null,
+        recommendsSwitchingMechanism: /switch mechanism/i.test(rep.recommendation ?? ""),
+        elapsedS: rep.elapsedS, improvements: (rep.improvements ?? []).length };
     }
     default:
       throw Object.assign(new Error(`replay: unknown case op '${kase.op}'`), { code: "UNSUPPORTED_OP" });

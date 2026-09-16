@@ -4,6 +4,63 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 —
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.144.0 — 2026-09-16
+
+The client rejected the 0.143.0 response for claiming completion over work it
+had not delivered: the headline said "all of it" and "Nothing is deferred" above
+a list of requested cases that were missing. They were right, and three live
+defects came with the complaint.
+
+### The diagnosis recommended the wrong mechanism
+
+`op:'diagnose'` classified a branch as condition lowering whenever the differing
+words were branches. A branch that reads a DIFFERENT REGISTER in the same
+position, with the same sense and the same displacement, is the allocator's
+choice -- and on the client's own fixture it was the same `s7->s6` substitution
+already found in the constant setup two instructions earlier. The tool proposed
+rewriting a condition that was never wrong.
+
+Lowering is now decided on the operands, not the mnemonic: exchanged operands, a
+changed sense, or a changed destination. A same-position substitution joins its
+mapping's group. Regression tests cover all four directions, so a genuinely
+swapped pair is still lowering.
+
+### "One allocation decision" was reported twice
+
+An instruction using a mapping twice (`addiu s6,s6,0` -> `addiu s5,s5,0`)
+produced the key "s6->s5,s6->s5", which differs as a STRING from "s6->s5" and so
+opened a second group for the same decision. Mappings are deduplicated before
+they key a group; a control test keeps two genuinely different mappings apart.
+
+### Artifact selection was silent, and picked the worse candidate
+
+A symbol-only `diagnose` or `layout` call took the NEWEST stored comparison.
+mtime records when a comparison was last run, not how good it is -- so
+re-running an old candidate while testing something else promotes it. That is
+exactly what happened, and the client got a diagnosis of a superseded layout
+problem with nothing saying so.
+
+Selection now ranks by residual (fewest ROM-linked mismatches, then strict, then
+recency) and always returns the policy, the chosen candidate's identity and
+residual, and the alternatives. `prefer:'newest'` is available and discloses any
+better candidate it passed over; `artifactId` selects explicitly.
+
+### The acceptance matrix
+
+`op:'replay'` reports `passed` / `partial` / `failed` / `not run` /
+`unsupported`, with every row carrying its request, asserted outcome, observed
+result, and any part of the requirement left unexercised. `partial` is the state
+the previous summary lacked, and its absence is what let a completion claim sit
+above missing cases.
+
+Two cases that were omitted are now in it: the number-renderer drafts (skipped
+for "no .c fixture" when they sit at the research root under .c.txt names, which
+the research index finds in one call), and the i5 bounded search, labelled
+`partial` because the accounting over the recorded job is exercised while a
+fresh search launch is not.
+
+10 cases: 9 passed, 1 partial, 0 failed. Suite 1835 green.
+
 ## 0.143.0 — 2026-09-15
 
 A throughput report from the client working a 15-function matching campaign:

@@ -84,11 +84,50 @@ export function defaultCases({ researchRoot, workspace }) {
       expect: { distinctTargets: 2, distinctTus: 2 },
     },
     {
+      // §12.4. The first pass skipped this for "no .c fixture in the 303
+      // directory" -- which was giving up one step early: the drafts sit at
+      // the parallel-candidates ROOT under nonstandard names, and the research
+      // index that ships in this same release finds them. Locating prior art
+      // under unusual filenames is a capability being advertised; not using it
+      // to resolve a fixture was the wrong call.
+      id: "number-renderer-one-branch-vs-five-schedule",
+      why: "§12.4 — the one-difference draft's residual is a single ENTRY BRANCH (BEQ where the target has BLEZ), a different mechanism from the five-word tail scheduling residue in the blez-correct draft. Diagnosis must not describe them the same way.",
+      op: "diagnose",
+      symbol: "func_1B1FB0_802C6C1C", segment: "segment_1B1FB0",
+      candidatePath: R("func_1B1FB0_802C6C1C.one-difference.c.txt"),
+      // Asserts the MECHANISM, not merely "something other than scheduling":
+      // a control feeding `unclassified` slipped past the weaker form, which
+      // would have let a shrug count as a correct diagnosis.
+      expect: { mechanisms: ["branch-lowering"], mechanismsNotAll: ["scheduling-permutation"] },
+    },
+    {
+      id: "number-renderer-five-word-tail-schedule",
+      why: "§12.4 — the companion draft: correct entry branch, five differences confined to tail scheduling. Its groups must differ from the one-difference draft's.",
+      op: "diagnose",
+      symbol: "func_1B1FB0_802C6C1C", segment: "segment_1B1FB0",
+      candidatePath: R("func_1B1FB0_802C6C1C.blez-correct-5diff.c.txt"),
+      expect: { mechanisms: ["register-assignment"], groupCountAtLeast: 2 },
+    },
+    {
       id: "stale-near-match-absent-from-api-history",
       why: "§12.8 — a better historical candidate that the API never measured. Research import must surface it and must NOT describe the target as never attempted.",
       op: "research-status",
       symbol: "func_1B1FB0_802C6C1C",
       expect: { hasDrafts: true, claimedBestDistanceAtMost: 1 },
+    },
+    {
+      // §12.6. The bounded search itself is NOT re-run: it costs 300s of the
+      // client's hardware and re-running it proves only what the recorded job
+      // already proved. What IS exercised is the accounting over that real
+      // job — which is a narrower claim, and the matrix labels it `partial`
+      // rather than letting it stand in for the search behaviour.
+      id: "i5-no-improvement-search-accounting",
+      why: "§12.6 — a correct-size residual whose bounded search returned no improvement. EXERCISED: the report's accounting over the recorded job (termination reason, mutation family, and a recommendation to switch mechanism). NOT EXERCISED: launching a fresh bounded search, which would spend another 300s to re-derive a recorded result.",
+      op: "job-accounting",
+      jobPrefix: "search-func_i5_802C5DC0",
+      status: "partial",
+      expect: { hasAccounting: true, terminationReasonPresent: true, recommendsSwitchingMechanism: true },
+      unexercised: "a fresh bounded search launch (budget, threads, seed reproducibility end to end)",
     },
     {
       id: "semantically-wrong-but-plausible",
@@ -131,6 +170,17 @@ export function checkExpectations(kase, actual) {
       if (!(actual.mechanisms ?? []).includes(m)) fails.push(`mechanism '${m}' not reported (got: ${(actual.mechanisms ?? []).join(", ") || "none"})`);
     }
   }
+  if (e.mechanismsNotAll) {
+    // A residual that is NOT merely scheduling must not be described as if it
+    // were: that is the misdirection this suite exists to catch.
+    const got = actual.mechanisms ?? [];
+    if (got.length && got.every((m) => e.mechanismsNotAll.includes(m))) {
+      fails.push(`every group was classified as ${e.mechanismsNotAll.join("/")}, which does not distinguish this residual from a pure scheduling one`);
+    }
+  }
+  if (e.groupCountAtLeast != null && !((actual.groupCount ?? 0) >= e.groupCountAtLeast)) {
+    fails.push(`groupCount: expected at least ${e.groupCountAtLeast}, got ${JSON.stringify(actual.groupCount)}`);
+  }
   if (e.variantDeltaLinked != null) eq("variant linked delta", actual.variantDeltaLinked, e.variantDeltaLinked);
   if (e.frameDelta != null) eq("frame delta", actual.frameDelta, e.frameDelta);
   if (e.layoutShape) eq("layout shape", actual.layoutShape, e.layoutShape);
@@ -142,6 +192,9 @@ export function checkExpectations(kase, actual) {
     const d = actual.claimedBestDistance;
     if (!(d != null && d <= e.claimedBestDistanceAtMost)) fails.push(`claimedBestDistance: expected <= ${e.claimedBestDistanceAtMost}, got ${JSON.stringify(d)}`);
   }
+  if (e.hasAccounting != null) eq("has accounting", actual.hasAccounting, e.hasAccounting);
+  if (e.terminationReasonPresent != null) eq("termination reason present", actual.terminationReasonPresent, e.terminationReasonPresent);
+  if (e.recommendsSwitchingMechanism != null) eq("recommends switching mechanism", actual.recommendsSwitchingMechanism, e.recommendsSwitchingMechanism);
   if (e.findingIds) {
     for (const id of e.findingIds) {
       if (!(actual.findingIds ?? []).includes(id)) fails.push(`gate finding '${id}' not raised (got: ${(actual.findingIds ?? []).join(", ") || "none"})`);
@@ -154,17 +207,67 @@ export function checkExpectations(kase, actual) {
  * Summarize a completed run. Reports what was measured and refuses to turn it
  * into a throughput claim.
  */
-export function summarize(results) {
-  const passed = results.filter((r) => r.passed).length;
-  const failed = results.filter((r) => !r.passed && !r.skipped).length;
-  const skipped = results.filter((r) => r.skipped).length;
+/**
+ * The ACCEPTANCE MATRIX the client asked for.
+ *
+ * "Publish an acceptance matrix with `passed`, `failed`, `partial`, `not run`,
+ * and `unsupported` where appropriate. Tie each claim to an actual request and
+ * response, identified candidate, and asserted outcome. Seven passing cases
+ * prove those seven cases, not universal closure of the report."
+ *
+ * `partial` is the important state and the one the previous summary lacked: a
+ * case where something real was exercised but a named part of the requirement
+ * was not. Folding those into `passed` is how a summary outruns its evidence.
+ */
+export function statusOf(result, kase) {
+  if (result.skipped) return "not run";
+  if (result.unsupported) return "unsupported";
+  if (!result.passed) return "failed";
+  return kase?.status === "partial" || result.unexercised ? "partial" : "passed";
+}
+
+export function summarize(results, cases = []) {
+  const byId = new Map(cases.map((c) => [c.id, c]));
+  const rows = results.map((r) => {
+    const kase = byId.get(r.id);
+    const status = statusOf(r, kase);
+    return {
+      id: r.id, status,
+      requirement: r.why ?? kase?.why ?? null,
+      // Every row names what was actually driven and what came back, so a
+      // claim can be checked rather than taken on trust.
+      request: kase ? { op: kase.op, symbol: kase.symbol ?? null, segment: kase.segment ?? null,
+        candidate: kase.candidatePath ?? (kase.candidateText ? "(inline)" : null),
+        artifact: r.actual?.artifact ?? null } : null,
+      asserted: kase?.expect ?? null,
+      observed: r.actual ?? null,
+      ms: r.ms,
+      ...(r.failures ? { failures: r.failures } : {}),
+      ...(r.error ? { error: r.error } : {}),
+      ...(kase?.unexercised || r.unexercised ? { unexercised: kase?.unexercised ?? r.unexercised } : {}),
+    };
+  });
+  const count = (st) => rows.filter((r) => r.status === st).length;
+  const tally = { passed: count("passed"), partial: count("partial"), failed: count("failed"),
+    "not run": count("not run"), unsupported: count("unsupported") };
+
   return {
     schema: REPLAY_SCHEMA,
-    cases: results.length, passed, failed, skipped,
+    cases: rows.length,
+    // Kept for callers reading the old shape, but the matrix is authoritative.
+    passed: tally.passed, failed: tally.failed, skipped: tally["not run"],
+    matrix: tally,
+    coverage: `${tally.passed} of ${rows.length} cases fully passed`
+      + (tally.partial ? `; ${tally.partial} PARTIAL (something real was exercised, but a named part of the requirement was not — see each row's \`unexercised\`)` : "")
+      + (tally.failed ? `; ${tally.failed} failed` : "")
+      + (tally["not run"] ? `; ${tally["not run"]} not run` : "")
+      + ".",
     timings: timings(results.map((r) => r.ms)),
+    rows,
     results,
     interpretation:
-      "This suite measures whether each known bottleneck reproduces its expected OUTCOME through the public API. It is not a throughput benchmark: no baseline workflow was run alongside it, so it cannot support a speedup figure, and none is stated. "
-      + "A case that merely completed is not a case that passed — every case carries its expectation and the reasons it failed.",
+      "This suite measures whether each listed bottleneck reproduces its expected OUTCOME through the public API. It proves THOSE cases and nothing wider. "
+      + "It is not a throughput benchmark: no baseline workflow was run alongside it, so it cannot support a speedup figure, and none is stated. "
+      + "A case that merely completed is not a case that passed — every row carries its request, its asserted outcome, what was observed, and any part of the requirement left unexercised.",
   };
 }
