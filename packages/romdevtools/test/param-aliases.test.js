@@ -10,8 +10,8 @@
 //   capture entries  captureMemory needed a full {region,offset,length} record,
 //                    with no bare-address shorthand
 //
-// Every individual error message was good — one even suggested "Did you mean
-// 'offset'?" — which is exactly why this needed fixing at the schema instead:
+// Every individual error message was good - one even suggested "Did you mean
+// 'offset'?" - which is exactly why this needed fixing at the schema instead:
 // the COLLECTION of near-synonyms is the problem, and no single good message can
 // fix that. The screenshot case was worse than a naming difference: its own
 // result text told callers to "pass outputPath", a parameter the schema rejected.

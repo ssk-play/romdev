@@ -1,4 +1,4 @@
-// m68k-elf-gcc — WASM toolchain wrappers for Genesis C builds.
+// m68k-elf-gcc - WASM toolchain wrappers for Genesis C builds.
 //
 // The full pipeline:
 //   runCc1m68k({source, headers, options}) → m68k assembly text (.s)
@@ -7,13 +7,13 @@
 //   runM68kObjcopy({elf})                    → raw .bin Genesis ROM
 //
 // 0.81.0: the 4 stages are now produced by the shared makeGccToolchain() factory
-// (common/gcc-toolchain.js) — every arch's cc1/as/ld/objcopy share the same
+// (common/gcc-toolchain.js) - every arch's cc1/as/ld/objcopy share the same
 // input-marshalling + runIsolated + output-decoding; this file is just the m68k
 // CONFIG (glue names, arch flags, link-script name, ROM extension) + thin named
 // re-exports so existing call sites keep their runM68k* names.
 //
 // 0.95.0: `makeM68kGccTools(env)` lets a host inject `env.runTool` (the browser
-// Web Worker seam — see gcc-toolchain.js). The default exports are the no-env
+// Web Worker seam - see gcc-toolchain.js). The default exports are the no-env
 // node tools, exactly as before. NO top-level node imports here: the localDir
 // dev fallback is passed as a file: URL (wasm-tool converts on the node side),
 // so a browser bundle can load this module untouched.

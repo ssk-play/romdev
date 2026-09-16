@@ -1,4 +1,4 @@
-# Super Nintendo / Super Famicom — mental model
+# Super Nintendo / Super Famicom - mental model
 
 One page. Read once before you write your first SNES game. The
 TROUBLESHOOTING.md alongside this file is for when something's broken;
@@ -19,7 +19,7 @@ $00:4200-$00:421F   PPU/CPU control regs (NMI enable, joypad auto-read)
 $00:4300-$00:437F   DMA channel registers (8 channels × 16 bytes)
 $00:8000-$00:FFFF   first 32 KB of ROM (mirrored to other banks)
 $7E:0000-$7E:FFFF   work RAM (128 KB, banks $7E + $7F)
-$7F:0000-$7F:FFFF   work RAM (continued — 128 KB total)
+$7F:0000-$7F:FFFF   work RAM (continued - 128 KB total)
 ```
 
 Direct page (the SNES equivalent of zero-page) is configurable but
@@ -37,7 +37,7 @@ OAM     544 B   sprite-attribute table (128 sprites + high table)
 PPU memory is reached through registers `$2115-$2119` (VMADD/VMDATA),
 `$2121-$2122` (CGADD/CGDATA), `$2102-$2104` (OAMADD/OAMDATA).
 
-For bulk uploads (tile data, palette, OAM) use **DMA** — channel 0
+For bulk uploads (tile data, palette, OAM) use **DMA** - channel 0
 of `$4300-$430F` is the canonical "VRAM-fill" channel. PVSnesLib's
 `dmaCopyVram` wraps this.
 
@@ -46,8 +46,8 @@ of `$4300-$430F` is the canonical "VRAM-fill" channel. PVSnesLib's
 The SNES has 8 BG modes selected via PPU register $2105 (BGMODE):
 
 ```
-0  4 BGs × 4 colors      — text-mode look
-1  3 BGs (16+16+4 col)   — default for most games (typical 2D platformer)
+0  4 BGs × 4 colors      - text-mode look
+1  3 BGs (16+16+4 col)   - default for most games (typical 2D platformer)
 2  2 BGs × 16 col + tilemap offset-per-tile (a pre-rendered-sprite platformer)
 3  1 BG × 256 col + 1 BG × 16 col (pre-rendered-sprite platformer)
 4  1 BG × 256 col + 1 BG × 4 col with offset-per-tile
@@ -56,7 +56,7 @@ The SNES has 8 BG modes selected via PPU register $2105 (BGMODE):
 7  1 BG with affine transform (mode-7 racers)
 ```
 
-PVSnesLib's default is `BG_MODE1` (`setMode(BG_MODE1, 0)`) — three
+PVSnesLib's default is `BG_MODE1` (`setMode(BG_MODE1, 0)`) - three
 background layers, plenty of palette space.
 
 ## Sprites (OAM)
@@ -68,13 +68,13 @@ sprite (4 sprites per byte).
 Per sprite:
 
 ```
-+0  X position (low 8 bits — upper bit is in the high table)
++0  X position (low 8 bits - upper bit is in the high table)
 +1  Y position (8 bits)
 +2  tile index (low 8 bits)
 +3  attributes:
       bit 0   tile index high bit (so 9-bit tile range)
       bit 1-3 palette (palette = 0..7)
-      bit 4-5 priority (0..3 — higher = drawn on top)
+      bit 4-5 priority (0..3 - higher = drawn on top)
       bit 6   horizontal flip
       bit 7   vertical flip
 ```
@@ -94,15 +94,15 @@ optimize:
 
 1. **Use fixed OAM slots.** Decide slot N for each sprite up front. The
    PVSnesLib OAM table is byte-addressed: **slot N lives at byte offset
-   `N << 2`** (i.e. `N*4`). Don't shuffle slots between frames — a moving
+   `N << 2`** (i.e. `N*4`). Don't shuffle slots between frames - a moving
    sprite keeps its slot and just changes X/Y.
-2. **Upload EVERY OBJ palette line you reference — before you show the
+2. **Upload EVERY OBJ palette line you reference - before you show the
    sprite.** OBJ palettes are CGRAM lines 8..15 (absolute index
    `128 + line*16`, 16 colors each). If a sprite's attr names palette
    line 2 but you only uploaded line 0, line 2 is whatever was in CGRAM
    (usually zero) → garbage/transparent. Either upload all the lines you
    use, or point every sprite at line 0 until art is in. (This is the #1
-   bug — `sprites({op:'inspect'})` now WARNS when a renderable sprite references an
+   bug - `sprites({op:'inspect'})` now WARNS when a renderable sprite references an
    all-zero OBJ palette line.)
 3. **Know your OBJ VRAM rules.** OBSEL picks the OBJ tile base (a page in
    VRAM, in 0x2000-word steps) and the small/large size pair. A 16×16 OBJ
@@ -134,7 +134,7 @@ $xy where word = 0bbbbbgggggrrrrr  → red is low, blue is high
 (Same word order as Sega, different bit packing.)
 
 For sprites: palettes 0..7 of the 16-color palette block from CGRAM
-$80..$FF — sprite tile uses 4bpp tiles, so 16 colours per palette.
+$80..$FF - sprite tile uses 4bpp tiles, so 16 colours per palette.
 
 PVSnesLib helpers:
 
@@ -179,10 +179,10 @@ Edge-detect by `(pad & KEY) && !(prev & KEY)`.
 
 ### Driving input over MCP
 
-snes9x maps `input({op:'set'})` button names **straight through** — verified live, no
+snes9x maps `input({op:'set'})` button names **straight through** - verified live, no
 inversion: `{a}`→A, `{b}`→B, `{x}`→X, `{y}`→Y, `{l}`→L, `{r}`→R, plus the d-pad
 and `{start}`/`{select}`. The spatial names also resolve (east→A, south→B,
-north→X, west→Y). So `input({op:'set', b: true})` presses SNES B as expected — unlike
+north→X, west→Y). So `input({op:'set', b: true})` presses SNES B as expected - unlike
 the genesis_plus_gx platforms (Genesis/SMS/GG), there's no surprise here.
 
 ## Sound
@@ -202,7 +202,7 @@ spcPlay(0);                 /* trigger SFX channel 0 */
 (Hand-authoring SPC drivers is hard. For SFX, PVSnesLib's PSG-style
 helpers are the canonical entry point.)
 
-**Debugging sound:** `audioDebug({op:'inspect', chip:"dsp"})` decodes the live S-DSP —
+**Debugging sound:** `audioDebug({op:'inspect', chip:"dsp"})` decodes the live S-DSP -
 per-voice vol/pitch/ADSR + `env` (0 = silent regardless of vol) + `bufLastSamples`
 (nonzero proves the voice is producing audio) + `flg`; it distinguishes "never
 produced output" from "muted by mixer." GOTCHA: S-DSP FLG is $6C, KOFF is $5C
@@ -210,7 +210,7 @@ produced output" from "muted by mixer." GOTCHA: S-DSP FLG is $6C, KOFF is $5C
 
 ## MCP debug & inspection tooling
 
-The shipped snes9x core is patched for deep introspection — both audio and
+The shipped snes9x core is patched for deep introspection - both audio and
 video are fully readable, so you assert live state instead of guessing:
 
 - **Sprites:** `sprites({op:'inspect'})` decodes live OAM (per-sprite
@@ -220,19 +220,19 @@ video are fully readable, so you assert live state instead of guessing:
 - **Palette:** `palette({source:'live'})` reads live CGRAM.
 - **CPUs:** `cpu({op:'read', cpu:'main'})` for the 65816, `cpu({op:'read',
   cpu:'spc700'})` for the sound CPU.
-- **Audio:** the S-DSP is fully decodable — full per-voice state plus the
+- **Audio:** the S-DSP is fully decodable - full per-voice state plus the
   master mixer (see "Debugging sound" above for `audioDebug`).
 - **`disasm({target:'references'})`** scans EVERY 32 KB LoROM bank (refs
-  tagged `romBank`) — a hit in bank 12 of a 1 MB cart shows up, not just
+  tagged `romBank`) - a hit in bank 12 of a 1 MB cart shows up, not just
   bank 0. `disasm({target:'project'})` likewise splits per-bank, and
   **`build({output:'reassemble', platform:'snes', path})` rebuilds the whole dir
   into a byte-identical ROM in one call** (it assembles each region's ca65 + splices
-  them into the original's header/pad — no need to run ca65/ld65 yourself).
+  them into the original's header/pad - no need to run ca65/ld65 yourself).
 - **Memory regions:** `memory({op:'read'})` exposes OAM, CGRAM, ARAM (SPC700
   audio RAM), and **FillRAM**. Note the FillRAM quirk: snes9x mirrors the
   PPU registers $2100-$213F (OBSEL/BGMODE/TM/TS/color-math, etc.) into
   FillRAM indexed by the FULL address (e.g. `FillRAM[0x2101]` = OBSEL), so
-  the PPU register state is readable through the `snes_fillram` region — no
+  the PPU register state is readable through the `snes_fillram` region - no
   core patch needed.
 
 ## ROM layout (LoROM)
@@ -267,7 +267,7 @@ vendor/pvsneslib/include/snes/
   dma.h          dmaCopyVram, dmaFill*
   input.h        padsCurrent, KEY_A..KEY_SELECT, padsClear
   interrupt.h    WaitForVBlank, setNMIHandler
-  object.h       (legacy alias — use sprite.h)
+  object.h       (legacy alias - use sprite.h)
   pixel.h        setPaletteColor, setBGPaletteColor, RGB5
   scores.h
   snestypes.h    u8/u16/s8/s16 typedefs
@@ -276,7 +276,7 @@ vendor/pvsneslib/include/snes/
   video.h        setMode, setScreenOn, setScreenOff
 ```
 
-To find what an SDK function does, GREP the vendor tree — the C
+To find what an SDK function does, GREP the vendor tree - the C
 source for every helper ships at `vendor/pvsneslib/source/`. This is
 the same pattern as the Lynx cc65 vendor dir: the agent reads the
 library it's calling instead of inferring from header comments.
@@ -302,10 +302,10 @@ the tile platforms because each BG layer has its own hardware scroll register
 and parallax is nearly free.
 
 - **Hardware scroll:** write the BG1 horizontal offset register (`BG1HOFS`,
-  `$210D`, write twice — low byte then high byte/13-bit) each frame to camera
+  `$210D`, write twice - low byte then high byte/13-bit) each frame to camera
   X. PVSnesLib: `bgSetScroll(0, camX, camY);`.
 - **Parallax:** scroll BG2 at a fraction of camX (e.g. `camX>>1`) for a
-  background layer that lags — instant depth, no extra CPU.
+  background layer that lags - instant depth, no extra CPU.
 - **Streaming:** the BG tilemap is 32×32 (or 64×32) cells. For a world wider
   than the map, rewrite the column entering view as the camera crosses each
   8-px boundary (DMA the new column into VRAM during vblank).

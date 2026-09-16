@@ -6,15 +6,15 @@
 // platform's bit layout.
 //
 // Supported platforms:
-//   nes      — 2bpp planar (8 bytes plane 0, 8 bytes plane 1)
-//   gb / gbc — 2bpp interleaved (row-by-row pairs)
-//   sms / gg — 4bpp interleaved (4 bytes per row)
-//   snes     — 4bpp planar pairs (2bpp plane 0+1 first 16B, plane 2+3 next 16B)
-//   genesis  — 4bpp packed (4 bits per pixel, 2 pixels per byte, row-major)
-//   gba      — 4bpp linear (gba "obj 4bpp") — 2 pixels per byte
-//   atari2600— 1bpp playfield/sprite — 1 byte per row, MSB = leftmost
-//   atari7800— 4bpp (160B mode) packed — 2 pixels per byte
-//   lynx     — 4bpp packed (lynx sprites are RLE; we emit raw 4bpp for the caller to compress)
+//   nes      - 2bpp planar (8 bytes plane 0, 8 bytes plane 1)
+//   gb / gbc - 2bpp interleaved (row-by-row pairs)
+//   sms / gg - 4bpp interleaved (4 bytes per row)
+//   snes     - 4bpp planar pairs (2bpp plane 0+1 first 16B, plane 2+3 next 16B)
+//   genesis  - 4bpp packed (4 bits per pixel, 2 pixels per byte, row-major)
+//   gba      - 4bpp linear (gba "obj 4bpp") - 2 pixels per byte
+//   atari2600- 1bpp playfield/sprite - 1 byte per row, MSB = leftmost
+//   atari7800- 4bpp (160B mode) packed - 2 pixels per byte
+//   lynx     - 4bpp packed (lynx sprites are RLE; we emit raw 4bpp for the caller to compress)
 //
 // All take an RGBA input where width and height are multiples of the tile
 // width (8 for everything except Atari 2600, which uses 8-wide too).
@@ -22,7 +22,7 @@
 // For platforms with a hardware-fixed palette (GB/2600), the converter just
 // quantizes to that palette. For platforms with a programmable palette
 // (NES/SNES/Genesis/etc.), the converter also suggests a recommended
-// palette — the most common colors used across all tiles.
+// palette - the most common colors used across all tiles.
 
 import { PNG } from "pngjs";
 import { NES_PALETTE } from "../nes/palette.js";
@@ -56,7 +56,7 @@ const ATARI2600_NTSC_PALETTE = (function () {
 })();
 
 // SNES, Genesis, GBA all have huge programmable palettes. For quantization
-// we pick a 256-entry "generic" RGB cube — agents using these platforms
+// we pick a 256-entry "generic" RGB cube - agents using these platforms
 // supply their own palette at use time. (We still pick 4/16 representative
 // indices per tile from the input image's colors.)
 const RGB_CUBE_256 = (function () {
@@ -106,7 +106,7 @@ const SPECS = {
   atari7800: { bpp: 4, layout: "packed", master: ATARI2600_NTSC_PALETTE, hasProgrammablePalette: true, maxColors: 16 },
   lynx: { bpp: 4, layout: "packed", master: RGB_CUBE_256, hasProgrammablePalette: true, maxColors: 16 },
   // PC Engine HuC6270 BG/sprite tile: 4bpp, identical byte layout to the SNES
-  // "planar-pairs" (16 bytes plane 0+1, then 16 bytes plane 2+3, MSB-first) —
+  // "planar-pairs" (16 bytes plane 0+1, then 16 bytes plane 2+3, MSB-first) -
   // verified byte-for-byte against geargrafx's renderer. The VCE palette is
   // 9-bit GRB; a suggested 16-color palette is returned (quantize against the
   // RGB cube, then pack to GRB at use time via inspectPalette's decode).
@@ -155,13 +155,13 @@ export function imageToTiles(platform, pngBytes, opts = {}) {
  *   Explicit RGB → palette index map. Pixel RGB is matched against the
  *   hint by nearest-neighbour in RGB space; the matched index goes
  *   directly into the encoded tile byte. Replaces the per-tile
- *   master-palette quantization with a deterministic mapping — the
+ *   master-palette quantization with a deterministic mapping - the
  *   right thing when the caller already knows what their palette is.
  */
 export function rgbaToTiles(platform, args) {
   const spec = SPECS[platform];
   if (!spec) {
-    throw new Error(`unknown platform '${platform}' — supported: ${Object.keys(SPECS).join(", ")}`);
+    throw new Error(`unknown platform '${platform}' - supported: ${Object.keys(SPECS).join(", ")}`);
   }
   const { width, height, pixels, paletteHint } = args;
   if (width % 8 !== 0) throw new Error(`width must be multiple of 8, got ${width}`);
@@ -182,7 +182,7 @@ export function rgbaToTiles(platform, args) {
 
   // Tile emit order. 'row' (default) = row-major, what BG tilemaps want.
   // 'sprite' = column-major (top-to-bottom, then next column right), the order
-  // multi-cell hardware sprites are read on Genesis/Lynx — so a single sprite
+  // multi-cell hardware sprites are read on Genesis/Lynx - so a single sprite
   // frame packs into ready-to-DMA tiles instead of needing a manual reshuffle.
   const spriteOrder = args.tileOrder === "sprite";
   for (let t = 0; t < totalTiles; t++) {
@@ -385,7 +385,7 @@ function nearestPalIdx(rgb, palette, master) {
 /**
  * For platforms with programmable palettes, suggest a palette using the
  * most-used master indices. Returned as Uint8Array of indices (length depends
- * on platform — NES = 32, others = maxColors of one subpalette).
+ * on platform - NES = 32, others = maxColors of one subpalette).
  */
 function suggestPalette(spec, masterUsage) {
   const sorted = [];

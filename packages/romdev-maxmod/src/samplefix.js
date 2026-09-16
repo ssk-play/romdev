@@ -1,4 +1,4 @@
-// romdev-maxmod — samplefix.js
+// romdev-maxmod - samplefix.js
 //
 // Faithful pure-JS port of mmutil's samplefix.c. This is the SEPARATE
 // translation unit that every loader (mod/xm/it/s3m) calls via FixSample(samp)
@@ -231,7 +231,7 @@ export function FixSample_GBA(samp) {
 
   if (samp.loop_type) {
     if (samp.loop_end - samp.loop_start < GBA_MIN_LOOP_SIZE) {
-      // (GBA_MIN_LOOP_SIZE / looplen)+1 — integer division, matches the C.
+      // (GBA_MIN_LOOP_SIZE / looplen)+1 - integer division, matches the C.
       const count = Math.trunc(GBA_MIN_LOOP_SIZE / (samp.loop_end - samp.loop_start)) + 1;
       Unroll_Sample_Loop(samp, count);
     }

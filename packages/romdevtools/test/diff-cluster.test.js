@@ -1,4 +1,4 @@
-// clusterChanges — the diffMemory summary view. A gameplay diff churns thousands
+// clusterChanges - the diffMemory summary view. A gameplay diff churns thousands
 // of bytes; the summary must collapse them into a few ranges and, crucially,
 // spot the stride of a struct array (the most useful RE signal in the noise).
 
@@ -22,7 +22,7 @@ test("a gap larger than the threshold splits into separate clusters", () => {
 });
 
 test("evenly-spaced islands report the stride (struct-array tell)", () => {
-  // Four 4-byte records at stride 0x80 — the classic player/entity array.
+  // Four 4-byte records at stride 0x80 - the classic player/entity array.
   const offs = [];
   for (const base of [0x600, 0x680, 0x700, 0x780]) {
     offs.push(base, base + 1, base + 2); // 3 changed fields per record

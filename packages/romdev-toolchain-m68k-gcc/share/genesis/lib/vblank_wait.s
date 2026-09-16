@@ -1,8 +1,8 @@
-; Genesis — waiting for VBlank without using interrupts.
+; Genesis - waiting for VBlank without using interrupts.
 ;
 ; The VDP has a "vertical blanking in progress" status flag at bit 3
 ; of the VDP control register ($C00004 when read). When this bit is
-; set, the electron beam is in the vblank interval — safe to write
+; set, the electron beam is in the vblank interval - safe to write
 ; VRAM/CRAM/VSRAM, do DMA, etc.
 ;
 ; The cleanest way to do per-frame work is with the VINT interrupt
@@ -28,7 +28,7 @@
 ;     bne.s   wait_vblank_end
 ;     rts
 ;
-; ** Gotcha — the status word is BIG-ENDIAN. ** $C00004 returns the
+; ** Gotcha - the status word is BIG-ENDIAN. ** $C00004 returns the
 ; high byte first; bit 3 of the LOW byte (which the documentation
 ; usually means by "bit 3 of the status") is actually accessed at
 ; $C00005. The btst above gets this right; some older Genesis dev
@@ -62,7 +62,7 @@ wait_vblank_end:
 ;     jsr     dma_sprite_table
 ;     bra.s   game_loop
 ;
-; The "wait_vblank_end first" ensures you start fresh — if your logic
+; The "wait_vblank_end first" ensures you start fresh - if your logic
 ; finished early and you're already in vblank, you'd otherwise return
 ; from wait_vblank_start immediately and have less than a frame of
 ; vblank-safe time left.

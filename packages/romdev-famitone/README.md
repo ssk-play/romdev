@@ -1,6 +1,6 @@
 # romdev-famitone
 
-Pure-JS **FamiTone2 music compiler for the NES** — a faithful port of Shiru's
+Pure-JS **FamiTone2 music compiler for the NES** - a faithful port of Shiru's
 `text2data` (nesdoug bug-fix fork). Parses a **FamiTracker `.txt` export** and
 emits **FamiTone2-format music data** as ca65 `.s` source you assemble with the
 FamiTone2 driver and play on the NES APU. No native binary, no Windows `.exe`.

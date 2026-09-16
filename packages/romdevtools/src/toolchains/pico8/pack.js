@@ -1,4 +1,4 @@
-// PICO-8 .p8 cart "builder" — a PACKAGER, not a compiler. PICO-8 carts are plain-text
+// PICO-8 .p8 cart "builder" - a PACKAGER, not a compiler. PICO-8 carts are plain-text
 // files with labeled sections (__lua__, __gfx__, __gff__, __label__, __map__, __sfx__,
 // __music__); the Lua is source, not machine code. So "build" here = assemble a valid
 // .p8 from the given Lua (+ optional data sections) that FAKE-08 can load and run.
@@ -18,7 +18,7 @@ export function isP8Cart(text) {
  * Assemble a .p8 cart.
  * @param {object} opts
  * @param {string} opts.lua         Lua source for the __lua__ section (required unless `p8` given).
- * @param {string} [opts.p8]        A complete .p8 already — validated + passed through.
+ * @param {string} [opts.p8]        A complete .p8 already - validated + passed through.
  * @param {number} [opts.version]   PICO-8 format version line (default 18).
  * @param {Object<string,string>} [opts.sections]  Extra sections by name → body text
  *        (e.g. { gfx: "...", map: "...", sfx: "...", music: "..." }). Bodies are the raw
@@ -43,7 +43,7 @@ export function packP8({ lua, p8, version = 18, sections = {} } = {}) {
   // Validate any extra section names.
   for (const name of Object.keys(sections)) {
     if (!KNOWN_SECTIONS.includes(name)) {
-      warnings.push(`unknown .p8 section '__${name}__' — passing through, but PICO-8/FAKE-08 may ignore it.`);
+      warnings.push(`unknown .p8 section '__${name}__' - passing through, but PICO-8/FAKE-08 may ignore it.`);
     }
   }
 

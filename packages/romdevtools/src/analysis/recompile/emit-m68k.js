@@ -1,24 +1,24 @@
 // IR → m68k (Genesis / Mega Drive, vasm68k syntax) emitter. This is the proof
 // that the recompile engine is GENERIC: a 6502-sourced IR targets the 68000 here
-// through the SAME pipeline that targets the 65816 — no second bespoke recompiler.
+// through the SAME pipeline that targets the 65816 - no second bespoke recompiler.
 //
 // Unlike NES→SNES (65816 runs 6502 logic 1:1 in emulation mode), NES→Genesis is
 // REAL ISA translation: the 6502's 8-bit register file is modeled on 68000 data
 // registers, and each abstract op becomes the equivalent 68000 instruction. The
 // 6502 address space (zero page + RAM + the parts of $0000-$1FFF a game touches)
 // is mapped to a contiguous block of 68000 work RAM (NES_RAM), so a `sta $05`
-// becomes `move.b d0, (NES_RAM+5).w` — and that block IS the Tier-1 RAM-diff
+// becomes `move.b d0, (NES_RAM+5).w` - and that block IS the Tier-1 RAM-diff
 // oracle's mirror (run original + port, byte-diff this block per frame).
 //
 // SCOPE (phase 1, logic only): the documented 6502 set that maps mechanically;
 // the PPU/APU seam is STUBBED (writes drop, $2002 read → $80 so vblank loops
-// exit), exactly like the SNES phase-1 path — presentation is a later runtime.
+// exit), exactly like the SNES phase-1 path - presentation is a later runtime.
 // Decimal mode, RMW-on-MMIO, and undocumented opcodes are REFUSED upstream by the
 // lifter, so they never reach here.
 //
 // Register model:  6502 A → d0   X → d1   Y → d2   (8-bit, used via .b)
 //                  6502 P (flags) → the 68000 CCR is set by the move/alu itself;
-//                  we do NOT model the full 6502 flag semantics — branches use the
+//                  we do NOT model the full 6502 flag semantics - branches use the
 //                  CCR the prior op left, which is correct for the common
 //                  load→branch / compare→branch idioms (the same pragmatic bound
 //                  the SNES emulation-mode path relies on hardware for).
@@ -37,7 +37,7 @@ const NES_RAM = 0xff0000;
 const ACC = "d0", X = "d1", Y = "d2";
 
 /** Translate a 6502 operand to a 68000 source/dest effective address.
- *  Returns { ea, imm } — `imm` true if it's an immediate (#...). Indexed modes
+ *  Returns { ea, imm } - `imm` true if it's an immediate (#...). Indexed modes
  *  (`$addr,x` / `$addr,y`) use the index register as a 68000 address-register
  *  displacement via a scratch address reg a0. */
 function operandToEa(operand) {
@@ -61,7 +61,7 @@ function operandToEa(operand) {
     // indexed: a0 = NES_RAM + addr + index_reg ; EA = (a0)
     return { ea: null, imm: false, addr, idx };
   }
-  // a bare label (branch/jump target handled elsewhere) — pass through as a symbol
+  // a bare label (branch/jump target handled elsewhere) - pass through as a symbol
   return { ea: op, imm: false, symbol: true };
 }
 
@@ -110,12 +110,12 @@ function emitReg(node, out) {
     case ABSTRACT.DEY: out.push(`        subq.b  #1,${Y}`); return;
     case ABSTRACT.CPX: out.push(`        cmp.b   ${realEa()},${X}`); return;
     case ABSTRACT.CPY: out.push(`        cmp.b   ${realEa()},${Y}`); return;
-    case ABSTRACT.PUSH: out.push(`        ; push (${node.mnemonic}) — 6502 stack ops are no-ops in the logic port`); return;
-    case ABSTRACT.PULL: out.push(`        ; pull (${node.mnemonic}) — 6502 stack ops are no-ops in the logic port`); return;
+    case ABSTRACT.PUSH: out.push(`        ; push (${node.mnemonic}) - 6502 stack ops are no-ops in the logic port`); return;
+    case ABSTRACT.PULL: out.push(`        ; pull (${node.mnemonic}) - 6502 stack ops are no-ops in the logic port`); return;
     case ABSTRACT.SET_FLAG:
     case ABSTRACT.CLR_FLAG:
     case ABSTRACT.NOP:
-      out.push(`        nop                     ; ${node.mnemonic} (flag/nop — CCR handled by adjacent ops)`); return;
+      out.push(`        nop                     ; ${node.mnemonic} (flag/nop - CCR handled by adjacent ops)`); return;
     default:
       out.push(`        ; UNTRANSLATED reg op ${node.mnemonic} (${k})`); return;
   }
@@ -128,7 +128,7 @@ function emitTransfer(node, out) {
     tax: `move.b  ${ACC},${X}`, tay: `move.b  ${ACC},${Y}`,
     txa: `move.b  ${X},${ACC}`, tya: `move.b  ${Y},${ACC}`,
     tsx: `move.b  #$FF,${X}    ; stack ptr is fixed in the logic port`,
-    txs: `; txs — stack ptr fixed in the logic port`,
+    txs: `; txs - stack ptr fixed in the logic port`,
   };
   out.push(`        ${map[m] || `; ${m} (transfer)`}`);
 }
@@ -196,7 +196,7 @@ function emitHwReg(node, out) {
 /**
  * The m68k ROM wrapper: 68000 vector table at $000000 (SSP + reset PC), the
  * minimal SEGA header at $100, the recompiled body at $200, and the seam include.
- * The body runs straight 68000 (no mode switch) — that's the point: it's a real
+ * The body runs straight 68000 (no mode switch) - that's the point: it's a real
  * translation, not an emulation-mode passthrough.
  * @param {{body:string, resetLabel:string, withShim?:boolean, withRuntime?:boolean, nmiBody?:string}} a
  */
@@ -205,7 +205,7 @@ export function emitM68kWrapper(a) {
   return [
     "; NES→Genesis recompiled image (romdev generic emit backend, m68k target).",
     "; The 6502 logic is TRANSLATED to 68000 (not emulated). NES RAM is mapped to",
-    "; Genesis work RAM at $FF0000 — that block is the Tier-1 RAM-diff oracle mirror.",
+    "; Genesis work RAM at $FF0000 - that block is the Tier-1 RAM-diff oracle mirror.",
     "",
     "    org $00000000",
     "vectors:",

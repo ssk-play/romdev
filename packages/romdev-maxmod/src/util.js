@@ -1,5 +1,5 @@
 /**
- * util.js — shared low-level helpers for the pure-JS mmutil (Maxmod soundbank) port.
+ * util.js - shared low-level helpers for the pure-JS mmutil (Maxmod soundbank) port.
  *
  * Ported faithfully from devkitPro mmutil:
  *   - files.c  → ByteWriter (write8/16/24/32, align16/align32, patch, tell)
@@ -13,21 +13,21 @@
  *     that with a growable Uint8Array-backed cursor so back-patching (size/offset
  *     fixups) works exactly like fseek+fwrite in mmutil.
  *   - align32() pads the WRITE CURSOR (file-absolute, from offset 0) to a 4-byte
- *     boundary using BYTESMASHER (0xBA) — NOT zero. (files.c align32.)
+ *     boundary using BYTESMASHER (0xBA) - NOT zero. (files.c align32.)
  *   - All multi-byte writes are little-endian (files.c write16/write24/write32).
  *
  * The in-memory module model (see makeModule / makeSample / etc. below) is the SAME
  * shape regardless of source format (mod/xm/it/s3m) so a single mas-emitter can
  * consume any of them. Field names mirror mas.h structs 1:1.
  *
- * Plain JS ESM + JSDoc. No TypeScript. No Node fs — Uint8Array in / Uint8Array out.
+ * Plain JS ESM + JSDoc. No TypeScript. No Node fs - Uint8Array in / Uint8Array out.
  */
 
 // ---------------------------------------------------------------------------
 // Constants (defs.h / deftypes.h / mas.h / systems.h)
 // ---------------------------------------------------------------------------
 
-/** defs.h: BYTESMASHER — the filler/placeholder byte mmutil writes (0xBA). */
+/** defs.h: BYTESMASHER - the filler/placeholder byte mmutil writes (0xBA). */
 export const BYTESMASHER = 0xba;
 
 /** defs.h: MAX_CHANNELS. */
@@ -71,14 +71,14 @@ export function CLAMP(x, a, b) {
 }
 
 // ---------------------------------------------------------------------------
-// ByteWriter — faithful port of files.c write side (write8/16/24/32, align*, seek).
+// ByteWriter - faithful port of files.c write side (write8/16/24/32, align*, seek).
 //
 // The C kept a single global `fout` FILE* with an implicit cursor; fseek_write
 // repositioned it for back-patching. We replicate that with an explicit cursor
 // (`pos`) into a growable buffer. Writes past the end grow the buffer; seeking
 // backwards + writing overwrites in place (exactly like r+b fseek/fwrite).
 //
-// `length` (file_tell_write at EOF) is the high-water mark, NOT the cursor — see
+// `length` (file_tell_write at EOF) is the high-water mark, NOT the cursor - see
 // note on tell() below.
 // ---------------------------------------------------------------------------
 
@@ -182,7 +182,7 @@ export class ByteWriter {
   }
 
   /**
-   * mmutil file_tell_write(): the C returns ftell(fout) — the CURSOR position.
+   * mmutil file_tell_write(): the C returns ftell(fout) - the CURSOR position.
    * In mmutil every parapointer/offset is captured immediately after the
    * relevant data is appended (cursor == EOF at that moment), so cursor and
    * high-water mark coincide at capture time. Returns the current cursor.
@@ -247,7 +247,7 @@ export class ByteWriter {
 }
 
 // ---------------------------------------------------------------------------
-// ByteReader — faithful port of files.c read side, for parsing input modules.
+// ByteReader - faithful port of files.c read side, for parsing input modules.
 //
 // files.c read8/16/24/32 are all LITTLE-ENDIAN. MOD and several IT/S3M fields
 // are big-endian (or use BE word order); the original mmutil loaders assemble
@@ -311,7 +311,7 @@ export class ByteReader {
     return v < 0x8000 ? v : v - 0x10000;
   }
 
-  /** Big-endian u16 — for MOD sample-length/period fields, IT/S3M BE words. */
+  /** Big-endian u16 - for MOD sample-length/period fields, IT/S3M BE words. */
   read16be() {
     const hi = this.read8();
     const lo = this.read8();
@@ -350,7 +350,7 @@ export class ByteReader {
   /**
    * Read a fixed-width, zero-padded / space-padded ASCII field (MOD/XM/IT/S3M
    * sample & instrument names, magic tags). Stops the returned string at the
-   * first NUL but always advances the cursor by exactly `n` bytes — matching how
+   * first NUL but always advances the cursor by exactly `n` bytes - matching how
    * mmutil reads name[] fields into fixed char arrays. Trailing whitespace is
    * trimmed (XM names are space-padded, IT/S3M are NUL-padded).
    * @param {number} n field width in bytes
@@ -372,7 +372,7 @@ export class ByteReader {
   }
 
   /**
-   * Read a fixed-width ASCII tag/magic WITHOUT trimming or NUL-stopping — exact
+   * Read a fixed-width ASCII tag/magic WITHOUT trimming or NUL-stopping - exact
    * bytes as chars. Use for 4-char signatures ('IMPM', 'SCRM', 'M.K.', etc.).
    * @param {number} n
    * @returns {string}
@@ -413,7 +413,7 @@ export class ByteReader {
 }
 
 // ---------------------------------------------------------------------------
-// simple.c — bit reader + extension classifier + sample length/format helpers.
+// simple.c - bit reader + extension classifier + sample length/format helpers.
 // ---------------------------------------------------------------------------
 
 /**

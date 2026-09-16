@@ -1,10 +1,10 @@
-// P4 — build-boilerplate defaults for scaffolded projects. The feedback: every
+// P4 - build-boilerplate defaults for scaffolded projects. The feedback: every
 // gbc C build needed crt0Path:'gb_crt0.s' AND codeLoc:0x150 re-passed by hand
 // (0x150 is a magic number; forgetting it is a silent footgun). Those should be
 // DEFAULTS when building a scaffolded project dir.
 //
 // This proves build({output:'project', path}) already supplies the crt0 +
-// codeLoc (and the SMS/GG/MSX equivalents) via the per-platform project recipe —
+// codeLoc (and the SMS/GG/MSX equivalents) via the per-platform project recipe -
 // so scaffold({op:'project'}) → build({output:'project', path}) builds with NO
 // crt0/codeLoc args. (projectBuildRecipe is the single source of truth.)
 
@@ -38,7 +38,7 @@ test("projectBuildRecipe routes msx_crt0.s + codeLoc 0x4010; skips sms/gg duplic
   assert.equal(msx.codeLoc, 0x4010);
   // SMS/GG: the dir's *_crt0.s must be ROUTED through the crt0 channel.
   // (The old recipe SKIPPED it believing buildForPlatform auto-injects a
-  // bundled crt0 — it doesn't; only the rom/run MCP handlers do. Skipping
+  // bundled crt0 - it doesn't; only the rom/run MCP handlers do. Skipping
   // linked SDCC's stock z80 crt0, which never calls main(): every
   // project-built SMS/GG ROM black-screened. readProjectDir falls back to
   // the bundled crt0 when the dir has none.)
@@ -62,7 +62,7 @@ test("readProjectDir on a scaffolded gbc dir returns crt0 + codeLoc 0x150 (no ha
 
 // ── End-to-end: scaffold → build({output:'project'}) with NO crt0/codeLoc. ──
 // These actually run SDCC, so give them room. Each asserts ok:true with zero
-// boilerplate args — the whole point of P4.
+// boilerplate args - the whole point of P4.
 for (const platform of ["gbc", "gb", "sms", "gg"]) {
   test(`scaffold(${platform}, puzzle) → build({output:'project'}) with NO crt0/codeLoc → ok`, async () => {
     const dir = await tmpDir();

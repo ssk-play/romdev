@@ -1,12 +1,12 @@
 ;; Game Boy / Game Boy Color crt0 for SDCC.
 ;;
 ;; Replaces SDCC's stock sm83 crt0 (designed for a host-runtime that
-;; handles I/O via rst $08 — useless on a real cartridge). This one
+;; handles I/O via rst $08 - useless on a real cartridge). This one
 ;; lays out a real cartridge image:
 ;;
 ;;   $0000-$0060  reset + interrupt vectors (default = ret/reti)
 ;;   $0100-$0103  entry point (nop; jp init)
-;;   $0104-$014F  cartridge header window — host pipeline patches in
+;;   $0104-$014F  cartridge header window - host pipeline patches in
 ;;                Nintendo logo + checksum after link
 ;;   $0150+       _CODE segment (the build is configured with
 ;;                -b _CODE=0x0150 so user code can't pack into the
@@ -86,7 +86,7 @@
         nop
         jp      init
 
-;; ─── Header bytes at $0104-$014F — host pipeline fills most of these ─
+;; ─── Header bytes at $0104-$014F - host pipeline fills most of these ─
 ;; The logo / title / checksums are patched post-link (rgbfix in the
 ;; build pipeline, or patch-header.js when rebuilding outside romdev).
 ;; The CART TYPE and RAM SIZE bytes are DECLARED HERE as real bytes so
@@ -96,7 +96,7 @@
 ;;   $0149 = $02  8 KB external cart RAM at $A000-$BFFF
 ;;
 ;; This is what makes battery saves (persistent hi-scores) work: the
-;; emulator sizes its SAVE_RAM from these two bytes. The RAM is gated —
+;; emulator sizes its SAVE_RAM from these two bytes. The RAM is gated -
 ;; games must write $0A to $0000-$1FFF before touching $A000 and write
 ;; $00 after (see the SRAM idiom in the shmup example). Games that never
 ;; touch $A000 are completely unaffected by the mapper declaration: a
@@ -105,7 +105,7 @@
 ;; normal code never performs).
 ;;
 ;; If you rebuild OUTSIDE romdev, keep these bytes: rgbfix flags are
-;; `-m 0x03 -r 0x02` (patch-header.js defaults to ROM-only — pass
+;; `-m 0x03 -r 0x02` (patch-header.js defaults to ROM-only - pass
 ;; cartType/ramSize through patchGbHeader() if you script it).
         .area _HEADERe (ABS)
         .org    0x0104
@@ -144,7 +144,7 @@ init::
 gsinit::
         ;; ── Zero the BSS segment (`_DATA`). ──────────────────────────
         ;; Round 27 fix: pre-r55 this loop targeted `s__INITIALIZED` for
-        ;; `l__INITIALIZER` bytes — but `_INITIALIZED` is the runtime
+        ;; `l__INITIALIZER` bytes - but `_INITIALIZED` is the runtime
         ;; shadow of the `_INITIALIZER` ROM image and gets overwritten
         ;; by the copy loop below anyway, so it was a no-op. The actual
         ;; BSS at `s__DATA..s__DATA+l__DATA` (where every uninitialised

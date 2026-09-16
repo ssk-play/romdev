@@ -85,7 +85,10 @@ fi
 # function decls, int↔pointer assignments) that GCC 14+/C23 treats as ERRORS.
 # Demote them to warnings for the TARGET compiler so libc/libm build. (We don't
 # ship libgloss's board glue — libdragon/PSn00bSDK provide their own crt0.)
-NEWLIB_TARGET_CFLAGS="-Wno-implicit-function-declaration -Wno-int-conversion -Wno-return-mismatch -Wno-implicit-int"
+# -ffile-prefix-map: newlib's assert() strings bake __FILE__ into .rodata, so
+# without this the BUILDER'S absolute source path ships inside libc.a. Rewrite
+# it to a stable prefix that carries no information about this machine.
+NEWLIB_TARGET_CFLAGS="-Wno-implicit-function-declaration -Wno-int-conversion -Wno-return-mismatch -Wno-implicit-int -ffile-prefix-map=$SRC_DIR=/newlib"
 if [ ! -f "$PREFIX/$TARGET/lib/libc.a" ]; then
   rm -rf build-newlib; mkdir build-newlib; cd build-newlib
   "$SRC_DIR/newlib-$NEWLIB_VER/configure" \

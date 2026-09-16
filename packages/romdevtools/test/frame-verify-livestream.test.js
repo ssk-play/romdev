@@ -1,5 +1,5 @@
 // frame({op:'verify'}) must push the frame it judged to the human's /livestream
-// — verify's entire job is "look at the screen," so the watcher should SEE that
+// - verify's entire job is "look at the screen," so the watcher should SEE that
 // screen, not just the JSON verdict. The mechanism: doVerify attaches a deferred
 // `_observerFrameProvider`; the observer middleware strips it from the agent
 // result and, after the response goes out, rasterizes it into a `call_frame`

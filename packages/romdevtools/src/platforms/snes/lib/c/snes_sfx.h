@@ -1,7 +1,7 @@
-/* ── snes_sfx.h — minimal SNES sound + music wrapper ────────────────
+/* ── snes_sfx.h - minimal SNES sound + music wrapper ────────────────
  *
  * SNES audio = SPC700 (separate CPU + 64 KB ARAM + 8-channel DSP).
- * The 65816 main CPU has NO direct DSP access — it can ONLY talk to
+ * The 65816 main CPU has NO direct DSP access - it can ONLY talk to
  * the SPC700 via four I/O ports at $2140-$2143 (also known as
  * APUIO0-3 / REG_APU00-03).
  *
@@ -17,10 +17,10 @@
  *
  * Commands (matching the bundled spc_driver.asm):
  *   0 = no-op / release         (call sfx_release between repeats)
- *   1 = play sample 0 (shoot)   — sfx_play(1)
- *   2 = play sample 1 (explosion) — sfx_play(2)
- *   3 = start music              — sfx_music_play()
- *   4 = stop  music              — sfx_music_stop()
+ *   1 = play sample 0 (shoot)   - sfx_play(1)
+ *   2 = play sample 1 (explosion) - sfx_play(2)
+ *   3 = start music              - sfx_music_play()
+ *   4 = stop  music              - sfx_music_stop()
  *
  * Voice assignment in the driver:
  *   Voice 0 = sfx slot (one-shot, retriggered on cmds 1/2)
@@ -28,7 +28,7 @@
  *             on each row at the row's pitch)
  *   Voices 2-7 = unused (room to extend the driver with more channels)
  *
- * The driver uses edge-detection on the command byte — to trigger
+ * The driver uses edge-detection on the command byte - to trigger
  * the same command twice in a row you MUST send 0 (release) first
  * then the real command. All wrapper helpers below handle that for you.
  *
@@ -58,10 +58,10 @@
 
 /* Upload the bundled SPC driver + sample bank + song table into ARAM
  * and kick it off. Takes ~60 ms (~20 KB transferred one byte at a time
- * over the APUIO ports — the SPC's max rate).
+ * over the APUIO ports - the SPC's max rate).
  *
  * ⚠ CALL THIS *AFTER* setScreenOn(), AND CHECK THE RETURN. Every wait
- * inside is bounded — a wedged SPC can no longer hang the main CPU — but
+ * inside is bounded - a wedged SPC can no longer hang the main CPU - but
  * if it returns nonzero, sound init failed and you should just keep
  * running (the game renders fine without sound). Calling it BEFORE the
  * screen is on, or spinning on it, is the classic "black screen, OAM
@@ -81,11 +81,11 @@ void sfx_play(u8 cmd);
 
 /* Send the explicit "release" / no-op (cmd 0). Useful if you've sent
  * a play and want to allow a re-trigger of the SAME sound on the
- * next frame. Most callers won't need this — sfx_play does it
+ * next frame. Most callers won't need this - sfx_play does it
  * automatically. */
 void sfx_release(void);
 
-/* Start the bundled music loop on voice 1. Safe to call repeatedly —
+/* Start the bundled music loop on voice 1. Safe to call repeatedly -
  * each call rewinds the song to row 0. */
 void sfx_music_play(void);
 

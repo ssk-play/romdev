@@ -1,9 +1,9 @@
-// test-rom.js — locate the gitignored NES test ROM, or say why it is absent.
+// test-rom.js - locate the gitignored NES test ROM, or say why it is absent.
 //
 // A handful of tests drive a REAL commercial NES ROM (nestest.nes) because
 // nothing else exercises the same paths: documented per-instruction CPU
 // behaviour, real bank layout, a genuine iNES header. That ROM is commercial
-// content, so it is gitignored and ships in no npm tarball — it exists only on
+// content, so it is gitignored and ships in no npm tarball - it exists only on
 // a dev box that put it there.
 //
 // That makes it the one fixture a clean checkout cannot obtain, which matters
@@ -23,11 +23,11 @@ import { fileURLToPath } from "node:url";
  * @param {string} importMetaUrl the calling test's import.meta.url
  * @param {string} [name] rom filename under test/roms/
  * @returns {{path: string, skip: false|string}} `skip` is a reason string when
- *   the ROM is absent — pass it straight to node:test's `skip` option.
+ *   the ROM is absent - pass it straight to node:test's `skip` option.
  */
 export function requireTestRom(importMetaUrl, name = "nestest.nes") {
-  // Resolved against the CALLER's url (tests live in test/), so `./roms/…`,
-  // not `../roms/…` — the helper's own directory is irrelevant here.
+  // Resolved against the CALLER's url (tests live in test/), so `./roms/...`,
+  // not `../roms/...` - the helper's own directory is irrelevant here.
   const path = fileURLToPath(new URL(`./roms/${name}`, importMetaUrl));
   if (existsSync(path)) return { path, skip: false };
   return {

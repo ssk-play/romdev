@@ -1,11 +1,11 @@
-// capability-conformance.test.js — ENFORCES the platform capability contract.
+// capability-conformance.test.js - ENFORCES the platform capability contract.
 //
 // The manifest in src/cores/capabilities.js declares what each platform can do.
 // This test asserts those declarations match REALITY for the 14 tier-1
 // platforms. Two tiers:
-//   (A) STATIC consistency — the manifest is well-formed (every platform has
+//   (A) STATIC consistency - the manifest is well-formed (every platform has
 //       every OP_KEY, region ids are real, cpus/audioChips coherent).
-//   (B) GROUND-TRUTH cross-check — the manifest's op booleans match the actual
+//   (B) GROUND-TRUTH cross-check - the manifest's op booleans match the actual
 //       per-platform support the tools expose (parsed from the authoritative
 //       "Supported:" lists in the tool sources + the live getCPUState decoder).
 //
@@ -34,7 +34,7 @@ test("contract: every tier-1 platform in CORES has a capability entry", () => {
 
 test("contract: MIPS tier (ps1/n64) has full op parity (build+run+disasm+decompile+cpuState)", () => {
   // The 32-bit MIPS tier: real cores (run+screenshot+disasm work) but a partial op
-  // surface — held to its own conformance, NOT the canonical-14 cross-checks.
+  // surface - held to its own conformance, NOT the canonical-14 cross-checks.
   assert.deepEqual([...MIPS_TIER_PLATFORMS].sort(), ["n64", "ps1"]);
   for (const p of MIPS_TIER_PLATFORMS) {
     const c = CAPABILITIES[p];
@@ -47,7 +47,7 @@ test("contract: MIPS tier (ps1/n64) has full op parity (build+run+disasm+decompi
     assert.equal(c.ops.decompile, true, `${p} decompile (MIPS SLEIGH shipped)`);
     // build now works (mips-elf-gcc WASM toolchain):
     assert.equal(c.ops.build, true, `${p} build (mips-elf-gcc WASM toolchain)`);
-    // framebuffer/3D renderers have no tile/sprite inspectors — AND the manifest
+    // framebuffer/3D renderers have no tile/sprite inspectors - AND the manifest
     // must explain WHY (hardware-grounded reason), not just report false. This is
     // the "call out the features they can't have" contract: an agent gets "N/A by
     // hardware" (a framebuffer/3D renderer has no tile tables), not "no decoder".
@@ -91,7 +91,7 @@ test("contract: every entry declares all OP_KEYS + coherent fields", () => {
 
 // ─── (B) Ground-truth cross-check: manifest matches the tools' actual wiring ──
 //
-// The manifest is now the SOURCE OF TRUTH — tools that can't do an op on a
+// The manifest is now the SOURCE OF TRUTH - tools that can't do an op on a
 // platform call unsupported() (a uniform UnsupportedError). These tests pin the
 // manifest's op booleans to the known-wired sets derived from the tool sources'
 // `if (p===)` branches / switch cases, so the manifest can't silently drift from

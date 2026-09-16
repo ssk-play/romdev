@@ -1,12 +1,12 @@
-/* ── hello_sprite.c — Genesis SGDK starter (one sprite + d-pad) ───
+/* ── hello_sprite.c - Genesis SGDK starter (one sprite + d-pad) ───
  *
  * Drives one sprite around the screen with the directional pad. Uses
  * SGDK's lightweight VDP_setSprite() path (NOT the higher-level
- * sprite engine — that's reserved for hello_sprite + the genre
+ * sprite engine - that's reserved for hello_sprite + the genre
  * scaffolds where animation frames matter).
  *
  * Boots-from-cold game-loop shape:
- *   1. main(bool hard) — SGDK already initialised VDP + default
+ *   1. main(bool hard) - SGDK already initialised VDP + default
  *      palette in sega.s before us. We just load a tile + start drawing.
  *   2. Upload one 8×8 tile (filled square) to VRAM at TILE_USER_INDEX.
  *   3. Set sprite palette entry 1 to white so the tile shows up.
@@ -31,7 +31,7 @@ static const u32 tile_data[8] = {
 
 /* A checkered backdrop block tiled across plane B so the screen isn't a
  * flat black void (a lone sprite on black reads as "blank" to a human).
- * Colour index 4 with a thin colour-5 frame — we set both below. */
+ * Colour index 4 with a thin colour-5 frame - we set both below. */
 static const u32 tile_bg[8] = {
     0x44444444, 0x45555554, 0x45000054, 0x45000054,
     0x45000054, 0x45000054, 0x45555554, 0x44444444,

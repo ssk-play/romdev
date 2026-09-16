@@ -15,7 +15,7 @@ const EX_DIR = path.join(__dirname, "..", "examples");
 
 const cases = [
   // NES example uses CHR-RAM (writes tiles at runtime via PPUADDR/PPUDATA)
-  // so it needs the chr-ram linker preset — OAM segment + ROM2 removal +
+  // so it needs the chr-ram linker preset - OAM segment + ROM2 removal +
   // companion crt0 are all bundled into that preset.
   { platform: "nes", file: "nes/main.c", toolchain: "cc65", linkerConfig: "chr-ram" },
   { platform: "c64", file: "c64/main.c", toolchain: "cc65" },

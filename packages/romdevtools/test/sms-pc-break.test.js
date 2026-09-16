@@ -1,4 +1,4 @@
-// SMS (Genesis Plus GX / Z80) PC breakpoint + read watchpoint + single-step —
+// SMS (Genesis Plus GX / Z80) PC breakpoint + read watchpoint + single-step -
 // end to end.
 //
 // Exercises the romdev_pcbreak_* / romdev_readwatch_* / romdev_watchpoint_* core
@@ -95,7 +95,7 @@ test("SMS PC breakpoint + read watch + single-step (gpgx Z80)", { timeout: 24000
   const bp = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "pc",  address: writerPC, maxFrames: 300 },
   }));
-  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported — core patch missing?");
+  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported - core patch missing?");
   assert.equal(bp.hit, true, "runUntilPC did not hit the writer PC: " + JSON.stringify(bp));
   assert.equal(bp.pcRaw, writerPC, "frozen PC != requested PC");
 
@@ -113,10 +113,10 @@ test("SMS PC breakpoint + read watch + single-step (gpgx Z80)", { timeout: 24000
   assert.ok(stepRes.pcRaw >= 0, "single-step returned no pc");
   assert.notEqual(stepRes.pcRaw, writerPC, "single-step did not advance PC: " + JSON.stringify(stepRes));
 
-  // 5) runUntilRead on RAM — the program reads it back each iteration.
+  // 5) runUntilRead on RAM - the program reads it back each iteration.
   const rd = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "read",  address: RAM, maxFrames: 300 },
   }));
-  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported — read-watch patch missing?");
+  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported - read-watch patch missing?");
   assert.equal(rd.hit, true, "runUntilRead did not catch the RAM read: " + JSON.stringify(rd));
 });

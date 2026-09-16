@@ -1,4 +1,4 @@
-// decomp-resolver.test.js — the splat segment resolver on SYNTHETIC fixtures:
+// decomp-resolver.test.js - the splat segment resolver on SYNTHETIC fixtures:
 // a nonzero load address, a relocated code segment, two overlays sharing a
 // VA with different contents, BSS, and reverse (ROM offset → VA) mapping.
 // Asserts the SELECTED BYTES, not merely that something resolved.

@@ -1,9 +1,9 @@
-// io.js — PURE input-file marshalling for the WASM toolchains. No node
+// io.js - PURE input-file marshalling for the WASM toolchains. No node
 // imports, no worker imports: this is the part of the pipeline a browser
 // bundle (Web Worker IDE) loads verbatim, so it must stay environment-free.
 // textFile/binaryFile/marshalInputs historically lived in _worker/run.js and
 // common/wasm-tool.js; both re-export from here so existing imports keep
-// working (run.js and wasm-tool.js stay node-only — nothing browser-bound
+// working (run.js and wasm-tool.js stay node-only - nothing browser-bound
 // may import them).
 
 /** Convert text → InputFile spec. */
@@ -30,11 +30,11 @@ function bytesToBase64(u8) {
 
 /** Convert binary (Uint8Array / Buffer / base64 string) → InputFile spec. */
 export function binaryFile(vfsPath, bytes) {
-  // Accept EITHER raw bytes OR a base64 STRING — the same either/or contract the
+  // Accept EITHER raw bytes OR a base64 STRING - the same either/or contract the
   // toolchain wrappers honor individually (asar/cc65/vasm68k/wladx all guard with
   // `x instanceof Uint8Array ? x : Buffer.from(x, "base64")`). The MCP
   // `binaryIncludes` schema delivers base64 STRINGS; decoding them as UTF-8 (the
-  // old bug) made the base64 TEXT itself the file bytes — .incbin then embedded
+  // old bug) made the base64 TEXT itself the file bytes - .incbin then embedded
   // base64 text into the ROM (the GBA maxmod "silent without print()" hunt).
   if (typeof bytes === "string") return { vfsPath, encoding: "base64", data: bytes };
   const u8 = bytes instanceof Uint8Array
@@ -46,7 +46,7 @@ export function binaryFile(vfsPath, bytes) {
 /**
  * Marshal text + binary virtual-file maps into the runTool() inputFiles[]
  * array, all rooted at /work. Order: the primary source first (if given), then
- * text entries, then binary entries — matching what the wrappers built by hand.
+ * text entries, then binary entries - matching what the wrappers built by hand.
  *
  * @param {Object} a
  * @param {{name: string, text: string}} [a.primary]   the main source (e.g. main.c → /work/main.c)

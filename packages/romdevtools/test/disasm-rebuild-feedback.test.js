@@ -48,7 +48,7 @@ function makeBankedNes(prgBanks16k, mapper) {
   const put16 = (off, val) => { prg[off] = val & 0xFF; prg[off + 1] = (val >> 8) & 0xFF; };
   put16(vbase + 0, 0xC0F6); // NMI
   put16(vbase + 2, 0xC000); // RESET
-  put16(vbase + 4, 0xC0F6); // IRQ  (same as NMI — the dedup case)
+  put16(vbase + 4, 0xC0F6); // IRQ  (same as NMI - the dedup case)
   const rom = new Uint8Array(16 + prg.length);
   rom.set(header, 0);
   rom.set(prg, 16);
@@ -176,7 +176,7 @@ test("disassembleProject: byte-exact across GB and C64", async () => {
 
 // disasm({target:'rom'}) must accept a SNES CPU address ≥ 0x10000 (a banked
 // LoROM address like $02AF86). Before the fix, da65's --start-addr aborted with
-// "StartAddr < 0x10000" — the wrong half of a multi-bank cart's address space.
+// "StartAddr < 0x10000" - the wrong half of a multi-bank cart's address space.
 test("disasm({target:'rom'}) accepts a banked SNES address ≥ 0x10000 (no da65 abort)", async () => {
   const h = handlers();
   const dir = await mkdtemp(path.join(os.tmpdir(), "snes-highaddr-"));
@@ -204,7 +204,7 @@ test("disasm({target:'rom'}) accepts a banked SNES address ≥ 0x10000 (no da65 
 
 // The dangerous twin (second field report): dodging the abort by passing a
 // bank-LOCAL window address + bank:N used to SUCCEED but read bank 0's bytes and
-// return a plausible disasm under the caller's bank-N label — silently the wrong
+// return a plausible disasm under the caller's bank-N label - silently the wrong
 // 32KB. disasm({bank:N}) must now honor the LoROM bank like readCart does.
 test("disasm({target:'rom', bank:N}) reads bank N on SNES LoROM, not bank 0", async () => {
   const h = handlers();
@@ -233,7 +233,7 @@ test("disasm({target:'rom', bank:N}) reads bank N on SNES LoROM, not bank 0", as
   }
 });
 
-// Flat platforms have no cart banking — a non-zero `bank` must be REJECTED, not
+// Flat platforms have no cart banking - a non-zero `bank` must be REJECTED, not
 // silently applied to a flat read under a banked label.
 test("disasm({target:'rom', bank:N}) is rejected on flat platforms (genesis)", async () => {
   const h = handlers();

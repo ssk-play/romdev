@@ -1,7 +1,7 @@
 ;; SMS / Game Gear crt0 for SDCC.
 ;;
 ;; Replaces SDCC's stock z80 crt0 (which assumes a host runtime that
-;; handles I/O via rst $08 — not what an SMS cartridge needs). This
+;; handles I/O via rst $08 - not what an SMS cartridge needs). This
 ;; one boots cleanly into a real cartridge: vector table at $0000,
 ;; standard SMS interrupt vectors, sets SP to $DFF0, calls main().
 ;;
@@ -33,7 +33,7 @@
         ;; `ret` stomped the jp's high target byte -> boot jumped into
         ;; garbage. di+im 1+jp = 6 bytes; SP setup moved to _boot below.
         di                          ; interrupts off until we're ready
-        im      1                   ; mode 1 — IRQs jump to $0038
+        im      1                   ; mode 1 - IRQs jump to $0038
         jp      _boot               ; continue past the vector table
 
 ;; ─── RST handlers (default = return) ──────────────────────────────
@@ -60,10 +60,10 @@
 ;; SMS hits this on vblank IF VDP R1 bit 5 is set. Default = clear the
 ;; VDP status flag and return. User code that wants a real ISR can
 ;; install one by writing to (vdp_isr_ptr) and a `ld hl,(vdp_isr_ptr) /
-;; jp (hl)` shim — but for now a bare ei/reti keeps things simple.
+;; jp (hl)` shim - but for now a bare ei/reti keeps things simple.
         .org    0x0038
         push    af
-        in      a, (#0xBF)          ; read VDP status — clears IRQ flag
+        in      a, (#0xBF)          ; read VDP status - clears IRQ flag
         pop     af
         ei
         reti
@@ -88,13 +88,13 @@ _boot:
 
         ;; AREA ORDERING IS LOad-BEARING. `_INITIALIZER` (the ROM image of
         ;; every value-initialised `static` global) MUST be declared in the
-        ;; ROM group here — BEFORE the `_DATA` RAM block. If it isn't, sdld
+        ;; ROM group here - BEFORE the `_DATA` RAM block. If it isn't, sdld
         ;; places `_INITIALIZER` in RAM right after `_INITIALIZED`, so the
         ;; gsinit copy below copies uninitialised RAM onto itself and every
         ;; `static uint8_t x = 5;` boots as 0. (Bug found 2026-06-08: a GBC
         ;; Columns agent's `static uint32_t rng = 0x1357;` booted as 0, so
         ;; the xorshift PRNG stayed 0 and every "random" roll came out the
-        ;; same — a "monochrome RNG" that looked like an SDCC codegen bug
+        ;; same - a "monochrome RNG" that looked like an SDCC codegen bug
         ;; but was really this missing ROM placement. The sm83 GB crt0 has
         ;; always placed _INITIALIZER in ROM; the z80 crt0s never did.)
         .area   _HOME

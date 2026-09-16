@@ -1,8 +1,8 @@
-// SMS song compiler — note/duration → the parallel-array music table that the
+// SMS song compiler - note/duration → the parallel-array music table that the
 // bundled SN76489 PSG driver (lib/c/sms_music.c) plays back on voice 0.
 //
 // This is NOT a port of an external tool: there is no single canonical "SMS song
-// compiler" — the playable format is whatever OUR driver reads. Unlike the SNES
+// compiler" - the playable format is whatever OUR driver reads. Unlike the SNES
 // driver (interleaved 3-byte rows + $00 terminator) and unlike the GG driver
 // (a `music_note_t {note,dur}` struct array + a {0,0} sentinel), sms_music.c
 // uses TWO PARALLEL FIXED-LENGTH ARRAYS per voice and NO sentinel:
@@ -12,7 +12,7 @@
 //
 // The driver knows each track's length from a separate `track_len[3]` lookup
 // (track_len[0] = N for the melody voice) and loops by wrapping the step cursor
-// at that length — there is no end byte. A divider of 0 (D_REST) means "rest":
+// at that length - there is no end byte. A divider of 0 (D_REST) means "rest":
 // the driver silences the channel and just counts down the duration.
 //
 // SN76489 frequency divider math (NTSC SMS, 3.579545 MHz / 32):
@@ -20,12 +20,12 @@
 //   A4 (440 Hz) → 254, C4 (261.63 Hz) → 428, C3 (130.81 Hz) → 855.
 // The divider register is 10 bits wide (0x000..0x3FF), so values are clamped.
 //
-// Input: a compact song — an array of {note, frames} (or shorthand strings). The
+// Input: a compact song - an array of {note, frames} (or shorthand strings). The
 // note is a scientific-pitch name ("C4", "A#3", "G-5"), the literal "rest"/null,
 // or a raw divider ({divider: 254}). Output mirrors snes/song.js:
 //   compileSong(song) -> { bytes: Uint8Array, cSource: string, rows: number, ... }
 // `bytes` is the freq array (2 bytes/row, little-endian) followed by the len
-// array (1 byte/row) — exactly the in-ROM byte image of the two const arrays for
+// array (1 byte/row) - exactly the in-ROM byte image of the two const arrays for
 // a single voice. `cSource` is a drop-in replacement for one voice's mel*_freq /
 // mel*_len pair in sms_music.c.
 
@@ -44,7 +44,7 @@ const NOTE_BASE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 /**
  * Parse a scientific-pitch note name ("C4", "A#3", "Gb5", "C-4") to an absolute
  * semitone number where C0 = 0, C4 = 48 (so A4 = 57).
- * (Same logic as snes/song.js — copied so the two files stay independent.)
+ * (Same logic as snes/song.js - copied so the two files stay independent.)
  * @param {string} name
  * @returns {number} absolute semitone index
  */
@@ -153,7 +153,7 @@ function resolveRow(raw, defaultFrames) {
  * @param {string} [song.name]  base name for the emitted C arrays; defaults to
  *   `mel${voice}` to match sms_music.c.
  * @returns {{ bytes: Uint8Array, freq: Uint16Array, len: Uint8Array, rows: number, cSource: string }}
- *   `bytes` = freq array (2 bytes/row LE) then len array (1 byte/row) — the raw
+ *   `bytes` = freq array (2 bytes/row LE) then len array (1 byte/row) - the raw
  *   in-ROM image. `freq`/`len` are the typed arrays the driver declares.
  *   `cSource` = a drop-in `static const uint16_t NAME_freq[N]` + `uint8_t
  *   NAME_len[N]` pair (and the matching track_len[voice] count).

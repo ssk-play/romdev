@@ -1,8 +1,8 @@
 # romdev-core-gpgx
 
-Genesis Plus GX — Sega Genesis / Master System / Game Gear emulator core (libretro), as WebAssembly.
+Genesis Plus GX - Sega Genesis / Master System / Game Gear emulator core (libretro), as WebAssembly.
 
-A binary package for [romdev](https://github.com/monteslu/romdev) — it ships the
+A binary package for [romdev](https://github.com/monteslu/romdev) - it ships the
 prebuilt WebAssembly + JS glue and is resolved by the main `romdev` package on
 demand. You normally install `romdev`, not this package directly.
 
@@ -10,7 +10,7 @@ demand. You normally install `romdev`, not this package directly.
 
 Bundles: **Genesis Plus GX**.
 
-**License:** NON-COMMERCIAL (Genesis Plus GX custom license) — free for non-commercial use; redistribution for profit is not permitted.
+**License:** NON-COMMERCIAL (Genesis Plus GX custom license) - free for non-commercial use; redistribution for profit is not permitted.
 
 This package redistributes the upstream binary built to WebAssembly; the source
 is fetched from a pinned upstream commit at build time (see the romdev repo's

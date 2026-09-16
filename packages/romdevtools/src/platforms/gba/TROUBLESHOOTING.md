@@ -1,7 +1,7 @@
-# Game Boy Advance — troubleshooting
+# Game Boy Advance - troubleshooting
 
 > **A build failed? Read `issues[]` FIRST.** Every build/compile call returns
-> `issues: [{file, line, col, severity, message, stage}]` — the structured error
+> `issues: [{file, line, col, severity, message, stage}]` - the structured error
 > list. It almost always names the exact line to fix. Read that before matching a
 > symptom below or touching your source. Fall back to the raw `log` only if
 > `issues[]` is empty but `ok:false`.
@@ -14,10 +14,10 @@ When something's broken. Read MENTAL_MODEL.md first
 **Single most common GBA gotcha.** Symptom: `build({output:'run'})` returns a
 black screen (or only the very first frame's contents, never any
 sprite/animation update). You added `VBlankIntrWait()` to the main
-loop — but the BIOS function halts the CPU **forever** waiting for a
+loop - but the BIOS function halts the CPU **forever** waiting for a
 vblank IRQ to fire. You forgot to install the IRQ handler table.
 
-Fix — call BEFORE the first `VBlankIntrWait()`:
+Fix - call BEFORE the first `VBlankIntrWait()`:
 
 ```c
 /* libtonc */
@@ -37,12 +37,12 @@ no-op for vblank (just so the IRQ fires + the BIOS counter increments).
 With libgba, `irqInit()` does both steps.
 
 Every bundled R28 example (`tonc_hello`, `tonc_hello_sprite`, `shmup`,
-`platformer`, `puzzle`, `sports`, `racing`) sets this up — copy the
+`platformer`, `puzzle`, `sports`, `racing`) sets this up - copy the
 pattern.
 
 ## Text on screen
 
-**Use TTE (Tonc Text Engine) — that's the default runtime's path.**
+**Use TTE (Tonc Text Engine) - that's the default runtime's path.**
 libtonc is the default GBA C runtime as of R28 and TTE handles text
 rendering without needing libsysbase:
 
@@ -58,14 +58,14 @@ int main(void) {
 }
 ```
 
-`tte_write` + `tte_printf` render directly into BG tile maps — no
+`tte_write` + `tte_printf` render directly into BG tile maps - no
 libsysbase, no devkitPro setup, works out of the box with the
 bundled runtime.
 
 ## ⚠️ iprintf doesn't work on the libgba path. Why?
 
 **Only an issue if you opt into `runtime: "libgba"` (the devkitPro
-SDK path) — the default libtonc runtime sidesteps this entirely with
+SDK path) - the default libtonc runtime sidesteps this entirely with
 TTE.** Most devkitARM tutorials show `iprintf("Hello\n")` as the
 hello-world pattern. **This will NOT compile against our libgba build.**
 
@@ -83,7 +83,7 @@ the libgba API. iprintf is the 5% missing. R28 added libtonc as the
 default precisely because TTE provides the same capability without
 the libsysbase dependency.
 
-### Workarounds — pick the one that fits your case
+### Workarounds - pick the one that fits your case
 
 #### 0. Just use the default libtonc runtime (easiest)
 
@@ -124,7 +124,7 @@ write than iprintf the first time but works on real hardware AND mGBA.
 #### 3. Install devkitPro natively + use their libgba
 
 Apt-install devkitPro (`apt install devkitpro-pacman` + `dkp-pacman -S
-gba-dev`), then build your project against THAT libgba.a — which has
+gba-dev`), then build your project against THAT libgba.a - which has
 console.c + libsysbase. Works as a fallback if you genuinely need
 iprintf and the above two don't cut it. You lose romdev's zero-
 install promise but everything else still works.
@@ -152,7 +152,7 @@ int main(void) {
 freq_period). Useful values: 1900 = pew, 1500 = boing, 1300 = blip,
 800 = low thump. `length_frames` is the 64-step countdown (~3.9ms
 each, max 63). Channels 3 (wave RAM) + Direct Sound (PCM via DMA) are
-NOT wrapped — that's a music-track concern, not a sfx concern, and
+NOT wrapped - that's a music-track concern, not a sfx concern, and
 needs more setup than a one-call helper provides. Reach for maxmod
 (separate library, not bundled) when you want music + samples.
 
@@ -160,7 +160,7 @@ needs more setup than a one-call helper provides. Reach for maxmod
 
 If your BG0 grid renders fine in isolation but vanishes when you also
 init TTE on BG1, you've got a VRAM region collision. TTE writes the
-default 4bpp font into its destination char-block — if your BG0
+default 4bpp font into its destination char-block - if your BG0
 char-block overlaps it, the font load wipes your tiles.
 
 Fix: put BG0's char-block + screen-block well away from TTE's. The
@@ -177,14 +177,14 @@ Three common modes:
 
 1. **You forgot `REG_DISPCNT = MODE_x | BGn_ON`.** After reset the
    GBA's DISPCNT is in "forced blank" mode (bit 7 set). libgba's
-   crt0 doesn't unblank for you — that's your `main()`'s job. Set
+   crt0 doesn't unblank for you - that's your `main()`'s job. Set
    a video mode and turn on at least one BG.
 2. **You used MODE_3 but wrote to VRAM as bytes.** Mode 3 framebuffer
    is u16 per pixel (BGR555). Writing single bytes to odd addresses
    silently drops data (VRAM has 16-bit-write hardware). Use
    `MODE3_FB[row][col] = RGB5(r,g,b);` or `*(u16*)addr = ...`.
 3. **You ran a `while (1) { }` immediately after main without
-   `VBlankIntrWait`.** The screen DOES render — but with no input
+   `VBlankIntrWait`.** The screen DOES render - but with no input
    updates, no animation, the user thinks "nothing's happening."
    Add an input + animation loop with `VBlankIntrWait`.
 
@@ -207,7 +207,7 @@ iosupport.h + ships the toolchain's newlib headers.
 
 ## "GCC complains about `__syscall_prlimit64`"
 
-That's a warning (not an error) from cc1's emscripten host runtime —
+That's a warning (not an error) from cc1's emscripten host runtime -
 the WASM build of cc1 references `prlimit64` for memory limits, but
 emscripten libc doesn't implement it. cc1 falls back to a default and
 proceeds. Ignore.
@@ -219,7 +219,7 @@ Real hardware checks the Nintendo logo at $04-$9F (156 bytes). Our
 bytes would be a copyright issue. To boot on real hardware:
 
 1. Build with our toolchain.
-2. Run devkitARM's `gbafix` tool on the output `.gba` — it patches in
+2. Run devkitARM's `gbafix` tool on the output `.gba` - it patches in
    the logo + checksum bytes. devkitPro distributes `gbafix` as part
    of their host tools; install separately when you're shipping to
    real cartridges.
@@ -234,14 +234,14 @@ of certain modes. Writes outside the right window get dropped. Safest
 pattern: write OAM during VBlank (via `VBlankIntrWait` + then OAM
 updates immediately after).
 
-libgba helpers don't auto-defer to vblank — `OAM[i]` writes whenever
+libgba helpers don't auto-defer to vblank - `OAM[i]` writes whenever
 you call them. If you're writing during the visible region with
 "hblank-interval-free" disabled in DISPCNT, the GBA freezes OAM and
 your writes are lost.
 
 ## "First C build is slow (~1-2 s) but later ones are fast"
 
-Expected. The cc1.wasm is 141 MB unstripped — first invocation mmaps
+Expected. The cc1.wasm is 141 MB unstripped - first invocation mmaps
 it into a worker, instantiates the module. Subsequent builds reuse the
 warm worker pool (R12). Steady-state builds are sub-second.
 
@@ -251,6 +251,6 @@ is identical either way; just smaller bundle.
 
 ## "Save states don't work on `.gba` ROMs"
 
-mGBA save states work — `state({op:'save'})` / `state({op:'load'})` MCP tools should
+mGBA save states work - `state({op:'save'})` / `state({op:'load'})` MCP tools should
 function on any loaded GBA ROM. If you find a specific game where they
-don't, file an issue — most likely a mGBA-side bug, not ours.
+don't, file an issue - most likely a mGBA-side bug, not ours.

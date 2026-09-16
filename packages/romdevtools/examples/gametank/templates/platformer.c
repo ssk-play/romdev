@@ -1,29 +1,29 @@
-/* ── platformer.c — GameTank side-scrolling platformer (complete example) ─────
+/* ── platformer.c - GameTank side-scrolling platformer (complete example) ─────
  *
  * A COMPLETE, working game on the bundled GameTank SDK draw-queue runtime: title
  * screen, a runner with a 3-frame WALK animation, real gravity + jumping, scrolling
  * platforms to land on, collectible coins (with a pleasant pickup chime), score +
  * lives, fall-death, and a restart loop. The GameTank's framebuffer makes a side-
- * scroller EASY — no tilemap to stream, no hardware scroll register: the world is
+ * scroller EASY - no tilemap to stream, no hardware scroll register: the world is
  * an array of platforms, you subtract a camera offset, and redraw the visible rects.
  *
  * FORK THIS. Markers:
- *   HARDWARE IDIOM (load-bearing) — redraw the whole frame as blitter rects each
+ *   HARDWARE IDIOM (load-bearing) - redraw the whole frame as blitter rects each
  *     frame; the camera is a subtract on world-x. The hero is the ONLY GRAM sprite
- *     blit per frame (coins are cheap rects) — too many sprite blits overrun the
+ *     blit per frame (coins are cheap rects) - too many sprite blits overrun the
  *     vblank window and the draw queue silently DROPS rects (platforms flicker /
  *     vanish). Background slabs are clamped to width/height 127, never 128 (a
- *     full-screen-dimension box is dropped — see gt_draw.h).
- *   GAME LOGIC (clay) — gravity, jump height, level layout, scoring: tune freely.
+ *     full-screen-dimension box is dropped - see gt_draw.h).
+ *   GAME LOGIC (clay) - gravity, jump height, level layout, scoring: tune freely.
  *
  * PHYSICS GOTCHAS baked in (each was a real bug):
- *   - World x (PLAT_X / COIN_X / cam / hx_world) is unsigned INT — char wraps at
+ *   - World x (PLAT_X / COIN_X / cam / hx_world) is unsigned INT - char wraps at
  *     255 and a platform's collision drifts away from where it's drawn.
  *   - Vertical position math is done in a SIGNED temp + clamped to 0: hy is an
  *     unsigned char, so a strong jump that pushes it below 0 would wrap to ~250 and
  *     trip the fall-death check (the "jump high → snap back to ground" bug).
  *   - Landing is SWEPT (feet crossed the platform top this frame), not an
- *     instantaneous thin-overlap test — a fast fall would otherwise tunnel through.
+ *     instantaneous thin-overlap test - a fast fall would otherwise tunnel through.
  *
  * CONTROLS: ←/→ run · A or Up = jump · A/START to begin. SCREEN: 128x128. 1 player.
  */
@@ -47,8 +47,8 @@
 #define C_HUD    GT_WHITE
 #define C_LIFE   GT_GREEN
 
-/* ── hero sprite art (12x14): cyan body, white face, gold boots. THREE frames —
- * stand + two walk poses (legs swap) — cycled while running so he looks alive. ── */
+/* ── hero sprite art (12x14): cyan body, white face, gold boots. THREE frames -
+ * stand + two walk poses (legs swap) - cycled while running so he looks alive. ── */
 #define HERO_W 12
 #define HERO_H 14
 /* shared top 12 rows (head + torso); only the legs (last 2 rows) differ per frame. */
@@ -63,21 +63,21 @@
   GT_CYAN,GT_CYAN,GT_SKY,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,GT_SKY,GT_CYAN,GT_CYAN,0,0, \
   GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,0,0, \
   0,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,GT_CYAN,0,0,0
-/* frame 0: standing — legs together */
+/* frame 0: standing - legs together */
 static const unsigned char ART_HERO0[HERO_W*HERO_H] = {
   HERO_TOP,
   0,0,GT_CYAN,GT_CYAN,0,0,GT_CYAN,GT_CYAN,0,0,0,0,
   0,0,GT_GOLD,GT_GOLD,0,0,GT_GOLD,GT_GOLD,0,0,0,0,
   0,GT_GOLD,GT_GOLD,GT_GOLD,0,0,GT_GOLD,GT_GOLD,GT_GOLD,0,0,0,
 };
-/* frame 1: walk — left leg forward */
+/* frame 1: walk - left leg forward */
 static const unsigned char ART_HERO1[HERO_W*HERO_H] = {
   HERO_TOP,
   0,GT_CYAN,GT_CYAN,0,0,0,GT_CYAN,GT_CYAN,0,0,0,0,
   GT_GOLD,GT_GOLD,GT_GOLD,0,0,0,0,GT_GOLD,GT_GOLD,0,0,0,
   GT_GOLD,GT_GOLD,0,0,0,0,0,0,GT_GOLD,GT_GOLD,0,0,
 };
-/* frame 2: walk — right leg forward (mirror of 1) */
+/* frame 2: walk - right leg forward (mirror of 1) */
 static const unsigned char ART_HERO2[HERO_W*HERO_H] = {
   HERO_TOP,
   0,GT_CYAN,GT_CYAN,0,0,0,GT_CYAN,GT_CYAN,0,0,0,0,
@@ -88,7 +88,7 @@ static const unsigned char ART_HERO2[HERO_W*HERO_H] = {
 static GtSprite SPR_HERO0, SPR_HERO1, SPR_HERO2;
 static void load_art(void) {
   /* 3 hero frames on their own GRAM rows. Coins are drawn as cheap rects (no sprite),
-   * which keeps the per-frame GRAM-blit count to just ONE (the hero) — sprite blits
+   * which keeps the per-frame GRAM-blit count to just ONE (the hero) - sprite blits
    * are the expensive part of the frame and too many overrun vblank (dropped draws). */
   SPR_HERO0.gx = 0; SPR_HERO0.gy = 0;  SPR_HERO0.w = HERO_W; SPR_HERO0.h = HERO_H;
   SPR_HERO1.gx = 0; SPR_HERO1.gy = 16; SPR_HERO1.w = HERO_W; SPR_HERO1.h = HERO_H;
@@ -102,7 +102,7 @@ static void load_art(void) {
 #define GRAVITY  1
 #define JUMP_V   12
 
-/* world platforms: x (world), y, w. ⚠ PLAT_X / COIN_X MUST be unsigned int — world
+/* world platforms: x (world), y, w. ⚠ PLAT_X / COIN_X MUST be unsigned int - world
  * coords run past 255 and an unsigned char would WRAP (270 → 14), putting a platform
  * somewhere it isn't drawn, so the hero lands on / falls through empty air. */
 /* Platform tops (PLAT_Y) must sit a clear gap ABOVE the ground so the hero (14 tall,
@@ -114,7 +114,7 @@ static const unsigned int  PLAT_X[N_PLAT] = { 26,  70, 118, 160, 204, 248, 290 }
 static const unsigned char PLAT_Y[N_PLAT] = { 84,  68,  84,  56,  72,  60,  84 };
 static const unsigned char PLAT_W[N_PLAT] = { 32,  28,  30,  26,  28,  26,  32 };
 /* coins sit just ABOVE each platform's surface (centered on it), so you grab one by
- * landing on or running across that platform — reachable, not floating out of reach.
+ * landing on or running across that platform - reachable, not floating out of reach.
  * COIN_Y = PLAT_Y - 11 (a coin's height above the deck); COIN_X = platform center. */
 #define N_COIN 6
 static const unsigned int  COIN_X[N_COIN] = { 38,  80, 130, 170, 214, 258 };
@@ -132,7 +132,7 @@ static unsigned char lives;
 static unsigned char walk_t, walk_f;   /* hero walk-cycle timer + frame (0,1,0,2) */
 
 /* ── coin pickup chime: the classic RISING two-note sparkle (low → high), played on
- * the PIANO channel (3) for a clean mellow ding — NOT the harsh guitar, and NOT the
+ * the PIANO channel (3) for a clean mellow ding - NOT the harsh guitar, and NOT the
  * same note re-hit (that re-trigger mid-decay is what made it clang like a dropped
  * pot). gt_sfx fires the 1st (lower) note; coin_chime_tick() fires the 2nd (higher)
  * a few frames later by keying ch3 directly with a fresh, soft amplitude. ── */
@@ -167,14 +167,14 @@ static unsigned char overlap(unsigned int ax, unsigned char ay, unsigned char aw
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 }
 
-/* sky + ground.  IDIOM (anti-flicker): only gt_clear paints a flicker-free fill —
+/* sky + ground.  IDIOM (anti-flicker): only gt_clear paints a flicker-free fill -
  * every extra full-width queue_draw_box flickers on its TOP scanline (the blitter
  * leaves that row inconsistent between the two double-buffer pages). So keep the
  * background to gt_clear + a SINGLE ground box, and hide that one seam under the
- * grass-topped platforms / hero feet. (No multi-band haze — it just adds seams.) */
+ * grass-topped platforms / hero feet. (No multi-band haze - it just adds seams.) */
 static void draw_world_bg(void) {
   gt_clear(C_SKY1);                                       /* sky: deep blue */
-  /* ⚠ width MUST be <= 127 — the GameTank blitter drops a box whose width is 128
+  /* ⚠ width MUST be <= 127 - the GameTank blitter drops a box whose width is 128
    * (a full-screen-wide box wraps/rejects). Always 127, never 128. */
   queue_draw_box(0, GROUND_Y, 127, 128 - GROUND_Y, C_GROUND);  /* ground slab */
   queue_draw_box(0, GROUND_Y, 127, 2, C_GRASS);          /* grass cap (one shared seam) */
@@ -226,7 +226,7 @@ void main(void) {
         if (ny < 0) { ny = 0; vy = 0; }                /* bonked the top of the screen */
         hy = (unsigned char)ny;
 
-        /* land — SWEPT, so a fast fall can't tunnel through a thin platform top. The
+        /* land - SWEPT, so a fast fall can't tunnel through a thin platform top. The
          * hero lands when, while falling (vy>=0), his feet were ABOVE a platform's top
          * last frame and are now AT/BELOW it, and he's horizontally over that platform. */
         on_ground = 0;
@@ -246,7 +246,7 @@ void main(void) {
       /* fall off the bottom = lose a life (only when actually falling, not at the top) */
       if (hy > 124 && vy > 0) { if (--lives == 0) goto dead; reset_level(); continue; }
 
-      /* coins — collect on overlap: score + a pleasant "ding-ding" chime. */
+      /* coins - collect on overlap: score + a pleasant "ding-ding" chime. */
       for (i = 0; i < N_COIN; i++) if (!coin_got[i] &&
           overlap(hx_world, hy, 10, 14, COIN_X[i], COIN_Y[i], 8, 8)) {
         coin_got[i] = 1; score += 25; coin_pickup_sound();
@@ -268,7 +268,7 @@ void main(void) {
         unsigned int px = PLAT_X[i];
         unsigned char pw = PLAT_W[i];
         /* on screen only when fully within [cam, cam+128). For a platform straddling
-         * the LEFT edge, px-cam would underflow — clamp the screen x to 0 and trim the
+         * the LEFT edge, px-cam would underflow - clamp the screen x to 0 and trim the
          * width so the DRAWN rect matches the WORLD rect the collision uses (no desync). */
         if (px + pw > cam && px < cam + 128) {
           unsigned char sx, sw;
@@ -279,7 +279,7 @@ void main(void) {
           gt_rect(sx, PLAT_Y[i], sw, 2, C_GRASS);                     /* grassy top */
         }
       }
-      /* coins as cheap RECTS (a gold ring) — not GRAM sprites — so the only expensive
+      /* coins as cheap RECTS (a gold ring) - not GRAM sprites - so the only expensive
        * sprite blit per frame is the hero; that's what keeps the queue inside vblank. */
       for (i = 0; i < N_COIN; i++) if (!coin_got[i]) {
         unsigned int cx = COIN_X[i];

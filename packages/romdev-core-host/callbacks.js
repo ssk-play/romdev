@@ -4,7 +4,7 @@
 // input_state) plus audio sample + sample_batch. State lives on a plain
 // CallbackState object closed over by the addFunction handlers.
 //
-// Env handler patterns are mirrored from retroemu/src/core/LibretroHost.js —
+// Env handler patterns are mirrored from retroemu/src/core/LibretroHost.js -
 // many cores call log_cb / GET_VARIABLE / etc. inside retro_load_game, so we
 // must respond correctly to avoid WASM "null function / signature mismatch"
 // traps on cold load.
@@ -127,7 +127,7 @@ export function newCallbackState({ systemDir = "", saveDir = "" } = {}) {
     inputPorts: [new Uint16Array(1), new Uint16Array(1)],
     // One-frame input overrides (the Active Bezel pre_frame path). Per port:
     // null, or { full: mask|null, set: bits, clear: bits }. Applied when the
-    // CORE polls — inputPorts keeps the PHYSICAL state, so anything reading it
+    // CORE polls - inputPorts keeps the PHYSICAL state, so anything reading it
     // (a bezel's input display, playtest's humanPressing) sees the truth while
     // the game sees the override. Cleared at the top of every frame by
     // _runCore; an override is one frame's statement, re-asserted per frame.
@@ -203,7 +203,7 @@ export function registerCallbacks(args) {
   const videoCb = mod.addFunction((dataPtr, w, h, pitch) => {
     // HW-render path: dataPtr == RETRO_HW_FRAME_BUFFER_VALID means "the frame is in
     // the GL framebuffer." The WASM passes the i32 as SIGNED -1; the constant is the
-    // UNSIGNED 0xFFFFFFFF — coerce with >>>0 so both match. DON'T read back here —
+    // UNSIGNED 0xFFFFFFFF - coerce with >>>0 so both match. DON'T read back here -
     // GL state is only stable AFTER _retro_run returns. Flag it; stepFrames does the
     // glReadPixels post-run.
     const uPtr = dataPtr >>> 0;
@@ -246,12 +246,12 @@ export function registerCallbacks(args) {
   mod._retro_set_audio_sample(audioOneCb);
 
   const inputPollCb = mod.addFunction(() => {
-    // input set explicitly by MCP callers — nothing to poll.
+    // input set explicitly by MCP callers - nothing to poll.
   }, "v");
   mod._retro_set_input_poll(inputPollCb);
 
   const inputStateCb = mod.addFunction((port, device, idx, id) => {
-    // device 3 = RETRO_DEVICE_KEYBOARD — id is the libretro keycode
+    // device 3 = RETRO_DEVICE_KEYBOARD - id is the libretro keycode
     if (device === 3) {
       return state.keysDown.has(id) ? 1 : 0;
     }
@@ -260,7 +260,7 @@ export function registerCallbacks(args) {
     // physical inputPorts word stays untouched for everything that reads it.
     const bits = effectiveJoypadMask(state, port);
     // device 5 = RETRO_DEVICE_ANALOG. Games with an analog stick (N64, and the
-    // dual-stick consoles) read this INSTEAD of the d-pad for movement — MK64
+    // dual-stick consoles) read this INSTEAD of the d-pad for movement - MK64
     // steers entirely off the stick, so a d-pad-only mask leaves the kart dead.
     // A REAL axis (setInput({axes}) from a physical stick) wins per-axis;
     // otherwise SYNTHESIZE full deflection from the d-pad bits so keyboard and
@@ -409,7 +409,7 @@ function handleEnv(mod, state, rawCmd, dataPtr, log) {
       // function-table entry has the right arity for the WASM caller.
       //
       // We don't implement full vsnprintf in JS, but the fmt string itself is
-      // already a useful diagnostic — most cores pass a fully-formed message
+      // already a useful diagnostic - most cores pass a fully-formed message
       // (no varargs substitution needed) or a message + N args we can't decode.
       // Read the fmt as-is so log output is actually readable.
       // Proxied cores call the log callback from the app thread, so it must be a C function
@@ -452,7 +452,7 @@ function handleEnv(mod, state, rawCmd, dataPtr, log) {
           // PRESERVE a value the host already pre-seeded (e.g. via
           // PLATFORM_CORE_OPTIONS, set before retro_load_game). The core
           // registering its variables must NOT clobber that override back to
-          // its own default (options[0]) — that silently reset forced options
+          // its own default (options[0]) - that silently reset forced options
           // like bluemsx's machine type / cart mapper. Keep the prior value if
           // it's still a valid option; otherwise fall back to the default.
           const prior = state.coreVariables.get(key);
@@ -586,7 +586,7 @@ function handleEnv(mod, state, rawCmd, dataPtr, log) {
       }
       return false;
 
-    // Things we can't or don't want to support — reject so core falls back.
+    // Things we can't or don't want to support - reject so core falls back.
     case E.GET_RUMBLE_INTERFACE:
     case E.GET_SENSOR_INTERFACE:
     case E.GET_CAMERA_INTERFACE:

@@ -1,4 +1,4 @@
-// wasm-inspect — the `wasm` tool surface + WasmcartHost conformance/audio wiring
+// wasm-inspect - the `wasm` tool surface + WasmcartHost conformance/audio wiring
 // (Slice 1: WS1 audio + WS2 conformance). Against the vendored hello.wasc.
 
 import { test } from "node:test";
@@ -98,7 +98,7 @@ test("wasm({op:'read'}) / {op:'write'} round-trip on the cart heap", async () =>
 });
 
 // safeTool turns a thrown error into an error-content result (isError:true),
-// not a rejection — assert on that shape.
+// not a rejection - assert on that shape.
 const errText = (res) => { assert.equal(res.isError, true); return res.content.find((c) => c.type === "text").text; };
 
 test("wasm({op:'write'}) names a bad hex character (shared cleaner)", async () => {
@@ -190,6 +190,6 @@ test("WasmcartHost.framebufferHash is stable per frame + shifts on change", asyn
   assert.equal(typeof h1, "number");
   host.stepFrames(30);
   // after more frames the hash is still a number (may or may not differ for a
-  // static hello cart — assert only determinism + type, not content).
+  // static hello cart - assert only determinism + type, not content).
   assert.equal(typeof host.framebufferHash(), "number");
 });

@@ -1,4 +1,4 @@
-// Opt-in periodic auto-snapshot — v0.103.0 feedback item 2, ask (b).
+// Opt-in periodic auto-snapshot - v0.103.0 feedback item 2, ask (b).
 //
 // Ask (a) was pid/uptime in catalog({op:'status'}) so a session can DETECT that
 // the server restarted under it. That shipped. This is the other half, and the
@@ -43,7 +43,7 @@ function fakeHost({ loaded = true, blob = [1, 2, 3, 4], throws = false } = {}) {
 
 const tmpDir = () => mkdtempSync(path.join(tmpdir(), "autosnap-test-"));
 
-test("disarmed by default — no snapshot without asking", async () => {
+test("disarmed by default - no snapshot without asking", async () => {
   _resetAutoSnapshots();
   const key = "snap-off";
   assert.equal(autoSnapshotStatus(key), null);

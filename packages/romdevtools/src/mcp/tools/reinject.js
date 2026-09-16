@@ -1,13 +1,13 @@
-// Re-inject path — the round-trip side of a ROM hack. You've FOUND a compressed
+// Re-inject path - the round-trip side of a ROM hack. You've FOUND a compressed
 // or referenced asset (watchDma/findWriter/callSubroutine); these tools put an
 // EDITED copy back in a form the game accepts:
 //
-//   findPointerTo   — scan a ROM for pointers that reference a byte offset, so you
+//   findPointerTo   - scan a ROM for pointers that reference a byte offset, so you
 //                     can redirect the thing that loads it.
-//   relocateBlock   — write edited bytes to free space and repoint a pointer at
+//   relocateBlock   - write edited bytes to free space and repoint a pointer at
 //                     the new location (the safe "don't overwrite in place" move).
-//   makeStoredBlock — emit bytes the game's OWN decompressor expands verbatim,
-//                     using the common stored/literal/raw-copy escape — so you can
+//   makeStoredBlock - emit bytes the game's OWN decompressor expands verbatim,
+//                     using the common stored/literal/raw-copy escape - so you can
 //                     edit tiles → wrap → patchFile without writing a compressor.
 //
 // All three are pure-byte / file-level (no emulator core needed). Pointer encoding
@@ -21,7 +21,7 @@ import { readFile, writeFile } from "node:fs/promises";
 // Pointer encoding per platform.
 //
 // `toCpuForms(fileOffset, data)` returns the set of in-ROM pointer VALUES that
-// would reference `fileOffset` — i.e. what findPointerTo searches the ROM for.
+// would reference `fileOffset` - i.e. what findPointerTo searches the ROM for.
 // A platform can have several forms (e.g. NES: the same PRG offset is visible at
 // $8000 and $C000 depending on bank), so we return an array of {value, width,
 // endian, note}.
@@ -63,7 +63,7 @@ function findAllOccurrences(data, needle) {
 // Sources cited per platform (dev wikis); formulas are the inverse of the
 // map*Address helpers in disasm.js. Banked 8-bit systems return MULTIPLE forms
 // (a paged offset is visible at different CPU windows depending on bank), so a
-// hit must usually be paired with the nearby bank-set — we report all candidates
+// hit must usually be paired with the nearby bank-set - we report all candidates
 // and the caller correlates.
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -79,10 +79,10 @@ function nesPointerForms(fileOffset, data) {
   const lastBank16 = Math.max(0, prgSize / 0x4000 - 1);
   const bank16 = Math.floor(prgOff / 0x4000);
   const within16 = prgOff & 0x3FFF;
-  // Switchable-window alias ($8000-$BFFF) — valid only when this bank is selected.
+  // Switchable-window alias ($8000-$BFFF) - valid only when this bank is selected.
   forms.push({ value: 0x8000 + within16, width: 2, endian: "le",
     note: `bank ${bank16} mapped at $8000-$BFFF (switchable)` });
-  // Fixed-last-bank alias ($C000-$FFFF) — stable, the most reliably referenced.
+  // Fixed-last-bank alias ($C000-$FFFF) - stable, the most reliably referenced.
   if (bank16 === lastBank16) {
     forms.push({ value: 0xC000 + within16, width: 2, endian: "le",
       note: "last bank, fixed at $C000-$FFFF (stable alias)" });
@@ -108,7 +108,7 @@ function gbPointerForms(fileOffset, data) {
     return [{ value: fileOffset, width: 2, endian: "le", note: "bank 0, fixed $0000-$3FFF" }];
   }
   return [{ value: 0x4000 + (fileOffset & 0x3FFF), width: 2, endian: "le",
-    note: `bank ${bank} @ $4000-$7FFF (page-ambiguous — pair with the bank-set write)` }];
+    note: `bank ${bank} @ $4000-$7FFF (page-ambiguous - pair with the bank-set write)` }];
 }
 
 /** SMS/GG ROM (file=address space) → CPU-address pointer candidates. 16-bit LE. */
@@ -214,7 +214,7 @@ function msxPointerForms(fileOffset, data) {
 function genesisPointerForms(fileOffset, data) {
   if (fileOffset >= data.length) return [];
   // Pointer value == ROM offset (ROM maps 1:1 at $000000). 32-bit BE primary;
-  // 24-bit BE secondary (rare, more false positives — flagged).
+  // 24-bit BE secondary (rare, more false positives - flagged).
   const forms = [
     { value: fileOffset, width: 4, endian: "be", note: "32-bit BE absolute (= ROM offset, 1:1 at $000000)" },
   ];
@@ -285,18 +285,18 @@ function dedupeForms(forms) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Stored-block emitters — produce bytes a game's OWN decompressor expands
+// Stored-block emitters - produce bytes a game's OWN decompressor expands
 // verbatim, via the common literal/raw-copy escape of each format.
 //
 // Each emitter takes a Uint8Array payload and returns { bytes, note } or throws
 // with a clear "no clean stored escape" message. The dominant real-world case is
-// RAW (uncompressed) — most retro graphics are stored verbatim in native planar
+// RAW (uncompressed) - most retro graphics are stored verbatim in native planar
 // format, so `raw` is the default and the most-used path.
 // ───────────────────────────────────────────────────────────────────────────
 
-/** RAW — no wrapper. The game stores this asset uncompressed (most common). */
+/** RAW - no wrapper. The game stores this asset uncompressed (most common). */
 function storedRaw(payload) {
-  return { bytes: Uint8Array.from(payload), note: "raw (uncompressed) — emit the payload verbatim" };
+  return { bytes: Uint8Array.from(payload), note: "raw (uncompressed) - emit the payload verbatim" };
 }
 
 /**
@@ -333,7 +333,7 @@ function storedKonamiRle(payload) {
  * Sega 8-bit RLE literal escape (SMS/GG): control 0x80|n + n raw
  * bytes (n=1..127). Optionally wrap a whole block with the 16-bit size header
  * and the 0x00 terminator. NOTE: a faithful whole-block wrap must emit the
- * payload in the DEINTERLEAVED order the game's routine expects — we emit the
+ * payload in the DEINTERLEAVED order the game's routine expects - we emit the
  * literal run as given; the caller is responsible for deinterleaving if wrapping
  * a complete tile block.
  */
@@ -356,9 +356,9 @@ function storedSegaRle(payload, { wrapBlock = false, interleave = 4 } = {}) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Platform registry — pointer-form fn, stored-block verdict, applicable formats.
+// Platform registry - pointer-form fn, stored-block verdict, applicable formats.
 //
-// verdict: "raw" (graphics stored uncompressed — the dominant real case),
+// verdict: "raw" (graphics stored uncompressed - the dominant real case),
 //          "literal-escape" (a clean byte-aligned literal-run wrapper exists),
 //          "no-clean-escape" (the common codec can't be hand-authored verbatim).
 // `formats` lists the stored-block format keys makeStoredBlock accepts for the
@@ -368,9 +368,9 @@ function storedSegaRle(payload, { wrapBlock = false, interleave = 4 } = {}) {
 
 const PLATFORM_REGISTRY = {
   nes:       { forms: nesPointerForms,       verdict: "raw", formats: ["raw", "packbits", "konami-rle"],
-               note: "CHR-ROM tiles are stored uncompressed (2bpp planar) — raw is the common case. PackBits / Konami-RLE literal runs cover the common NES RLE dialects." },
+               note: "CHR-ROM tiles are stored uncompressed (2bpp planar) - raw is the common case. PackBits / Konami-RLE literal runs cover the common NES RLE dialects." },
   gb:        { forms: gbPointerForms,        verdict: "raw", formats: ["raw"],
-               note: "2bpp planar tiles often uncompressed. Pokémon-gen RLE is bit/plane-granular — NO clean byte stored escape; relocate to uncompressed space instead." },
+               note: "2bpp planar tiles often uncompressed. Pokémon-gen RLE is bit/plane-granular - NO clean byte stored escape; relocate to uncompressed space instead." },
   gbc:       { forms: gbPointerForms,        verdict: "raw", formats: ["raw"],
                note: "Same as GB." },
   sms:       { forms: smsPointerForms,       verdict: "literal-escape", formats: ["raw", "sega-rle"],
@@ -378,23 +378,23 @@ const PLATFORM_REGISTRY = {
   gg:        { forms: smsPointerForms,       verdict: "literal-escape", formats: ["raw", "sega-rle"],
                note: "Same as SMS." },
   c64:       { forms: c64PointerForms,       verdict: "raw", formats: ["raw"],
-               note: "RAW when data is uncompressed. Exomizer/ByteBoozer/pucrunch crunched regions have NO clean stored escape (bit-packed) — decrunch→edit→re-crunch instead." },
+               note: "RAW when data is uncompressed. Exomizer/ByteBoozer/pucrunch crunched regions have NO clean stored escape (bit-packed) - decrunch→edit→re-crunch instead." },
   lynx:      { forms: lynxPointerForms,      verdict: "raw", formats: ["raw"],
-               note: "Graphics stored uncompressed (Suzy blitter reads raw) — raw bytes, no wrapper." },
+               note: "Graphics stored uncompressed (Suzy blitter reads raw) - raw bytes, no wrapper." },
   atari2600: { forms: atari2600PointerForms, verdict: "raw", formats: ["raw"],
-               note: "2K-4K ROMs, playfield/sprite bytes read directly — everything uncompressed. Raw bytes." },
+               note: "2K-4K ROMs, playfield/sprite bytes read directly - everything uncompressed. Raw bytes." },
   atari7800: { forms: atari7800PointerForms, verdict: "raw", formats: ["raw"],
-               note: "MARIA display lists point at raw bitmaps — graphics uncompressed. Raw bytes." },
+               note: "MARIA display lists point at raw bitmaps - graphics uncompressed. Raw bytes." },
   pce:       { forms: pcePointerForms,       verdict: "raw", formats: ["raw"],
                note: "Planar tiles usually uncompressed (DMA'd to VDC). Raw planar bytes; custom-LZ games are no-clean-escape." },
   msx:       { forms: msxPointerForms,       verdict: "literal-escape", formats: ["raw", "konami-rle"],
                note: "RAW when uncompressed; Konami/other RLE has a literal-run token, so a literal-escape stored block is producible." },
   genesis:   { forms: genesisPointerForms, verdict: "literal-escape", formats: ["raw", "kosinski-literal"],
-               note: "Pointers are 32-bit BE = ROM offset (1:1 at $000000). Kosinski has an all-literal path (experimental terminator — self-verify). Nemesis is Huffman — NO stored escape; custom LZ (e.g. some Genesis sports titles) — confirm the literal-run shape per game." },
+               note: "Pointers are 32-bit BE = ROM offset (1:1 at $000000). Kosinski has an all-literal path (experimental terminator - self-verify). Nemesis is Huffman - NO stored escape; custom LZ (e.g. some Genesis sports titles) - confirm the literal-run shape per game." },
   snes:      { forms: snesPointerForms, verdict: "literal-escape", formats: ["raw", "lz2-direct"],
-               note: "Pointers 16-bit (bank-implied) or 24-bit long LE; needs LoROM/HiROM (auto-detected). LC_LZ2 has a clean direct-copy (000) literal command + 0xFF end — common but per-game; confirm the codec." },
+               note: "Pointers 16-bit (bank-implied) or 24-bit long LE; needs LoROM/HiROM (auto-detected). LC_LZ2 has a clean direct-copy (000) literal command + 0xFF end - common but per-game; confirm the codec." },
   gba:       { forms: gbaPointerForms, verdict: "literal-escape", formats: ["raw", "lz77-literal"],
-               note: "Pointers 32-bit LE = 0x08000000+offset (value-search-complete — catches literal pools + tables). BIOS LZ77 (SWI 0x11) has a clean all-literal stream (flag byte 0x00 = 8 literals)." },
+               note: "Pointers 32-bit LE = 0x08000000+offset (value-search-complete - catches literal pools + tables). BIOS LZ77 (SWI 0x11) has a clean all-literal stream (flag byte 0x00 = 8 literals)." },
 };
 
 /** Build a stored block from a payload for a given format key. */
@@ -457,14 +457,14 @@ function storedSnesLz2(payload) {
   }
   out.push(0xFF);                         // end marker
   return { bytes: Uint8Array.from(out),
-    note: "SNES LC_LZ2 all-literal: command 000 (direct copy L+1) chunks + 0xFF end. Common SMW-era codec; per-game codecs vary — confirm the game uses LC_LZ2." };
+    note: "SNES LC_LZ2 all-literal: command 000 (direct copy L+1) chunks + 0xFF end. Common SMW-era codec; per-game codecs vary - confirm the game uses LC_LZ2." };
 }
 
 /**
  * Genesis Kosinski all-literal block. 16-bit LE descriptor field, bits popped
  * LSB-first; bit 1 = copy one literal byte, bit 0 = match. Terminator = a full
  * match with count 0. NOTE: the agent flagged the EXACT terminator bytes as the
- * one residual uncertainty — emitters differ slightly. This emits the documented
+ * one residual uncertainty - emitters differ slightly. This emits the documented
  * form but is marked experimental; ALWAYS self-verify via a round-trip through
  * the game's own decompressor (callSubroutine) before trusting it.
  */
@@ -484,7 +484,7 @@ function storedKosinskiLiteral(payload) {
   // Documented terminator: a full match with count 0 → 00 F8 00.
   out.push(0x00, 0xF8, 0x00);
   return { bytes: Uint8Array.from(out), experimental: true,
-    note: "EXPERIMENTAL Kosinski all-literal (16-bit LE descriptor, bit 1 = literal). The exact end-terminator varies by decompressor — self-verify via a cpu({op:'call'}) round-trip through the game's own routine before shipping." };
+    note: "EXPERIMENTAL Kosinski all-literal (16-bit LE descriptor, bit 1 = literal). The exact end-terminator varies by decompressor - self-verify via a cpu({op:'call'}) round-trip through the game's own routine before shipping." };
 }
 
 export {
@@ -523,7 +523,7 @@ const hex6 = (n) => "0x" + (n >>> 0).toString(16).toUpperCase().padStart(6, "0")
 const hexB = (bytes) => Array.from(bytes).map((b) => b.toString(16).toUpperCase().padStart(2, "0")).join(" ");
 
 // ───────────────────────────────────────────────────────────────────────────
-// findPointerTo — scan a ROM for pointers that reference a byte offset.
+// findPointerTo - scan a ROM for pointers that reference a byte offset.
 // ───────────────────────────────────────────────────────────────────────────
 export async function findPointerToCore({ path, platform, romOffset, mapper, maxHitsReturned = 256, widths, suppressShadows = true }) {
   const data = new Uint8Array(await readFile(path));
@@ -536,7 +536,7 @@ export async function findPointerToCore({ path, platform, romOffset, mapper, max
   }
 
   let forms = plat === "snes" ? entry.forms(romOffset, data, mapper) : entry.forms(romOffset, data);
-  // `widths` filter (e.g. [4] = only 32-bit pointers) — the agent's request to
+  // `widths` filter (e.g. [4] = only 32-bit pointers) - the agent's request to
   // skip the narrower forms that mostly produce shadow hits on Genesis/GBA.
   if (Array.isArray(widths) && widths.length) {
     forms = forms.filter((f) => widths.includes(f.width));
@@ -560,7 +560,7 @@ export async function findPointerToCore({ path, platform, romOffset, mapper, max
   hits.sort((a, b) => a.atOffsetDec - b.atOffsetDec);
 
   // Shadow suppression: a narrower hit that is the byte-overlap of a wider hit
-  // at the SAME pointer isn't a distinct reference — e.g. a 24-bit BE hit at N+1
+  // at the SAME pointer isn't a distinct reference - e.g. a 24-bit BE hit at N+1
   // inside a 32-bit BE hit at N (the low 3 bytes). Drop those so the agent doesn't
   // hand-dedupe by halving the list. A hit is a shadow only when ALL hold:
   //   - strictly narrower width, same endian as the wider hit;
@@ -613,7 +613,7 @@ export async function findPointerToCore({ path, platform, romOffset, mapper, max
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// makeStoredBlock — emit bytes a game's own decompressor expands verbatim.
+// makeStoredBlock - emit bytes a game's own decompressor expands verbatim.
 // ───────────────────────────────────────────────────────────────────────────
 export async function makeStoredBlockCore({ platform, rawHex, rawBytes, format, interleave }) {
   const entry = PLATFORM_REGISTRY[platform];
@@ -648,12 +648,12 @@ export async function makeStoredBlockCore({ platform, rawHex, rawBytes, format, 
     note: result.note,
     experimental: result.experimental || undefined,
     platformNote: entry.note,
-    nextStep: "Write these bytes into the ROM with patchFile (or to free space via relocateBlock), then VERIFY by running the game's own decompressor on them with callSubroutine and comparing the output to your payload — especially for any 'experimental' format.",
+    nextStep: "Write these bytes into the ROM with patchFile (or to free space via relocateBlock), then VERIFY by running the game's own decompressor on them with callSubroutine and comparing the output to your payload - especially for any 'experimental' format.",
   };
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// relocateBlock — write edited bytes to free space and repoint a pointer.
+// relocateBlock - write edited bytes to free space and repoint a pointer.
 // ───────────────────────────────────────────────────────────────────────────
 export async function relocateBlockCore({
   path, platform, newHex, newBase64, toOffset, pointerOffset, pointerWidth, pointerEndian,
@@ -673,7 +673,7 @@ export async function relocateBlockCore({
     throw new Error("relocateBlock: pass newHex or newBase64 (the edited block bytes).");
   }
   if (newBytes.length === 0) throw new Error("relocateBlock: empty block.");
-  if (toOffset == null) throw new Error("relocateBlock: pass toOffset (where to write the block — e.g. a run from findFreeSpace).");
+  if (toOffset == null) throw new Error("relocateBlock: pass toOffset (where to write the block - e.g. a run from findFreeSpace).");
   if (toOffset + newBytes.length > data.length) {
     throw new Error(`relocateBlock: block (${newBytes.length} bytes) at ${hex6(toOffset)} overruns the ROM (${data.length} bytes). Pick a smaller toOffset or expand the ROM first.`);
   }
@@ -692,7 +692,7 @@ export async function relocateBlockCore({
     let value = pointerValue;
     if (value == null) {
       const entry = PLATFORM_REGISTRY[plat];
-      if (!entry || !entry.forms) throw new Error(`relocateBlock: can't derive a pointer value for '${plat}' — pass pointerValue explicitly.`);
+      if (!entry || !entry.forms) throw new Error(`relocateBlock: can't derive a pointer value for '${plat}' - pass pointerValue explicitly.`);
       const forms = (plat === "snes" ? entry.forms(toOffset, data, undefined) : entry.forms(toOffset, data))
         .filter((f) => f.width === width && f.endian === endian);
       if (forms.length === 0) throw new Error(`relocateBlock: no ${width}-byte ${endian} pointer form maps to ${hex6(toOffset)} on ${plat}; pass pointerValue explicitly.`);
@@ -717,11 +717,11 @@ export async function relocateBlockCore({
     wrote: dryRun ? null : (outputPath ?? path),
     blockAt: hex6(toOffset),
     blockBytes: newBytes.length,
-    pointer: pointer ?? "(no pointer repointed — pass pointerOffset to redirect the loader)",
+    pointer: pointer ?? "(no pointer repointed - pass pointerOffset to redirect the loader)",
     writes,
     note: pointerOffset == null
       ? "Block written but NOT yet referenced. Find the pointer that feeds the loader with findPointerTo, then re-run with pointerOffset to repoint it."
-      : "Block written and pointer repointed. Verify in the emulator (load + screenshot) — and on banked systems confirm the bank that pointer resolves in is the one selected when the loader runs.",
+      : "Block written and pointer repointed. Verify in the emulator (load + screenshot) - and on banked systems confirm the bank that pointer resolves in is the one selected when the loader runs.",
   };
 }
 

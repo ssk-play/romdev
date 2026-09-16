@@ -1,4 +1,4 @@
-; SNES — LoROM multi-bank layout (canonical order).
+; SNES - LoROM multi-bank layout (canonical order).
 ;
 ; asar 1.x silently crashes (heap-pointer exit code, no diagnostic) when
 ; `org` directives go to a higher bank and then rewind to a lower one.
@@ -13,7 +13,7 @@
 ; available in a 256 KB ROM; bump the header byte at $FFD7 to allow
 ; larger ROMs (see lorom_header.asm).
 ;
-; If you need more than ~32 KB in bank $00 itself, you can't — bank $00
+; If you need more than ~32 KB in bank $00 itself, you can't - bank $00
 ; ends at $00FFFF and the header consumes $00FFC0..$00FFFF. Move data
 ; to bank $01+.
 

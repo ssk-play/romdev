@@ -1,4 +1,4 @@
-/* lynx_sfx.c — MIKEY 4-voice audio driver for Lynx scaffolds.
+/* lynx_sfx.c - MIKEY 4-voice audio driver for Lynx scaffolds.
  *
  * Each MIKEY voice occupies 8 bytes starting at $FD20:
  *   +0  VOLCNTRL      signed output volume (-128..127)
@@ -32,7 +32,7 @@
  * intermittently corrupted TGI playfield rendering ("basket + coins
  * invisible, HUD + score fine"). Reproduces with sfx_init alone in
  * some builds, deterministically with any sfx_tone call. The agent
- * tried clearing what they thought was the IRQ bit (bit 3 → bit 4) —
+ * tried clearing what they thought was the IRQ bit (bit 3 → bit 4) -
  * didn't help.
  *
  * Root cause (handy mikie.cpp:1668-1680): when a CTL write sets bit 3
@@ -44,7 +44,7 @@
  *
  * The fix is structural: stage the voice config in shadow RAM
  * (sfx_pending_*[]) and have sfx_update() write to hardware. Callers
- * MUST call sfx_update() during vblank — when the blitter is idle —
+ * MUST call sfx_update() during vblank - when the blitter is idle -
  * so the synchronous timer-event sweep lands during vblank with no
  * visible damage. This matches the cross-platform shape we use
  * everywhere (sfx_update called once per frame after the wait_vblank).
@@ -80,7 +80,7 @@ void sfx_init(void) {
 
 void sfx_tone(uint8_t channel, uint8_t period, uint8_t length_frames) {
   if (channel > 3) return;
-  /* Stage only — actual hardware writes happen in sfx_update() during
+  /* Stage only - actual hardware writes happen in sfx_update() during
    * the caller's vblank, NOT now. See R57 comment block above. */
   sfx_pending_kind[channel] = 1;
   sfx_pending_period[channel] = period;
@@ -103,7 +103,7 @@ static void sfx_flush_pending(void) {
       POKE(VOICE_BASE(i) + 1, 0x80);     /* feedback off */
       POKE(VOICE_BASE(i) + 4, sfx_pending_period[i]);
       POKE(VOICE_BASE(i) + 5, 0x18);     /* RELOAD + COUNT + 16us clock */
-      POKE(VOICE_BASE(i) + 0, 100);      /* volume (was 64 — read as near-silent on hardware) */
+      POKE(VOICE_BASE(i) + 0, 100);      /* volume (was 64 - read as near-silent on hardware) */
     } else if (sfx_pending_kind[i] == 2) {
       /* Noise on voice 3. */
       POKE(VOICE_BASE(i) + 7, 0x01);     /* 12-bit LFSR */
@@ -119,7 +119,7 @@ static void sfx_flush_pending(void) {
 /* ── background music: 16-step melody loop on voice 1 ───────────────
  * Ticked from sfx_update() through the SAME staged-write path (R57),
  * so every scaffold that already calls sfx_init() + sfx_update() gets
- * continuous music for free — "no sound at all" was the Lynx playtest
+ * continuous music for free - "no sound at all" was the Lynx playtest
  * verdict. sfx_music(0) turns it off. SFX use voice 0 (+ noise on 3).
  * MIKEY period at the 16us clock: freq ~= 31250 / period. */
 static const uint8_t music_period[16] = {
@@ -143,7 +143,7 @@ static void music_tick(void) {
     if (p) {
       sfx_pending_kind[1] = 1;          /* staged like any tone (R57-safe) */
       sfx_pending_period[1] = p;
-      sfx_remaining[1] = 8;             /* hold 8 of 9 frames — articulated */
+      sfx_remaining[1] = 8;             /* hold 8 of 9 frames - articulated */
     }
     music_step++;
   }
@@ -176,7 +176,7 @@ void sfx_off(void) {
   uint8_t i;
   for (i = 0; i < 4; i++) {
     POKE(VOICE_BASE(i) + 0, 0);
-    POKE(VOICE_BASE(i) + 5, 0);    /* CTRL=0 — bit 3 clear, no trigger */
+    POKE(VOICE_BASE(i) + 5, 0);    /* CTRL=0 - bit 3 clear, no trigger */
     sfx_remaining[i] = 0;
     sfx_pending_kind[i] = 0;
   }

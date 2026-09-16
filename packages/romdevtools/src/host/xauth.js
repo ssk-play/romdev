@@ -1,4 +1,4 @@
-// host/xauth.js — point XAUTHORITY at a cookie the X server will actually
+// host/xauth.js - point XAUTHORITY at a cookie the X server will actually
 // accept, before anything tries to open a GL context.
 //
 // Mutter/Xwayland regenerates its auth file when the compositor restarts, but a
@@ -55,7 +55,7 @@ function findCookieFiles(dir) {
       accessSync(full, constants.R_OK);
       out.push({ path: full, mtimeMs: st.mtimeMs });
     } catch {
-      /* unreadable or vanished mid-scan — not a candidate */
+      /* unreadable or vanished mid-scan - not a candidate */
     }
   }
   return out.sort((a, b) => b.mtimeMs - a.mtimeMs);
@@ -64,7 +64,7 @@ function findCookieFiles(dir) {
 /**
  * Can we actually open $DISPLAY with this cookie? Uses xdpyinfo when present
  * (cheap, definitive, no GL context created). Returns null when we cannot tell
- * — the caller treats "unknown" as "don't touch anything".
+ * - the caller treats "unknown" as "don't touch anything".
  * @returns {boolean|null}
  */
 function canConnect(xauthorityPath) {
@@ -99,7 +99,7 @@ export function resolveXauthority({ log } = {}) {
       );
     } else if (log && result.reason === "no-working-candidate") {
       log.info(
-        "[xauth] no usable X cookie found — GL contexts will fail. " +
+        "[xauth] no usable X cookie found - GL contexts will fail. " +
           "If a compositor restarted, log out and back in, or set XAUTHORITY by hand.",
       );
     }

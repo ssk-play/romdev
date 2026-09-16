@@ -1,9 +1,9 @@
-/* ── default.c — minimal Game Boy Color (CGB) starter ─────────────
+/* ── default.c - minimal Game Boy Color (CGB) starter ─────────────
  *
  * A "hello, it works! IN COLOR" screen: a tiled background (two bands
  * + a centre box) drawn with a real CGB palette, plus a sprite that
  * bounces around. The very first GBC build shows recognizable content
- * — not a flat colour. Use this as the starting point when you're not
+ * - not a flat colour. Use this as the starting point when you're not
  * yet sure what you want to build; edit from here.
  *
  * GBC-specific notes:
@@ -12,18 +12,18 @@
  *     little-endian) and OCPS/OCPD for the sprite palettes. The DMG-only
  *     BGP/OBP0/OBP1 ($FF47-$49) registers do nothing in CGB mode.
  *   - You MUST put tiles in VRAM and enable the BG (LCDC bit 0) or the
- *     screen stays one flat colour — the #1 GB "why is it blank" footgun.
+ *     screen stays one flat colour - the #1 GB "why is it blank" footgun.
  *     We upload tiles to $8000 and select LCDC_TILE_DATA_LO (unsigned
  *     $8000 addressing) so tile index N lives at $8000 + N*16.
  *   - patchGbHeader on a .gbc file sets $0143 = $80 (CGB-aware) by
- *     default. The corresponding `.gb` default uses DMG BGP — don't
+ *     default. The corresponding `.gb` default uses DMG BGP - don't
  *     cross-pollinate the two trees.
  *
  * For something more game-shaped, peek at other templates in this dir:
- *   - hello_sprite — sprite + d-pad movement
- *   - tile_engine  — multi-room tile map with collision + transitions
- *   - shmup / platformer / puzzle / sports / racing — genre scaffolds
- *   - music_demo   — bundled hUGEDriver music driver demo
+ *   - hello_sprite - sprite + d-pad movement
+ *   - tile_engine  - multi-room tile map with collision + transitions
+ *   - shmup / platformer / puzzle / sports / racing - genre scaffolds
+ *   - music_demo   - bundled hUGEDriver music driver demo
  */
 
 #include "gb_hardware.h"
@@ -32,9 +32,9 @@
 /* Three 8×8 tiles, 2bpp (16 bytes each: row N = byte 2N low-bits, 2N+1
  * high-bits).  Colour index per tile pixel selects into the 4-colour
  * palette below.
- *   tile 0 — blank   (all colour 0 — reserved so OAM Y=0 doesn't glitch)
- *   tile 1 — solid   (all colour 1 — the background fill / bands)
- *   tile 2 — sprite  (a filled diamond in colour 3) */
+ *   tile 0 - blank   (all colour 0 - reserved so OAM Y=0 doesn't glitch)
+ *   tile 1 - solid   (all colour 1 - the background fill / bands)
+ *   tile 2 - sprite  (a filled diamond in colour 3) */
 static const uint8_t tiles[3 * 16] = {
   /* tile 0: blank */
   0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0,
@@ -81,7 +81,7 @@ void main(void) {
   uint8_t *bg_map = BG_MAP_0;       /* $9800 */
   uint8_t i;
 
-  /* 1. LCD off (safely — lcd_init_default checks LCDC.7 first). */
+  /* 1. LCD off (safely - lcd_init_default checks LCDC.7 first). */
   lcd_init_default();
   LCDC = 0;
 

@@ -3,11 +3,11 @@
 //      dataflow on 65816 (in-window rep/sep followed + entry-width inference),
 //      so one range can be re-decoded under corrected widths without
 //      regenerating a hand-annotated project.
-//   #2 breakpoint({on:'write'}) conditionWidth:16 — 'equals' watches the HIGH
+//   #2 breakpoint({on:'write'}) conditionWidth:16 - 'equals' watches the HIGH
 //      byte + verifies the low byte host-side (no useless $00-low matches);
 //      'increase'/'decrease' compare the WORD host-side (a byte delta lies on
 //      carry). Width auto-inferred when conditionValue > 255.
-//   #3 memory({op:'read', offsets, compact:true}) — one {"0xOFF":"hex"} map
+//   #3 memory({op:'read', offsets, compact:true}) - one {"0xOFF":"hex"} map
 //      for the sample-N-flags pattern (~4x fewer tokens).
 
 import { test } from "node:test";
@@ -35,11 +35,11 @@ function toolHandler(registerFn, toolName, sessionKey) {
 test("#1 disasm rom on 65816 follows an in-window rep #$30 (16-bit immediates decode full-width)", { timeout: 120000 }, async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "romdev-mx-rom-"));
   try {
-    // clc/xce boilerplate skipped — straight to the width flip:
-    //   sep #$30      ; 8-bit (redundant with the 8/8 entry — realistic anchor)
+    // clc/xce boilerplate skipped - straight to the width flip:
+    //   sep #$30      ; 8-bit (redundant with the 8/8 entry - realistic anchor)
     //   lda #$56      ; 8-bit immediate
     //   rep #$30      ; 16-bit A + X/Y
-    //   lda #$1234    ; 16-bit immediate — the 0.94.0 fix target
+    //   lda #$1234    ; 16-bit immediate - the 0.94.0 fix target
     //   ldx #$0002    ; 16-bit X immediate
     //   rts
     const code = [0xE2, 0x30, 0xA9, 0x56, 0xC2, 0x30, 0xA9, 0x34, 0x12, 0xA2, 0x02, 0x00, 0x60];
@@ -62,7 +62,7 @@ test("#1 disasm rom infers a 16-bit ENTRY width (no leading rep/sep to re-sync f
   const dir = await mkdtemp(path.join(os.tmpdir(), "romdev-mx-entry-"));
   try {
     // Window starts ALREADY in 16-bit mode (the caller set it): at the default
-    // 8/8 seed this decodes lda #$34 + brk + garbage — entry inference must
+    // 8/8 seed this decodes lda #$34 + brk + garbage - entry inference must
     // pick the mM/xX entry that removes the symptoms.
     //   lda #$1234 / ldx #$0002 / sta $06A0 / rts
     const code = [0xA9, 0x34, 0x12, 0xA2, 0x02, 0x00, 0x8D, 0xA0, 0x06, 0x60];
@@ -73,7 +73,7 @@ test("#1 disasm rom infers a 16-bit ENTRY width (no leading rep/sep to re-sync f
     const disasm = toolHandler(registerDisasmTools, "disasm", "mx2");
     const r = parse(await disasm({ target: "rom", path: romPath, startAddress: 0x8000, length: code.length, inline: true }));
     const asm = r.asm ?? r.source ?? "";
-    assert.match(asm, /#\$1234/i, "16-bit entry inferred — lda #$1234 decodes full-width");
+    assert.match(asm, /#\$1234/i, "16-bit entry inferred - lda #$1234 decodes full-width");
     assert.doesNotMatch(asm, /\bbrk\b/i, "no desync fingerprint");
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -107,7 +107,7 @@ function fakeSnesHost({ ram = new Uint8Array(0x2000), onStep } = {}) {
   return h;
 }
 
-test("#2 conditionWidth:16 equals — arms the HIGH byte, verifies the low byte host-side", async () => {
+test("#2 conditionWidth:16 equals - arms the HIGH byte, verifies the low byte host-side", async () => {
   const ram = new Uint8Array(0x2000);
   const host = fakeSnesHost({
     ram,
@@ -136,7 +136,7 @@ test("#2 conditionWidth:16 equals keeps waiting when only the high byte matches"
     ram,
     onStep(h, frame) {
       if (frame === 1) {
-        // $2077 lands — high byte matches $20, low byte doesn't
+        // $2077 lands - high byte matches $20, low byte doesn't
         ram[0x6A0] = 0x77; ram[0x6A1] = 0x20;
         h._wp = { hits: 1, lastPC: 0x1111, lastValue: 0x20 };
       }
@@ -157,18 +157,18 @@ test("#2 width 16 is INFERRED from conditionValue > 255", async () => {
   const bp = toolHandler(registerWatchMemoryTools, "breakpoint", "w16c");
   const r = parse(await bp({ on: "write", precision: "exact", address: 0x06A0, condition: "equals", conditionValue: 0x2000, maxFrames: 2 }));
   assert.equal(r.found, false);
-  assert.equal(armedAddr, 0x06A1, "no explicit conditionWidth — >255 value still arms the high byte");
+  assert.equal(armedAddr, 0x06A1, "no explicit conditionWidth - >255 value still arms the high byte");
   assert.equal(armedVal, 0x20, "core condition byte is the value's HIGH byte");
 });
 
-test("#2 conditionWidth:16 increase — word compare catches the carry a byte delta lies about", async () => {
+test("#2 conditionWidth:16 increase - word compare catches the carry a byte delta lies about", async () => {
   const ram = new Uint8Array(0x2000);
   ram[0x100] = 0xFF; ram[0x101] = 0x00; // word $00FF
   const host = fakeSnesHost({
     ram,
     onStep(h, frame) {
       if (frame === 2) {
-        // $00FF -> $0100: LOW BYTE DECREASED (FF->00) — a byte-level 'increase'
+        // $00FF -> $0100: LOW BYTE DECREASED (FF->00) - a byte-level 'increase'
         // condition on the low byte would call this a decrease and miss it.
         ram[0x100] = 0x00; ram[0x101] = 0x01;
         h._wp = { hits: 2, lastPC: 0xABCD, lastValue: 0x00 };
@@ -184,7 +184,7 @@ test("#2 conditionWidth:16 increase — word compare catches the carry a byte de
   assert.equal(r.found, true);
   assert.equal(r.oldValueWord, "0x00FF");
   assert.equal(r.valueWord, "0x0100", "the word increased across the carry");
-  assert.equal(armedOpts, null, "plain (unconditioned) core watch — the word compare is host-side");
+  assert.equal(armedOpts, null, "plain (unconditioned) core watch - the word compare is host-side");
 });
 
 // ── #3 memory compact batched reads ─────────────────────────────────────────

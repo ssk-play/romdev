@@ -1,6 +1,6 @@
 // Commodore 64 SID (MOS 6581/8580) helpers.
 //
-// SID is the C64's sound chip — 3 voices, each with:
+// SID is the C64's sound chip - 3 voices, each with:
 //   - Frequency (16-bit)
 //   - Pulse width (12-bit, used for pulse waveform)
 //   - Waveform + gate + sync + ring-mod (control register)
@@ -57,7 +57,7 @@ function decodeVoice(regs, base) {
   const adByte = regs[base + 5];
   const srByte = regs[base + 6];
   // Hz approximation: SID frequency = (F * Φ2) / (2^24) where Φ2 ≈ 985248 Hz PAL
-  // (or 1022730 NTSC). Use PAL as default for the display — close enough for
+  // (or 1022730 NTSC). Use PAL as default for the display - close enough for
   // agent-level reasoning about pitch.
   const hzPal  = (freq * 985248) / (1 << 24);
   return {
@@ -118,7 +118,7 @@ function hex2(n) {
 }
 
 /**
- * snapshotSid(host) — return the decoded SID state from the running emulator.
+ * snapshotSid(host) - return the decoded SID state from the running emulator.
  */
 export function snapshotSid(host) {
   const regs = host.readMemory("c64_sid_regs", 0, 29);

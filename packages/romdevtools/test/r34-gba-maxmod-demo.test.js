@@ -1,10 +1,10 @@
-// R34 — GBA maxmod music demo end-to-end test.
+// R34 - GBA maxmod music demo end-to-end test.
 //
 // Builds the maxmod_demo template (libtonc + libmm + a hand-authored CC0
 // chiptune soundbank), asserts the ROM links cleanly, and verifies the
 // soundbank bytes are actually embedded in the final .gba binary. The
 // soundbank.bin gets `.incbin`'d via an auto-emitted asm stub in the
-// libtonc build path — if the byte pattern isn't in the ROM, either the
+// libtonc build path - if the byte pattern isn't in the ROM, either the
 // stub didn't run or the linker dropped it.
 
 import { test } from "node:test";
@@ -64,7 +64,7 @@ test("R34 maxmod_demo builds + soundbank bytes are linked into the .gba", { time
   const hay = Buffer.from(r.binary);
   const idx = hay.indexOf(needle);
   assert.ok(idx >= 0,
-    `soundbank bytes (offset ${needleStart}..${needleStart + 32}) not found in linked ROM — ` +
+    `soundbank bytes (offset ${needleStart}..${needleStart + 32}) not found in linked ROM - ` +
     `the .incbin stub probably didn't run or the linker GC'd it. log tail: ${(r.log || "").slice(-500)}`);
 });
 

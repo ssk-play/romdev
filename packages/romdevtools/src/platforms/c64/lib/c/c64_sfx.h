@@ -1,4 +1,4 @@
-/* c64_sfx.h — minimal C64 SID sound-effects wrapper.
+/* c64_sfx.h - minimal C64 SID sound-effects wrapper.
  *
  * SID = Sound Interface Device. The legendary C64 audio chip, 3 voices,
  * 4 waveforms (triangle/sawtooth/pulse/noise), per-voice ADSR
@@ -7,9 +7,9 @@
  *
  * Same 5-function cross-platform shape:
  *   sfx_init()
- *   sfx_tone(channel, freq_lo, freq_hi, length_frames)   — pulse wave
- *   sfx_noise(length_frames)                              — voice 2 noise
- *   sfx_update()                                          — call once per frame
+ *   sfx_tone(channel, freq_lo, freq_hi, length_frames)   - pulse wave
+ *   sfx_noise(length_frames)                              - voice 2 noise
+ *   sfx_update()                                          - call once per frame
  *   sfx_off()
  *
  * channel = 0, 1, or 2 (SID has 3 voices).
@@ -18,7 +18,7 @@
  *   Hz = (freq * 0.0596) for PAL, or (freq * 0.0596) for NTSC.
  *   Useful values: 0x1000 ≈ middle range, 0x2000 ≈ higher, 0x0800 ≈ low.
  *
- * The SID has REAL ADSR — sfx_tone sets a sensible default (fast attack,
+ * The SID has REAL ADSR - sfx_tone sets a sensible default (fast attack,
  * mid release) so the note has shape. sfx_update keys-off (clears GATE)
  * when the countdown hits 0, letting the release tail play.
  */

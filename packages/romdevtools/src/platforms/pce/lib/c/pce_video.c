@@ -1,5 +1,5 @@
 /*
- * pce_video.c — HuC6270 VDC + HuC6260 VCE helpers (cc65, C89).
+ * pce_video.c - HuC6270 VDC + HuC6260 VCE helpers (cc65, C89).
  *
  * Talks to the two PCE video chips by hand: VRAM uploads, the VCE 9-bit-GRB
  * color table, the master display-enable bits, and a 64-entry shadow SATB you
@@ -59,7 +59,7 @@ void vce_set_color(u16 idx, u16 grb) {
  * track the enable bits in a static shadow and rewrite the whole register.
  *
  * NOTE: every enable also sets the VBlank-IRQ bit. cc65's waitvsync() blocks
- * until the VBlank IRQ ticks a counter — without this bit, waitvsync() spins
+ * until the VBlank IRQ ticks a counter - without this bit, waitvsync() spins
  * FOREVER and your game loop never runs (the screen stays on the last frame).
  * If you only need a static screen and never call waitvsync(), the IRQ bit is
  * harmless; cc65's crt0 already installs the VBlank ISR. */
@@ -73,7 +73,7 @@ void vblank_irq_enable(void) {
 /* Program the VDC display-timing registers for a standard NTSC 256x224 (H32)
  * screen. WITHOUT this the geargrafx core falls back to power-on register
  * defaults that composite the 32-row BAT into the display DOUBLED (the scene
- * drawn twice, top + bottom halves, with a black right margin) — the PCE-1
+ * drawn twice, top + bottom halves, with a black right margin) - the PCE-1
  * "doubled picture" bug. Values match cc65's pce.lib / standard PCE homebrew:
  *   MWR  R9  = 32x32 virtual screen, 256px-wide BAT
  *   HSR  R10 / HDR R11 = 256px (32 char) horizontal display
@@ -83,7 +83,7 @@ static u8 _pce_vdc_inited = 0;
 void vdc_init(void) {
     if (_pce_vdc_inited) return;
     _pce_vdc_inited = 1;
-    vdc_set_reg(VDC_MWR, 0x0000);  /* 32x32 virtual map (SCREEN field=000); 256px BAT. (0x10 was 64x32 — its 64-wide stride left the bottom rows as uninitialized VRAM = vertical-stripe garbage.) */
+    vdc_set_reg(VDC_MWR, 0x0000);  /* 32x32 virtual map (SCREEN field=000); 256px BAT. (0x10 was 64x32 - its 64-wide stride left the bottom rows as uninitialized VRAM = vertical-stripe garbage.) */
     vdc_set_reg(VDC_BXR, 0x0000);  /* BG X scroll = 0                       */
     vdc_set_reg(VDC_BYR, 0x0000);  /* BG Y scroll = 0                       */
     vdc_set_reg(VDC_HSR, 0x0202);  /* horizontal sync width/start           */
@@ -117,7 +117,7 @@ void disp_enable(void) {
  *   - attr low nibble selects the sprite sub-palette (0..15).
  *   - the SPBG priority bit (0x80) is set so the sprite draws IN FRONT of the
  *     background. Without it, an opaque BG tile (any non-zero color) hides the
- *     sprite — the classic "my sprite vanished over a full tilemap" bug. Slot 0
+ *     sprite - the classic "my sprite vanished over a full tilemap" bug. Slot 0
  *     of the BG sub-palette is transparent, so the sprite still shows over the
  *     backdrop either way; the bit only matters over solid tiles.
  * Call satb_dma() after building all slots to push them to the VDC. */
@@ -131,18 +131,18 @@ void set_sprite(u8 slot, u16 x, u16 y, u16 pattern, u8 palette) {
     e[3] = (u16)(0x0080 | (palette & 0x0F));       /* word3: SPBG-front + pal  */
 }
 
-/* set_sprite() with the HuC6270's LARGE-SPRITE size bits — the PCE's signature
+/* set_sprite() with the HuC6270's LARGE-SPRITE size bits - the PCE's signature
  * trick (sprites up to 32x64 from ONE SATB entry, where the NES needs 8+).
  *
  * SATB word3 (the attribute word) layout:
  *   bit 15    Y-flip
- *   bits13:12 CGY — sprite HEIGHT: 00=16px, 01=32px, 11=64px (10 is invalid)
+ *   bits13:12 CGY - sprite HEIGHT: 00=16px, 01=32px, 11=64px (10 is invalid)
  *   bit 11    X-flip
- *   bit  8    CGX — sprite WIDTH:  0=16px, 1=32px
- *   bit  7    SPBG — 1 = sprite in front of background
+ *   bit  8    CGX - sprite WIDTH:  0=16px, 1=32px
+ *   bit  7    SPBG - 1 = sprite in front of background
  *   bits 3:0  sprite sub-palette (0-15)
  *
- * `attr_ex` is OR'd into word3 — pass the SPR_* constants from pce_hw.h
+ * `attr_ex` is OR'd into word3 - pass the SPR_* constants from pce_hw.h
  * (e.g. SPR_CGX_32 | SPR_CGY_32 for a 32x32 sprite). SPBG-front is still set
  * for you, same as set_sprite().
  *

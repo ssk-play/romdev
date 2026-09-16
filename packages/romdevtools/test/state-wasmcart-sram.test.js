@@ -1,11 +1,11 @@
-// state({op:'exportSram'/'importSram'/'save'}) against a REAL WasmcartHost —
+// state({op:'exportSram'/'importSram'/'save'}) against a REAL WasmcartHost -
 // the tool-level half of the fix in wasmcart-sram.test.js (which covers
 // WasmcartHost's own getSaveData/setSaveData/persistence directly).
 //
 // Filed as internal-romdev/feedback/2026-08-19_wasmcart-sram-invisible-to-state-tool-and-lost-on-reload.md.
 // Before this fix: exportSram/importSram routed every platform through the
 // libretro save_ram REGION api (regionSize/readMemory(region,...)), which
-// WasmcartHost doesn't implement — the resulting TypeError was swallowed by
+// WasmcartHost doesn't implement - the resulting TypeError was swallowed by
 // a `catch { return 0 }` into a confidently wrong "the loaded ROM has no
 // battery save RAM" even though the cart held live SRAM. And
 // state({op:'save'}) called host.saveState(), which doesn't exist on
@@ -55,7 +55,7 @@ test("exportSram on a wasmcart cart reports the REAL 64-byte SRAM, not size 0", 
     const outPath = path.join(dir, "out.sav");
     const res = parseResult(await handle({ op: "exportSram", path: outPath }));
     assert.equal(res.exportedSram, true);
-    assert.equal(res.bytes, 64, "hello.wasc declares 64 bytes of SRAM — must not report 0");
+    assert.equal(res.bytes, 64, "hello.wasc declares 64 bytes of SRAM - must not report 0");
     const written = await readFile(outPath);
     assert.equal(written.length, 64);
   } finally {

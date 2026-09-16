@@ -1,7 +1,7 @@
 // v0.70.0 feedback: project mode ergonomics for an existing disassembly.
-//  #2 — honor `options`/`defines` (asar --define was silently dropped)
-//  #3 — `entry` override for a top file that isn't main.* (e.g. smw.asm)
-//  #4 — stage subdirectory assets recursively (col/misc/x.pal wasn't read)
+//  #2 - honor `options`/`defines` (asar --define was silently dropped)
+//  #3 - `entry` override for a top file that isn't main.* (e.g. smw.asm)
+//  #4 - stage subdirectory assets recursively (col/misc/x.pal wasn't read)
 // These live in the SHARED project path (readProjectDir/buildProjectCore), so
 // the fixes benefit every platform, not just SNES.
 
@@ -65,7 +65,7 @@ test("project mode: a bad entry name is rejected with a clear error", { timeout:
 });
 
 // v0.71.0 feedback #1: project-mode `entry` must resolve a NESTED path (src/main.c),
-// not just top-level files — common for decomps / SDK-layout projects.
+// not just top-level files - common for decomps / SDK-layout projects.
 test("project mode: entry resolves a nested path (src/main.c) + bare-name fallback", { timeout: 120000 }, async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "romdev-v71-"));
   await mkdir(path.join(dir, "src"), { recursive: true });

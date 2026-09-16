@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// build-apu-blob.js — rebuild src/platforms/snes/lib/audio/apu_blob.bin
+// build-apu-blob.js - rebuild src/platforms/snes/lib/audio/apu_blob.bin
 //
 // The SNES C templates ship a prebuilt apu_blob.bin (SPC700 driver +
 // sample bank + R46 music data) which gets .incbin'd into the ROM at
@@ -42,7 +42,7 @@ async function main() {
   }
 
   // flatBinary mode trims sentinel ($AA) padding from both ends. asar's
-  // base ROM is a 64 KB scratch — we want all the bytes from the start
+  // base ROM is a 64 KB scratch - we want all the bytes from the start
   // of the driver ($0200) through the last byte of music data, which is
   // exactly what flat-binary mode returns.
   const bytes = r.binary;

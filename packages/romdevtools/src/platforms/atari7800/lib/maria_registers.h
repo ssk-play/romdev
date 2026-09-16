@@ -7,7 +7,7 @@ BACKGRND  = $20     ; background color
 P0C1      = $21     ; palette 0 color 1 (color 0 = BACKGRND, shared)
 P0C2      = $22
 P0C3      = $23
-WSYNC     = $24     ; wait for sync — write any value to stall to next line
+WSYNC     = $24     ; wait for sync - write any value to stall to next line
 P1C1      = $25
 P1C2      = $26
 P1C3      = $27
@@ -27,7 +27,7 @@ CHARBASE  = $34     ; character map base (high byte)
 P5C1      = $35
 P5C2      = $36
 P5C3      = $37
-OFFSET    = $38     ; offset register (placeholder — write 0)
+OFFSET    = $38     ; offset register (placeholder - write 0)
 P6C1      = $39
 P6C2      = $3A
 P6C3      = $3B
@@ -36,7 +36,7 @@ P7C1      = $3D
 P7C2      = $3E
 P7C3      = $3F
 
-; ── TIA audio ($15-$1A) — yes, the 7800 still has the 2600's audio chip
+; ── TIA audio ($15-$1A) - yes, the 7800 still has the 2600's audio chip
 AUDC0     = $15
 AUDC1     = $16
 AUDF0     = $17

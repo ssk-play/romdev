@@ -5,7 +5,7 @@
 //     Atari 2600 (F8/F6/F4), Atari 7800 (SuperGame), MSX (megaROM),
 //     PCE (>32KB HuCard), SNES (multi-bank LoROM)
 //   one-call build() rebuild (cc65/ca65 toolchain match): Atari 7800
-//     SuperGame, PCE (flat AND banked — planRegions no longer pad-trims or
+//     SuperGame, PCE (flat AND banked - planRegions no longer pad-trims or
 //     mis-orgs HuCards)
 //   per-bank native recipes (build:null, byte-exact regions): SMS banked,
 //     MSX megaROM, 2600 banked
@@ -240,7 +240,7 @@ test("PCE banked HuCard (64KB): refs span pages; one-call rebuild is byte-identi
 test("PCE flat HuCard (8KB, with REAL trailing $FF pad): faithful one-call rebuild", { timeout: 120000 }, async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "romdev-flat-pce-"));
   try {
-    // Code at the front, REAL $FF padding to the cart size — the exact shape
+    // Code at the front, REAL $FF padding to the cart size - the exact shape
     // the old planRegions pad-trim made lossy.
     const orig = bank(0x2000, [0xA9, 0x01, 0x85, 0x10, 0x4C, 0x00, 0xE0], 0xFF);
     orig[0x1FFE] = 0x00; orig[0x1FFF] = 0xE0;

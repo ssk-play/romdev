@@ -1,5 +1,5 @@
 /****************************************************************************
- * romdev-maxmod — s3m.js
+ * romdev-maxmod - s3m.js
  *
  * Faithful pure-JS ESM port of mmutil's s3m.c (Load_S3M / Load_S3M_Sample /
  * Load_S3M_Pattern / Load_S3M_SampleData).
@@ -9,7 +9,7 @@
  * consumes. Field names mirror the C structs in mas.h exactly (snake_case),
  * so the emitter is parser-agnostic.
  *
- * Original C: Copyright (c) 2008, Mukunda Johnson (mukunda@maxmod.org) — see
+ * Original C: Copyright (c) 2008, Mukunda Johnson (mukunda@maxmod.org) - see
  * mmutil license. This is a line-for-line behavioural port.
  *
  * Endianness: little-endian throughout (matches files.c read16/read32, which
@@ -30,12 +30,12 @@ const SAMPF_16BIT = 0x001;
 const SAMP_FORMAT_U8 = 0;            // (0)
 const SAMP_FORMAT_U16 = SAMPF_16BIT; // (SAMPF_16BIT)
 
-// errors.h — only the codes referenced by s3m.c. We throw with these names.
+// errors.h - only the codes referenced by s3m.c. We throw with these names.
 const ERR_INVALID_MODULE = 'ERR_INVALID_MODULE';
 const ERR_UNKNOWNSAMPLE = 'ERR_UNKNOWNSAMPLE';
 
 /**
- * PANNING_SEP — main.c initialises this to 128 and only overrides it via the
+ * PANNING_SEP - main.c initialises this to 128 and only overrides it via the
  * `-p<n>` CLI flag. With no CLI flag the default is 128, so we hard-code 128
  * here (the value the soundbank path always uses).
  *   main.c: PANNING_SEP = 128;
@@ -65,9 +65,9 @@ function clamp_u8(value) {
 }
 
 // ---------------------------------------------------------------------------
-// Byte reader — mirrors files.c (fin + read8/read16/read24/read32/skip8/seek).
+// Byte reader - mirrors files.c (fin + read8/read16/read24/read32/skip8/seek).
 // Reads past EOF yield 0 (fread leaves the byte unwritten in C; we choose a
-// deterministic 0 — well-formed S3Ms never read past EOF on the hot path).
+// deterministic 0 - well-formed S3Ms never read past EOF on the hot path).
 // ---------------------------------------------------------------------------
 
 class Reader {
@@ -124,7 +124,7 @@ class Reader {
 }
 
 // ---------------------------------------------------------------------------
-// Model factories — keep the same object shape the other parsers emit so a
+// Model factories - keep the same object shape the other parsers emit so a
 // single mas-emitter consumes any of them. Mirrors the C structs (mas.h);
 // every numeric field is pre-zeroed exactly like memset(...,0,sizeof(...)).
 // ---------------------------------------------------------------------------
@@ -245,7 +245,7 @@ function newSample() {
     datapointer: 0,
     it_compression: 0,
     name: '',
-    // filename[12] — kept as a byte array; FixSample's name-flag logic uses
+    // filename[12] - kept as a byte array; FixSample's name-flag logic uses
     // filename[0]=='#' downstream (sfx flag in msl.c).
     filename: new Array(12).fill(0),
   };
@@ -329,7 +329,7 @@ function newModule() {
 }
 
 // ---------------------------------------------------------------------------
-// Load_S3M_Sample (s3m.c) — reads ONE sample header at the current cursor.
+// Load_S3M_Sample (s3m.c) - reads ONE sample header at the current cursor.
 // Returns ERR_* string on failure (caller raises), else null on success.
 // ---------------------------------------------------------------------------
 
@@ -377,17 +377,17 @@ function Load_S3M_Sample(r, samp) {
     }
     samp.name = name;
 
-    // if( read32() != 'SRCS' ) — file bytes are 'S','C','R','S'; read32 LE
+    // if( read32() != 'SRCS' ) - file bytes are 'S','C','R','S'; read32 LE
     // yields 0x53524353, and gcc's 'SRCS' multichar constant == 0x53524353.
     if (r.read32() !== 0x53524353) return ERR_UNKNOWNSAMPLE;
   }
-  // else: empty sample slot — leave samp zeroed (no SCRS check, no data).
+  // else: empty sample slot - leave samp zeroed (no SCRS check, no data).
 
   return null;
 }
 
 // ---------------------------------------------------------------------------
-// Load_S3M_Pattern (s3m.c) — unpacks one 64-row pattern at the current cursor.
+// Load_S3M_Pattern (s3m.c) - unpacks one 64-row pattern at the current cursor.
 // ---------------------------------------------------------------------------
 
 /**
@@ -461,7 +461,7 @@ function Load_S3M_Pattern(r) {
 
       // if( patt->data[z].fx == 255 ) { fx = 0; param = 0; }
       // NOTE: this check is OUTSIDE the `what & 128` block in the C, so it
-      // also fires for cells whose fx was never assigned this iteration —
+      // also fires for cells whose fx was never assigned this iteration -
       // but those keep fx==0 (memset), so it's effectively a no-op there.
       if (e.fx === 255) {
         e.fx = 0;
@@ -474,10 +474,10 @@ function Load_S3M_Pattern(r) {
 }
 
 // ---------------------------------------------------------------------------
-// Load_S3M_SampleData (s3m.c) — reads raw PCM for one sample at the current
+// Load_S3M_SampleData (s3m.c) - reads raw PCM for one sample at the current
 // cursor. ffi (file format info) selects signed (1) vs unsigned (2) source.
 // Converts to UNSIGNED storage, then defers final fixup to FixSample (the
-// samplefix.js port, applied by the caller / soundbank pass — NOT here, to
+// samplefix.js port, applied by the caller / soundbank pass - NOT here, to
 // match the C where FixSample is the last call).
 // ---------------------------------------------------------------------------
 
@@ -497,7 +497,7 @@ function Load_S3M_SampleData(r, samp, ffi, fixSample) {
     : new Uint8Array(samp.sample_length);
 
   if (ffi === 1) {
-    // signed samples [VERY OLD] — bias into unsigned
+    // signed samples [VERY OLD] - bias into unsigned
     for (let x = 0; x < samp.sample_length; x++) {
       if (bit16) {
         let a = r.read16();
@@ -510,7 +510,7 @@ function Load_S3M_SampleData(r, samp, ffi, fixSample) {
       }
     }
   } else if (ffi === 2) {
-    // unsigned samples — stored verbatim
+    // unsigned samples - stored verbatim
     for (let x = 0; x < samp.sample_length; x++) {
       out[x] = bit16 ? r.read16() : r.read8();
     }
@@ -520,7 +520,7 @@ function Load_S3M_SampleData(r, samp, ffi, fixSample) {
 
   samp.data = out;
 
-  // FixSample( samp ) — clamps loops + GBA/NDS-specific fixups. Lives in
+  // FixSample( samp ) - clamps loops + GBA/NDS-specific fixups. Lives in
   // samplefix.js. We invoke it via the hook when provided so behaviour
   // matches the C (FixSample is the final step of Load_S3M_SampleData).
   if (fixSample) fixSample(samp);
@@ -529,7 +529,7 @@ function Load_S3M_SampleData(r, samp, ffi, fixSample) {
 }
 
 // ---------------------------------------------------------------------------
-// Load_S3M (s3m.c) — top-level. Parses the whole .S3M into a MAS_Module.
+// Load_S3M (s3m.c) - top-level. Parses the whole .S3M into a MAS_Module.
 // ---------------------------------------------------------------------------
 
 /**
@@ -572,7 +572,7 @@ function Load_S3M(r, fixSample) {
   const cwt = r.read16(); // eslint-disable-line no-unused-vars
   const ffi = r.read16(); // file format info: 1=signed, 2=unsigned PCM
 
-  // if( read32() != 'MRCS' )  — file bytes 'S','C','R','M'; read32 LE yields
+  // if( read32() != 'MRCS' )  - file bytes 'S','C','R','M'; read32 LE yields
   // 0x4D524353, and gcc's 'MRCS' multichar == 0x4D524353.
   if (r.read32() !== 0x4d524353) return raise(ERR_INVALID_MODULE);
 
@@ -622,7 +622,7 @@ function Load_S3M(r, fixSample) {
         // (a&15)*16, clamped to 255
         mod.channel_panning[x] = (a & 15) * 16 > 255 ? 255 : (a & 15) * 16;
       } else {
-        // C body is entirely commented out — keep previously-set panning.
+        // C body is entirely commented out - keep previously-set panning.
       }
     }
   } else {

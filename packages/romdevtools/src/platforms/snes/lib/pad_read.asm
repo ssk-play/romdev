@@ -1,4 +1,4 @@
-; SNES — controller read + edge detection.
+; SNES - controller read + edge detection.
 ;
 ; The SNES has auto-joypad-read built into the H/W: at the start of each
 ; frame, the CPU reads both controller ports and latches the results
@@ -37,7 +37,7 @@ read_pad:
   tay                       ; stash in Y
   ; pressed = current AND NOT previous
   eor pad_held              ; XOR with prev = changed bits
-  and $0000,y               ; (re-anding with current via Y — alternative below)
+  and $0000,y               ; (re-anding with current via Y - alternative below)
   ; cleaner: pressed = current AND NOT prev
   tya
   pha

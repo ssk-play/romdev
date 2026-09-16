@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolveCheatCodeForApply } from "../src/mcp/tools/cheats.js";
 
-// loadMedia({cheats}) and applyCheat share resolveCheatCodeForApply — the
+// loadMedia({cheats}) and applyCheat share resolveCheatCodeForApply - the
 // raw-ROM-cheat re-encode that keeps a boot cheat from silently no-opping.
 test("resolveCheatCodeForApply: raw NES ROM cheat → Game Genie read-intercept", () => {
   const r = resolveCheatCodeForApply("C06C:0C:26", "nes");
@@ -27,7 +27,7 @@ test("resolveCheatCodeForApply: raw RAM address stays a RAM poke", () => {
 
 test("resolveCheatCodeForApply: a SHORT RAM code is normalized to the binding width", () => {
   // A 2-hex-digit RAM address ("32:09") is INERT on libretro cores (parses but
-  // never pokes) — apply used to pass it through verbatim and falsely report
+  // never pokes) - apply used to pass it through verbatim and falsely report
   // success. Now it's re-padded to "0032:09" (the form that actually binds) and
   // reencodedFrom records the original. (Verified live on fceumm.)
   const r = resolveCheatCodeForApply("32:09", "nes");

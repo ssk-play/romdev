@@ -14,7 +14,7 @@
 .import   __RAM_START__, __RAM_SIZE__
 .import   copydata, zerobss, initlib, donelib
 
-.PC02                                 ; W65C02 opcode set (stz/bra/phx/…)
+.PC02                                 ; W65C02 opcode set (stz/bra/phx/...)
 
 BankReg = $2005
 VIA     = $2800
@@ -62,10 +62,10 @@ _exit:    JSR     donelib             ; run destructors
           BRK
 
 ; ---------------------------------------------------------------------------
-; Default interrupt handlers — a bare game that doesn't define its own still
+; Default interrupt handlers - a bare game that doesn't define its own still
 ; links. (A game CAN provide _nmi_int/_irq_int; cc65's linker lets a strong
 ; symbol from the game override these .export'd ones... so keep them weak by
-; only defining if absent — here they're plain rti fallbacks.)
+; only defining if absent - here they're plain rti fallbacks.)
 _nmi_int:
 _irq_int:
           RTI

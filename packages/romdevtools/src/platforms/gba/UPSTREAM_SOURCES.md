@@ -1,12 +1,12 @@
-# GBA — source you can read
+# GBA - source you can read
 
 Trust hierarchy (try in order before filing a feedback round):
 
-1. **Bundled examples** (`examples/gba/templates/*.c`) — verified
+1. **Bundled examples** (`examples/gba/templates/*.c`) - verified
    compile + run. Start here.
-2. **Bundled runtime source** (`(shipped in romdev-platform-gba) share/gba/c/gba_sfx.c`) —
+2. **Bundled runtime source** (`(shipped in romdev-platform-gba) share/gba/c/gba_sfx.c`) -
    our APU wrapper. Read when sfx isn't doing what you expect.
-3. **Bundled library source** — libtonc + libgba + maxmod (R58):
+3. **Bundled library source** - libtonc + libgba + maxmod (R58):
 
    | Library | Local source | Read this when |
    |---|---|---|
@@ -14,7 +14,7 @@ Trust hierarchy (try in order before filing a feedback round):
    | libgba | `(shipped in romdev-platform-gba) share/gba/libgba/src/` | `irqInit`/`irqEnable`/`VBlankIntrWait` |
    | maxmod | `(shipped in romdev-platform-gba) share/gba/maxmod/` (.s files already there) | `mmFrame`/`mmStart` audio timing |
 
-4. **Upstream GitHub** (NOT bundled — fetch on demand):
+4. **Upstream GitHub** (NOT bundled - fetch on demand):
 
    | What | Upstream |
    |---|---|

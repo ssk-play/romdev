@@ -1,25 +1,25 @@
-; ── puzzle.asm — TILE TWINS — Atari 2600 memory match-pairs (complete game) ──
+; ── puzzle.asm - TILE TWINS - Atari 2600 memory match-pairs (complete game) ──
 ;
-; A COMPLETE, working game — drawn title screen, a turn-based MEMORY puzzle
+; A COMPLETE, working game - drawn title screen, a turn-based MEMORY puzzle
 ; (flip two tiles, match the pair to clear them, clear the whole board to
 ; win), a move counter + in-session best (fewest flips), TIA sound effects +
 ; a title jingle, a win/game-over state with auto-return to the title, and
 ; the 2600's signature feature: THE WHOLE MACHINE. There is no framebuffer,
-; no tilemap, no OS — every visible scanline is composed live by racing the
+; no tilemap, no OS - every visible scanline is composed live by racing the
 ; beam.
 ;
 ; WHY THIS IS A PUZZLE, NOT AN ACTION GAME: nothing moves on its own. The
 ; board is static; the player THINKS, moves a cursor, and chooses which two
 ; tiles to flip. The challenge is memory + deduction, not reflexes. That is
-; the honest "puzzle" idiom — and it suits the 2600 well, because a static,
+; the honest "puzzle" idiom - and it suits the 2600 well, because a static,
 ; turn-based board needs no per-frame motion and so the kernel is simple.
 ;
 ; THE BOARD: 8 tiles = 4 PAIRS, drawn as a vertical stack of 8 bands. Each
 ; tile holds a hidden VALUE 0..3 (two of each, shuffled at game start). A
 ; tile is in one of three display states:
-;   FACE-DOWN  — drawn in neutral gray (you don't know its value)
-;   REVEALED   — drawn in its VALUE's color (you flipped it this turn)
-;   MATCHED    — drawn dark/empty (cleared; it's out of play)
+;   FACE-DOWN  - drawn in neutral gray (you don't know its value)
+;   REVEALED   - drawn in its VALUE's color (you flipped it this turn)
+;   MATCHED    - drawn dark/empty (cleared; it's out of play)
 ; The cursor (the tile you're about to flip) gets a bright border line.
 ;
 ; TIA object roles:
@@ -70,12 +70,12 @@ SWCHB    = $282         ; console: bit0 RESET, bit1 SELECT (ACTIVE LOW)
 INTIM    = $284         ; timer read
 TIM64T   = $296         ; timer set, 64-cycle ticks
 
-; ── Zero-page state (the 2600's ENTIRE RAM is $80-$FF — 128 bytes; in
+; ── Zero-page state (the 2600's ENTIRE RAM is $80-$FF - 128 bytes; in
 ; core memory dumps system_ram offset 0 = $80) ────────────────────────
 STATE     = $80         ; 0 = title, 1 = play, 2 = game over / win
 CURSOR    = $81         ; selected tile index 0..7
 FIRST     = $82         ; index of the first flipped tile this turn, or $FF none
-MOVES     = $83         ; flips taken this game, BCD (the score — LOWER is better)
+MOVES     = $83         ; flips taken this game, BCD (the score - LOWER is better)
 MOVES_HI  = $84         ; high byte of the move count, BCD
 MATCHED   = $85         ; bit i set = tile i is matched/cleared (8 bits)
 REVEAL    = $86         ; bit i set = tile i is currently face-UP (revealed)
@@ -99,11 +99,11 @@ BOARD     = $97         ; 8 bytes: hidden value 0..3 of each tile
                         ;   (BOARD..BOARD+7 = $97..$9E)
 S0BUF     = $A0         ; 6 rows: packed move-count digits for the kernel
 MOVES_BSV = $A6         ; SESSION best (fewest moves to clear), BCD low
-MOVES_BSH = $A7         ;   RAM only — real 2600 carts have no battery.
+MOVES_BSH = $A7         ;   RAM only - real 2600 carts have no battery.
 HSBUF     = $A8         ; 6 rows: best, packed (for the title kernel)
 SCRATCH   = $AE         ; 6 bytes general kernel/packer scratch
 
-; ── layout / tuning constants (clay — change to reshape the game) ──────
+; ── layout / tuning constants (clay - change to reshape the game) ──────
 NTILES    = 8           ; 4 pairs
 NVALUES   = 4           ; distinct tile values (two of each)
 WIN_PAIRS = 4
@@ -114,9 +114,9 @@ BANDGAP   = 4           ; black separator lines at the bottom of each band
 MISS_HOLD = 45          ; frames a mismatched pair stays visible before hiding
 
 COL_BG    = $00         ; black gap behind the board
-COL_DOWN  = $06         ; neutral gray — a face-DOWN tile
-COL_GONE  = $02         ; near-black — a matched/cleared tile
-COL_CUR   = $0E         ; cursor highlight — bright white separator bar
+COL_DOWN  = $06         ; neutral gray - a face-DOWN tile
+COL_GONE  = $02         ; near-black - a matched/cleared tile
+COL_CUR   = $0E         ; cursor highlight - bright white separator bar
 COL_HUD   = $0E         ; white move-counter digits
 
 ; the four VALUE colors (revealed tiles). Distinct hues, all bright.
@@ -133,7 +133,7 @@ START:
   LDA #0
 .clr:
   STA $00,X             ; clears ALL of $00-$FF: zero page RAM AND the TIA
-  DEX                   ; write registers (GRP/audio all silenced — the
+  DEX                   ; write registers (GRP/audio all silenced - the
   BNE .clr              ; standard 2600 power-on hygiene)
 
   ; single, full-width objects everywhere; the cursor sprite (P0) is one band
@@ -147,7 +147,7 @@ START:
   JSR enter_title
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this) ───────
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this) ───────
 ; THE FRAME LOOP. 262 scanlines, every frame, forever. VBLANK and overscan
 ; are timed with the RIOT timer (TIM64T) instead of counted WSYNCs: set the
 ; timer, run however much game logic the state needs, then spin on INTIM.
@@ -234,7 +234,7 @@ frame_logic:
 logic_play_jmp:
   JMP logic_play
 
-; ── GAME LOGIC (clay — reshape freely) ── title-screen behavior ────────
+; ── GAME LOGIC (clay - reshape freely) ── title-screen behavior ────────
 logic_title:
   ; fire or console RESET starts a new game.
   LDA FIRE_EDG
@@ -247,7 +247,7 @@ logic_title:
   JMP start_game
 .packtitle:
   ; Pack the session BEST into the title's display buffer (the kernel just
-  ; streams bytes — all per-frame thinking happens HERE, in VBLANK).
+  ; streams bytes - all per-frame thinking happens HERE, in VBLANK).
   LDA MOVES_BSV
   JSR pack_two_digits
   LDY #0
@@ -259,9 +259,9 @@ logic_title:
   BNE .hst
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── one turn of the puzzle ───────
+; ── GAME LOGIC (clay - reshape freely) ── one turn of the puzzle ───────
 ; All input is edge-triggered, so the board only changes on a deliberate
-; press. The mismatch pause (MISS_T) is the one timed element — it just
+; press. The mismatch pause (MISS_T) is the one timed element - it just
 ; holds a wrong pair visible long enough to memorize before hiding it.
 logic_play:
   ; mismatch pause: if running, count it down; when it expires, hide BOTH
@@ -270,7 +270,7 @@ logic_play:
   BEQ .noMiss
   DEC MISS_T
   BEQ .missEnd          ; pause just expired → hide the pair below
-  JMP .ppack            ; still pausing — show the pair, take no input
+  JMP .ppack            ; still pausing - show the pair, take no input
 .missEnd:
   LDA #0
   STA REVEAL            ; pause over: flip every revealed (unmatched) tile down
@@ -289,7 +289,7 @@ logic_play:
   EOR #$FF              ; A = pressed-now (1 = held)
   STA TMP2              ; TMP2 = pressed-now mask
   EOR #$FF              ; back to raw...
-  AND DPAD_PRV          ; (unused path) — keep DPAD_PRV as the prev pressed mask
+  AND DPAD_PRV          ; (unused path) - keep DPAD_PRV as the prev pressed mask
   ; compute edge = pressed-now AND NOT pressed-last
   LDA DPAD_PRV
   EOR #$FF              ; NOT(pressed-last)
@@ -346,7 +346,7 @@ logic_play:
   STA FIRST
   JMP .ppack
 .second:
-  ; second flip — compare values. FIRST holds the other tile's index.
+  ; second flip - compare values. FIRST holds the other tile's index.
   LDX FIRST
   LDA BOARD,X
   STA TMP               ; value of first tile
@@ -397,7 +397,7 @@ logic_play:
   JSR pack_moves
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── win / game-over freeze-frame ──
+; ── GAME LOGIC (clay - reshape freely) ── win / game-over freeze-frame ──
 logic_over:
   LDA EDGEB
   AND #$01
@@ -412,9 +412,9 @@ logic_over:
   JSR pack_moves
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── helpers ──────────────────────
+; ── GAME LOGIC (clay - reshape freely) ── helpers ──────────────────────
 
-; tile_bit — A = the bit mask (1<<index) for tile index in X. X preserved.
+; tile_bit - A = the bit mask (1<<index) for tile index in X. X preserved.
 tile_bit:
   LDA #1
   CPX #0
@@ -427,7 +427,7 @@ tile_bit:
 .tbdone:
   RTS
 
-; rng_step — 8-bit LFSR (taps 0xB8). Keeps RNG nonzero; cheap entropy for
+; rng_step - 8-bit LFSR (taps 0xB8). Keeps RNG nonzero; cheap entropy for
 ; the shuffle. Called every frame so the seed depends on how long the
 ; player lingered on the title.
 rng_step:
@@ -439,7 +439,7 @@ rng_step:
   STA RNG
   RTS
 
-; TMP3PLUS1 — a scratch byte holding (i+1), the modulus for the shuffle's
+; TMP3PLUS1 - a scratch byte holding (i+1), the modulus for the shuffle's
 ; "j = rng mod (i+1)" step (see shuffle_with_bounds below).
 TMP3PLUS1 = SCRATCH+5
 
@@ -504,7 +504,7 @@ start_game:
   JSR pack_moves
   RTS
 
-; shuffle_with_bounds — wrapper that drives shuffle_board's mod bound (i+1)
+; shuffle_with_bounds - wrapper that drives shuffle_board's mod bound (i+1)
 ; as i descends. Kept separate so shuffle_board stays readable.
 shuffle_with_bounds:
   ; seed 0,0,1,1,2,2,3,3
@@ -553,7 +553,7 @@ enter_title:
   JSR tune_start
   RTS
 
-; digit_times6 — A = digit 0-9 → A = digit*6 (DIGITS row index)
+; digit_times6 - A = digit 0-9 → A = digit*6 (DIGITS row index)
 digit_times6:
   STA TMP
   ASL
@@ -564,7 +564,7 @@ digit_times6:
   ADC TMP               ; *6
   RTS
 
-; pack_two_digits — render the two BCD digits of A into SCRATCH..SCRATCH+5
+; pack_two_digits - render the two BCD digits of A into SCRATCH..SCRATCH+5
 ; (6 font rows), low digit left, high digit right, for the title best line.
 pack_two_digits:
   PHA
@@ -602,7 +602,7 @@ pack_two_digits:
   BNE .hi
   RTS
 
-; pack_moves — render the low two MOVES digits into S0BUF (the live counter
+; pack_moves - render the low two MOVES digits into S0BUF (the live counter
 ; the play/over kernel streams into the score bar).
 pack_moves:
   LDA MOVES
@@ -616,8 +616,8 @@ pack_moves:
   BNE .cp
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── TIA sound ────────────────────
-; sfx_play — A = AUDF pitch, X = AUDC waveform, Y = frames. Voice 0.
+; ── GAME LOGIC (clay - reshape freely) ── TIA sound ────────────────────
+; sfx_play - A = AUDF pitch, X = AUDC waveform, Y = frames. Voice 0.
 sfx_play:
   STA AUDF0
   STX AUDC0
@@ -626,14 +626,14 @@ sfx_play:
   STA AUDV0
   RTS
 
-; tune_start — begin the jingle selected by TUNE_SEL (0 title, 1 win). V1.
+; tune_start - begin the jingle selected by TUNE_SEL (0 title, 1 win). V1.
 tune_start:
   LDA #0
   STA TUNE_POS
   JSR tune_note
   RTS
 
-; tune_note — load AUDF1 from the selected table at TUNE_POS; returns Z set
+; tune_note - load AUDF1 from the selected table at TUNE_POS; returns Z set
 ; (A=0) on the $FF terminator. Sets the note's duration into TUNE_LEFT.
 tune_note:
   LDX TUNE_POS
@@ -661,7 +661,7 @@ tune_note:
   STA TUNE_LEFT
   RTS
 
-; audio_tick — once per frame, every state: age the SFX and advance the tune.
+; audio_tick - once per frame, every state: age the SFX and advance the tune.
 audio_tick:
   LDA SFX_LEFT
   BEQ .nosfx
@@ -681,7 +681,7 @@ audio_tick:
 
 ; ──────────────────────────────────────────────────────────────────────
 ; ── HARDWARE IDIOM (load-bearing) ──
-; OBJECT POSITIONING — the canonical SBC-#15 beam-race for P0 (the cursor
+; OBJECT POSITIONING - the canonical SBC-#15 beam-race for P0 (the cursor
 ; bracket). The object lands wherever the beam is when you strobe RESP0;
 ; each SBC/BCS lap is 5 cycles = 15 pixels, and the remainder becomes the
 ; fine HMOVE offset. We park P0 at the left margin so its bracket frames the
@@ -709,15 +709,15 @@ position_cursor:
 
 ; ──────────────────────────────────────────────────────────────────────
 ; ── HARDWARE IDIOM (load-bearing) ──
-; THE PLAY/GAME-OVER KERNEL — 192 visible lines, fully accounted:
+; THE PLAY/GAME-OVER KERNEL - 192 visible lines, fully accounted:
 ;   24 = move-counter bar  +  144 = board (8 bands × 18)  +  24 = pad = 192
 ;
 ; MOVE BAR (SCORE mode): CTRLPF=$02 colors the left half with COLUP0; we
 ; stream the packed counter digits into PF1, one font row / 4 lines.
 ;
 ; BOARD: 8 tile bands of BANDH lines. Per band we pick the tile's COLOR from
-; its state — matched (dark), revealed (its value color), or face-down (gray)
-; — and brighten COLUBK on the cursor's band. The whole band is one lit PF
+; its state - matched (dark), revealed (its value color), or face-down (gray)
+; - and brighten COLUBK on the cursor's band. The whole band is one lit PF
 ; block (PF0/PF1/PF2 = solid), so each tile reads as a fat horizontal bar.
 ; ──────────────────────────────────────────────────────────────────────
 play_kernel:
@@ -732,7 +732,7 @@ play_kernel:
   STA GRP0
   STA VBLANK            ; beam on
   ; SCORE mode colors the playfield halves by COLUP0 (left) / COLUP1 (right),
-  ; NOT COLUPF — set both white so the counter digits read on either half.
+  ; NOT COLUPF - set both white so the counter digits read on either half.
   LDA #COL_HUD
   STA COLUP0
   STA COLUP1
@@ -755,7 +755,7 @@ play_kernel:
   BNE .sbar
 
   ; transition: clear the bar; switch to a solid full-width playfield for the
-  ; tile bands (no reflect needed — each band is a solid bar).
+  ; tile bands (no reflect needed - each band is a solid bar).
   STA WSYNC
   LDA #0
   STA PF1
@@ -843,7 +843,7 @@ play_kernel:
 
 ; ──────────────────────────────────────────────────────────────────────
 ; ── HARDWARE IDIOM (load-bearing) ──
-; THE TITLE KERNEL — 192 lines, banded:
+; THE TITLE KERNEL - 192 lines, banded:
 ;   24 blank + 28 banner "TILE" + 8 gap + 28 banner "TWINS" + 16 gap +
 ;   24 best + remainder pad = 192. The banner is an ASYMMETRIC PLAYFIELD,
 ;   the 2600's only way to draw full-width artwork: PF0/PF1/PF2 are reloaded
@@ -858,7 +858,7 @@ title_kernel:
   STA PF1
   STA PF2
   STA GRP0
-  STA CTRLPF            ; REPEAT mode — required by the banner
+  STA CTRLPF            ; REPEAT mode - required by the banner
   STA VBLANK
 
   LDX #24
@@ -974,14 +974,14 @@ title_kernel:
   JMP kernel_done
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── GAME LOGIC (clay — reshape freely) ── data tables ──────────────────
+; ── GAME LOGIC (clay - reshape freely) ── data tables ──────────────────
 ; ──────────────────────────────────────────────────────────────────────
 
 ; the four VALUE colors, indexed by BOARD[i] (0..3).
 VALCOLS:
   .byte VAL_COL0, VAL_COL1, VAL_COL2, VAL_COL3
 
-; DIGITS — 6 rows/glyph, 0..9. Each byte's high nibble (bits 4-7) is the lit
+; DIGITS - 6 rows/glyph, 0..9. Each byte's high nibble (bits 4-7) is the lit
 ; pattern; SCORE mode streams it through PF1 so a digit is 4 px wide.
 DIGITS:
   .byte %01100000,%10010000,%10010000,%10010000,%10010000,%01100000 ; 0
@@ -995,7 +995,7 @@ DIGITS:
   .byte %01100000,%10010000,%01100000,%10010000,%10010000,%01100000 ; 8
   .byte %01100000,%10010000,%10010000,%01110000,%00010000,%01100000 ; 9
 
-; jingles — AUDF1 pitches, $FF terminates. (12 = pure tone waveform.)
+; jingles - AUDF1 pitches, $FF terminates. (12 = pure tone waveform.)
 TITLE_TUNE:
   .byte 20, 16, 12, 16, 20, 24, 20, $FF
 OVER_TUNE:
@@ -1003,7 +1003,7 @@ OVER_TUNE:
 
 ; ── THE TITLE BANNER ──────────────────────────────────────────────────
 ; 40-px artwork, 7 rows/word, drawn by the asymmetric-playfield kernel.
-; PF bit order is the 2600's prank — three registers, three orders:
+; PF bit order is the 2600's prank - three registers, three orders:
 ;   PF0: bits 4-7 used, bit4 = LEFTMOST   PF1: bit7 = leftmost (normal)
 ;   PF2: bit0 = leftmost.  Tables generated from the ASCII art below.
 ;

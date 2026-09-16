@@ -1,19 +1,19 @@
-// C64 1541 disk image (.d64) codec — pure JS, no external tools.
+// C64 1541 disk image (.d64) codec - pure JS, no external tools.
 //
 // Why this exists: romdev builds C64 homebrew as a bare `.prg` (cc65's output),
-// but the real C64 world — the new Commodore 64 Ultimate / C64C Ultimate FPGA
-// hardware and the entire homebrew/demo scene — loads games as `.d64` disk
+// but the real C64 world - the new Commodore 64 Ultimate / C64C Ultimate FPGA
+// hardware and the entire homebrew/demo scene - loads games as `.d64` disk
 // images (and saves by writing files back INTO the disk). A `.prg` with no
 // drive can't save and isn't how anything ships. This module is the bridge:
 //
-//   prgToD64(prg, {name})        — pack a .prg into a fresh, autostart-able .d64
-//   readDirectory(d64)           — list the files on a disk image
-//   extractFile(d64, name)       — pull a file's bytes back out (post-save read)
+//   prgToD64(prg, {name})        - pack a .prg into a fresh, autostart-able .d64
+//   readDirectory(d64)           - list the files on a disk image
+//   extractFile(d64, name)       - pull a file's bytes back out (post-save read)
 //
 // Format reference: the standard 35-track 1541 image (174848 bytes). 256-byte
 // sectors, variable sectors per track. Track 18 holds the BAM (sector 0) and
 // the directory (sectors 1+). Files are PETSCII-named, stored as linked sector
-// chains where each sector's first two bytes are (nextTrack, nextSector) — or
+// chains where each sector's first two bytes are (nextTrack, nextSector) - or
 // (0x00, lastByteIndex) on the final sector. This is the well-documented "D64"
 // layout used by VICE's c1541 and every C64 emulator.
 
@@ -67,16 +67,16 @@ function petsciiName(name, len = 16) {
 /**
  * Convert a PETSCII directory name (as stored on disk) back to a trimmed ASCII
  * string. Filenames written by the C64 KERNAL SAVE use the DEFAULT uppercase
- * charset, where letters A–Z are 0xC1–0xDA (high bit set), not 0x41–0x5A — so we
+ * charset, where letters A-Z are 0xC1-0xDA (high bit set), not 0x41-0x5A - so we
  * must translate that range, otherwise an emulator-written "SCORE" reads as
- * empty. (Our own prgToD64 writes plain 0x41–0x5A; both must decode.)
+ * empty. (Our own prgToD64 writes plain 0x41-0x5A; both must decode.)
  */
 function asciiFromPetscii(bytes) {
   let s = "";
   for (const b of bytes) {
     if (b === 0xa0 || b === 0x00) break; // shifted-space pad / terminator
     if (b >= 0xc1 && b <= 0xda) {
-      s += String.fromCharCode(b - 0x80);          // PETSCII upper A–Z (0xC1..) → ASCII
+      s += String.fromCharCode(b - 0x80);          // PETSCII upper A-Z (0xC1..) → ASCII
     } else if (b >= 0x20 && b <= 0x5f) {
       s += String.fromCharCode(b);                 // plain ASCII / digits / punctuation
     } else if (b >= 0x61 && b <= 0x7a) {
@@ -94,9 +94,9 @@ function asciiFromPetscii(bytes) {
  *
  * @param {Uint8Array|Buffer} prg  the raw .prg bytes (load addr + program)
  * @param {object} [opts]
- * @param {string} [opts.name]      file name (PETSCII, ≤16 chars) — default "GAME"
- * @param {string} [opts.diskName]  disk label (≤16 chars) — default = name
- * @param {string} [opts.diskId]    2-char disk id — default "RD"
+ * @param {string} [opts.name]      file name (PETSCII, ≤16 chars) - default "GAME"
+ * @param {string} [opts.diskName]  disk label (≤16 chars) - default = name
+ * @param {string} [opts.diskId]    2-char disk id - default "RD"
  * @returns {Uint8Array} a 174848-byte .d64 image
  */
 export function prgToD64(prg, opts = {}) {

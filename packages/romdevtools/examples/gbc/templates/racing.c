@@ -1,62 +1,62 @@
-/* ── racing.c — TWILIGHT LANE: Game Boy Color top-down road racer (complete example game) ──
+/* ── racing.c - TWILIGHT LANE: Game Boy Color top-down road racer (complete example game) ──
  *
- * A COMPLETE, working game — title screen, a vertically-scrolling road (the
- * real thing — BG scroll via SCY, not falling sprites), streamed roadside
+ * A COMPLETE, working game - title screen, a vertically-scrolling road (the
+ * real thing - BG scroll via SCY, not falling sprites), streamed roadside
  * scenery through the vblank queue, lane-steered car, overtaking traffic,
  * crash/lives rules, persistent best DISTANCE (MBC1+RAM+BATTERY cart RAM),
  * GB APU music + SFX, and the Game Boy's signature WINDOW-LAYER fixed HUD the
- * scrolling road slides beneath — and the GBC's signature feature on top of
+ * scrolling road slides beneath - and the GBC's signature feature on top of
  * all of it: TRUE per-tile color. The dusk-lit road, its lane markings, the
  * grass shoulders and the roadside trees are FIVE REAL CGB palettes (15-bit
  * BGR, loaded through BCPS/BCPD), assigned per BG cell through the VRAM bank-1
  * attribute map; the player car and the traffic are their own OBJ palettes
- * through OCPS — not a colorized monochrome game.
+ * through OCPS - not a colorized monochrome game.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented GB/GBC footgun;
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented GB/GBC footgun;
  *     reshape your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — traffic patterns, speeds, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - traffic patterns, speeds, tuning, art: reshape freely.
  *
  * SINGLE-PLAYER, honestly: the Game Boy's "player 2" is a LINK CABLE, which
- * one emulator instance cannot provide — so handheld examples ship a
+ * one emulator instance cannot provide - so handheld examples ship a
  * press-start title and no 2P mode instead of faking one. (The console racing
  * examples have real split-lane 2P; the handheld is an honest 1P endless run.)
  *
  * What depends on what:
- *   gb_hardware.h — register names (LCDC/WX/WY/SCY/VBK/BCPS/NRxx/...) + masks.
- *   gb_runtime.{h,c} — vblank wait (HALT-driven), joypad, shadow OAM + the
+ *   gb_hardware.h - register names (LCDC/WX/WY/SCY/VBK/BCPS/NRxx/...) + masks.
+ *   gb_runtime.{h,c} - vblank wait (HALT-driven), joypad, shadow OAM + the
  *     OAM-DMA-from-HRAM routine, VRAM-safe memcpy, APU helpers (shared GB).
- *   gb_crt0.s — boot + interrupt vectors + the cartridge header window. It
+ *   gb_crt0.s - boot + interrupt vectors + the cartridge header window. It
  *     DECLARES the cart as MBC1+RAM+BATTERY ($0147=$03, $0149=$02): that
  *     header is what makes the SRAM best-distance persist (the GB equivalent
  *     of the NES BATTERY bit). Load-bearing; edit with TROUBLESHOOTING open.
- *   font.h — 0-9 A-Z 2bpp glyphs for all text.
+ *   font.h - 0-9 A-Z 2bpp glyphs for all text.
  *
  * THE DESIGN (read before reshaping):
- *   Scrolling — the road is the BACKGROUND, scrolled down by INCREASING SCY
+ *   Scrolling - the road is the BACKGROUND, scrolled down by INCREASING SCY
  *     each frame (raising SCY slides the BG map up under the screen = the
  *     road rushes DOWN toward the player). Cars/traffic are sprites with
  *     their own screen Y. See the SCY-WRAP idiom below: the GB BG map is 256
- *     px tall and SCY is a plain uint8 that wraps at 256 — which lines up
+ *     px tall and SCY is a plain uint8 that wraps at 256 - which lines up
  *     EXACTLY with one 32-row map loop, so the road tiles a seamless ribbon
  *     with no wrap helper at all. (Contrast: NES vertical scroll wraps at
- *     240 not 256 — values 240-255 fetch attribute bytes as garbage tiles,
+ *     240 not 256 - values 240-255 fetch attribute bytes as garbage tiles,
  *     so the NES racing game needs a wrap helper; SMS wraps at 224 the same
  *     way; the Genesis plane is a full 256 and masks in hardware. The GB's
  *     uint8-SCY-into-256px-map is the friendliest of the four.) The COLOR
  *     travels with the tiles: each cell's bank-1 attribute byte scrolls along
  *     with its tile, so a grass cell stays green wherever it slides on screen.
- *   HUD — the WINDOW layer: a fixed strip the scrolling road can't move (see
+ *   HUD - the WINDOW layer: a fixed strip the scrolling road can't move (see
  *     the window idiom). The platformer/shmup templates scroll the world under
  *     this same HUD on the OTHER axis (SCX); this game scrolls SCY.
- *   1P RACE — four lanes, A/UP accelerate, B/DOWN brake (speed 1-4); LEFT/
+ *   1P RACE - four lanes, A/UP accelerate, B/DOWN brake (speed 1-4); LEFT/
  *     RIGHT tilt the car between lanes. 3 crashes end the run. Persistent
  *     stat: best DISTANCE (uint16, 1 unit = 16 scrolled px ≈ one car length)
  *     via best_load/save to battery SRAM.
  *
  * WRAM NOTE: build with dataLoc:0xC200 so our statics sit ABOVE shadow_oam
- * ($C100) — else oam_clear() would zero our state. The project recipe sets
+ * ($C100) - else oam_clear() would zero our state. The project recipe sets
  * that automatically.
  */
 
@@ -64,11 +64,11 @@
 #include "gb_runtime.h"
 #include "font.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "TWILIGHT LANE"
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Tile inventory. GB/GBC tiles are 16 bytes: 8 rows × [low-plane byte,
  * high-plane byte]. Pixel colour index = (hi_bit << 1) | lo_bit (0..3); on
  * CGB that index selects a colour WITHIN whichever CGB palette the cell's
@@ -111,7 +111,7 @@ static const uint8_t tile_hudbar[16] = {         /* solid value-3 divider   */
     0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,
 };
 
-/* Tile indices ($8000 unsigned addressing — LCDC bit 4 set below). Sprites
+/* Tile indices ($8000 unsigned addressing - LCDC bit 4 set below). Sprites
  * and BG share the $8000 table in this layout, so one upload serves both.
  * Font glyphs follow at FONT_BASE (digits 0-9, then A-Z). */
 #define T_BLANK   0
@@ -125,15 +125,15 @@ static const uint8_t tile_hudbar[16] = {         /* solid value-3 divider   */
 #define T_HUDBAR  8
 #define FONT_BASE 16     /* digit d = 16+d, letter L = 16+10+idx (see font.h) */
 
-/* ── GAME LOGIC (clay — reshape freely) ── the CGB palette TABLE (the colours
+/* ── GAME LOGIC (clay - reshape freely) ── the CGB palette TABLE (the colours
  * themselves are art; the LOADER below is the hardware idiom).
- * 15-bit BGR: 5 bits each, blue in the high bits — RGB() packs it. Colour 0
+ * 15-bit BGR: 5 bits each, blue in the high bits - RGB() packs it. Colour 0
  * of a BG palette is the cell's "background" shade; for OBJ palettes colour 0
  * is transparent (the scene shows through).
  *
  * TWILIGHT LANE leans into the GBC's colour: a warm dusk-lit highway. The road
  * is a violet-grey asphalt, the lane markings glow amber, the shoulders are a
- * deep evening green and the trees a cooler pine — genuinely DIFFERENT HUES,
+ * deep evening green and the trees a cooler pine - genuinely DIFFERENT HUES,
  * not four shades of one grey, so a wide hue census sees several distinct
  * colours (the proof the cart is doing per-tile CGB colour, not DMG). */
 #define RGB(r,g,b) ((uint16_t)(((uint16_t)(b)<<10)|((uint16_t)(g)<<5)|(r)))
@@ -172,32 +172,32 @@ static const uint16_t obj_palettes[8][4] = {
     /* 7 spare   */ { 0, RGB(20,20,20), RGB(31,31,31), RGB(10,10,10) },
 };
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * THE WINDOW-LAYER HUD — the Game Boy's signature "fixed HUD over a
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * THE WINDOW-LAYER HUD - the Game Boy's signature "fixed HUD over a
  * scrolling world" technique. The window is a second BG plane with its own
  * 32×32 tile map and NO scroll registers: it always draws its map from
  * (0,0), pinned to the screen, on top of the BG. So the HUD lives in the
- * window and the road lives in the BG — SCY scrolls the world all it likes
+ * window and the road lives in the BG - SCY scrolls the world all it likes
  * and the HUD never moves. No raster splits, no IRQ timing (the NES needs a
  * sprite-0 polling dance for this exact effect; on GB it's three register
- * writes). This game scrolls SCY (vertical road); the platformer scrolls SCX —
+ * writes). This game scrolls SCY (vertical road); the platformer scrolls SCX -
  * same idiom, either axis. On CGB the window cells take bank-1 palette
  * attributes exactly like the BG (set_wcell writes both banks).
  *
  * The three registers, and their two famous footguns:
- *   WY ($FF4A) — first screen LINE the window covers. We use 128: lines
+ *   WY ($FF4A) - first screen LINE the window covers. We use 128: lines
  *     0-127 are road, 128-143 (two tile rows) are the HUD strip.
- *   WX ($FF4B) — screen column PLUS SEVEN. WX=7 means "left edge". The -7
+ *   WX ($FF4B) - screen column PLUS SEVEN. WX=7 means "left edge". The -7
  *     offset is hardware fact: WX=0..6 glitches, WX≥167 is off-screen.
- *   LCDC bit 5 — window enable; bit 6 — which map it reads ($9800/$9C00).
+ *   LCDC bit 5 - window enable; bit 6 - which map it reads ($9800/$9C00).
  *
- * FOOTGUN 1 — "the window ate the bottom of my screen": once the window
+ * FOOTGUN 1 - "the window ate the bottom of my screen": once the window
  * starts on a line it covers EVERY line from there DOWN, full width. There
  * is no window height register. That is why GB HUDs sit at the BOTTOM of the
- * screen. A TOP HUD needs a STAT-interrupt LYC trick — a different, fragile
+ * screen. A TOP HUD needs a STAT-interrupt LYC trick - a different, fragile
  * idiom; don't drift into it by accident by setting WY=0.
  *
- * FOOTGUN 2 — sprites are NOT clipped by the window. OBJs draw over it, so a
+ * FOOTGUN 2 - sprites are NOT clipped by the window. OBJs draw over it, so a
  * sprite below line 128 sits ON the HUD. The car sits at fixed CAR_Y and
  * traffic despawns before PLAY_H, so no object ever touches the HUD rows.
  *
@@ -210,25 +210,25 @@ static const uint16_t obj_palettes[8][4] = {
 #define VRAM ((volatile uint8_t *)0x9800)  /* BG map $9800 base */
 #define WIN_OFF   0x400                    /* window map $9C00 = $9800 + $400 */
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * BATTERY SRAM — persistent best distance. MBC1 cart RAM is 8KB at
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * BATTERY SRAM - persistent best distance. MBC1 cart RAM is 8KB at
  * $A000-$BFFF, but it boots DISABLED and writes to a disabled bank are
  * silently discarded (reads float). The gate is the MBC's RAM-enable
  * register: any WRITE to ROM space $0000-$1FFF with $0A in the low nibble
  * enables the RAM; writing $00 disables it again. (Writing "into ROM" feels
- * wrong the first time — ROM-area writes never touch ROM, they talk to the
+ * wrong the first time - ROM-area writes never touch ROM, they talk to the
  * mapper chip.) Leaving RAM enabled all the time "works" in emulators but on
- * real hardware risks corruption at power-off — battery carts since forever
+ * real hardware risks corruption at power-off - battery carts since forever
  * do enable → touch → disable, so we do too.
  *
  * First boot is GARBAGE, not zeros: battery RAM holds whatever the silicon
  * woke up with. The magic 'B','D' + checksum is how the load path tells "my
- * save" from "factory noise" — without it a fresh cart shows a junk best.
+ * save" from "factory noise" - without it a fresh cart shows a junk best.
  *
  * Save block at $A000: 'B' 'D'  lo hi  (lo^hi^$A5)
  *
  * Requires: gb_crt0.s declaring $0147=$03 (MBC1+RAM+BATTERY) + $0149=$02
- * (8KB) — those header bytes are how the emulator knows to allocate and
+ * (8KB) - those header bytes are how the emulator knows to allocate and
  * persist SAVE_RAM. Verify headlessly: race, crash out, then
  * memory({op:'read', region:'save_ram'}) shows the block, and the best
  * survives host.hardReset(). */
@@ -255,7 +255,7 @@ static void best_save(uint16_t v) {
   MBC_RAM_ENABLE = 0x00;
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Road geometry. Four 4-px-wide lanes between shoulders, painted ONCE into
  * the BG map (cols below); the scroll moves them with the road for free. The
  * BG map is 32 cols; the visible 20 sit at cols 0..19 (SCX stays 0).
@@ -278,7 +278,7 @@ static const uint8_t lane_x[4] = { 28, 60, 92, 124 };
 
 static uint8_t  car_lane;            /* 0..3 */
 static uint8_t  speed;               /* road px/frame, 1..4 */
-static uint8_t  scy;                 /* BG scroll Y — uint8 wraps at 256 =     *
+static uint8_t  scy;                 /* BG scroll Y - uint8 wraps at 256 =     *
                                       * exactly one 32-row map loop (seamless) */
 static uint16_t dist;                /* 1 unit = 16 scrolled px ≈ one car len  */
 static uint8_t  dist_frac;
@@ -296,14 +296,14 @@ static uint8_t  traffic_active[NUM_TRAFFIC];
 static uint8_t  traffic_lane[NUM_TRAFFIC];
 static uint8_t  traffic_y[NUM_TRAFFIC];
 
-/* Game states — the shell every example shares: title → play → game over.
+/* Game states - the shell every example shares: title → play → game over.
  * (Handheld adaptation: title is press-start; consoles add a 1P/2P pick.) */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static uint8_t state;
 
-/* ── GAME LOGIC (clay) — Galois LFSR (taps $B8), period 255 ── */
+/* ── GAME LOGIC (clay) - Galois LFSR (taps $B8), period 255 ── */
 static uint8_t rng_state = 0xA5;
 static uint8_t rand8(void) {
   uint8_t lsb = (uint8_t)(rng_state & 1);
@@ -316,19 +316,19 @@ static uint8_t dist8(uint8_t a, uint8_t b) {
   return (a > b) ? (uint8_t)(a - b) : (uint8_t)(b - a);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * CGB palette RAM — the BCPS/BCPD (BG) and OCPS/OCPD (OBJ) port pairs.
- * requires: a .gbc build (CGB flag $0143 set — the build pipeline does it);
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * CGB palette RAM - the BCPS/BCPD (BG) and OCPS/OCPD (OBJ) port pairs.
+ * requires: a .gbc build (CGB flag $0143 set - the build pipeline does it);
  *   on a DMG build these registers are dead and you get 4-shade green.
  *
  * Palette RAM is NOT memory-mapped: it's 64 bytes (8 palettes × 4 colours ×
  * 2 bytes, little-endian 15-bit BGR) behind an index/data port pair.
- *   BCPS = 0x80 | index   — set write index; bit 7 = AUTO-INCREMENT, so a
+ *   BCPS = 0x80 | index   - set write index; bit 7 = AUTO-INCREMENT, so a
  *                           burst of BCPD writes walks the whole 64 bytes.
  *   BCPD = low byte; BCPD = high byte;  ... 32 times = all 8 palettes.
  *
  * TIMING FOOTGUN: palette RAM belongs to the PPU. Writes during active
- * display (mode 3) are IGNORED on real hardware — same constraint as VRAM.
+ * display (mode 3) are IGNORED on real hardware - same constraint as VRAM.
  * Load palettes with the LCD OFF (boot / transitions, as here) or inside
  * vblank. A palette "fade" = a few BCPD writes per vblank, never a mid-frame
  * burst. */
@@ -352,10 +352,10 @@ static void load_obj_palettes(void) {
     }
 }
 
-/* ── GAME LOGIC (clay) — VRAM upload + text helpers ──────────────────────────
+/* ── GAME LOGIC (clay) - VRAM upload + text helpers ──────────────────────────
  * All of these write VRAM, so they run with the LCD OFF (boot/repaints) or
  * inside vblank (the HUD digit commit). memcpy_vram walks a pointer
- * (*dst++ = v) — never index dst[i] through a VRAM pointer (SDCC's sm83 port
+ * (*dst++ = v) - never index dst[i] through a VRAM pointer (SDCC's sm83 port
  * miscompiles indexed stores through VRAM-pointing pointers). */
 static void upload_tile(uint8_t slot, const uint8_t *src) {
   memcpy_vram((uint8_t *)(0x8000 + (uint16_t)slot * 16), src, 16);
@@ -363,7 +363,7 @@ static void upload_tile(uint8_t slot, const uint8_t *src) {
 
 static void upload_font(void) {
   uint8_t g;
-  /* font.h glyphs are already 2bpp (16 bytes each) — straight copy. */
+  /* font.h glyphs are already 2bpp (16 bytes each) - straight copy. */
   for (g = 0; g < FONT_GLYPHS; g++)
     memcpy_vram((uint8_t *)(0x8000 + (uint16_t)(FONT_BASE + g) * 16),
                 &font_data[g * 16], 16);
@@ -376,14 +376,14 @@ static uint8_t char_tile(char ch) {
 }
 
 /* Pre-convert a string to tile indices at full-frame time, so the vblank
- * commit (commit_bg_text) is a dumb byte copy — see game_over(). */
+ * commit (commit_bg_text) is a dumb byte copy - see game_over(). */
 static uint8_t msg_q[20];                /* 9 "GAME OVER" + 11 "PRESS START" */
 static void stage_text(const char *s, uint8_t *out) {
   while (*s) *out++ = char_tile(*s++);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * Per-tile color — the VRAM bank-1 attribute map (VBK register).
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * Per-tile color - the VRAM bank-1 attribute map (VBK register).
  * requires: CGB mode (see the palette idiom above); writes in a VRAM-safe
  *   window (LCD off, or a bounded vblank batch).
  *
@@ -399,7 +399,7 @@ static void stage_text(const char *s, uint8_t *out) {
  * VBK=1, at the SAME offset.
  *
  * FOOTGUN: VBK is global state. Forget to restore VBK=0 and every later
- * "tile" write lands in the attribute map — the screen turns into garbage
+ * "tile" write lands in the attribute map - the screen turns into garbage
  * colors while the tile data you wrote is simply gone. Always end VBK=0
  * (every routine here does). */
 static void set_cell(uint8_t mx, uint8_t my, uint8_t tile, uint8_t pal) {
@@ -435,7 +435,7 @@ static void draw_wtext(uint8_t col, uint8_t row, const char *s) {
     set_wcell((uint8_t)(col + i), row, char_tile(s[i]), PAL_HUD);
 }
 
-/* Decimal digits WITHOUT divide/modulo (the sm83 has neither — SDCC's
+/* Decimal digits WITHOUT divide/modulo (the sm83 has neither - SDCC's
  * software % costs ~700 cycles a call). Repeated power-of-ten subtraction
  * caps at 36 SUBs for any u16. Writes 5 tile slots into out5. */
 static void u16_to_tiles(uint16_t v, uint8_t *out5) {
@@ -449,15 +449,15 @@ static void u16_to_tiles(uint16_t v, uint8_t *out5) {
   *out5 = (uint8_t)(FONT_BASE + (uint8_t)v);
 }
 
-/* ── GAME LOGIC (clay) — screen painters (LCD off = free VRAM access) ────────
+/* ── GAME LOGIC (clay) - screen painters (LCD off = free VRAM access) ────────
  * Paint the road into the FULL 32-row BG map. Because SCY wraps at 256 (one
  * full map height), the visible window can sit anywhere in the map and always
- * shows a valid road ribbon — so we paint all 32 rows, not just the visible
+ * shows a valid road ribbon - so we paint all 32 rows, not just the visible
  * 18, and the scroll loops forever with no wrap helper. For EACH cell we write
- * the tile (bank 0) AND its palette attribute (bank 1) — that pairing is the
+ * the tile (bank 0) AND its palette attribute (bank 1) - that pairing is the
  * whole CGB colour story. The dashed lane lines alternate per row (drawn on
  * even rows only); the scroll animates them for free. Roadside trees use a
- * divide-free running pattern counter (the sm83 has no divide — treat every /
+ * divide-free running pattern counter (the sm83 has no divide - treat every /
  * and % in a loop as a red flag, ~700 cycles each). */
 static void paint_road(void) {
   uint8_t r, c, t, pal;
@@ -488,7 +488,7 @@ static void paint_road(void) {
 }
 
 static void paint_title(void) {
-  paint_road();                           /* road backdrop — text owns lanes */
+  paint_road();                           /* road backdrop - text owns lanes */
   draw_text((uint8_t)((20 - (sizeof(GAME_TITLE) - 1)) / 2), 3, GAME_TITLE);
   draw_text(5, 6, "PRESS START");
   draw_text(6, 9, "BEST");
@@ -518,9 +518,9 @@ static void paint_hud(void) {
   set_wcell(19, 1, (uint8_t)(FONT_BASE + lives), PAL_HUD);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * LCD-off repaints. Bulk VRAM rewrites (full title/road repaints) happen
- * with the LCD OFF — free access, no per-byte timing worries. The rule:
+ * with the LCD OFF - free access, no per-byte timing worries. The rule:
  * only flip LCDC bit 7 to 0 DURING VBLANK. Killing the LCD mid-scanline is
  * the classic "damages real DMG hardware" move; emulators shrug, real units
  * can be permanently marked. wait_vblank() first, always.
@@ -538,11 +538,11 @@ static void repaint_with_lcd_off(uint8_t to_title) {
   } else {
     paint_road();
     paint_hud();
-    LCDC = LCDC_PLAY;           /* window ON below WY — the HUD appears */
+    LCDC = LCDC_PLAY;           /* window ON below WY - the HUD appears */
   }
 }
 
-/* ── GAME LOGIC (clay) — sound: frame-ticked tune + steer/crash SFX ──────────
+/* ── GAME LOGIC (clay) - sound: frame-ticked tune + steer/crash SFX ──────────
  * Channel plan keeps SFX from cutting the music: ch2 = music (one
  * sound_play_tone trigger per note, the APU sustains it), ch1 = engine/
  * steer/checkpoint blips, ch4 = noise for crashes. music_tick() runs once
@@ -568,18 +568,18 @@ static void music_toggle(void) {
   if (!music_on) { NR21 = 0x00; NR22 = 0x00; NR24 = 0x80; }   /* silence ch2 */
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Streamed roadside through the VRAM commit QUEUE. As the road scrolls down
  * (SCY rising), BG-map rows re-enter at the TOP of the screen. The moment a
  * new top row appears we restamp its two roadside columns (grass/tree) with
  * fresh random tiles, so the wrap never shows the same 256-px loop twice.
  * Classic streaming-row technique, downward. On CGB we restamp the bank-0
  * tile AND its bank-1 palette attribute as a pair (a grass tile must read
- * PAL_GRASS, a tree PAL_TREE — else the new tile inherits whatever palette
+ * PAL_GRASS, a tree PAL_TREE - else the new tile inherits whatever palette
  * the seam row last carried and the colour flickers).
  *
  * Two hard rules, mirroring the platformer/shmup VRAM discipline:
- *   1. QUEUED through commit_vram() (one item per vblank) — a raw mid-frame
+ *   1. QUEUED through commit_vram() (one item per vblank) - a raw mid-frame
  *      write that slides past vblank into mode 3 is silently dropped by the
  *      core (the shmup harness caught exactly that as half-missing text).
  *   2. The restamped row is two rows ABOVE the visible band (about to scroll
@@ -603,7 +603,7 @@ static void queue_roadside(uint8_t top_row) {
   road_dirty = 1;
 }
 
-/* ── GAME LOGIC (clay) — traffic pool (fixed slots, no allocation) ── */
+/* ── GAME LOGIC (clay) - traffic pool (fixed slots, no allocation) ── */
 static void spawn_traffic(void) {
   uint8_t i;
   for (i = 0; i < NUM_TRAFFIC; i++) {
@@ -616,7 +616,7 @@ static void spawn_traffic(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — state transitions ── */
+/* ── GAME LOGIC (clay) - state transitions ── */
 static void begin_run(void) {
   uint8_t i;
   car_lane = 1;
@@ -626,7 +626,7 @@ static void begin_run(void) {
   dist_frac = 0;
   prev_top_row = 0;
   spawn_timer = 0;
-  invuln = 48;                   /* ready breather — car blinks */
+  invuln = 48;                   /* ready breather - car blinks */
   prev_pad = 0xFF;               /* swallow held buttons across the reset */
   for (i = 0; i < NUM_TRAFFIC; i++) traffic_active[i] = 0;
 }
@@ -634,7 +634,7 @@ static void begin_run(void) {
 static void start_game(void) {
   lives = START_LIVES;
   begin_run();
-  hud_dirty = 1;          /* restage hud_q — a stale game-over stage queued
+  hud_dirty = 1;          /* restage hud_q - a stale game-over stage queued
                            * before the repaint would overwrite the fresh
                            * zeros next vblank otherwise */
   state = ST_PLAY;
@@ -643,23 +643,23 @@ static void start_game(void) {
 }
 
 static void game_over(void) {
-  /* Compare against the SAVED record, not the live `best` readout — the
+  /* Compare against the SAVED record, not the live `best` readout - the
    * scoring path already raised `best` to track the run, so testing
    * `dist > best` here would never fire (the shmup example shipped exactly
    * that bug for an hour; verified-by-harness is the cure). */
   if (dist > record) {
     record = dist;
-    best_save(record);          /* battery write — survives power-off */
+    best_save(record);          /* battery write - survives power-off */
   }
   state = ST_OVER;
   /* The BG scrolled vertically, but the game-over text is painted into fixed
    * BG rows (columns don't shift on a vertical scroll), so a plain row/col
    * anchor lands mid-screen. Convert the strings to tile indices HERE
-   * (full-frame time) and queue them — commit_vram() copies one line per
+   * (full-frame time) and queue them - commit_vram() copies one line per
    * vblank. We deliberately leave the cells' bank-1 attribute alone: the road
    * painted them PAL_ROAD, whose colour-3 (the font ink value) is amber, so
    * the text reads amber-on-asphalt with ZERO attribute writes (halves the
-   * vblank cost — char_tile + attr pairs overran mode 3 on the GB original). */
+   * vblank cost - char_tile + attr pairs overran mode 3 on the GB original). */
   stage_text("GAME OVER", msg_q);
   stage_text("PRESS START", msg_q + 9);
   msg_stage = 2;
@@ -674,13 +674,13 @@ static void crash(void) {
   if (lives == 0) game_over();
 }
 
-/* ── GAME LOGIC (clay) — per-state update (runs OUTSIDE vblank) ── */
+/* ── GAME LOGIC (clay) - per-state update (runs OUTSIDE vblank) ── */
 static void update_play(uint8_t pad) {
   uint8_t i, pressed, ty;
 
   pressed = (uint8_t)(pad & ~prev_pad);
 
-  /* Steer: LEFT/RIGHT tilt one lane (edge-detected — a held d-pad must not
+  /* Steer: LEFT/RIGHT tilt one lane (edge-detected - a held d-pad must not
    * machine-gun across the road). */
   if ((pressed & PAD_LEFT) && car_lane > 0) {
     --car_lane;
@@ -702,7 +702,7 @@ static void update_play(uint8_t pad) {
   if (invuln) --invuln;
 
   /* Scroll the road down: SCY increases (BG slides up under the screen).
-   * Plain uint8 — wraps at 256 = one full map loop, seamless (see idiom). */
+   * Plain uint8 - wraps at 256 = one full map loop, seamless (see idiom). */
   scy = (uint8_t)(scy + speed);
 
   /* Distance: 1 unit per 16 scrolled px. A chime every 256 units. */
@@ -744,17 +744,17 @@ static void update_play(uint8_t pad) {
   }
 }
 
-/* ── GAME LOGIC (clay) — stage the shadow OAM for THIS frame ─────────────────
- * Pure WRAM writes (shadow_oam at $C100) — safe any time; only the DMA flush
+/* ── GAME LOGIC (clay) - stage the shadow OAM for THIS frame ─────────────────
+ * Pure WRAM writes (shadow_oam at $C100) - safe any time; only the DMA flush
  * is vblank-sensitive. OAM coords are hardware coords: +16 on Y, +8 on X. A
- * sprite's CGB palette = OAM attr bits 0-2 — that's the whole "color this
+ * sprite's CGB palette = OAM attr bits 0-2 - that's the whole "color this
  * sprite" story. Slot plan (40 hardware slots, we use 7): 0 = player car,
- * 1-6 traffic — well under the 10-OBJ/line hardware drop. */
+ * 1-6 traffic - well under the 10-OBJ/line hardware drop. */
 static void stage_sprites(void) {
   uint8_t i;
   oam_clear();
   if (state == ST_TITLE) {
-    /* Guaranteed-visible sprite from the first title frame — proof the whole
+    /* Guaranteed-visible sprite from the first title frame - proof the whole
      * OAM pipeline (shadow → HRAM DMA stub → OAM) is alive before any
      * gameplay complicates the picture. */
     oam_set(0, 96 + 16, 76 + 8, T_CAR, OPAL_CAR);
@@ -768,22 +768,22 @@ static void stage_sprites(void) {
               (uint8_t)(lane_x[traffic_lane[i]] + 8), T_TRAFFIC, OPAL_TRAFFIC);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * Queued VRAM commits — and the bank-0-only HUD write. Two-phase update,
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * Queued VRAM commits - and the bank-0-only HUD write. Two-phase update,
  * mirroring the shadow-OAM discipline: game logic only sets the dirty flags
  * (hud_dirty / road_dirty / msg_stage). stage_hud() (full-frame time) does the
- * digit math into hud_q; commit_vram() (vblank time) writes bytes — AT MOST
+ * digit math into hud_q; commit_vram() (vblank time) writes bytes - AT MOST
  * ONE queued item per vblank.
  *
  * THE CGB TWIST (load-bearing): a naive set_wcell() per HUD cell toggles VBK
- * twice + writes two banks PER cell — for 11 HUD cells that's ~33 VBK writes
+ * twice + writes two banks PER cell - for 11 HUD cells that's ~33 VBK writes
  * in one vblank, which OVERRUNS the ~1140-cycle window and silently drops the
- * tail writes (the lives digit at col 19 vanished — verified on the GBC
+ * tail writes (the lives digit at col 19 vanished - verified on the GBC
  * platformer). The fix: the window HUD cells' bank-1 ATTRIBUTE bytes are
  * constant PAL_HUD (painted once by paint_hud at LCD-off and never changed),
  * so the per-frame commit only needs to rewrite bank-0 TILE bytes. We set
- * VBK=0 ONCE and pointer-walk the digit cells — a tight write that fits vblank
- * with room to spare. (Pointer walk, not map[i] indexing — the SDCC VRAM
+ * VBK=0 ONCE and pointer-walk the digit cells - a tight write that fits vblank
+ * with room to spare. (Pointer walk, not map[i] indexing - the SDCC VRAM
  * footgun.)
  *
  * The roadside restamp + game-over text go the same way: pre-staged, written
@@ -804,7 +804,7 @@ static void stage_hud(void) {
   hud_ready = 1;
 }
 
-/* Write a pre-staged BG-map line (msg_q tiles) as a single BANK-0 tile copy —
+/* Write a pre-staged BG-map line (msg_q tiles) as a single BANK-0 tile copy -
  * a dumb byte walk, no char_tile work and no per-cell VBK toggling. */
 static void commit_bg_text(uint8_t row, uint8_t col, const uint8_t *q, uint8_t len) {
   volatile uint8_t *p = VRAM + (uint16_t)row * 32 + col;
@@ -848,18 +848,18 @@ static void commit_vram(void) {
 void main(void) {
   uint8_t pad, top_row;
 
-  /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
    * Boot order. Three load-bearing calls, in this order:
-   *   1. lcd_init_default() — sane LCD state AND it installs the OAM-DMA stub
+   *   1. lcd_init_default() - sane LCD state AND it installs the OAM-DMA stub
    *      into HRAM ($FF80). During OAM DMA the CPU can only fetch from HRAM;
    *      the broken alternative (spinning in ROM) fetches $FF = rst $38 and
-   *      corrupts the stack — the classic "sprites never show / game dies
+   *      corrupts the stack - the classic "sprites never show / game dies
    *      after a while" GB death. Every oam_dma_flush() depends on this stub.
-   *   2. enable_vblank_irq() — flips wait_vblank() from LY-polling to
+   *   2. enable_vblank_irq() - flips wait_vblank() from LY-polling to
    *      HALT-until-vblank-IRQ. The polling fallback runs at ~1/30 speed on
    *      the WASM emulator; the HALT path is full speed everywhere.
-   *   3. LCD off (inside vblank) for the bulk VRAM uploads — tiles, font,
-   *      palettes, first screen — then back on. Tile/palette/map uploads
+   *   3. LCD off (inside vblank) for the bulk VRAM uploads - tiles, font,
+   *      palettes, first screen - then back on. Tile/palette/map uploads
    *      REQUIRE a VRAM-safe window; boot does them all at once, so LCD-off
    *      is the only sane choice here. */
   lcd_init_default();
@@ -867,7 +867,7 @@ void main(void) {
   sound_init();
 
   wait_vblank();
-  LCDC = 0;                     /* LCD off — free VRAM access from here */
+  LCDC = 0;                     /* LCD off - free VRAM access from here */
 
   upload_tile(T_BLANK,   tile_blank);
   upload_tile(T_CAR,     tile_car);
@@ -880,14 +880,14 @@ void main(void) {
   upload_tile(T_HUDBAR,  tile_hudbar);
   upload_font();
 
-  load_bg_palettes();           /* the CGB BG palettes — road/grass/tree/HUD */
+  load_bg_palettes();           /* the CGB BG palettes - road/grass/tree/HUD */
   load_obj_palettes();          /* player car / traffic OBJ palettes         */
 
-  /* Window position — set once; LCDC bit 5 decides if it shows. */
+  /* Window position - set once; LCDC bit 5 decides if it shows. */
   WX = 7;                       /* the +7 quirk: 7 = screen left edge */
   WY = PLAY_H;                  /* HUD owns lines 128-143 */
 
-  record = best_load();         /* battery SRAM — 0 on first boot */
+  record = best_load();         /* battery SRAM - 0 on first boot */
   best = record;
   state = ST_TITLE;
   paint_title();
@@ -913,7 +913,7 @@ void main(void) {
         prev_top_row = top_row;
         if (!road_dirty) queue_roadside(top_row);
       }
-    } else { /* ST_OVER — freeze the field; START/A returns to title */
+    } else { /* ST_OVER - freeze the field; START/A returns to title */
       if ((pad & (PAD_START | PAD_A)) && !(prev_pad & (PAD_START | PAD_A))) {
         state = ST_TITLE;
         repaint_with_lcd_off(1);
@@ -923,20 +923,20 @@ void main(void) {
     stage_sprites();
     stage_hud();                /* digit math out here, not in vblank */
 
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
      * The vblank slice. wait_vblank() wakes at the START of vblank
      * (~1140 cycles of safe OAM/VRAM access). Order is everything:
-     *   oam_dma_flush() FIRST — the DMA takes ~165 cycles and MUST finish
+     *   oam_dma_flush() FIRST - the DMA takes ~165 cycles and MUST finish
      *     inside vblank; pushing it later (after VRAM writes that grow over
      *     time) slides it into active display, where the PPU is reading OAM
      *     = one frame of torn/invisible sprites, intermittent and miserable
      *     to debug.
-     *   commit_vram() second — the few queued HUD/roadside/text bytes (one
+     *   commit_vram() second - the few queued HUD/roadside/text bytes (one
      *     item per frame).
-     *   SCY last — scroll latches per-scanline, so writing it during vblank
+     *   SCY last - scroll latches per-scanline, so writing it during vblank
      *     (before line 0 renders) moves the WHOLE next frame consistently;
      *     the window ignores it by design (the HUD idiom).
-     * Game logic above NEVER touches VRAM directly — it sets the dirty flags
+     * Game logic above NEVER touches VRAM directly - it sets the dirty flags
      * and shadow OAM, and this slice commits them. Keep that split. */
     wait_vblank();
     oam_dma_flush();

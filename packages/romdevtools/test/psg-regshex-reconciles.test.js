@@ -54,7 +54,7 @@ test("regsHex reconciles with tones[]: period and attenuation derive from the do
   }
 });
 
-test("frequency is Hz and period is the register value — they are SEPARATE fields", () => {
+test("frequency is Hz and period is the register value - they are SEPARATE fields", () => {
   const psg = decodeGenesisPSG(psgBlob(LIVE_REGS));
   for (const t of psg.tones) {
     if (t.period === 0) continue;

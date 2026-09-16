@@ -1,8 +1,8 @@
-/* ── music_demo.c — hUGEDriver music player demo (GBC) ───────────────
+/* ── music_demo.c - hUGEDriver music player demo (GBC) ───────────────
  *
  * Plays the bundled sample_song (see song_data.c) on the GBC APU. The
  * APU is identical between DMG and CGB modes, so the driver code is
- * the same — only the BG-palette path differs (BCPS/BCPD instead of
+ * the same - only the BG-palette path differs (BCPS/BCPD instead of
  * BGP). The .gbc extension flips $0143 = $80 → gambatte boots CGB mode.
  *
  * Driver: compact SDCC-native rewrite of the upstream hUGEDriver
@@ -13,7 +13,7 @@
  *   - hUGE_init(&song)     load song descriptor
  *   - hUGE_dosound()       advance one tick; call once per vblank
  *
- * Visual: BG palette 0 cycles through 4 colors — purple/blue/green/red —
+ * Visual: BG palette 0 cycles through 4 colors - purple/blue/green/red -
  * via BCPS/BCPD writes, so the demo is unambiguously CGB-mode visible.
  */
 
@@ -34,8 +34,8 @@ static const uint16_t bg_colors[4] = {
 };
 
 /* Two 8×8 2bpp tiles so the BG isn't a single flat colour:
- *   tile 1 — solid colour 1
- *   tile 2 — solid colour 2
+ *   tile 1 - solid colour 1
+ *   tile 2 - solid colour 2
  * Checkerboarded across the BG map below. */
 static const uint8_t tile_solid1[16] = {
   0xFF,0x00, 0xFF,0x00, 0xFF,0x00, 0xFF,0x00,
@@ -50,16 +50,16 @@ static const uint8_t tile_solid2[16] = {
  * colours 1..3 (blue / green / white) so the checkerboard is multi-colour. */
 static void set_bg_palette(uint8_t shade) {
   BCPS = 0x80;            /* auto-increment, start at palette 0 colour 0 */
-  /* colour 0 — animated backdrop */
+  /* colour 0 - animated backdrop */
   BCPD = (uint8_t)(bg_colors[shade] & 0xFFu);
   BCPD = (uint8_t)((bg_colors[shade] >> 8) & 0xFFu);
-  /* colour 1 — bright blue */
+  /* colour 1 - bright blue */
   BCPD = (uint8_t)(0x7C00u & 0xFFu);
   BCPD = (uint8_t)((0x7C00u >> 8) & 0xFFu);
-  /* colour 2 — bright green */
+  /* colour 2 - bright green */
   BCPD = (uint8_t)(0x03E0u & 0xFFu);
   BCPD = (uint8_t)((0x03E0u >> 8) & 0xFFu);
-  /* colour 3 — white */
+  /* colour 3 - white */
   BCPD = (uint8_t)(0x7FFFu & 0xFFu);
   BCPD = (uint8_t)((0x7FFFu >> 8) & 0xFFu);
 }
@@ -74,7 +74,7 @@ void main(void) {
   LCDC = 0;               /* LCD off so we can write VRAM freely */
 
   /* Upload two tiles to VRAM slots 1 ($8010) and 2 ($8020). Use
-   * memcpy_vram (pointer-walk) — an indexed dst[i]=src[i] loop into VRAM
+   * memcpy_vram (pointer-walk) - an indexed dst[i]=src[i] loop into VRAM
    * is miscompiled by SDCC sm83. */
   memcpy_vram((uint8_t *)0x8010, tile_solid1, 16);
   memcpy_vram((uint8_t *)0x8020, tile_solid2, 16);

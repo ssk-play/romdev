@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// romdev-mcp postinstall — make sure @kmamal/sdl's prebuilt native binary is
+// romdev-mcp postinstall - make sure @kmamal/sdl's prebuilt native binary is
 // present so the `playtest` window works out of the box.
 //
 // WHY: @kmamal/sdl ships its binary (dist/sdl.node) via its OWN `install`
 // lifecycle script, NOT in the npm tarball. When romdev-mcp is installed as a
-// transitive dependency — most notably under `npx romdevtools` — npm skips that
+// transitive dependency - most notably under `npx romdevtools` - npm skips that
 // nested install script, so the binary is never fetched and `playtest` can
 // never open a window. romdev-mcp's own postinstall (this file) DOES run under
 // npx, so we run @kmamal/sdl's installer ourselves.
@@ -42,7 +42,7 @@ function sdlPackageRoot() {
 async function main() {
   const pkgDir = sdlPackageRoot();
   if (!pkgDir) {
-    // @kmamal/sdl not resolvable from here (odd hoisting / not installed yet) —
+    // @kmamal/sdl not resolvable from here (odd hoisting / not installed yet) -
     // nothing to do; runtime self-heal will try again.
     return;
   }
@@ -56,7 +56,7 @@ async function main() {
   try {
     // Force prebuilt-only: never let a missing prebuilt fall through to a
     // node-gyp source build, which would invoke clang/Xcode/Command Line Tools
-    // on the host — exactly the "why is it compiling?" scare we must avoid.
+    // on the host - exactly the "why is it compiling?" scare we must avoid.
     // @kmamal/sdl's installer already downloads a prebuilt; this is belt-and-
     // suspenders for anything in the chain that honors these flags.
     await execFileAsync(process.execPath, [installScript], {
@@ -72,7 +72,7 @@ async function main() {
     console.warn(
       "[romdevtools] note: couldn't pre-fetch the @kmamal/sdl playtest binary " +
       `(${e?.message ?? e}). The interactive playtest window may need a one-time ` +
-      `\`node "${installScript}"\` — headless build/run/screenshot are unaffected.`,
+      `\`node "${installScript}"\` - headless build/run/screenshot are unaffected.`,
     );
   }
 }

@@ -1,8 +1,8 @@
-// PC Engine PC breakpoint / read watchpoint / single-step — end to end.
+// PC Engine PC breakpoint / read watchpoint / single-step - end to end.
 //
 // Exercises the geargrafx core patch (HuC6280 = 65C02 superset: RunInstruction
 // PC-break hook + Memory::Read read-watch; the per-frame loop in
-// geargrafx_core_inline.h drains on the hit flag so retro_run returns — no hang)
+// geargrafx_core_inline.h drains on the hit flag so retro_run returns - no hang)
 // through the MCP tool surface: runUntilPC freezes the CPU at an exact
 // instruction, runUntilRead catches a reader of an address, stepInstruction
 // single-steps and must ADVANCE the PC. The breakpoint PC is discovered
@@ -74,12 +74,12 @@ test("PC Engine PC breakpoint + read watch + single-step (geargrafx HuC6280)", {
 
   // 1) Discover a real instruction PC self-referentially. geargrafx has NO write
   //    watchpoint (so findWriter is unavailable here), but it DOES have the read
-  //    watchpoint — runUntilRead on the counter the program reads each frame
+  //    watchpoint - runUntilRead on the counter the program reads each frame
   //    returns the EXACT reading-instruction PC, a stable breakpoint target.
   const rdSeed = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "read",  address: COUNTER, maxFrames: 300 },
   }));
-  assert.equal(rdSeed.notSupported, undefined, "runUntilRead reported notSupported — read-watch patch missing?");
+  assert.equal(rdSeed.notSupported, undefined, "runUntilRead reported notSupported - read-watch patch missing?");
   assert.equal(rdSeed.hit, true, "runUntilRead didn't catch the $1F00 read: " + JSON.stringify(rdSeed));
   assert.ok(rdSeed.pcRaw > 0, "runUntilRead returned no reader pc");
   const seedPC = rdSeed.pcRaw;
@@ -88,7 +88,7 @@ test("PC Engine PC breakpoint + read watch + single-step (geargrafx HuC6280)", {
   const bp = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "pc",  address: seedPC, maxFrames: 300 },
   }));
-  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported — core patch missing?");
+  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported - core patch missing?");
   assert.equal(bp.hit, true, "runUntilPC did not hit the seed PC: " + JSON.stringify(bp));
   assert.equal(bp.pcRaw, seedPC, "frozen PC != requested PC");
   const writerPC = seedPC;  // alias for the single-step advance assertion below
@@ -107,11 +107,11 @@ test("PC Engine PC breakpoint + read watch + single-step (geargrafx HuC6280)", {
   assert.ok(stepRes.pcRaw >= 0, "single-step returned no pc");
   assert.notEqual(stepRes.pcRaw, writerPC, "single-step did not advance PC: " + JSON.stringify(stepRes));
 
-  // 5) runUntilRead on the counter — the program reads $1F00 each frame: positive hit.
+  // 5) runUntilRead on the counter - the program reads $1F00 each frame: positive hit.
   const rd = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "read",  address: COUNTER, maxFrames: 120 },
   }));
-  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported — read-watch patch missing?");
+  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported - read-watch patch missing?");
   assert.equal(rd.hit, true, "runUntilRead did not catch the $1F00 read: " + JSON.stringify(rd));
   assert.ok(rd.pcRaw > 0, "runUntilRead returned no reader pc");
 });

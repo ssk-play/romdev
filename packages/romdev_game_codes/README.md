@@ -5,13 +5,13 @@ The bundled game-code / cheat database for
 main `romdev-mcp` package stays small and the database can grow and version
 independently.
 
-It is a **data package** — no runtime logic of its own beyond a tiny lazy
+It is a **data package** - no runtime logic of its own beyond a tiny lazy
 loader. `romdev-mcp` depends on it and resolves it at runtime, then reads **one
 platform's index at a time** (never the whole DB into memory).
 
 ## What's inside
 
-`index/<platform>.json` — one compact `name → entries` map per platform. Each
+`index/<platform>.json` - one compact `name → entries` map per platform. Each
 entry is `{ desc, code, parts }` where `code` is the raw RetroArch cheat code
 (applied to the core verbatim) and `parts` is the decoded address/value/kind for
 inspection.

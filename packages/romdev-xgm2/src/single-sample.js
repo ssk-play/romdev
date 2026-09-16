@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.struct.SingleSample — single PCM sample at a point in time.
+// Port of sgdk.xgm2tool.struct.SingleSample - single PCM sample at a point in time.
 
 /**
  * Single sample class (time is always expressed in 1/44100 of second).

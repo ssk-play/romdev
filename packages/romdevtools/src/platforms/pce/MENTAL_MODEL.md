@@ -1,10 +1,10 @@
-# PC Engine / TurboGrafx-16 — mental model
+# PC Engine / TurboGrafx-16 - mental model
 
 One page. Read once before you write your first PC Engine game. The
 TROUBLESHOOTING.md alongside this file is for when something's broken; this is
 the "what's going on" version.
 
-## Start here — don't write the register pokes from scratch
+## Start here - don't write the register pokes from scratch
 
 romdev ships a **hardware helper library** (`src/platforms/pce/lib/c/`:
 `pce_hw.h` + `pce_video.c` + `pce_input.c` + `pce_sound.c`) so you call
@@ -13,25 +13,25 @@ romdev ships a **hardware helper library** (`src/platforms/pce/lib/c/`:
 library, so this lib is how you get pixels on screen.
 
 The fastest way to a working game: **fork the example game whose core loop is
-nearest yours — `examples({op:'fork', example:"pce/shmup", name, path})`** — or any
+nearest yours - `examples({op:'fork', example:"pce/shmup", name, path})`** - or any
 of `platformer` / `puzzle` / `sports` / `racing`, the full genre set. For a smaller
 starting point fork `pce/sprite_move` (also `music_sfx`, `catch_game`). Either drops
-a complete, *building* project — a verified playable example + the helper lib +
+a complete, *building* project - a verified playable example + the helper lib +
 docs. Read the example's `main.c`, then change it. The examples live in
 `examples/pce/`. The genre examples fill the BAT (32×32 virtual screen); the
 `platformer` smooth-scrolls the background via the VDC BXR (R7) register.
-**Gotcha:** `#include <stdint.h>` for int8/16/32_t — `pce.h` only typedefs u8/u16.
+**Gotcha:** `#include <stdint.h>` for int8/16/32_t - `pce.h` only typedefs u8/u16.
 
-## CPU — HuC6280 (a 65C02 superset)
+## CPU - HuC6280 (a 65C02 superset)
 
 The HuC6280 is a 65C02 core with extras: a memory-mapping unit (MPR registers),
 a built-in sound chip (PSG), a timer, and block-transfer instructions (`tii`,
-`tia`, etc.). For C development with cc65 you mostly don't touch the MPR — the
+`tia`, etc.). For C development with cc65 you mostly don't touch the MPR - the
 `pce` target's runtime maps the HuCard and 8 KB of work RAM for you.
 
 ```
 CPU address space (16-bit, banked via 8 MPRs that map $2000 windows):
-  $0000-$1FFF   work RAM (8 KB) — also the stack ($21xx page)
+  $0000-$1FFF   work RAM (8 KB) - also the stack ($21xx page)
   $4000-$BFFF   (mapped HuCard / hardware via MPR)
   $E000-$FFFF   HuCard ROM (reset/IRQ vectors at $FFF6+)
 ```
@@ -39,10 +39,10 @@ CPU address space (16-bit, banked via 8 MPRs that map $2000 windows):
 cc65 links your C `_CODE` into ROM and runs `pce/crt0.s`, which clears `.bss`,
 copies `.data`, sets the stack, runs constructors, then calls `main`.
 
-## Video — HuC6270 VDC + HuC6260 VCE (two chips)
+## Video - HuC6270 VDC + HuC6260 VCE (two chips)
 
 The **HuC6270 VDC** owns 64 KB of VRAM (word-addressed) and the display:
-- A tiled background ("BAT" = Background Attribute Table in VRAM) — there is NO
+- A tiled background ("BAT" = Background Attribute Table in VRAM) - there is NO
   separate nametable region; the map lives in VRAM. Virtual screen size is set
   by VDC register R9 (MWR).
 - 64 hardware **sprites** via the SATB (Sprite Attribute Table), 16/32 wide ×
@@ -58,7 +58,7 @@ of every 16-color sub-palette is transparent/backdrop. `palette({source:'live'})
 ## Frame heartbeat
 
 The VDC raises VBlank once per frame (~60 Hz NTSC). cc65 gives you `waitvsync()`
-(libsrc/pce/waitvsync.s) to sync to it — update VRAM during VBlank to avoid
+(libsrc/pce/waitvsync.s) to sync to it - update VRAM during VBlank to avoid
 tearing. There is no NMI; the VDC IRQ (R5 bits 2-3 enable raster/vblank IRQ)
 drives interrupt-based code.
 
@@ -79,35 +79,35 @@ screen. Keep at least one (2+ byte) global. See TROUBLESHOOTING.md.
 
 ## Art + input
 
-- `encodeArt({stage:'tiles', platform: "pce"})` — PNG → 4bpp HuC6270 tiles (the
+- `encodeArt({stage:'tiles', platform: "pce"})` - PNG → 4bpp HuC6270 tiles (the
   "planar-pairs" layout: 32 B/tile, 16 B plane 0+1 then 16 B plane 2+3). Returns
   a suggested 16-color palette too. DMA the bytes to your VRAM pattern base.
-- `input({op:'layout', platform: "pce"})` — the 2-button pad + how the joyport
+- `input({op:'layout', platform: "pce"})` - the 2-button pad + how the joyport
   scan works. **Driving input over MCP:** geargrafx maps `input({op:'set'})` straight
   through (verified live, no inversion): `{a}`→button I, `{b}`→button II,
   `{start}`→Run, `{select}`→Select; spatial east→I, west→II. So
-  `input({op:'set', a: true})` presses button I as expected — unlike the
+  `input({op:'set', a: true})` presses button I as expected - unlike the
   genesis_plus_gx platforms, there's no surprise here.
 
 ## Debugging tools
 
-- `cpu({op:'read'})` — HuC6280 PC/A/X/Y/S/P + flags + timer/IRQ state.
-- `background({view:'renderState'})` — VDC R5 screen-enable, BG scroll, SATB source.
-- `palette({source:'live'})` — VCE 512-entry 9-bit GRB (area:'bg'|'sprite').
-- `sprites({op:'inspect'})` — SATB 64 sprites (x/y/tile/palette/size/flip).
-- `symbols({op:'map'})` — where cc65 placed your variables (after build({output:'romWithDebug'})).
-- `audioDebug({op:'inspect', chip: "pce"})` — the HuC6280 PSG: 6 wavetable channels
+- `cpu({op:'read'})` - HuC6280 PC/A/X/Y/S/P + flags + timer/IRQ state.
+- `background({view:'renderState'})` - VDC R5 screen-enable, BG scroll, SATB source.
+- `palette({source:'live'})` - VCE 512-entry 9-bit GRB (area:'bg'|'sprite').
+- `sprites({op:'inspect'})` - SATB 64 sprites (x/y/tile/palette/size/flip).
+- `symbols({op:'map'})` - where cc65 placed your variables (after build({output:'romWithDebug'})).
+- `audioDebug({op:'inspect', chip: "pce"})` - the HuC6280 PSG: 6 wavetable channels
   (per-channel freq/volume/wave; channels 4-5 can also do noise) + main amplitude
   + LFO.
 - `memory({op:'read'})` regions: `pce_vdc_vram`, `pce_vdc_satb`, `pce_vdc_regs`,
   `pce_vce_palette`, `pce_cpu_regs`, `pce_psg_regs`.
-- `disasm({target:'rom'|'references'|'project'})` — da65's native `huc6280`
+- `disasm({target:'rom'|'references'|'project'})` - da65's native `huc6280`
   CPU mode. HuCards >32 KB are handled per 8 KB page (page 0 at `$E000`,
-  where MPR7 maps it at reset — the vectors live there; pages 1+ at `$8000`,
+  where MPR7 maps it at reset - the vectors live there; pages 1+ at `$8000`,
   an assumed window since the game's MPR writes decide at runtime).
   `references` tags refs with `romBank`; `disasm({target:'project'})` emits
-  per-page regions + segment wrappers + a generated `.cfg`, and — because the
-  PCE asm toolchain IS cc65/ca65 — a **one-call byte-identical `build()`
+  per-page regions + segment wrappers + a generated `.cfg`, and - because the
+  PCE asm toolchain IS cc65/ca65 - a **one-call byte-identical `build()`
   rebuild** via `rebuild.json` (flat and banked; a 512-byte copier header is
   split out and re-emitted as a HEADER segment).
 

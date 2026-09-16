@@ -1,7 +1,7 @@
 // Tests for the response-shaping filters added for the play-screen-port user:
 // inspectSprites slots[]/maxSlots, and inspectBackgroundMap tilesOnly/
 // attributesOnly/region. Driven through the registered tool handlers with a
-// fake host (no real emulator needed — this is pure response logic).
+// fake host (no real emulator needed - this is pure response logic).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -127,7 +127,7 @@ function makeNesHostFor(platform) {
 }
 
 test("sprites({op:'inspect'}) reads the CALLING session's host, not the last-registered one", async () => {
-  // Register session A FIRST, then session B — B's registration reassigns the
+  // Register session A FIRST, then session B - B's registration reassigns the
   // module-level inspectSpritesCore closure (the old bug's trap). Each session
   // gets its own router via its own registration.
   function handlersFor(sessionKey) {
@@ -138,7 +138,7 @@ test("sprites({op:'inspect'}) reads the CALLING session's host, not the last-reg
     return map;
   }
   const hA = handlersFor("sess-A-genesis");
-  // The RETURN value is unused — what matters is the SIDE EFFECT: registering
+  // The RETURN value is unused - what matters is the SIDE EFFECT: registering
   // session B last is what would steal the module-global closure (the bug).
   handlersFor("sess-B-gbc");
   _setHostForTest("sess-A-genesis", makeNesHostFor("nes")); // stand-in host, platform tagged A
@@ -150,7 +150,7 @@ test("sprites({op:'inspect'}) reads the CALLING session's host, not the last-reg
   assert.equal(rA.platform, "nes", "session A must read its own (nes) host");
 
   // And session B still reads its own (gbc decodes via the gb branch; give it a
-  // gb-shaped fake by reusing the nes host but tagging platform — the gb branch
+  // gb-shaped fake by reusing the nes host but tagging platform - the gb branch
   // needs a real ppu snapshot, so just assert A is correct + B doesn't leak A).
   // The key invariant under test is no cross-session host resolution.
   const rA2 = parse(await hA.sprites({ op: "inspect", maxSlots: 1 }));

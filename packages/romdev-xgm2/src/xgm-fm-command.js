@@ -1,11 +1,11 @@
-// Port of sgdk.xgm2tool.format.XGMFMCommand — XGM v2 FM (YM2612) command + builders.
+// Port of sgdk.xgm2tool.format.XGMFMCommand - XGM v2 FM (YM2612) command + builders.
 
 import { Command } from "./command.js";
 import { getInt8, getInt24, setInt8, setInt24 } from "./util.js";
 // VGMCommand / XGM are referenced via passed-in instances; no static use needed here.
 
 /**
- * Mirror of sgdk.tool.StringUtil.toHexaString(value, size): lowercase? No —
+ * Mirror of sgdk.tool.StringUtil.toHexaString(value, size): lowercase? No -
  * SGDK renders UPPERCASE zero-padded hex of `size` nibbles.
  * @param {number} value
  * @param {number} size number of hex digits

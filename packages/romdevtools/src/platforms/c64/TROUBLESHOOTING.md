@@ -1,7 +1,7 @@
-# Commodore 64 — troubleshooting
+# Commodore 64 - troubleshooting
 
 > **A build failed? Read `issues[]` FIRST.** Every build/compile call returns
-> `issues: [{file, line, col, severity, message, stage}]` — the structured error
+> `issues: [{file, line, col, severity, message, stage}]` - the structured error
 > list. It almost always names the exact line to fix. Read that before matching a
 > symptom below or touching your source. Fall back to the raw `log` only if
 > `issues[]` is empty but `ok:false`.
@@ -15,7 +15,7 @@ Three common modes:
 
 1. **You wrote to $0400+ before the KERNAL finished clearing the
    screen during boot.** cc65's startup code typically runs after the
-   KERNAL clears the screen, so this is rare under cc65 — but if you
+   KERNAL clears the screen, so this is rare under cc65 - but if you
    `org $0801` and run before vector setup, you can lose your writes.
    Easy fix: wait 2-3 frames after main() entry before drawing.
 2. **VIC_MEMORY ($D018) points at the wrong screen RAM.** Default is
@@ -63,12 +63,12 @@ own:
 #define POKE(addr, val)  (*(volatile uint8_t*)(addr) = (val))
 ```
 
-…cc65 complains "Macro redefinition is not identical."
+...cc65 complains "Macro redefinition is not identical."
 
 Workarounds:
 - Use cc65's stock POKE / PEEK from peekpoke.h (no volatile, address
   as integer).
-- Or define yours under different names like `WR` / `RD` — the
+- Or define yours under different names like `WR` / `RD` - the
   bundled `tile_engine` template uses this convention.
 
 ## "Joystick input feels random / wrong"
@@ -85,7 +85,7 @@ KERNAL last selected. Result: ghost input.
 
 ## "Player 2 input does nothing"
 
-Both C64 control ports ARE live over MCP, so 2P works — the mapping is just
+Both C64 control ports ARE live over MCP, so 2P works - the mapping is just
 non-obvious: **host port 0 → control port 2 ($DC00) = player 1**, **host port 1
 → control port 1 ($DC01) = player 2** (the universal "port 0 = P1" convention).
 So a 2P game reads P1 from $DC00 and P2 from $DC01, and you drive them with two
@@ -93,14 +93,14 @@ port entries: `input({op:'set', ports:[{up:true},{down:true}]})` moves P1 up,
 P2 down. If P2 seems dead, check you passed a SECOND `ports` entry (not just
 port 0) and that the game actually entered 2P mode (its title pick, e.g. "PORT 1
 FIRE = 2P"). The host enables the VICE userport-adapter mapping + swaps the two
-RetroPad ports under the hood so this convention holds — you don't configure
+RetroPad ports under the hood so this convention holds - you don't configure
 anything.
 
 ## "Audio is silent / SID doesn't play"
 
 Three things to check:
 
-1. `SID_VOL_MODE` ($D418) is 0 by default — set it to $0F or higher
+1. `SID_VOL_MODE` ($D418) is 0 by default - set it to $0F or higher
    for any voice to be audible.
 2. The voice's CONTROL register ($D404 + voice*7) needs both a
    waveform bit AND the GATE bit set:
@@ -120,7 +120,7 @@ while (PEEK(VIC_RASTER) < 250) { }
 ```
 
 and the VIC's interrupt configuration has bit 7 of $D011 set (which is
-the 9th bit of the raster line counter — for lines >= 256), then the
+the 9th bit of the raster line counter - for lines >= 256), then the
 raster register is effectively 9-bit but you're reading only 8 bits.
 Result: raster appears to wrap weirdly.
 

@@ -1,8 +1,8 @@
-/* gg_music.c — Game Gear SN76489 PSG music driver.
+/* gg_music.c - Game Gear SN76489 PSG music driver.
  *
  * Plays a hand-authored note table on a dedicated PSG channel, one note
  * per frame-tick. Companion to gg_sfx (which keeps ch 0/1 free for
- * fire-and-forget sound effects and ch 3 for noise — we own ch 2).
+ * fire-and-forget sound effects and ch 3 for noise - we own ch 2).
  *
  * Protocol recap (port $7F, write-only):
  *   Tone latch: bit7=1, bits6-5=channel, bit4=0, bits3-0=freq_low
@@ -15,7 +15,7 @@
  *   - .note = 10-bit PSG divider (0 = rest), .dur = frame count
  *   - sentinel row {0, 0} marks end-of-song
  *
- * The note table IS the song — no compression, no compiler — you can
+ * The note table IS the song - no compression, no compiler - you can
  * read the melody right in this file. Add or edit songs by appending
  * a music_note_t[] array and bumping music_song_count.
  */
@@ -23,7 +23,7 @@
 #include "gg_music.h"
 #include "gg_hw.h"
 
-#define MUSIC_CHANNEL 2  /* PSG ch 2 — ch 0/1 reserved for gg_sfx */
+#define MUSIC_CHANNEL 2  /* PSG ch 2 - ch 0/1 reserved for gg_sfx */
 #define MUSIC_VOLUME  3  /* attenuation; lower = louder, 3 ≈ -6 dB */
 
 static void psg_write(uint8_t b) {
@@ -52,7 +52,7 @@ static const music_note_t song0[] = {
   { NOTE_D4, 18 }, { NOTE_F4, 18 }, { NOTE_A4, 18 }, { NOTE_D5, 36 },
   { NOTE_A4, 18 }, { NOTE_F4, 18 }, { NOTE_D4, 36 },
   { NOTE_REST, 18 },
-  /* Melodic flourish — "shave and a haircut" feel */
+  /* Melodic flourish - "shave and a haircut" feel */
   { NOTE_G4, 18 }, { NOTE_C5, 18 }, { NOTE_C5, 18 },
   { NOTE_D5, 18 }, { NOTE_C5, 36 }, { NOTE_REST, 12 },
   { NOTE_E5, 18 }, { NOTE_C5, 36 },
@@ -79,9 +79,9 @@ static const music_note_t song2[] = {
 };
 
 static const music_song_t songs[] = {
-  { song0, 1 },  /* arpeggio — loops */
-  { song1, 1 },  /* minor — loops */
-  { song2, 0 },  /* fanfare — one-shot */
+  { song0, 1 },  /* arpeggio - loops */
+  { song1, 1 },  /* minor - loops */
+  { song2, 0 },  /* fanfare - one-shot */
 };
 const uint8_t music_song_count = 3;
 
@@ -112,7 +112,7 @@ static void start_row(void) {
       note = cur_song[0].note;
       dur  = cur_song[0].dur;
       if (dur == 0) {
-        /* Empty song — bail. */
+        /* Empty song - bail. */
         music_stop();
         return;
       }

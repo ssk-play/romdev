@@ -1,4 +1,4 @@
-// whichTilesAreRendered — at the current emulator state, walk the BG nametable
+// whichTilesAreRendered - at the current emulator state, walk the BG nametable
 // + OAM and return the set of tile IDs actually being drawn this frame.
 //
 // Replaces the "extract sprite sheet then guess by eye which tiles are which"
@@ -162,7 +162,7 @@ export async function whichTilesAreRenderedCore({ platform, snesTilemapBaseByte,
           parseInt(vic.memPointers.screenRamBaseInVicBank.replace("$", ""), 16);
         const screen = host.readMemory("system_ram", screenBase, 1000);
         for (let i = 0; i < 1000; i++) bg.add(screen[i]);
-        // C64 sprites are MOBs (pointer-indexed pixel data), not char codes —
+        // C64 sprites are MOBs (pointer-indexed pixel data), not char codes -
         // they don't share the BG character set, so we leave `sprite` empty
         // here. Use inspectSprites for the 8 hardware sprites.
       } else {

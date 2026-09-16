@@ -2,18 +2,18 @@
 //
 // VDP layout (SMS Mode 4, the only mode any real cartridge uses):
 //   VRAM 16 KB
-//     $0000-$3FFF — entire address space. Conventional layout:
-//       Tiles      $0000-$3FFF (448 tiles × 32 bytes; tile 0..) — but the
+//     $0000-$3FFF - entire address space. Conventional layout:
+//       Tiles      $0000-$3FFF (448 tiles × 32 bytes; tile 0..) - but the
 //                  BG tile-data table base is set via VDP reg 4 (bits 2-1),
 //                  and the SPRITE tile-data table base is set via VDP reg 6
 //                  (bit 2).
-//     Name table   — typically $3800-$3EFF (set via VDP reg 2)
-//     Sprite attribute table (SAT) — typically $3F00-$3FFF (set via VDP reg 5)
+//     Name table   - typically $3800-$3EFF (set via VDP reg 2)
+//     Sprite attribute table (SAT) - typically $3F00-$3FFF (set via VDP reg 5)
 //
-//   CRAM 32 B (SMS) — 32 entries × 6-bit BGR (0BGRG R, two bits per channel)
-//   CRAM 64 B (GG)  — 32 entries × 12-bit BGR (low byte = ----RRRR, high = ----BBBBGGGG... well actually 0000BBBB GGGGRRRR)
-//   VDP regs    — 11 registers used in mode 4
-//   SAT format  — y[64], then x/tile pairs ([0x80..]: x0,n0, x1,n1, ...)
+//   CRAM 32 B (SMS) - 32 entries × 6-bit BGR (0BGRG R, two bits per channel)
+//   CRAM 64 B (GG)  - 32 entries × 12-bit BGR (low byte = ----RRRR, high = ----BBBBGGGG... well actually 0000BBBB GGGGRRRR)
+//   VDP regs    - 11 registers used in mode 4
+//   SAT format  - y[64], then x/tile pairs ([0x80..]: x0,n0, x1,n1, ...)
 
 import { PNG } from "pngjs";
 
@@ -27,7 +27,7 @@ import { PNG } from "pngjs";
  *   bits 6-7: unused
  *
  * Each 2-bit channel expands to 8 bits by replicating the pattern
- * (0=0x00, 1=0x55, 2=0xAA, 3=0xFF — a clean 2→8 expansion).
+ * (0=0x00, 1=0x55, 2=0xAA, 3=0xFF - a clean 2→8 expansion).
  *
  * @param {number} byte
  * @returns {[number, number, number]}
@@ -210,17 +210,17 @@ export function renderSmsTilesheet(vram, paletteRgb, tileCount) {
  * shift+mask arithmetic.
  *
  * VDP reg layout (Mode 4):
- *   reg 0  — Mode Control 1
- *   reg 1  — Mode Control 2
- *   reg 2  — Name table base (bits 1-3 → addr bits 11-13; addr = (reg2 & 0x0E) << 10)
- *   reg 3  — Color table base (TMS9918 modes; M4 ignores)
- *   reg 4  — Background tile data base (bit 2 → addr bit 13; addr = (reg4 & 0x04) << 11)
- *   reg 5  — Sprite attribute table base (bits 1-6 → addr bits 7-13; addr = (reg5 & 0x7E) << 7)
- *   reg 6  — Sprite pattern (tile) data base (bit 2 → addr bit 13; addr = (reg6 & 0x04) << 11)
- *   reg 7  — Border color (lower nibble = sprite-palette entry)
- *   reg 8  — Background X scroll
- *   reg 9  — Background Y scroll
- *   reg 10 — Line interrupt counter
+ *   reg 0  - Mode Control 1
+ *   reg 1  - Mode Control 2
+ *   reg 2  - Name table base (bits 1-3 → addr bits 11-13; addr = (reg2 & 0x0E) << 10)
+ *   reg 3  - Color table base (TMS9918 modes; M4 ignores)
+ *   reg 4  - Background tile data base (bit 2 → addr bit 13; addr = (reg4 & 0x04) << 11)
+ *   reg 5  - Sprite attribute table base (bits 1-6 → addr bits 7-13; addr = (reg5 & 0x7E) << 7)
+ *   reg 6  - Sprite pattern (tile) data base (bit 2 → addr bit 13; addr = (reg6 & 0x04) << 11)
+ *   reg 7  - Border color (lower nibble = sprite-palette entry)
+ *   reg 8  - Background X scroll
+ *   reg 9  - Background Y scroll
+ *   reg 10 - Line interrupt counter
  *
  * @param {Uint8Array} regs
  * @returns {object}
@@ -340,7 +340,7 @@ export function renderSmsSprites(vram, sat, spritePalette, spriteTileDataBase, s
 // ─── Master palette PNG ────────────────────────────────────────────
 
 /**
- * Render the SMS master palette (64 colors — 4×4×4 BGR) as a PNG swatch.
+ * Render the SMS master palette (64 colors - 4×4×4 BGR) as a PNG swatch.
  * Used by getPlatformPalettePng for the dithering pipeline.
  *
  * @returns {Buffer} 8×8 swatch grid PNG, 16 px per cell
@@ -436,7 +436,7 @@ export function snapshotPatternTiles(host, platform) {
 }
 
 /**
- * Snapshot live sprites — reads VDP regs, CRAM, SAT, VRAM and composites.
+ * Snapshot live sprites - reads VDP regs, CRAM, SAT, VRAM and composites.
  */
 export function snapshotSprites(host, platform) {
   const regs = host.readMemory("sms_vdp_regs", 0, 16);
@@ -467,7 +467,7 @@ export function snapshotSprites(host, platform) {
  *     bit 3 (c): palette select (0 = BG palette 0..15, 1 = sprite palette 16..31)
  *     bit 4 (p): priority (BG-over-sprite)
  *
- * Tiles are 4bpp planar (decodeSmsTile). The full plane is 256×224 (SMS) —
+ * Tiles are 4bpp planar (decodeSmsTile). The full plane is 256×224 (SMS) -
  * the visible window is 256×192 and horizontal/vertical scroll (regs 8/9)
  * is reported but NOT applied (matches the GB/Genesis BG-map convention).
  *
@@ -525,6 +525,6 @@ export function snapshotBackgroundMap(host, platform) {
     scrollX: decoded.bgScrollX,
     scrollY: decoded.bgScrollY,
     note: `${COLS}×${ROWS} name table at ${decoded.nameTableBase} (BG tiles from ${decoded.bgTileDataBase}). ` +
-      `Scroll (${decoded.bgScrollX},${decoded.bgScrollY}) is NOT applied — visible window is 256×192.`,
+      `Scroll (${decoded.bgScrollX},${decoded.bgScrollY}) is NOT applied - visible window is 256×192.`,
   };
 }

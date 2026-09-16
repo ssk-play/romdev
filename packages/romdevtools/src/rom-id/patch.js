@@ -210,7 +210,7 @@ export function extractChrFromINes(ines) {
   const offset = 16 + prgBanks * 16384;
   const size = chrBanks * 8192;
   if (offset + size > ines.length) {
-    throw new Error("iNES file truncated — CHR bank past EOF");
+    throw new Error("iNES file truncated - CHR bank past EOF");
   }
   // Return all CHR (could be > 8KB for multi-bank carts).
   return ines.slice(offset, offset + size);

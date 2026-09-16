@@ -1,4 +1,4 @@
-// LibretroHost — the host for a single Emscripten libretro core.
+// LibretroHost - the host for a single Emscripten libretro core.
 //
 // One instance = one platform's core loaded + (optionally) one ROM. The host
 // exposes a small public API the MCP layer wraps:
@@ -14,7 +14,7 @@
 //   reset() / pause() / resume() / getStatus()
 //
 // ISOMORPHIC (ROMDEV_CORE_RUNNER_PLAN §6b): this module has NO top-level
-// `node:` imports — enforced by romdevtools/test/browser-surface-imports.
+// `node:` imports - enforced by romdevtools/test/browser-surface-imports.
 // The path-based code paths lazy-import the Node adapter (io-node.js); a
 // bytes-based session ({factory, wasmBinary} + loadMedia({bytes})) never
 // touches it, so the same host runs in a browser/worker bundle.
@@ -37,7 +37,7 @@ import {
 /**
  * Per-platform core-option overrides applied before retro_load_game.
  * Most cores work with their menu-defaults; a few need explicit values
- * to function headlessly (no menu = no user pick). Empty today — all
+ * to function headlessly (no menu = no user pick). Empty today - all
  * shipped cores load with their defaults.
  */
 // Core filename stem → platform, for the cores whose renderer (or other boot-time
@@ -53,14 +53,14 @@ const CORE_STEM_TO_PLATFORM = {
 
 const PLATFORM_CORE_OPTIONS = {
   // blueMSX defaults its machine to "SEGA - SC-3000" (an SG-1000 clone, wrong for
-  // MSX carts). Force the open MSX2+ C-BIOS machine — a superset that also runs
-  // MSX1 carts — so homebrew boots with no proprietary BIOS. The matching
-  // `… - C-BIOS` machine tree ships in romdev-core-bluemsx/bios and is mirrored
+  // MSX carts). Force the open MSX2+ C-BIOS machine - a superset that also runs
+  // MSX1 carts - so homebrew boots with no proprietary BIOS. The matching
+  // `... - C-BIOS` machine tree ships in romdev-core-bluemsx/bios and is mirrored
   // into the wasm FS as the system dir (see loadMedia + resolveSystemDir).
   msx: { bluemsx_msxtype: "MSX2+ - C-BIOS" },
   // fceumm paints a Zapper CROSSHAIR straight into the framebuffer after
   // rendering (video.c: `if (show_crosshair) FCEU_DrawInput(XBuf)`). It is a
-  // host overlay, not PPU output — no reconstruction from PPU state can or
+  // host overlay, not PPU output - no reconstruction from PPU state can or
   // should reproduce it, and leaving it on makes light-gun games look like
   // renderer bugs (one light-gun title differed by exactly its 13 crosshair pixels).
   nes: { fceumm_show_crosshair: "disabled" },
@@ -68,7 +68,7 @@ const PLATFORM_CORE_OPTIONS = {
   // mode, which is float std::pow gamma math (video_libretro.cpp:250-284).
   // Anything reconstructing the picture in Lua carries 64-bit doubles where
   // the core carries 32-bit floats, so the two round differently at the
-  // final `(x * 31) + 0.5` and disagree by a shade — an unfixable exact-match
+  // final `(x * 31) + 0.5` and disagree by a shade - an unfixable exact-match
   // failure. Pinned OFF, which makes the transform a passthrough (`rFinal =
   // r`) that any host can reproduce exactly. `mode: fast` is belt-and-braces
   // (the integer path) in case correction is ever re-enabled, and the dark
@@ -89,7 +89,7 @@ const PLATFORM_CORE_OPTIONS = {
   // geargrafx ships with the TurboTap disabled, which makes port-1 input
   // unreachable in-game (every pad scan slot mirrors pad 0). Enabling it
   // costs nothing for 1P games (slot 0 still reads pad 0) and routes the
-  // host's port-1 input to pad slot 2 — PCE 2P works (probed 2026-06-10
+  // host's port-1 input to pad slot 2 - PCE 2P works (probed 2026-06-10
   // during the ZENITH BARRAGE gold round).
   pce: { geargrafx_turbotap: "Enabled" },
   // parallel_n64 defaults to a software gfx plugin that never presents to our GL
@@ -98,7 +98,7 @@ const PLATFORM_CORE_OPTIONS = {
   // beetle_psx_hw defaults to the software renderer; force hardware_gl so it
   // renders through the GL context the host set up (otherwise no FBO frames).
   ps1: { beetle_psx_hw_renderer: "hardware_gl" },
-  // Flycast defaults to THREADED rendering — the render thread + the main thread's
+  // Flycast defaults to THREADED rendering - the render thread + the main thread's
   // wait on it makes retro_run unwind under emscripten pthreads (yields to the event
   // loop, incompatible with our synchronous frame-step). Disable it so render() runs
   // synchronously on the calling thread (Emulator::render → run(), no cross-thread
@@ -108,7 +108,7 @@ const PLATFORM_CORE_OPTIONS = {
   // vaddr + jumps). With it off (the default), flycast wants a real dc_boot.bin we
   // don't ship → the .elf never loads (RAM stays empty, CPU never runs our code).
   // emulate_framebuffer scans out the DC framebuffer directly on every VBlank (the 2D
-  // path, no TA list) — so simple homebrew that writes RGB565 pixels to VRAM presents
+  // path, no TA list) - so simple homebrew that writes RGB565 pixels to VRAM presents
   // reliably without building a full PowerVR2 tile list. (Threaded rendering is also
   // force-disabled in the core itself; the option here is belt-and-suspenders.)
   dreamcast: {
@@ -117,7 +117,7 @@ const PLATFORM_CORE_OPTIONS = {
     flycast_emulate_framebuffer: "enabled",
   },
   // VICE mounts a .d64/.tap/.crt but, with autostart off, just sits at the BASIC
-  // `READY.` prompt — the agent would see a blue boot screen, not the game. Force
+  // `READY.` prompt - the agent would see a blue boot screen, not the game. Force
   // autostart so a disk/tape image runs the first program automatically (same as
   // typing LOAD"*",8,1 : RUN). warp-during-autostart skips the slow 1541 load so
   // the game is up in a fraction of the wall-clock. A bare .prg is injected and
@@ -128,19 +128,19 @@ const PLATFORM_CORE_OPTIONS = {
     vice_warp_boost: "enabled",
     // Leave the mounted disk WRITABLE so a save-capable game can write its save
     // files back into the .d64 (VICE updates the in-FS image in place). Without
-    // this a game's SAVE silently fails / errors — defeating disk-save support.
+    // this a game's SAVE silently fails / errors - defeating disk-save support.
     vice_floppy_write_protection: "disabled",
     // TWO live C64 control ports so 2P games see player 2. The VICE core drives
     // ONE control port per RetroPad by default (every retro port → cur_port);
     // the per-port split only happens with the userport adapter, where the
     // mapper does vice_port = cur_port + retro_port. With joyport=1 + a userport
-    // adapter that gives retro0→control-port-1, retro1→control-port-2 — BOTH
+    // adapter that gives retro0→control-port-1, retro1→control-port-2 - BOTH
     // standard ports live. Our games read P1 on control port 2 ($DC00) and P2
     // on port 1 ($DC01); the host swaps the two retro ports below
     // (portInputToMask C64 path) so host port 0 = P1 (control port 2) and host
     // port 1 = P2 (control port 1), matching the universal "port 0 = player 1"
     // convention. Verified: drives both paddles independently in 2P, 1P-vs-CPU
-    // still reachable. (Both options ship in the wasm — no core rebuild.)
+    // still reachable. (Both options ship in the wasm - no core rebuild.)
     vice_joyport: "1",
     vice_userport_joytype: "HIT",
   },
@@ -162,7 +162,7 @@ const PLATFORM_SYSTEM_DIR = {
 /**
  * When loadMedia is called with `bytes:` and no `virtualName`, this is
  * the extension we tack onto "/rom" so the core knows which platform
- * it's looking at. Critical for shared cores — genesis_plus_gx looks
+ * it's looking at. Critical for shared cores - genesis_plus_gx looks
  * at the path extension to pick SMS vs GG vs Genesis vs Master System.
  * Round 26 fix: pre-r26, in-memory GG loads landed as SMS because the
  * default virtualName was "/rom" with no extension.
@@ -195,14 +195,14 @@ import { RETRO_DEVICE_JOYPAD, ROMDEV_PIXEL_FORMAT_RGBA8888 } from "./retroConsta
 import { decodeCode as decodeCheatCode } from "./gamegenie.js";
 
 // Platforms whose core stubs retro_cheat_set but ships romdev's value-override cheat
-// device (romdev_cheat_set) — cheats route through that read-substitution instead.
+// device (romdev_cheat_set) - cheats route through that read-substitution instead.
 const CHEAT_PREFER_ROMDEV_DEVICE = new Set(["gametank"]);
 
 // C64 controller→keyboard map (the Batocera/RetroDeck model: a CONTROLLER alone
-// plays C64 — no physical keyboard needed — by mapping spare buttons/stick to
+// plays C64 - no physical keyboard needed - by mapping spare buttons/stick to
 // the C64 keyboard keys games need at setup screens). Keyed by the button NAME
 // setInput receives (libretro + spatial names + the playtest right-stick virtual
-// buttons c64_f1..f7). The joystick itself (d-pad + Fire) is NOT here — those
+// buttons c64_f1..f7). The joystick itself (d-pad + Fire) is NOT here - those
 // stay a real joypad. Everything here is routed to the key matrix instead.
 //   B / south = Fire        → joystick (handled as joypad, not a key)
 //   X / west  = Space        L2 = Run/Stop   R2 / start = Return
@@ -229,7 +229,7 @@ const C64_KEY_MATRIX = {
   "run/stop": [7, 7], runstop: [7, 7], stop: [7, 7],
   ctrl: [7, 2], cbm: [7, 5], commodore: [7, 5],
   lshift: [1, 7], rshift: [6, 4], home: [6, 3], clr: [6, 3],
-  // cursor keys (C64 has DOWN + RIGHT; UP/LEFT are the shifted forms — use
+  // cursor keys (C64 has DOWN + RIGHT; UP/LEFT are the shifted forms - use
   // shift+down / shift+right for those)
   "crsr-down": [0, 7], "crsr-right": [0, 2], down: [0, 7], right: [0, 2],
   // digits
@@ -260,7 +260,7 @@ export class LibretroHost {
     // Default system/save dirs start as VIRTUAL placeholders. MEMFS cores only
     // ever see these strings inside the wasm FS, so any string works; only
     // NODERAWFS cores dereference them on the real disk. loadCore upgrades the
-    // placeholders to a real temp dir when the Node adapter is available —
+    // placeholders to a real temp dir when the Node adapter is available -
     // lazily, because a browser has no tmpdir (and never runs NODERAWFS cores).
     this._defaultDirs = !opts.systemDir || !opts.saveDir;
     this.state = newCallbackState({
@@ -288,7 +288,7 @@ export class LibretroHost {
    * @param {string} jsPath
    * @param {string} [wasmPath]
    * @param {Object} [opts]
-   * @param {boolean} [opts.hwRender] this core HW-renders (GL) — n64/ps1. Loads the
+   * @param {boolean} [opts.hwRender] this core HW-renders (GL) - n64/ps1. Loads the
    *   optional native GL stack and creates a headless context BEFORE the core boots
    *   (GL calls happen during init/load). The 14 software cores omit this.
    */
@@ -305,11 +305,11 @@ export class LibretroHost {
   /**
    * Load a libretro core module. Registers callbacks then runs retro_init.
    * Two call shapes:
-   *   loadCore(jsPath, wasmPath?, opts?)          — Node: glue + wasm off disk
-   *   loadCore({ factory, wasmBinary, ...opts })  — isomorphic: the caller
+   *   loadCore(jsPath, wasmPath?, opts?)          - Node: glue + wasm off disk
+   *   loadCore({ factory, wasmBinary, ...opts })  - isomorphic: the caller
    *     supplies the glue's default export + wasm bytes; no disk touched.
    * opts.io: false disables the Node adapter even under Node (forces the
-   * pure bytes-only contract — what a browser bundle gets).
+   * pure bytes-only contract - what a browser bundle gets).
    *
    * Same contract as loadMedia: resolves `undefined` on success and THROWS on
    * failure, so `if (!await host.loadCore(...))` treats every success as a
@@ -353,7 +353,7 @@ export class LibretroHost {
       this._defaultDirs = false;
     }
 
-    // Proxied (multi-threaded) cores — e.g. PPSSPP/PSP — run on a dedicated "app thread" so the
+    // Proxied (multi-threaded) cores - e.g. PPSSPP/PSP - run on a dedicated "app thread" so the
     // JS main thread never blocks while the core's worker threads proxy back to it (which would
     // deadlock the synchronous frame-stepping). They own the ENTIRE GL stack on the app thread
     // (native-gles + webgl-node loaded + context created + readback all there). The registry
@@ -361,7 +361,7 @@ export class LibretroHost {
     this._proxied = !!opts.proxied;
     this.state.proxied = this._proxied;
     // NODERAWFS cores (flycast): the WASM FS is Node's real fs, so the core fopens the
-    // disc image straight off disk — loadMedia must pass the REAL path and NOT slurp
+    // disc image straight off disk - loadMedia must pass the REAL path and NOT slurp
     // the (up to ~1GB) file into the WASM heap. See loadMedia.
     this._noderawfs = !!opts.noderawfs;
 
@@ -392,12 +392,12 @@ export class LibretroHost {
     this.mod = mod;
 
     // AUTO-DETECT NODERAWFS regardless of the caller's opt. A NODERAWFS build replaces
-    // the in-RAM MEMFS with Node's real fs, so `FS.writeFile("/rom.elf", …)` would target
+    // the in-RAM MEMFS with Node's real fs, so `FS.writeFile("/rom.elf", ...)` would target
     // the REAL root path (EACCES → WASM abort). loadMedia must know this even when a
-    // caller (a test, runSource) didn't pass the flag — and the build STILL registers
+    // caller (a test, runSource) didn't pass the flag - and the build STILL registers
     // FS.filesystems, so that's not a tell. The reliable probe: write to a real temp path
     // via FS and check whether it actually lands on the host disk. (NODERAWFS builds
-    // only exist under Node — without the adapter the probe is definitionally false.)
+    // only exist under Node - without the adapter the probe is definitionally false.)
     if (!this._noderawfs && mod.FS && this._io) {
       this._noderawfs = this._io.probeNoderawfs(mod.FS);
     }
@@ -410,7 +410,7 @@ export class LibretroHost {
       }
       mod._romdev_proxy_init();
       // Confirm the app thread's event loop is actually SERVICING its proxy queue before driving
-      // it — app_ready is set by a proxied ping (ping_on_app), which only runs once the queue is
+      // it - app_ready is set by a proxied ping (ping_on_app), which only runs once the queue is
       // live. Setting it eagerly would race: a proxied call issued before the loop pumps would sit
       // unprocessed and a proxy_sync would hang main. Pump + yield so the async ping is delivered.
       mod._romdev_app_ping();
@@ -445,7 +445,7 @@ export class LibretroHost {
     if (this._proxied) {
       // Proxied cores: install the JS callback impls on Module (the C trampolines proxy each
       // callback from the app thread back to main to run these). Register the trampolines on
-      // MAIN — they're plain C function pointers the app thread can call, and retro_init/
+      // MAIN - they're plain C function pointers the app thread can call, and retro_init/
       // pthread_create must run on main (Worker allocation proxies to main; it'd deadlock if
       // main were blocked proxying init to the app thread). Only load_game/run proxy to app.
       const { registerProxiedCallbacks } = await import("./callbacks.js");
@@ -457,7 +457,7 @@ export class LibretroHost {
 
     // Pre-seed per-platform core-option overrides BEFORE _retro_init. The core
     // registers its variables (SET_VARIABLES) during retro_init and decides its
-    // renderer THEN — e.g. parallel_n64 reads `parallel-n64-gfxplugin` to pick
+    // renderer THEN - e.g. parallel_n64 reads `parallel-n64-gfxplugin` to pick
     // glide64 (GL/HW-render) vs angrylion (software). Seeding the override here
     // (not in loadMedia, which is too late) makes the SET_VARIABLES handler keep
     // our value instead of the core's default, so HW render engages from boot.
@@ -473,10 +473,10 @@ export class LibretroHost {
     }
 
     // retro_init runs on MAIN even for proxied cores (it spawns the threadManager workers via
-    // pthread_create, which needs the main thread free — not blocked proxying init to app).
+    // pthread_create, which needs the main thread free - not blocked proxying init to app).
     // EXCEPT proxied cores defer it to loadMedia: PPSSPP's retro_init touches the system dir
     // (fonts/flash0), which for proxied cores is only mirrored into the app-thread FS during
-    // loadMedia — calling retro_init before the mount makes the loader hang on missing assets.
+    // loadMedia - calling retro_init before the mount makes the loader hang on missing assets.
     if (!this._proxied) mod._retro_init();
     else this._retroInitPending = true;
     this.status.corePath = jsPath ?? "<factory>";
@@ -514,12 +514,12 @@ export class LibretroHost {
   async loadMedia(args) {
     const mod = this._needMod();
     const { platform } = args;
-    // Allow the systemDir to be supplied per-load (not just via the constructor) — proxied cores
+    // Allow the systemDir to be supplied per-load (not just via the constructor) - proxied cores
     // (PSP) need it to mirror BIOS/font assets into the app-thread FS, and callers commonly pass
     // it to loadMedia rather than at construction.
     if (args.systemDir && !this.systemDir) this.systemDir = args.systemDir;
     // Derive the kind from the file/virtual extension when the caller didn't say
-    // — so a C64 .d64 reports mediaKind:"disk" (writable save target) vs a .prg
+    // - so a C64 .d64 reports mediaKind:"disk" (writable save target) vs a .prg
     // "program". For an in-memory load, the virtualName carries the ext.
     const kindExt = extnameOf(args.path || args.virtualName || "");
     const mediaKind = args.mediaKind ?? defaultMediaKind(platform, kindExt);
@@ -557,7 +557,7 @@ export class LibretroHost {
       if (bundled) this.systemDir = bundled;
     }
 
-    // In-memory system tree — the isomorphic alternative to a host-disk
+    // In-memory system tree - the isomorphic alternative to a host-disk
     // systemDir: { "Machines/x/y.rom": bytes } written into the wasm FS at
     // /system. A browser consumer fetches its BIOS tree and passes it here.
     if (args.systemFiles && !this._systemDirMounted && mod.FS && !this._proxied) {
@@ -576,7 +576,7 @@ export class LibretroHost {
         // Proxied cores read the system dir on the app thread (separate per-thread MEMFS); mirror
         // ONLY there. Non-proxied cores read main's FS. (Mirroring to both is wasted work.)
         if (!this._io) {
-          throw new Error("systemDir is a host-disk path but this host has no Node I/O — pass systemFiles ({relPath: bytes}) instead");
+          throw new Error("systemDir is a host-disk path but this host has no Node I/O - pass systemFiles ({relPath: bytes}) instead");
         }
         if (this._proxied) {
           this._io.mirrorDirToAppFS(mod, this.systemDir, FS_SYS);
@@ -593,12 +593,12 @@ export class LibretroHost {
 
     let data, mediaPath, ext;
     if (args.bytes) {
-      // In-memory load — no disk involved.
+      // In-memory load - no disk involved.
       data = args.bytes instanceof Uint8Array ? args.bytes : new Uint8Array(args.bytes);
       // Round 26 fix: when the caller doesn't pass a virtualName, default
       // the virtual filename's EXTENSION to one the core uses to
       // distinguish platforms it multiplexes. genesis_plus_gx shares one
-      // .wasm across SMS/GG/Genesis and dispatches off the extension —
+      // .wasm across SMS/GG/Genesis and dispatches off the extension -
       // without `.gg` the core treats a GG ROM as SMS, silently. Same
       // shape for any shared-core platform.
       const defaultExt = PLATFORM_VIRTUAL_EXT[platform] ?? "";
@@ -610,24 +610,24 @@ export class LibretroHost {
     } else if (args.path) {
       mediaPath = args.path;
       ext = extnameOf(mediaPath);
-      // NODERAWFS cores (flycast) fopen the disc straight off Node's real fs — DON'T
+      // NODERAWFS cores (flycast) fopen the disc straight off Node's real fs - DON'T
       // read the (up-to-~1GB) image into a JS buffer; libchdr seeks the sectors it
       // needs on demand. `data` stays null; the real path is passed below. This ONLY
-      // applies to a real disk PATH — an in-memory `bytes` load (a freshly-built ELF in
+      // applies to a real disk PATH - an in-memory `bytes` load (a freshly-built ELF in
       // the tests/runSource) has no file to fopen, so it still mirrors into the FS below.
       if (!this._noderawfs) {
         if (!this._io) {
-          throw new Error("loadMedia({path}) needs the Node I/O adapter — in a browser, read the file yourself and pass loadMedia({bytes})");
+          throw new Error("loadMedia({path}) needs the Node I/O adapter - in a browser, read the file yourself and pass loadMedia({bytes})");
         }
         data = await this._io.readFileBytes(mediaPath);
       }
     } else {
       throw new Error("loadMedia requires either `path` or `bytes`");
     }
-    // NODERAWFS: the WASM FS IS Node's real fs, so a `mod.FS.writeFile("/rom.elf", …)`
+    // NODERAWFS: the WASM FS IS Node's real fs, so a `mod.FS.writeFile("/rom.elf", ...)`
     // would try to write the REAL root path `/rom.elf` (EACCES → WASM abort). For an
     // in-memory `bytes` load on a NODERAWFS core (a freshly-built ELF in the tests /
-    // runSource), spill the bytes to a REAL temp file and load THAT path — the core
+    // runSource), spill the bytes to a REAL temp file and load THAT path - the core
     // fopens it off disk like any other media.
     if (this._noderawfs && data != null) {
       // NODERAWFS implies Node (the probe requires this._io), so the adapter is here.
@@ -640,7 +640,7 @@ export class LibretroHost {
     // the temp file we just wrote). A non-NODERAWFS core always mirrors into the FS.
     const streamFromDisk = this._noderawfs && data == null;
     const vfsPath = "/rom" + ext;
-    // Mirror the bytes into the (in-RAM) MEMFS for normal cores. NODERAWFS skips this —
+    // Mirror the bytes into the (in-RAM) MEMFS for normal cores. NODERAWFS skips this -
     // it streams from the real path (mediaPath) instead.
     if (mod.FS && !this._proxied && !streamFromDisk) {
       try {
@@ -651,7 +651,7 @@ export class LibretroHost {
     }
 
     // ROM data → WASM heap (the core may keep this pointer). When streaming off disk
-    // there's no buffer — dataPtr stays 0 and dataLen 0; the core reads from the path.
+    // there's no buffer - dataPtr stays 0 and dataLen 0; the core reads from the path.
     let dataPtr = 0;
     const dataLen = streamFromDisk ? 0 : data.length;
     if (!streamFromDisk) {
@@ -666,7 +666,7 @@ export class LibretroHost {
     const pathPtr = mod._malloc(pathBytes.length);
     mod.HEAPU8.set(pathBytes, pathPtr);
 
-    // Proxied cores run on the app thread, whose MEMFS is a SEPARATE (per-thread) JS heap — the
+    // Proxied cores run on the app thread, whose MEMFS is a SEPARATE (per-thread) JS heap - the
     // main-thread FS.writeFile above is invisible there. PPSSPP fopen's the path on the app
     // thread, so write the ROM into the app thread's MEMFS too (the bytes are already in shared
     // WASM memory at dataPtr).
@@ -683,7 +683,7 @@ export class LibretroHost {
 
     // Proxied cores: run retro_load_game on the app thread ASYNCHRONOUSLY (it creates the GL
     // context + spawns the core's worker threads there). We kick it async then poll the done
-    // flag while YIELDING to the JS event loop — the event loop must keep turning so emscripten
+    // flag while YIELDING to the JS event loop - the event loop must keep turning so emscripten
     // can service the app-thread's pooled-Worker grabs / postMessage wakeups. A blocking call
     // would freeze the event loop → the core's threads can't be scheduled → deadlock.
     let ok;
@@ -700,13 +700,13 @@ export class LibretroHost {
         await new Promise((r) => setTimeout(r, 0)); // yield → emscripten services worker ops
       }
       ok = mod._romdev_proxied_load_state() === 1;
-      // NOTE: PPSSPP's ContextReset (creates DrawContext + GPU) must run for rendering — without it
+      // NOTE: PPSSPP's ContextReset (creates DrawContext + GPU) must run for rendering - without it
       // gpu/draw are null and EmuFrame renders nothing (the blank-frame root cause). Firing it here
       // currently heap-corrupts inside the GL render-manager construction (under investigation), so
       // it's disabled for now; the core loads + runs stably without it (CPU/audio work, no video).
       // ContextReset (creates GPU/DrawContext) survives intermittently after the webgl-node
       // MAX_UNIFORM_BLOCK_SIZE fix but still hits a non-deterministic native-heap corruption in
-      // PPSSPP's GL init — disabled until that's pinned (ASAN). Core loads + runs without it.
+      // PPSSPP's GL init - disabled until that's pinned (ASAN). Core loads + runs without it.
       if (ok && this.state.proxiedContextResetPtr) {
         mod._romdev_proxied_fire_context_reset(this.state.proxiedContextResetPtr);
       }
@@ -714,21 +714,21 @@ export class LibretroHost {
       ok = mod._retro_load_game(infoPtr);
     }
 
-    // Free the struct itself. Don't free pathPtr or dataPtr — the core may
+    // Free the struct itself. Don't free pathPtr or dataPtr - the core may
     // retain pointers into them for the life of the loaded game.
     mod._free(infoPtr);
 
     if (!ok) {
       // This is the failure path for EVERY bad/wrong-platform/corrupt/
-      // unsupported-mapper image — the most common loadMedia failure. The core
+      // unsupported-mapper image - the most common loadMedia failure. The core
       // returns a bare false, so name the likely causes + the exact checks
       // rather than leaving the agent with "failed".
       throw new Error(
         `The '${platform}' core REFUSED this ${mediaKind || "media"} ` +
         `(${data ? data.length + " bytes" : "streamed from disk"}${ext ? `, ${ext}` : ""}, path ${mediaPath}). ` +
-        `retro_load_game returned false — the bytes reached the core but it would not accept them. ` +
-        `Common causes: (1) wrong platform for this file (a GB ROM loaded as 'nes', etc.) — ` +
-        `confirm the platform matches the file; (2) a corrupt or TRUNCATED image — re-check the byte length; ` +
+        `retro_load_game returned false - the bytes reached the core but it would not accept them. ` +
+        `Common causes: (1) wrong platform for this file (a GB ROM loaded as 'nes', etc.) - ` +
+        `confirm the platform matches the file; (2) a corrupt or TRUNCATED image - re-check the byte length; ` +
         `(3) an unsupported mapper/board or a missing/!bad header. ` +
         `Inspect the file with cart({op:'identify'}) to see what platform/mapper it really is, ` +
         `then load with the matching platform.`,
@@ -742,11 +742,11 @@ export class LibretroHost {
     this.status.frameCount = 0;
 
     // Cache enough to re-load this exact media for a true power-cycle
-    // (reset({hard:true})). `retro_reset` is only a console RESET-button reset —
+    // (reset({hard:true})). `retro_reset` is only a console RESET-button reset -
     // it does NOT clear work RAM on most cores, so boot-seeded state persists.
     // Stash the raw bytes (a copy, so a later free of the caller's buffer can't
     // corrupt it) + the load descriptor; hardReset() replays loadMedia with it.
-    // NODERAWFS streamed from disk — there's no buffer to stash; replay from the path.
+    // NODERAWFS streamed from disk - there's no buffer to stash; replay from the path.
     this._loadArgs = {
       ...(data ? { bytes: data instanceof Uint8Array ? data.slice() : new Uint8Array(data) }
                : { path: mediaPath }),
@@ -779,7 +779,7 @@ export class LibretroHost {
     this.status.fbHeight = mod.getValue(avInfoPtr + 4, "i32");
     // aspect_ratio (+16) is the intended DISPLAY aspect (what a CRT would
     // show). Cores often report a non-square value here because the
-    // framebuffer doesn't have square pixels — e.g. Atari 2600 ships a
+    // framebuffer doesn't have square pixels - e.g. Atari 2600 ships a
     // 160×210 buffer but the TV showed it ~4:3, SNES ships 256×224 but
     // the CRT stretched it to ~8:7. Falls back to fb shape for cores that
     // report 0 (meaning "pixels are square, just use base_width/height").
@@ -787,7 +787,7 @@ export class LibretroHost {
     this.status.displayAspect = reportedAspect > 0
       ? reportedAspect
       : this.status.fbWidth / this.status.fbHeight;
-    // timing.fps is at offset +24 (double) — the core's NATIVE refresh rate. Most
+    // timing.fps is at offset +24 (double) - the core's NATIVE refresh rate. Most
     // are ~60, but some games/cores run 50 (PAL) or ~30 (e.g. some DC discs on
     // flycast). The playtest window paces its tick to THIS, not a hardcoded 60, so a
     // 30fps title isn't double-ticked (which wasted half the budget + glitched on the
@@ -816,7 +816,7 @@ export class LibretroHost {
       mod._romdev_proxied_set_controller(1, RETRO_DEVICE_JOYPAD);
     } else {
       mod._retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
-      // Port 1 too — needed for 2P. The C64/VICE 2P path (two live control ports)
+      // Port 1 too - needed for 2P. The C64/VICE 2P path (two live control ports)
       // only reads RetroPad port 1 when it's registered as a joypad device.
       mod._retro_set_controller_port_device(1, RETRO_DEVICE_JOYPAD);
     }
@@ -838,7 +838,7 @@ export class LibretroHost {
     // small number of frames here so the agent sees the ROM-chosen
     // geometry, not the pre-init default.
     //
-    // 8 frames is generous — Genesis games typically settle their
+    // 8 frames is generous - Genesis games typically settle their
     // VDP in 1-3 frames; SNES in 1; NES in 1-2. The cost is ~5-30 ms
     // on loadMedia, paid once. Skip when loaded paused (caller is
     // already in control).
@@ -847,16 +847,16 @@ export class LibretroHost {
     // fixed 480×272 av_info already read, so there's no pre-init default to settle past.
     if (!this.status.paused && !this._proxied) {
       // Settle frames are core warm-up, not agent-visible gameplay
-      // frames — don't increment frameCount. From the agent's POV the
+      // frames - don't increment frameCount. From the agent's POV the
       // first stepFrames(N) should advance the count by exactly N.
       //
       // Strategy: step until the core emits its FIRST video_refresh
-      // (proven ROM-rendered geometry — pre-init av_info values are
+      // (proven ROM-rendered geometry - pre-init av_info values are
       // useless), THEN step a few more to let any same-frame mode-switch
       // settle (e.g. Genesis ROMs that fire video_refresh in 256×192
       // mode then immediately switch to 320×224 on the next frame).
       //
-      // Cap aggressively — 64 frames is just over 1 second on a 60Hz
+      // Cap aggressively - 64 frames is just over 1 second on a 60Hz
       // platform and we don't want a pathological ROM blocking
       // loadMedia indefinitely.
       const MAX_SETTLE = 64;
@@ -898,15 +898,15 @@ export class LibretroHost {
 
   /**
    * Release the CORE, not just the game. `unloadMedia()` frees the ROM but
-   * leaves the Emscripten module — and therefore its entire WASM linear
-   * memory — resident, because a host is normally reused for the next load.
+   * leaves the Emscripten module - and therefore its entire WASM linear
+   * memory - resident, because a host is normally reused for the next load.
    * A host that is being thrown away must drop the module too, or the memory
    * never returns to the OS: WASM memory is only reclaimed when the instance
    * itself becomes garbage.
    *
    * This is what makes host eviction actually reclaim anything. Without it a
    * long-lived server accumulates one full core heap per host it has ever
-   * created — which is how the server got OOM-killed twice on 2026-08-19
+   * created - which is how the server got OOM-killed twice on 2026-08-19
    * (~5.4 GB RSS, 300-500 GB of mapped address space) under a single agent
    * running a 21-gate suite that loads 20+ carts. See
    * internal-romdev/PLAN_mcp_v2_stateless_and_host_lifetime.md.
@@ -915,7 +915,7 @@ export class LibretroHost {
    * its own allocations while its heap is still valid, then drop every
    * reference we hold into that heap (callback state closes over typed-array
    * views; a retained view pins the whole ArrayBuffer). Safe to call twice and
-   * on a host that never loaded. Never throws — teardown runs on paths that
+   * on a host that never loaded. Never throws - teardown runs on paths that
    * are already unwinding.
    */
   dispose() {
@@ -959,7 +959,7 @@ export class LibretroHost {
   }
 
   /**
-   * Run N frames as fast as possible (no pacing — agent loop, not playback).
+   * Run N frames as fast as possible (no pacing - agent loop, not playback).
    * @param {number} n
    * @returns {number} frames actually run
    */
@@ -982,8 +982,8 @@ export class LibretroHost {
   /** Run one frame. Proxied cores route retro_run onto the app thread (so the JS main thread
    *  stays free to service the core's worker-thread proxy calls); others call directly.
    *
-   *  This is THE per-frame choke point — stepFrames, _runFramesExclusive
-   *  (watch/breakpoint/runUntil), and the playtest loop all funnel here — so
+   *  This is THE per-frame choke point - stepFrames, _runFramesExclusive
+   *  (watch/breakpoint/runUntil), and the playtest loop all funnel here - so
    *  the pre-frame contract lives here and cannot be skipped by any driver:
    *  1. One-frame input overrides from the PREVIOUS frame are cleared.
    *  2. `beforeFrame(n)` runs (the Active Bezel pre_frame path): it may
@@ -1010,7 +1010,7 @@ export class LibretroHost {
    * id 256) on the frame currently being shaped. Meaningful only from a
    * beforeFrame hook: _runCore clears all overrides at the top of every
    * frame, so an override set anywhere else evaporates before a core poll.
-   * The physical inputPorts word is never touched — input displays and
+   * The physical inputPorts word is never touched - input displays and
    * humanPressing checks keep seeing the real pad.
    * @returns {boolean} accepted
    */
@@ -1087,7 +1087,7 @@ export class LibretroHost {
     }
   }
 
-  /** Run exactly ONE frame to refresh the framebuffer, even while paused — for a
+  /** Run exactly ONE frame to refresh the framebuffer, even while paused - for a
    *  deterministic "restore → screenshot" without un-pausing (so the real-time
    *  playtest loop can't race). Advances the (monotonic) frame counter by 1.
    *  Returns the frame count after. */
@@ -1106,15 +1106,15 @@ export class LibretroHost {
 
   /** @returns {{ width: number, height: number, pitch: number, format: number, pixels: Uint8Array }} */
   getFramebuffer() {
-    if (!this.state.lastFrame) throw new Error("no frame produced yet — step frames first");
+    if (!this.state.lastFrame) throw new Error("no frame produced yet - step frames first");
     return this.state.lastFrame;
   }
 
   /**
    * The loaded cartridge ROM as the CPU's program space starts from, derived
    * from the bytes handed to retro_load_game (the file image, header-stripped
-   * per platform). This is NOT a live core memory region — it's the loaded image
-   * — but for un-banked platforms (Genesis/GB/SMS/GG: file base == CPU $000000 /
+   * per platform). This is NOT a live core memory region - it's the loaded image
+   * - but for un-banked platforms (Genesis/GB/SMS/GG: file base == CPU $000000 /
    * $0000) reading offset N here IS "what the CPU fetches at ROM address N", which
    * is exactly what you need to confirm a patch is actually running. For banked
    * platforms (NES PRG, SNES LoROM/HiROM) the file image is correct bytes but the
@@ -1124,7 +1124,7 @@ export class LibretroHost {
    */
   getCartRom() {
     if (!this._loadArgs || !this._loadArgs.bytes) {
-      throw new Error("no ROM loaded — call loadMedia first");
+      throw new Error("no ROM loaded - call loadMedia first");
     }
     // Shared with memory({op:'readCart', path}) so a host-backed read and a
     // file-backed read of the same cart can never disagree about header size.
@@ -1141,7 +1141,7 @@ export class LibretroHost {
     if (!this.state.lastFrame) return 0;
     const px = this.state.lastFrame.pixels;
     let h = 0x811c9dc5;
-    // Sample stride 1 (every byte) — frames are small (≤256x240x4); the whole
+    // Sample stride 1 (every byte) - frames are small (≤256x240x4); the whole
     // buffer hashes in well under a frame's worth of time.
     for (let i = 0; i < px.length; i++) {
       h ^= px[i];
@@ -1151,12 +1151,12 @@ export class LibretroHost {
   }
 
   /** Returns the latest frame as a base64 PNG. Needs the PNG encoder
-   *  (framebuffer-png.js, preloaded at loadCore) — where a browser bundle
+   *  (framebuffer-png.js, preloaded at loadCore) - where a browser bundle
    *  omits it, use getFramebuffer()/screenshotRgba() typed arrays instead. */
   screenshot() {
     if (!this._png) {
       throw new Error(
-        "screenshot(): PNG encoder unavailable in this bundle (framebuffer-png.js / pngjs did not load) — " +
+        "screenshot(): PNG encoder unavailable in this bundle (framebuffer-png.js / pngjs did not load) - " +
         "use getFramebuffer() or screenshotRgba() for raw typed-array pixels, or ship romdev-core-host/framebuffer-png.js with a pngjs shim.",
       );
     }
@@ -1164,10 +1164,10 @@ export class LibretroHost {
     return this._png.framebufferToScreenshot(f.width, f.height, f.pixels, f.pitch, f.format);
   }
 
-  /** Returns the latest frame as flat RGBA8888 bytes — for piping into
+  /** Returns the latest frame as flat RGBA8888 bytes - for piping into
    * chafa-wasm or other pixel-consuming tools without the PNG round trip.
    *
-   * The bytes are on `.rgba` — NOT `.pixels` (that is getFramebuffer's field
+   * The bytes are on `.rgba` - NOT `.pixels` (that is getFramebuffer's field
    * name, in the core's own format) and not `.data`. Reaching for either gets
    * `undefined`, and feeding that to a scorer produces confidently wrong
    * numbers instead of an exception, which is why the shape is spelled out.
@@ -1188,7 +1188,7 @@ export class LibretroHost {
   setInput(input) {
     const platform = this.status.platform ?? undefined;
     // C64: route the keyboard-mapped controller buttons (Space/Run-Stop/Return/
-    // F1-F7) to the key matrix so a CONTROLLER alone can play — the
+    // F1-F7) to the key matrix so a CONTROLLER alone can play - the
     // Batocera/RetroDeck model. The joystick bits (d-pad + Fire) still flow to
     // the joypad mask below. Applies to BOTH playtest and the agent's setInput.
     if (platform === "c64" && this.mod && typeof this.mod._romdev_key_matrix === "function") {
@@ -1264,7 +1264,7 @@ export class LibretroHost {
   }
 
   /**
-   * Return the raw save-state blob — every libretro core implements this,
+   * Return the raw save-state blob - every libretro core implements this,
    * so it's the one cross-platform way to peek at internal state the
    * standard memory-region API doesn't expose (e.g. SNES SPC700 + ARAM,
    * Genesis Z80 RAM, GB hardware regs). The blob's layout is core-specific;
@@ -1296,7 +1296,7 @@ export class LibretroHost {
    * Restore the emulator from a raw save-state blob (the inverse of
    * serializeState). Used by both the in-memory loadState and the
    * load-from-disk path so they share one code path. The blob must come from
-   * the SAME core/platform that produced it — retro_unserialize rejects a
+   * the SAME core/platform that produced it - retro_unserialize rejects a
    * size/format mismatch and we surface that as a clear error.
    * @param {Uint8Array} blob
    */
@@ -1307,7 +1307,7 @@ export class LibretroHost {
     if (expected && blob.byteLength !== expected) {
       throw new Error(
         `save-state size mismatch: blob is ${blob.byteLength} bytes but this core expects ${expected}. ` +
-        "The state was almost certainly saved from a different platform/ROM — load the matching ROM first.",
+        "The state was almost certainly saved from a different platform/ROM - load the matching ROM first.",
       );
     }
     const ptr = mod._malloc(blob.byteLength);
@@ -1319,7 +1319,7 @@ export class LibretroHost {
       mod._free(ptr);
     }
     // A save-state restore replaces RAM/CPU/PPU but does NOT carry frontend cheat
-    // state — and our active cheats were applied for the PRE-restore run. Clear
+    // state - and our active cheats were applied for the PRE-restore run. Clear
     // them so loadState honors its documented "cheats are removed" contract
     // (matches reset()). Returns how many were cleared so callers can report it.
     const cleared = this._activeCheats ? this._activeCheats.size : 0;
@@ -1346,7 +1346,7 @@ export class LibretroHost {
     return names.length
       ? `No save state named '${name}'. Existing in-memory slots: ${names.map((n) => `'${n}'`).join(", ")}. ` +
         `(List them with state({op:'list'}); create one with state({op:'save', name}).)`
-      : `No save state named '${name}' — this session has NO in-memory save slots yet. ` +
+      : `No save state named '${name}' - this session has NO in-memory save slots yet. ` +
         `Create one with state({op:'save', name:'${name}'}) first (or load from disk with state({op:'load', path})).`;
   }
 
@@ -1369,11 +1369,11 @@ export class LibretroHost {
     return mod._retro_get_memory_size(id) || 0;
   }
 
-  /** gpgx stores 68k work RAM as 16-bit words in host-LE order — the CPU's
+  /** gpgx stores 68k work RAM as 16-bit words in host-LE order - the CPU's
    *  byte at $FF0000+A physically lives at work_ram[A^1] (core/macros.h
    *  READ_BYTE/WRITE_BYTE on little-endian builds). Normalize the system_ram
    *  region to CPU byte order here so offset X IS the byte the 68k sees at
-   *  $FF0000+X — otherwise every byte-granular tool (search, diff, write,
+   *  $FF0000+X - otherwise every byte-granular tool (search, diff, write,
    *  classify) is off-by-XOR-1 vs disassembly addresses and cheat-DB maps
    *  (self-consistent within raw-only loops, which is why it hid; poisonous
    *  the moment an address crosses to/from the CPU view). */
@@ -1465,7 +1465,7 @@ export class LibretroHost {
         "Load a .d64 with loadMedia({platform:'c64', path}) first.");
     }
     const ptr = mod._romdev_disk_ptr();
-    // copy out — the core buffer is reused on the next export
+    // copy out - the core buffer is reused on the next export
     return mod.HEAPU8.slice(ptr, ptr + len);
   }
 
@@ -1485,7 +1485,7 @@ export class LibretroHost {
     try {
       mod.HEAPU8.set(data, ptr);
       const n = mod._romdev_disk_import(ptr, data.length >>> 0, unit >>> 0, 0) >>> 0;
-      if (!n) throw new Error("disk import failed — no writable .d64 mounted on this unit.");
+      if (!n) throw new Error("disk import failed - no writable .d64 mounted on this unit.");
       return n;
     } finally {
       mod._free(ptr);
@@ -1494,7 +1494,7 @@ export class LibretroHost {
 
   /**
    * Write ONE PRG file (name + bytes incl. its 2-byte load address) straight into
-   * the LIVE mounted disk via the vdrive — the "inject a save" primitive.
+   * the LIVE mounted disk via the vdrive - the "inject a save" primitive.
    * @param {string} name file name (PETSCII, ≤16 chars)
    * @param {Uint8Array} bytes the PRG file bytes (load address + body)
    * @param {number} [unit] drive unit (default 8)
@@ -1512,7 +1512,7 @@ export class LibretroHost {
       mod.HEAPU8.set(nameBytes, namePtr);
       mod.HEAPU8.set(data, dataPtr);
       const rc = mod._romdev_disk_putfile(unit >>> 0, namePtr, dataPtr, data.length >>> 0);
-      if (rc !== 0) throw new Error(`disk putfile failed (rc=${rc}) — no writable .d64 mounted, or the disk is full.`);
+      if (rc !== 0) throw new Error(`disk putfile failed (rc=${rc}) - no writable .d64 mounted, or the disk is full.`);
     } finally {
       mod._free(namePtr);
       mod._free(dataPtr);
@@ -1521,7 +1521,7 @@ export class LibretroHost {
 
   // ── C64 keyboard + joyport (VICE core only) ──────────────────────────
   // C64 games need KEYBOARD input (F1 = 1 player, RUN/STOP, SPACE/RETURN at
-  // setup screens) before joystick gameplay — joystick alone can't pass them.
+  // setup screens) before joystick gameplay - joystick alone can't pass them.
   // The VICE core exports romdev_key_matrix / romdev_kbdbuf_feed /
   // romdev_joyport_* (see scripts/patches/vice-romdev-memory-regions.patch).
 
@@ -1559,10 +1559,10 @@ export class LibretroHost {
 
   /**
    * Press a C64 key like pressC64Key, but sample the machine-visible input
-   * state (CIA1 $DC00/$DC01 — the keyboard/joystick scan ports) BEFORE,
+   * state (CIA1 $DC00/$DC01 - the keyboard/joystick scan ports) BEFORE,
    * DURING (key held), and AFTER (released). Lets an RE agent tell apart
    * "my key never reached VICE" from "VICE saw it but the game didn't scan
-   * it this frame". No core change — reads the already-exposed c64_cia1_regs
+   * it this frame". No core change - reads the already-exposed c64_cia1_regs
    * region ($DC00..$DC0F).
    * @param {string} key
    * @param {number} frames  frames to hold (sampled at the midpoint)
@@ -1579,8 +1579,8 @@ export class LibretroHost {
     }
     const [row, col] = pos;
     const held = Math.max(1, frames | 0);
-    // $DC00 = CIA1 PRA (port A — joystick 2 + keyboard col select),
-    // $DC01 = CIA1 PRB (port B — joystick 1 + keyboard row read).
+    // $DC00 = CIA1 PRA (port A - joystick 2 + keyboard col select),
+    // $DC01 = CIA1 PRB (port B - joystick 1 + keyboard row read).
     const cia = () => {
       try {
         const r = this.readMemory("c64_cia1_regs", 0, 2);
@@ -1610,7 +1610,7 @@ export class LibretroHost {
    * Set the SET of C64 keyboard keys held down (for scripted timelines like
    * recordSession). Diffs against the currently-held set: presses newly-added
    * keys' matrix lines, releases removed ones. Pass [] to release all. Does NOT
-   * step frames — the caller's loop owns stepping. Unknown keys throw.
+   * step frames - the caller's loop owns stepping. Unknown keys throw.
    * @param {string[]} keys
    * @returns {{held: string[], matrix: Array<[number,number]>}}
    */
@@ -1639,7 +1639,7 @@ export class LibretroHost {
 
   /**
    * Feed a PETSCII string into the C64 kernal keyboard buffer (for typing
-   * LOAD/RUN/filenames). `\r` (or `\n`) becomes RETURN. Non-blocking — the
+   * LOAD/RUN/filenames). `\r` (or `\n`) becomes RETURN. Non-blocking - the
    * kernal drains it as the screen editor runs, so step frames after.
    * @param {string} text
    * @returns {number} kbdbuf_feed's result (>=0 ok)
@@ -1685,13 +1685,13 @@ export class LibretroHost {
     mod._retro_reset();
     this.status.frameCount = 0;
     // A reset clears the core's active cheats (they live in volatile core
-    // state, never in the ROM) — keep our mirror in sync.
+    // state, never in the ROM) - keep our mirror in sync.
     this._activeCheats = new Map();
   }
 
   /**
    * True power-cycle: re-load the ROM from scratch so work RAM is cleared and
-   * all boot-seeded state is fresh — what `retro_reset` does NOT do (it's only
+   * all boot-seeded state is fresh - what `retro_reset` does NOT do (it's only
    * the RESET button; RAM persists on most cores). Falls back to a soft reset
    * if the load args weren't cached (shouldn't happen after a normal load).
    * @returns {Promise<boolean>} true if a full reload happened
@@ -1707,7 +1707,7 @@ export class LibretroHost {
     try {
       const size = this.regionSize("save_ram");
       if (size > 0) sram = Uint8Array.from(this.readMemory("save_ram", 0, size));
-    } catch { /* no save_ram region on this core/cart — nothing to carry */ }
+    } catch { /* no save_ram region on this core/cart - nothing to carry */ }
     await this.loadMedia(this._loadArgs);
     if (sram && sram.some((b) => b !== 0)) {
       // Restore like a frontend restores the .srm: bytes in place BEFORE the
@@ -1728,7 +1728,7 @@ export class LibretroHost {
         } catch { /* no save buffer on this core/cart */ }
       }
       // loadMedia's settle frames may already have run the game's
-      // hi-score load against empty SRAM — soft-reset so boot re-reads.
+      // hi-score load against empty SRAM - soft-reset so boot re-reads.
       if (restored) { try { this.reset(); } catch { /* keep the loaded state */ } }
     }
     return true;
@@ -1741,7 +1741,7 @@ export class LibretroHost {
     // Real cheat support = EITHER the core's retro_cheat_set actually applies codes,
     // OR romdev's value-override cheat device (romdev_cheat_set) is present. Some cores
     // (GameTank) stub retro_cheat_set but ship the romdev_cheat_* read-substitution
-    // device — that's the working path for them.
+    // device - that's the working path for them.
     return !!(mod && (typeof mod._romdev_cheat_set === "function" || typeof mod._retro_cheat_set === "function"));
   }
 
@@ -1753,12 +1753,12 @@ export class LibretroHost {
   }
 
   /**
-   * Enable (or update) a cheat via the libretro cheat interface — the SAME
+   * Enable (or update) a cheat via the libretro cheat interface - the SAME
    * mechanism RetroArch uses. NON-DESTRUCTIVE: the code is applied in volatile
    * core state (RAM write each frame for RAM cheats; an in-core read-intercept
    * for ROM/compare cheats). The ROM file on disk is NEVER modified, and a
    * reset/unload/loadState clears it. `code` is the RAW cheat string (e.g.
-   * "00C7:FF", "SXIOPO", "AJ9T-CA5Y") — the CORE decodes it, so this works for
+   * "00C7:FF", "SXIOPO", "AJ9T-CA5Y") - the CORE decodes it, so this works for
    * every format the core understands without us decoding first.
    * @param {number} index  slot index (0-based; reuse to overwrite a slot)
    * @param {string} code   raw cheat code string
@@ -1839,22 +1839,22 @@ export class LibretroHost {
    * @param {number} address CPU address to watch
    * @param {boolean} [enabled=true]
    */
-  /** Canonicalize a watch address for the loaded platform — RAM-mirror
+  /** Canonicalize a watch address for the loaded platform - RAM-mirror
    *  aliasing otherwise makes exact watches silently miss (v0.94.0 round 2).
    *  Applied to write watch, read watch, and range watch alike.
    *
    *  SNES: the low 8 KB of WRAM mirrors into banks $00-$3F/$80-$BF at
    *  $0000-$1FFF; the snes9x romdev hooks canonicalize every LIVE access to
    *  the $7E form before comparing, so the ARMED address must be in $7E form
-   *  too — arming a raw $0218 could never match a `sta f:$7E0218`.
+   *  too - arming a raw $0218 could never match a `sta f:$7E0218`.
    *
    *  The other mirror platforms (NES/GB/GBC/SMS/GG/Genesis) get the SAME
    *  arm-side canonicalization so arming a mirror-form address matches the
    *  canonical-form writer (the common agent mistake). ⚠ Their core hooks
    *  compare RAW bus addresses (only snes9x canonicalizes live accesses), so
    *  a WRITER that itself uses a mirror form still evades on those platforms
-   *  — fixing that direction needs per-core hook patches (deferred; noted in
-   *  the changelog). Only unambiguous mirror windows are canonicalized —
+   *  - fixing that direction needs per-core hook patches (deferred; noted in
+   *  the changelog). Only unambiguous mirror windows are canonicalized -
    *  nothing that could alias ROM/regs. */
   _canonWatchAddress(address) {
     const platform = this.status?.platform;
@@ -1872,7 +1872,7 @@ export class LibretroHost {
       const a = address & 0xFFFF;
       if (a >= 0xE000 && a <= 0xFDFF) return a - 0x2000;
     } else if (platform === "sms" || platform === "gg") {
-      // $E000-$FFFB mirrors RAM $C000-$DFFB ($FFFC-$FFFF are mapper regs — untouched).
+      // $E000-$FFFB mirrors RAM $C000-$DFFB ($FFFC-$FFFF are mapper regs - untouched).
       const a = address & 0xFFFF;
       if (a >= 0xE000 && a <= 0xFFFB) return a - 0x2000;
     } else if (platform === "genesis") {
@@ -1908,7 +1908,7 @@ export class LibretroHost {
 
   /** Read the watchpoint state: { enabled, address, lastPC, lastValue, hits,
    *  prgOffset? }. lastPC is 0xFFFFFFFF (reported as null) until a write is seen.
-   *  prgOffset (when the core reports it — fceumm/NES) is the ABSOLUTE PRG-ROM
+   *  prgOffset (when the core reports it - fceumm/NES) is the ABSOLUTE PRG-ROM
    *  offset of the writing instruction, which disambiguates the BANK for a
    *  $8000-$BFFF PC on a banked mapper. Pass clearHits to reset after reading. */
   getWatchpoint(clearHits = false) {
@@ -1941,7 +1941,7 @@ export class LibretroHost {
 
   // ── PC breakpoint + read watchpoint + single-step (core-side, exact) ────────
   // Symmetric to the write watchpoint. On PC hit the core's execute loop drains
-  // the cycle budget and bails, but retro_run still finishes the frame — so the
+  // the cycle budget and bails, but retro_run still finishes the frame - so the
   // LIVE register file is end-of-frame state by the time the host reads it. Cores
   // that snapshot the registers AT the hit (NES/fceumm: getPCBreak().registersAtHit)
   // give the reliable break-instant regs; others expose only lastPC + the RAM side
@@ -1990,7 +1990,7 @@ export class LibretroHost {
       const lastPC = u[3];
       // Register snapshot at the hit instant (fceumm). 0xFFFFFFFF = not captured
       // (older core, or no hit yet). When present, these are the RELIABLE
-      // break-instant regs — the live X6502 regs are clobbered by end-of-frame.
+      // break-instant regs - the live X6502 regs are clobbered by end-of-frame.
       const snap = (u[6] === 0xFFFFFFFF && u[7] === 0xFFFFFFFF)
         ? null
         : { A: u[6] & 0xFF, X: u[7] & 0xFF, Y: u[8] & 0xFF, P: u[9] & 0xFF, S: u[10] & 0xFF };
@@ -2010,7 +2010,7 @@ export class LibretroHost {
 
   /** Arm the instruction watchdog (force-stop a runaway after `limit` instructions
    *  so callSubroutine can't hang the WASM; 0 = disable). No-op on cores that lack
-   *  it (older builds) — the per-frame maxFrames is the fallback there. */
+   *  it (older builds) - the per-frame maxFrames is the fallback there. */
   setWatchdog(limit) {
     const mod = this._needMod();
     if (typeof mod._romdev_watchdog_set === "function") mod._romdev_watchdog_set(limit >>> 0);
@@ -2028,7 +2028,7 @@ export class LibretroHost {
    * Read the at-hit register snapshot: the FULL register file frozen by the
    * core hook at the instant a pc-break / watchdog / write-watch / read-watch
    * fired. The live register file keeps running after a hit (per-scanline CPU
-   * scheduling / next-frame re-entry), so post-hit register reads drift —
+   * scheduling / next-frame re-entry), so post-hit register reads drift -
    * this snapshot is the truth. Shipped by ALL patched cores (all 14
    * platforms). Returns { kind, named } or null when no hit has been
    * snapshotted (or the core build predates the export). kind:
@@ -2187,7 +2187,7 @@ export class LibretroHost {
         named.pc = hx(r[17]);   // EXECUTING instruction's pipeline PC (pc-break convention)
         named.sp = hx(r[18]);
       } else if (platform === "snes") {
-        // 65816 regId order: A, X, Y, P, S, DB, D, …, PBPC(instr start).
+        // 65816 regId order: A, X, Y, P, S, DB, D, ..., PBPC(instr start).
         named = {
           a: h4(r[0]), x: h4(r[1]), y: h4(r[2]), p: h4(r[3]), s: h4(r[4]),
           db: h2(r[5]), d: h4(r[6]), pc: hx(r[16]),
@@ -2206,7 +2206,7 @@ export class LibretroHost {
         };
       } else {
         // 6502 family (nes, atari2600, atari7800, c64, lynx, pce/huc6280):
-        // regId order A, X, Y, P, S, …, PC(instr start).
+        // regId order A, X, Y, P, S, ..., PC(instr start).
         named = {
           a: h2(r[0]), x: h2(r[1]), y: h2(r[2]), p: h2(r[3]), s: h2(r[4]),
           pc: h4(r[16]),
@@ -2231,7 +2231,7 @@ export class LibretroHost {
 
   /** Suppress (or restore) interrupt DELIVERY to the active CPU. While
    *  blocked, pending IRQ/NMI lines stay pending and no game handler can run
-   *  — the mechanism behind pure calls on cores whose CPU/video loops are
+   *  - the mechanism behind pure calls on cores whose CPU/video loops are
    *  interleaved (everything except gpgx, which steps the CPU alone). */
   setIrqBlock(on) {
     const mod = this._needMod();
@@ -2243,7 +2243,7 @@ export class LibretroHost {
 
   /** True when a pure call is possible on this platform by ANY mechanism:
    *  a separable CPU run (gpgx), an interrupt block, or hardware with no
-   *  interrupts at all (the 2600's 6507 has no IRQ/NMI lines wired — every
+   *  interrupts at all (the 2600's 6507 has no IRQ/NMI lines wired - every
    *  call is inherently pure). */
   pureCallSupported() {
     return this.runPureSupported() || this.irqBlockSupported() || this.status.platform === "atari2600";
@@ -2259,7 +2259,7 @@ export class LibretroHost {
 
   /**
    * Run `frames` frames logging every data-port write landing in the VRAM
-   * address window [lo,hi] — {vramAddr, pc, value} per event, pc being the
+   * address window [lo,hi] - {vramAddr, pc, value} per event, pc being the
    * EXECUTING instruction (during DMA on SNES, the instruction that triggered
    * it). The "where does this graphic come from?" primitive for port-based
    * video memory. Returns { events, total, stored, truncated }.
@@ -2335,7 +2335,7 @@ export class LibretroHost {
   /**
    * Drive `_retro_run()` in a tight loop while making THIS call the sole driver
    * of the core. If a playtest window is open, its 60fps setInterval tick is
-   * ALSO calling stepFrames(1) on this same shared host — two drivers racing
+   * ALSO calling stepFrames(1) on this same shared host - two drivers racing
    * would let the tick step past a breakpoint between our iterations and corrupt
    * frame timing. The playtest tick skips stepping whenever `status.paused`, so
    * we mark the host paused for the duration (and restore the prior state after),
@@ -2348,7 +2348,7 @@ export class LibretroHost {
    */
   _runFramesExclusive(body, maxFrames) {
     this._needMod();
-    // Suspend ONLY the playtest window's render-tick stepping for the duration —
+    // Suspend ONLY the playtest window's render-tick stepping for the duration -
     // not `status.paused` (the agent's pause is a separate concept, and the core
     // run must be identical whether or not the user paused). The playtest tick
     // checks `_renderTickSuspended` and renders-only while it's set; we own the
@@ -2402,7 +2402,7 @@ export class LibretroHost {
 
   /**
    * Run until a watched address is READ (or maxFrames elapse). Unlike the PC
-   * break this does NOT freeze mid-frame — it records the reading PC and the run
+   * break this does NOT freeze mid-frame - it records the reading PC and the run
    * completes the frame it was found in. Returns { hit, frame, pc?, value?, hits? }.
    */
   runUntilRead(address, maxFrames = 600) {
@@ -2433,7 +2433,7 @@ export class LibretroHost {
 
   /**
    * Execute exactly ONE CPU instruction and stop (single-step). Freezes the CPU
-   * right after the stepped instruction. Returns { pc } — the PC the CPU is now
+   * right after the stepped instruction. Returns { pc } - the PC the CPU is now
    * poised at. Note: a frame may advance other subsystems; this is a CPU-level
    * single-step, the finest granularity the core exposes.
    */
@@ -2485,14 +2485,14 @@ export class LibretroHost {
    * Call a subroutine in the live core and run until it returns: set the given
    * registers (by romdev reg-id), push a SENTINEL return address on the stack,
    * set PC, then run with a PC breakpoint armed on the sentinel until the routine
-   * RTSes back to it. Sandboxed by default — snapshots full core state first and
+   * RTSes back to it. Sandboxed by default - snapshots full core state first and
    * restores it after, so the live game is untouched (the dst buffer the routine
-   * wrote is captured into a savestate-independent copy? no — it lives in core
+   * wrote is captured into a savestate-independent copy? no - it lives in core
    * RAM; the caller reads it via readMemory BEFORE restore by passing a `capture`
    * callback). Returns { returned, framesRun, finalRegs } (+ whatever `capture`
    * returns). The general primitive behind decompressWith / "drive the ROM's own
    * codec." regIds map per the convention above. sentinelPC must be an address
-   * that won't otherwise be executed (default: 0 — the ROM's reset/0 vector area,
+   * that won't otherwise be executed (default: 0 - the ROM's reset/0 vector area,
    * unlikely mid-run; override if it collides).
    *
    * @param {object} a
@@ -2524,26 +2524,26 @@ export class LibretroHost {
     const {
       pc, regs = {}, spReg = prof.spReg, pcReg = prof.pcReg, sentinelPC = prof.defaultSentinel,
       sentinelBytes = (modeRetBytes ?? prof.retBytes), maxFrames = 600, sandbox = true, capture,
-      // pure: step ONLY the active CPU (no frame machinery — VDP lines, co-CPU,
+      // pure: step ONLY the active CPU (no frame machinery - VDP lines, co-CPU,
       // interrupt raising). Without it, each "frame" of the call runs the
       // game's OWN per-frame logic concurrently (VBlank handlers via RAM
       // vectors etc.), which can stomp the buffer the driven routine is
-      // writing — a real session diffed a CORRECT codec reimplementation
+      // writing - a real session diffed a CORRECT codec reimplementation
       // against that poisoned output for hours. gpgx (Genesis/SMS/GG) only.
       pure = false,
       // presetMemory: [{addr, bytes}] CPU-space writes applied before the call
-      // (codecs that read a global from RAM — a dest stride, a mode flag, etc).
+      // (codecs that read a global from RAM - a dest stride, a mode flag, etc).
       presetMemory = [],
       // stopAtPC: an additional PC to halt on (returns partial output even if the
       // routine never reaches the sentinel). Use for "run into the codec, stop at
       // a known mid-point, see what it produced so far."
       stopAtPC,
-      // maxInstructions: the instruction watchdog budget — the real cap that
+      // maxInstructions: the instruction watchdog budget - the real cap that
       // catches a runaway, whether it's a tight infinite loop OR a wrong-setup
       // entry (e.g. a WRAPPER PC with a bad source) that falls back into the
       // game's own main loop and free-runs forever instead of returning.
       //
-      // The budget MUST trip BEFORE maxFrames is exhausted on such a free-run —
+      // The budget MUST trip BEFORE maxFrames is exhausted on such a free-run -
       // otherwise the run silently hits maxFrames and the agent can't tell
       // "wrong entry" from "legitimately long." Two failure modes the default
       // has to dodge, and why it's PER-CPU rather than a flat constant:
@@ -2571,7 +2571,7 @@ export class LibretroHost {
     // The setup permanently mutates the interrupted machine: it pushes a sentinel
     // return address onto the game's own stack, lowers SP by that width, and
     // overwrites PC (plus any caller-supplied regs). When the callee reaches its
-    // rts that all unwinds — the sentinel is popped, SP balances, and resuming is
+    // rts that all unwinds - the sentinel is popped, SP balances, and resuming is
     // safe. When the run is cut short (stopAtPC, or a watchdog stop mid-routine)
     // NONE of it unwinds: the sentinel stays on the stack along with whatever the
     // callee had pushed so far, and SP is left metres below where the interrupted
@@ -2580,7 +2580,7 @@ export class LibretroHost {
     //
     // Measured on nestest/fceumm: a stopAtPC call drops S from $FD to $0A and it
     // STAYS there. A reported session saw $F5 -> $F3 and crashed with the PC
-    // spinning at $0224 — the same failure, and `finalRegs` reporting the lower S
+    // spinning at $0224 - the same failure, and `finalRegs` reporting the lower S
     // was accurate, not a capture-before-final-pop artifact.
     //
     // sandbox:false exists so the caller can read the RAM the routine wrote, which
@@ -2598,8 +2598,8 @@ export class LibretroHost {
         if (bytes.length) this.writeMemoryCpuAddr(m.addr >>> 0, bytes);
       }
       // Set caller-supplied registers.
-      // regs accepts NAMES ('a','x','y','p','sp',…, per the platform's regNames
-      // map) OR raw numeric ids — field report: no 65816 reg-id table meant a
+      // regs accepts NAMES ('a','x','y','p','sp',..., per the platform's regNames
+      // map) OR raw numeric ids - field report: no 65816 reg-id table meant a
       // caller couldn't preset A without guessing. A name with no mapping, or a
       // non-numeric key on a platform without regNames, throws clearly.
       for (const [key, val] of Object.entries(regs)) {
@@ -2620,7 +2620,7 @@ export class LibretroHost {
       // pushes 2 bytes high-then-low at $0100+SP and SP grows DOWN; SM83 pushes 2
       // LE bytes predecrement; 65816 RTL pops 3 bytes).
       let sp = this.getReg(spReg) >>> 0;
-      // The 6502/65816 RTS/RTL return to (popped address + 1) — they push PC-1. So
+      // The 6502/65816 RTS/RTL return to (popped address + 1) - they push PC-1. So
       // to land the run on `sentinelPC`, push sentinelPC + retAdjust (-1 there, 0
       // for m68k RTS / SM83 RET / Z80 RET which return to the exact pushed addr).
       const pushed = (sentinelPC + (prof.retAdjust ?? 0)) >>> 0;
@@ -2660,9 +2660,9 @@ export class LibretroHost {
       let irqBlocked = false;
       try {
         if (pure && this.runPureSupported()) {
-          // STRONGEST pure mode (gpgx): step ONLY the CPU — no frame machinery
+          // STRONGEST pure mode (gpgx): step ONLY the CPU - no frame machinery
           // at all. Mask m68k interrupts so a PENDING VINT raised before the
-          // call can't redirect entry (no NEW interrupts are raised — the
+          // call can't redirect entry (no NEW interrupts are raised - the
           // system loop never runs). The sandbox restore (or the game's own
           // RTE discipline) makes the IPL change invisible afterward.
           pureMode = "cpu-only";
@@ -2688,10 +2688,10 @@ export class LibretroHost {
         } else {
           if (pure) {
             // INTERRUPT-BLOCKED pure mode (every other core): the frame
-            // machinery still runs (video/timers advance — harmless, they
+            // machinery still runs (video/timers advance - harmless, they
             // don't write game RAM), but interrupt DELIVERY is suppressed, so
             // no game handler can execute. The only running game code is the
-            // routine we called — the same guarantee that matters for the
+            // routine we called - the same guarantee that matters for the
             // output buffer. The 2600's 6507 has no interrupt lines at all,
             // so every call there is pure by hardware.
             if (this.irqBlockSupported()) {
@@ -2701,7 +2701,7 @@ export class LibretroHost {
             } else if (this.status.platform === "atari2600") {
               pureMode = "no-interrupts";
             } else {
-              throw new Error("cpu({op:'call', pure:true}) not supported by this core build (needs the romdev_irqblock_set export — update the core package).");
+              throw new Error("cpu({op:'call', pure:true}) not supported by this core build (needs the romdev_irqblock_set export - update the core package).");
             }
           }
           framesRun = this._runFramesExclusive(() => {
@@ -2722,7 +2722,7 @@ export class LibretroHost {
         this.setWatchdog(0);
         if (!finalState) finalState = this.getPCBreak(true); else this.getPCBreak(true);
       }
-      // Capture the result from core RAM BEFORE any restore — always, so a partial
+      // Capture the result from core RAM BEFORE any restore - always, so a partial
       // (watchdog/stopAtPC) result still hands back whatever the codec wrote.
       if (capture) captured = capture(this);
       // Read the final register file + PC for progress reporting (entry-exact when
@@ -2730,9 +2730,9 @@ export class LibretroHost {
       let finalPC = finalState && finalState.lastPC != null ? finalState.lastPC : null;
       let finalRegs = null;
       // Use the platform's REAL register file (getCPUState decodes per-core: A/X/Y/
-      // P/DB/DP on 65816, D0-D7/A0-A7 on m68k, …). The old _readCallRegs hardcoded
+      // P/DB/DP on 65816, D0-D7/A0-A7 on m68k, ...). The old _readCallRegs hardcoded
       // m68k names {D0,D1,A0,A1,PC,SP}, so on a 65816 core the values came back
-      // under WRONG labels — a caller couldn't read A/X/Y/P (field report). Fall
+      // under WRONG labels - a caller couldn't read A/X/Y/P (field report). Fall
       // back to the raw m68k-id read only if the per-core decode is unavailable.
       try {
         const st = getCPUState(this, this._loadArgs?.platform);
@@ -2745,8 +2745,8 @@ export class LibretroHost {
       else if (cpuContext && !returned) {
         // The call was cut short, so nothing unwound the sentinel push or the
         // callee's own pushes. Put the register file back (SP above all) so the
-        // interrupted code can still resume; the RAM the routine wrote — the
-        // reason for sandbox:false — is deliberately left alone.
+        // interrupted code can still resume; the RAM the routine wrote - the
+        // reason for sandbox:false - is deliberately left alone.
         contextRestored = this._restoreCallRegs(cpuContext);
       }
     }
@@ -2754,7 +2754,7 @@ export class LibretroHost {
     return {
       returned, framesRun,
       ...(pure ? { pure: true, pureMode } : {}),
-      ...(watchdogTripped ? { watchdog: true, reason: "watchdog: hit the instruction budget (likely a runaway loop — wrong A0/regs, a needed preset, or legitimately huge; raise maxInstructions or check the entry setup)" } : {}),
+      ...(watchdogTripped ? { watchdog: true, reason: "watchdog: hit the instruction budget (likely a runaway loop - wrong A0/regs, a needed preset, or legitimately huge; raise maxInstructions or check the entry setup)" } : {}),
       ...(stoppedAtPC ? { stoppedAtPC: "$" + (stopAtPC >>> 0).toString(16).toUpperCase() } : {}),
       ...(fin.finalPC != null ? { finalPC: "$" + fin.finalPC.toString(16).toUpperCase(), finalPCRaw: fin.finalPC } : {}),
       ...(fin.finalRegs ? { finalRegs: fin.finalRegs } : {}),
@@ -2764,7 +2764,7 @@ export class LibretroHost {
             cpuContextNote:
               "This call did NOT reach its return, so the sentinel push and the callee's own pushes were still on the stack. " +
               "The CPU register file (SP/PC and the general-purpose regs) has been restored to its pre-call values so the " +
-              "interrupted code can resume — without this, the game's next rts pops garbage and executes into RAM. " +
+              "interrupted code can resume - without this, the game's next rts pops garbage and executes into RAM. " +
               "RAM written by the routine is deliberately NOT rolled back: reading it is the point of sandbox:false. " +
               "finalRegs above is the state AT the stop (what the routine had done), not the restored state.",
           }
@@ -2777,8 +2777,8 @@ export class LibretroHost {
    * Snapshot the CPU registers callSubroutine disturbs, so a call that never
    * reached its rts can be undone without discarding the RAM it wrote.
    *
-   * SP and PC are the load-bearing ones — an unbalanced SP is what makes the
-   * resumed game pop garbage — but the caller may also have preset A/X/Y/etc,
+   * SP and PC are the load-bearing ones - an unbalanced SP is what makes the
+   * resumed game pop garbage - but the caller may also have preset A/X/Y/etc,
    * and leaving those changed is its own quiet corruption. Reg-ids come from the
    * per-CPU profile, so this stays correct across 6502/65816/m68k/SM83/ARM.
    */
@@ -2821,7 +2821,7 @@ export class LibretroHost {
    * loaded platform's CPU. reg-ids match each core's romdev_setreg convention.
    *  - retBytes: width of the return address pushed (RTS/RTL pop width)
    *  - retBigEndian: byte order of the pushed return address
-   *  - stackPage: if set, a page-relative stack ($0100 for 6502) — SP is an 8-bit
+   *  - stackPage: if set, a page-relative stack ($0100 for 6502) - SP is an 8-bit
    *    index into that page (push writes at page+SP, decrement); if undefined the
    *    stack is a full predecrement stack (m68k/SM83) addressed by SP directly.
    *  - ramMask / ramRegion: CPU-addr → memory region mapping for the stack writes.
@@ -2832,7 +2832,7 @@ export class LibretroHost {
     // of this CPU executes (clock ÷ avg-cycles-per-instr ÷ ~60fps). Used to size
     // the callSubroutine watchdog budget so it trips BEFORE the per-frame cap even
     // on the slow ~1MHz 8-bit CPUs (a fixed 4M never trips inside 600 frames on a
-    // 6507/6510 — only ~3-3.8M instructions run in 600 frames there). Real codecs
+    // 6507/6510 - only ~3-3.8M instructions run in 600 frames there). Real codecs
     // finish in <~1M instructions on any of these, so 0.8×maxFrames×instrPerFrame
     // still clears a legit decompress with margin. See the watchdog budget below.
     switch (p) {
@@ -2858,7 +2858,7 @@ export class LibretroHost {
         return { spReg: 18, pcReg: 16, retBytes: 2, retBigEndian: false, defaultSentinel: 0, ramMask: 0x1FFF, instrPerFrame: 8000 };
       case "snes":
         // 65816: A=0,X=1,Y=2,P=3,S=4,DB=5,D=6,PC=16. retBytes DEFAULTS to 3 for a
-        // JSL/RTL callee; a JSR/RTS callee pushes only 2 (PCL,PCH) — pass
+        // JSL/RTL callee; a JSR/RTS callee pushes only 2 (PCL,PCH) - pass
         // callMode:'jsr' to size the sentinel/return-pop to 2 (field report: a
         // plain jsr helper "returned" 1 byte off into vector-stub land). The
         // 65816 stack is in bank 0; WRAM low mirror.  ~3.58MHz / ~6 cyc / 60 ≈ 10k.
@@ -2875,11 +2875,11 @@ export class LibretroHost {
       case "gba":
         // ARM7TDMI: SP=r13 (reg-id 13), PC=r15 (reg-id 15). No implicit return-on-
         // stack (BL uses LR). callSubroutine on ARM would set LR=sentinel instead
-        // of pushing — handled by the ARM branch (lrReg). EWRAM mapping.
+        // of pushing - handled by the ARM branch (lrReg). EWRAM mapping.
         // 16.78MHz / ~2 cyc / 60 ≈ 140k → the fixed 4M cap applies first.
         return { spReg: 13, pcReg: 15, retBytes: 4, retBigEndian: false, defaultSentinel: 0, ramMask: 0x3FFFF, lrReg: 14, instrPerFrame: 140000 };
       default:
-        // Unknown — m68k-shaped fallback (Genesis defaults).
+        // Unknown - m68k-shaped fallback (Genesis defaults).
         return { spReg: 18, pcReg: 16, retBytes: 4, retBigEndian: true, defaultSentinel: 0, ramMask: 0xFFFF, instrPerFrame: 50000 };
     }
   }
@@ -2902,7 +2902,7 @@ export class LibretroHost {
 
   /**
    * Run `frames` frames logging EVERY read/write touching [lo,hi] (mode 1=read,
-   * 2=write, 3=both) — the list-all-hits discovery tool. Returns
+   * 2=write, 3=both) - the list-all-hits discovery tool. Returns
    * { events:[{pc,address,value}], total, stored, truncated }.
    */
   watchRange(lo, hi, mode, frames) {
@@ -2941,7 +2941,7 @@ export class LibretroHost {
   }
 
   /**
-   * Run `frames` frames recording every DISTINCT PC executed within [lo,hi] — the
+   * Run `frames` frames recording every DISTINCT PC executed within [lo,hi] - the
    * coverage trace ("what code runs here?"). Returns { pcs:[...], distinct, total, truncated }.
    */
   /** True when this core build exposes the exact coverage bitmap. */
@@ -2965,7 +2965,7 @@ export class LibretroHost {
 
   /**
    * Run `frames` frames recording EVERY executed PC in [lo, hi) as one bit per
-   * PC at (1 << shift) bytes — exact, uncapped, O(1) per instruction. `shift`
+   * PC at (1 << shift) bytes - exact, uncapped, O(1) per instruction. `shift`
    * defaults to pcAlignShift() for the loaded platform. Returns
    * { pcs:number[], distinct, total, words, lo, hi, shift, granularityBytes, exact }
    * where `shift`/`granularityBytes` are what the core recorded at and `exact`
@@ -3024,7 +3024,7 @@ export class LibretroHost {
   // ── Targeted VDP-DMA watch (item 3, Genesis only) ───────────────────────────
 
   /** True when VDP-DMA logging applies to the LOADED platform. The gpgx core
-   *  exports the DMA hooks, but only GENESIS has VDP DMA — SMS/GG (also gpgx) use
+   *  exports the DMA hooks, but only GENESIS has VDP DMA - SMS/GG (also gpgx) use
    *  a different VDP with no DMA, so the hook never fires there. Gate on the
    *  loaded platform, not just the export's presence. */
   dmaWatchSupported() {
@@ -3067,7 +3067,7 @@ export class LibretroHost {
    * each frame reports how many mem→VDP DMAs fired + how many VRAM/CRAM/VSRAM
    * bytes they moved. The core's `romdev_dmawatch_set(1)` RESETS its counters
    * (see the patch), so re-arming before each single-frame step gives a clean
-   * per-frame bucket with no core rebuild — the cheap derivation of "VDP/DMA
+   * per-frame bucket with no core rebuild - the cheap derivation of "VDP/DMA
    * work per frame" the feel-diagnostics workflow needs.
    *
    * `onFrame(i)` is called at the top of each frame (before the step) so the
@@ -3075,8 +3075,8 @@ export class LibretroHost {
    *
    * Returns { frames:[{frame, dmas, words, bytes, romBytes, ramBytes}], ... }.
    * `romBytes`/`ramBytes` split the moved bytes by source bus (ROM asset upload
-   * vs the RAM→VRAM sprite/scroll refresh) so a per-frame asset-DMA spike — the
-   * "I redrew a tilemap in the loop" smell — stands out from the steady refresh.
+   * vs the RAM→VRAM sprite/scroll refresh) so a per-frame asset-DMA spike - the
+   * "I redrew a tilemap in the loop" smell - stands out from the steady refresh.
    */
   watchDmaPerFrame(frames, onFrame) {
     const mod = this._needMod();
@@ -3129,7 +3129,7 @@ export class LibretroHost {
   }
 
   _needMod() {
-    if (!this.mod) throw new Error("no core loaded — call loadCore first");
+    if (!this.mod) throw new Error("no core loaded - call loadCore first");
     return this.mod;
   }
 
@@ -3141,9 +3141,9 @@ export class LibretroHost {
   _needMedia() {
     if (!this.status.loaded) {
       throw new Error(
-        "No media loaded — call loadMedia({platform, path}) before this op. " +
+        "No media loaded - call loadMedia({platform, path}) before this op. " +
         "(If you DID load and hit this after a reconnect/restart, the host's in-memory " +
-        "state didn't survive — re-run loadMedia with your ROM to pick back up.)",
+        "state didn't survive - re-run loadMedia with your ROM to pick back up.)",
       );
     }
   }
@@ -3155,11 +3155,11 @@ export class LibretroHost {
    *
    * Round 26 footgun: an agent debugging GB read `video_ram` (the
    * generic libretro id 3), got "empty", and started a multi-iteration
-   * "my VRAM writes are being optimized away" spiral — when in fact
+   * "my VRAM writes are being optimized away" spiral - when in fact
    * gambatte exposes VRAM as `gb_vram`, not the generic id.
    */
   _unknownRegionError(region) {
-    // A bad region name should never leave the agent guessing — list the valid
+    // A bad region name should never leave the agent guessing - list the valid
     // ones (the single source of truth, MemoryRegionToRetro) so it can pick the
     // right one. The cross-platform names (system_ram / video_ram / save_ram)
     // exist everywhere; the rest are platform-specific.
@@ -3169,7 +3169,7 @@ export class LibretroHost {
       `Unknown memory region '${region}'. ` +
       `Common (most platforms): ${common.join(", ")}. ` +
       `All registered region names: ${valid.join(", ")}. ` +
-      `(Region availability is per platform — some names only resolve on the platform that has that hardware.)`
+      `(Region availability is per platform - some names only resolve on the platform that has that hardware.)`
     );
   }
 
@@ -3179,38 +3179,38 @@ export class LibretroHost {
     // "this cart/system has no battery save," NOT "the core is broken."
     if (region === "save_ram") {
       if (["atari2600", "atari7800", "lynx"].includes(plat)) {
-        return `'${plat}' has no cartridge battery saves (the hardware never supported them) — ` +
+        return `'${plat}' has no cartridge battery saves (the hardware never supported them) - ` +
           `save_ram is always empty here, there's no save file to read/write.`;
       }
       if (plat === "c64") {
-        return `C64 has no cartridge battery SRAM — the C64 save medium is the FLOPPY (.d64), ` +
+        return `C64 has no cartridge battery SRAM - the C64 save medium is the FLOPPY (.d64), ` +
           `not save_ram (so save_ram is empty, as expected). A game's own KERNAL SAVE writes ` +
           `into the live disk; capture it with state({op:'exportDisk', path}) (the .d64 then ` +
           `includes the saved file, re-loadable to resume). Inject an outside save with ` +
           `state({op:'importDisk', path}) or state({op:'putDiskFile', path}).`;
       }
       return `save_ram is empty on platform '${plat}': this CART has no battery save ` +
-        `(check cart({op:'identify'}).saveRam.hasBattery — many ROMs use passwords or no save). ` +
+        `(check cart({op:'identify'}).saveRam.hasBattery - many ROMs use passwords or no save). ` +
         `If you expected a save, confirm the cart header marks it battery-backed. ` +
         `For a full-machine snapshot regardless of SRAM, use state({op:'save'/'load', path}).`;
     }
     // Cart WRAM: empty means the CART has no RAM at $6000, not a core fault.
     if (region === "nes_cart_ram") {
       return `nes_cart_ram is empty: this NES cart has no work RAM mapped at CPU $6000-$7FFF ` +
-        `(plain NROM boards and many simple mappers have none — the game keeps all its state ` +
+        `(plain NROM boards and many simple mappers have none - the game keeps all its state ` +
         `in the 2KB of system_ram). Use 'system_ram' instead. Carts that DO have WRAM report ` +
         `8192 bytes here whether or not the iNES header sets the battery flag.`;
     }
 
     const suggestions = {
       // platform → { generic-region-name: "use this instead" }
-      gb:    { video_ram: "gb_vram",  save_ram: "save_ram (likely empty on cartless ROMs — try gb_oam / gb_io / gb_hram for non-VRAM state)" },
+      gb:    { video_ram: "gb_vram",  save_ram: "save_ram (likely empty on cartless ROMs - try gb_oam / gb_io / gb_hram for non-VRAM state)" },
       gbc:   { video_ram: "gb_vram",  save_ram: "save_ram (try gb_oam / gb_io / gb_hram for non-VRAM state)" },
       sms:   { video_ram: "sms_vram (or sms_cram for palette, sms_vdp_regs for VDP regs)" },
       gg:    { video_ram: "gg_vram (or gg_cram for the 64-byte 12-bit palette, sms_vdp_regs for VDP regs)" },
       snes:  { video_ram: "snes_oam (sprite OAM), snes_cgram (palette), snes_aram (SPC700), or snes_fillram (PPU/DMA reg shadow). The libretro generic 'video_ram' id isn't wired in snes9x." },
-      genesis: { video_ram: "Genesis VRAM IS exposed via 'video_ram' (gpgx) once a ROM is loaded and a frame has run — if it reads empty, step a frame first (the SAT/sprites need the game to have written VRAM). Palette/scroll/VDP regs are genesis_cram / genesis_vsram / genesis_vdp_regs. For decoded views use inspectSprites / inspectPatternTiles / inspectBackgroundMap / getRenderingContext." },
-      c64:   { video_ram: "c64_color_ram (1 KB) / c64_vic_regs / c64_sid_regs / c64_cia1_regs / c64_cia2_regs. The C64 has no separate VRAM — the VIC-II reads from main system_ram." },
+      genesis: { video_ram: "Genesis VRAM IS exposed via 'video_ram' (gpgx) once a ROM is loaded and a frame has run - if it reads empty, step a frame first (the SAT/sprites need the game to have written VRAM). Palette/scroll/VDP regs are genesis_cram / genesis_vsram / genesis_vdp_regs. For decoded views use inspectSprites / inspectPatternTiles / inspectBackgroundMap / getRenderingContext." },
+      c64:   { video_ram: "c64_color_ram (1 KB) / c64_vic_regs / c64_sid_regs / c64_cia1_regs / c64_cia2_regs. The C64 has no separate VRAM - the VIC-II reads from main system_ram." },
     };
     const hint = suggestions[plat] && suggestions[plat][region];
     if (hint) {

@@ -1,7 +1,7 @@
-// NES (6502) → SNES (65816) static recompile — emit backend, phase 1.
+// NES (6502) → SNES (65816) static recompile - emit backend, phase 1.
 //
 // The flagship port-engine's emit half. romdev already LIFTS a ROM (functions,
-// CFG, decompile via the rizin engine); this is the inverse — it EMITS a target
+// CFG, decompile via the rizin engine); this is the inverse - it EMITS a target
 // CPU. NES→SNES is the pilot because the 65816 boots in 6502 EMULATION mode, so
 // the game's 6502 logic runs essentially unmodified: most instructions are a 1:1
 // textual rewrite of the da65 disassembly into asar 65816 syntax. The only real
@@ -25,8 +25,8 @@ import { NES_REGISTERS } from "../platforms/common/registers.js";
 import { recompile } from "./recompile/index.js";
 
 /**
- * The 151 documented 6502 mnemonics. Anything da65 emits outside this set — or
- * any `.byte` fallback inside a code path — is an undocumented opcode, which is
+ * The 151 documented 6502 mnemonics. Anything da65 emits outside this set - or
+ * any `.byte` fallback inside a code path - is an undocumented opcode, which is
  * a DIFFERENT instruction on the 65816 and must be refused, not mistranslated.
  */
 export const DOCUMENTED_6502 = new Set([
@@ -40,7 +40,7 @@ export const DOCUMENTED_6502 = new Set([
 
 /**
  * Instructions that, in 65816 EMULATION mode (E=1), behave IDENTICALLY to the
- * 6502 — same encoding intent, same flags, 8-bit A/X/Y, stack pinned to page 1,
+ * 6502 - same encoding intent, same flags, 8-bit A/X/Y, stack pinned to page 1,
  * direct page 0. These pass through as the exact same mnemonic + operand. This
  * is the whole "near-free" property: no rep/sep width management is needed for
  * game logic because E-mode forces the 6502 register widths.
@@ -123,7 +123,7 @@ export function parseDa65Line(rawLine) {
 }
 
 /**
- * Detect a hardware-register access — the seam. Returns the register's low
+ * Detect a hardware-register access - the seam. Returns the register's low
  * address (0x2000-0x401F) if the operand targets a NES PPU/APU register, else
  * null. Only absolute operands count (`$2000`, `$2000,x`); immediates and
  * zero-page never hit the register file.
@@ -144,8 +144,8 @@ export function seamRegister(operand) {
 
 /**
  * Classify + translate ONE instruction line. Returns either:
- *   { ok:true, out: [asm lines] }                  — translated (1+ lines)
- *   { ok:false, reason, line }                      — refused (residue)
+ *   { ok:true, out: [asm lines] }                  - translated (1+ lines)
+ *   { ok:false, reason, line }                      - refused (residue)
  * The label (if any) is emitted as its own `label:` line so branch targets
  * resolve regardless of how asar formats them.
  * @param {ParsedLine} p
@@ -161,7 +161,7 @@ export function translateInstr(p) {
     return { ok: false, reason: "decimal-mode (sed): 65816 BCD edge-flag semantics differ from 6502", line: p.raw };
   }
   if (mnem === "jmp" && operand && operand.startsWith("(")) {
-    return { ok: false, reason: "indirect jump (jmp (addr)): target is computed — resolve with breakpoint({on:'jumptable'})", line: p.raw };
+    return { ok: false, reason: "indirect jump (jmp (addr)): target is computed - resolve with breakpoint({on:'jumptable'})", line: p.raw };
   }
 
   // The hardware seam: any PPU/APU register access becomes a seam call.
@@ -177,14 +177,14 @@ export function translateInstr(p) {
     return { ok: true, out };
   }
 
-  // brk / rti reach here — handled structurally elsewhere; for a generic
+  // brk / rti reach here - handled structurally elsewhere; for a generic
   // function body they're unexpected, so flag rather than emit blindly.
   if (mnem === "rti" || mnem === "brk") {
     return { ok: false, reason: `${mnem}: interrupt-return/break needs explicit vector handling in v1`, line: p.raw };
   }
 
   // Unknown mnemonic = undocumented opcode da65 named, or a parse miss.
-  return { ok: false, reason: `unrecognized/undocumented opcode '${mnem}' — not a documented 6502 instruction`, line: p.raw };
+  return { ok: false, reason: `unrecognized/undocumented opcode '${mnem}' - not a documented 6502 instruction`, line: p.raw };
 }
 
 /**
@@ -209,7 +209,7 @@ function emitSeamAccess(mnem, operand, reg, _rawForComment) {
     lines.push(`        ldx     ${lowByte}`, `        jsr     NES_PPU_READ`);
     if (mnem === "bit") lines.push(`        ; (bit set N/V from the read value)`);
   } else {
-    // Read-modify-write or anything else against a register: refuse-safe — emit
+    // Read-modify-write or anything else against a register: refuse-safe - emit
     // a marker the residue pass can flag. (Rare against MMIO; not in the pilot.)
     lines.push(`        ; UNTRANSLATED seam access: ${mnem} ${operand}`);
   }
@@ -220,7 +220,7 @@ function emitSeamAccess(mnem, operand, reg, _rawForComment) {
  * The seam stub include (v1). Trap-to-rts for writes; reads return a sane
  * constant. The ONE detail that makes the boot loop progress: the $2002
  * (PPUSTATUS) read must return bit 7 set, so vblank-wait loops
- * (`bit $2002 / bpl`) terminate — otherwise the port spins forever and never
+ * (`bit $2002 / bpl`) terminate - otherwise the port spins forever and never
  * reaches its main loop. The real PPU shim (task #2) replaces these bodies.
  */
 export function emitSeam() {
@@ -254,7 +254,7 @@ export function emitSeam() {
  * @param {boolean} [a.withShim]  include + call the NES-PPU-on-SNES shim
  *   (nes_ppu_shim.asm). When true, the init preamble calls NES_SHIM_PRESENT
  *   (in native mode, before dropping to emulation) so the static boot picture
- *   the original ROM produced is drawn — turning the blank port into a real
+ *   the original ROM produced is drawn - turning the blank port into a real
  *   rendered screen.
  */
 export function emitMainAsm({ body, resetLabel, nmiLabel, withShim, withRuntime, nmiBody, sourceLabel, sourceIsaLabel, seamFile }) {
@@ -298,7 +298,7 @@ export function emitMainAsm({ body, resetLabel, nmiLabel, withShim, withRuntime,
     // The seam (NES_PPU_WRITE/READ/...) lives in nes_seam.asm for the phase-1
     // path; the phase-2 runtime DEFINES its own seam, so include only one.
     // ORDER MATTERS: the runtime is CODE (no org of its own) so it must come
-    // BEFORE the shim — the shim ends with `org $028000` + 8KB of data, and any
+    // BEFORE the shim - the shim ends with `org $028000` + 8KB of data, and any
     // code after that would flow into bank $02 (wrong bank for the NMI vector +
     // for `lda.l ...,x` tables). Seam/runtime first (bank $00), shim data last.
     ...(withRuntime ? ["incsrc \"nes_ppu_runtime.asm\""] : [`incsrc "${seamFile ?? "nes_seam.asm"}"`]),
@@ -306,7 +306,7 @@ export function emitMainAsm({ body, resetLabel, nmiLabel, withShim, withRuntime,
     "",
     "; ── interrupt vectors (native + emulation) ───────────────────────────",
     "; The recompiled game runs in EMULATION mode, so its NMI vectors through the",
-    "; EMULATION vector ($FFFA) — NOT the native one ($FFEA). Point BOTH at the",
+    "; EMULATION vector ($FFFA) - NOT the native one ($FFEA). Point BOTH at the",
     "; runtime NMI so it fires regardless of mode.",
     "org $00FFEA",
     `        dw      ${nmiVector}          ; native NMI`,
@@ -329,7 +329,7 @@ export function emitMainAsm({ body, resetLabel, nmiLabel, withShim, withRuntime,
  * directive/equ preamble is always kept.
  *
  * NOTE: the reset routine ends in `jmp L8000` (an infinite main loop), so the
- * first bare `jmp` IS its terminator — correct cut point for the pilot.
+ * first bare `jmp` IS its terminator - correct cut point for the pilot.
  * @param {string} da65Asm
  * @returns {string}
  */
@@ -380,7 +380,7 @@ export function recompileNesToSnes(da65Asm, opts = {}) {
   // thin source/target-pinned wrapper kept for back-compat with the disasm tool +
   // existing tests; the actual translation lives in analysis/recompile/. The
   // generic path produces the same image (the 65816 emitter reproduces this
-  // module's emitMainAsm/emitSeam output) — see analysis/recompile/index.js.
+  // module's emitMainAsm/emitSeam output) - see analysis/recompile/index.js.
   // `nmiDa65Asm` is the old arg name; the generic engine calls it `nmiSourceAsm`.
   return recompile(da65Asm, {
     source: "nes",
@@ -409,7 +409,7 @@ export function translateBody(da65Asm) {
   let instrCount = 0;
   let seamCount = 0;
   // The reset vector must target the FIRST translated instruction. da65 only
-  // labels branch targets, so a fall-through entry (the common case — a reset
+  // labels branch targets, so a fall-through entry (the common case - a reset
   // routine that opens `sei / cld / ...`) is UNLABELED. Guarantee a label on the
   // first instruction: use its own label if it has one, else inject a synthetic
   // RECOMPILE_ENTRY. Without this, entryLabel() picked the first *labeled* line
@@ -424,7 +424,7 @@ export function translateBody(da65Asm) {
       case "comment":
         break;
       case "directive":
-        // drop .org/.setcpu — the wrapper owns layout/cpu.
+        // drop .org/.setcpu - the wrapper owns layout/cpu.
         break;
       case "equ":
         equs.push(`${p.label} = ${p.operand}`);
@@ -500,7 +500,7 @@ export function findUndefinedLabels(body, equs = []) {
 }
 
 /**
- * Labels defined in a seam include — never stub these (they'd redefine).
+ * Labels defined in a seam include - never stub these (they'd redefine).
  *
  * A seam routine is provided by the RUNTIME, not by the game, so it looks
  * exactly like an unresolved callee to the scan above: referenced by `jsr`,
@@ -512,7 +512,7 @@ export function findUndefinedLabels(body, equs = []) {
  * This set must therefore list EVERY seam across every source ISA, not just
  * the one that happened to be implemented first. It was NES-only, so the very
  * first Z80 program containing an `out` produced output that could not
- * assemble — the "looks like assembly and cannot build" failure the engine is
+ * assemble - the "looks like assembly and cannot build" failure the engine is
  * built to prevent.
  */
 const SEAM_LABELS = new Set([
@@ -523,7 +523,7 @@ const SEAM_LABELS = new Set([
 ]);
 
 /**
- * The label on the FIRST translated instruction — the entry point the reset
+ * The label on the FIRST translated instruction - the entry point the reset
  * vector should target. da65 names the entry `L8000:` (or `reset:` with
  * untilReturn aliasing). Returns null if the body has no labeled entry, in
  * which case the caller should inject one.

@@ -3,13 +3,13 @@
 // History, because this got fixed twice. Originally zod STRIPPED unknown keys,
 // so {jump:true} resolved to nothing and the agent believed it pressed
 // something it didn't. That was fixed by reporting unknown names in
-// `ignoredButtons` — but the check only fired on keys whose value was literally
+// `ignoredButtons` - but the check only fired on keys whose value was literally
 // `true`, so a wrong SHAPE ({port:0, buttons:['a','b']}) still slipped through
 // and came back {inputSet:true, requested:[[]]}: accepted, nothing pressed.
 //
 // Now a malformed port object is REJECTED rather than partially applied. The
 // reason to be strict here rather than lenient: a press that silently doesn't
-// happen poisons NEGATIVE results downstream — a button-gated branch that
+// happen poisons NEGATIVE results downstream - a button-gated branch that
 // "never fires" when the button was never held reads as a finding about the
 // game, and that is the most expensive wrong answer this tool can produce.
 
@@ -41,7 +41,7 @@ function expectRejected(res) {
 }
 
 // Records what actually reached the host, so "rejected" can be distinguished
-// from "accepted but pressed nothing" — the whole point of the fix.
+// from "accepted but pressed nothing" - the whole point of the fix.
 function fakeHost() {
   const calls = [];
   return {

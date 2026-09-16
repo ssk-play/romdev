@@ -1,17 +1,17 @@
 /*
- * hello_pce.c — PC Engine / TurboGrafx-16 starter (cc65, C89).
+ * hello_pce.c - PC Engine / TurboGrafx-16 starter (cc65, C89).
  *
  * Boots to a guaranteed-VISIBLE screen using cc65's conio (text) library, which
  * initializes the HuC6270 VDC + HuC6260 VCE for you and uploads a font to VRAM.
  * Build with: build({ output: "rom",  platform: "pce" })  (language defaults to C).
  *
- * FOOTGUN — the empty-BSS crt0 trap (cc65 pce/crt0.s line 84):
+ * FOOTGUN - the empty-BSS crt0 trap (cc65 pce/crt0.s line 84):
  *   The PCE crt0 clears .bss with `tii __BSS_RUN__, __BSS_RUN__+1, __BSS_SIZE__-1`.
  *   When your program has NO global/static variables, __BSS_SIZE__ is 0 and the
  *   `- 1` underflows → ld65 throws a "Range error in module pce/crt0.s" and the
  *   ROM boots to a BLACK screen (VDC never initializes). ALWAYS keep at least one
  *   global/static variable so .bss is non-empty. The `_keep_bss` byte below does
- *   exactly that — don't delete it until you have real globals.
+ *   exactly that - don't delete it until you have real globals.
  */
 #include <conio.h>
 #include <pce.h>

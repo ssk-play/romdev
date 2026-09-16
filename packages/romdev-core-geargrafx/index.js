@@ -1,6 +1,6 @@
-// romdev-core-geargrafx — binary package: Geargrafx libretro core (PC Engine /
+// romdev-core-geargrafx - binary package: Geargrafx libretro core (PC Engine /
 // TurboGrafx-16). Exports absolute paths to the bundled WASM for romdev's
-// registry. PCE carts boot directly — no BIOS ROM needed.
+// registry. PCE carts boot directly - no BIOS ROM needed.
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 

@@ -1,4 +1,4 @@
-// spliceCHR — png → platform-native tile bytes → splice into CHR file at a
+// spliceCHR - png → platform-native tile bytes → splice into CHR file at a
 // tile index. Composition of convertImageToTiles (existing) + patchFile (#73).
 //
 // Most common ROM-hack workflow for sprite/tile edits: open the CHR data in
@@ -60,12 +60,12 @@ async function resolveChrBase(path, platform, explicitOffset) {
     return { fileOffset: off, chrSize, note: `iNES CHR-ROM bank @ file offset ${off}, ${chrSize} bytes` };
   }
   if (platform === "gb" || platform === "gbc") {
-    throw new Error(`spliceCHR: Game Boy tiles are in PRG ROM at arbitrary offsets — pass chrFileOffset explicitly (no auto-detect for GB).`);
+    throw new Error(`spliceCHR: Game Boy tiles are in PRG ROM at arbitrary offsets - pass chrFileOffset explicitly (no auto-detect for GB).`);
   }
   if (platform === "sms" || platform === "gg") {
     throw new Error(
       `spliceCHR: SMS/GG tiles are uploaded to VRAM at runtime from arbitrary ROM ` +
-      `offsets — no auto-detect. Pass chrFileOffset explicitly. Typical approach: ` +
+      `offsets - no auto-detect. Pass chrFileOffset explicitly. Typical approach: ` +
       `disassembleRom near the VDP $BE writes to find where the game loads tiles ` +
       `from in ROM, then point chrFileOffset there.`
     );
@@ -81,13 +81,13 @@ async function resolveChrBase(path, platform, explicitOffset) {
     throw new Error(
       `spliceCHR[c64]: C64 charset data lives at an arbitrary offset in your PRG ` +
       `(wherever you placed the 8-byte-per-char bitmap table). Pass chrFileOffset ` +
-      `explicitly — it's the byte offset of char 0 in the file. Each char is 8 bytes ` +
+      `explicitly - it's the byte offset of char 0 in the file. Each char is 8 bytes ` +
       `(1bpp, bit set = foreground).`
     );
   }
   if (platform === "atari2600" || platform === "a2600") {
     throw new Error(
-      `spliceCHR[2600]: the 2600 has no tile ROM region — graphics are 1-bit ` +
+      `spliceCHR[2600]: the 2600 has no tile ROM region - graphics are 1-bit ` +
       `sprite bytes written by code to GRP0/GRP1/PF0/PF1/PF2/ENABL each scanline. ` +
       `There's nothing to splice generically. Use patchFile on specific ROM ` +
       `bytes (find them via disassembleRom + lda/sta GRP/PF refs).`
@@ -96,7 +96,7 @@ async function resolveChrBase(path, platform, explicitOffset) {
   if (platform === "atari7800" || platform === "a7800") {
     throw new Error(
       `spliceCHR[7800]: the 7800 reads tile/sprite graphics from MARIA display ` +
-      `lists at runtime — they live at arbitrary ROM offsets per game. Pass ` +
+      `lists at runtime - they live at arbitrary ROM offsets per game. Pass ` +
       `chrFileOffset explicitly after finding the chargen base via ` +
       `disassembleRom (look for the CHARBASE register write at $87).`
     );
@@ -150,7 +150,7 @@ export async function spliceChrCore({
 
 /**
  * Map "bank N" to a CHR file offset for the given platform. Same idea as the
- * NES helper in rom-id.js — kept separate here so spliceCHR can use it
+ * NES helper in rom-id.js - kept separate here so spliceCHR can use it
  * without circular imports.
  */
 function bankToChrOffset(platform, bytes, bank) {
@@ -162,7 +162,7 @@ function bankToChrOffset(platform, bytes, bank) {
   }
   const prgSize = bytes[4] * 16384;
   const chrSize = bytes[5] * 8192;
-  if (chrSize === 0) throw new Error("CHR-RAM cart — no CHR in the file. Use writeMemory on the running emulator instead.");
+  if (chrSize === 0) throw new Error("CHR-RAM cart - no CHR in the file. Use writeMemory on the running emulator instead.");
   const chrBase = 16 + prgSize;
   const offset = chrBase + bank * 4096;
   if (offset >= chrBase + chrSize) {

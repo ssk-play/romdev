@@ -1,8 +1,8 @@
-// GB (gambatte / SM83) RE primitives round 2 — end to end.
+// GB (gambatte / SM83) RE primitives round 2 - end to end.
 //   - setRegister                  (item 1: register write/read round-trip; reg-id 0 = A)
 //   - watchRange                   (item 2a: log every read/write in a range)
-//   - logPCRange                   (item 2b: coverage trace — distinct PCs in a window)
-//   - callSubroutine               (item 1: needs romdev_setreg + pcbreak — both present)
+//   - logPCRange                   (item 2b: coverage trace - distinct PCs in a window)
+//   - callSubroutine               (item 1: needs romdev_setreg + pcbreak - both present)
 // Mirrors test/genesis-re-primitives.test.js for the SM83 core.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -57,7 +57,7 @@ test("GB RE primitives: setRegister + watchRange + logPCRange + callSubroutine (
 
   // ── item 1: setRegister round-trips (reg-id 0 = A on SM83) ──
   const sr = toJSON(await client.callTool({ name: "cpu", arguments: { op: "setReg",  regId: 0, value: 0xA5 } }));
-  assert.equal(sr.notSupported, undefined, "setRegister notSupported — romdev_setreg missing?");
+  assert.equal(sr.notSupported, undefined, "setRegister notSupported - romdev_setreg missing?");
   assert.equal((sr.valueRaw & 0xFF), 0xA5, "setRegister (A) didn't round-trip: " + JSON.stringify(sr));
 
   // setRegister of F (reg-id 1) must round-trip through the split flag fields.
@@ -82,13 +82,13 @@ test("GB RE primitives: setRegister + watchRange + logPCRange + callSubroutine (
   assert.ok(cov.distinct > 0, "logPCRange found no PCs: " + JSON.stringify(cov));
 
   // ── item 1: callSubroutine is SUPPORTED (needs romdev_setreg + pcbreak, both
-  //    present). We don't drive a reg-args copy here — SM83's C ABI is stack-based,
+  //    present). We don't drive a reg-args copy here - SM83's C ABI is stack-based,
   //    not register-args. The host's callSubroutine seeds the stack via
   //    writeMemoryCpuAddr, whose generic fallback indexes system_ram by the raw
   //    CPU address; on GB the stack lives at 0xDFFx (top of the 8KB WRAM window),
-  //    so that generic write lands out of bounds — a HOST-layer GB-mapping gap,
+  //    so that generic write lands out of bounds - a HOST-layer GB-mapping gap,
   //    not a core-feature gap (and the host layer is out of scope for this patch).
-  //    The capability we own — register-write + the PC breakpoint — is proven by:
+  //    The capability we own - register-write + the PC breakpoint - is proven by:
   //      (a) setRegister above (romdev_setreg wired), and
   //      (b) callSubroutine getting PAST its support gate: a `notSupported`
   //          response means the gate failed; any other outcome means setreg +
@@ -99,7 +99,7 @@ test("GB RE primitives: setRegister + watchRange + logPCRange + callSubroutine (
   });
   if (!csRes.isError) {
     const cs = JSON.parse(csRes.content[0].text);
-    assert.equal(cs.notSupported, undefined, "callSubroutine notSupported — setreg/pcbreak missing?");
+    assert.equal(cs.notSupported, undefined, "callSubroutine notSupported - setreg/pcbreak missing?");
   } else {
     // Got past the support gate (setRegSupported() + pcBreakSupported() both true)
     // and failed only in the GB stack-seed mapping. Confirm it's that gap, not a

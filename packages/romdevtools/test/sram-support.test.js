@@ -1,7 +1,7 @@
-// SRAM (cartridge battery save) support, folded into existing tools — no new
+// SRAM (cartridge battery save) support, folded into existing tools - no new
 // top-level tool. Live read/write is memory({region:'save_ram'}); persistence is
 // state({op:'exportSram'/'importSram'}); presence is cart({op:'identify'}).saveRam.
-// Cores already expose RETRO_MEMORY_SAVE_RAM (verified by source) — these tests
+// Cores already expose RETRO_MEMORY_SAVE_RAM (verified by source) - these tests
 // cover the JS fold + the honest "no battery save" path.
 
 import { test, before } from "node:test";
@@ -17,7 +17,7 @@ import { buildExampleRom } from "./build-fixture-rom.js";
 
 // A battery-SRAM NES cart built from our OWN example: the example already sets
 // the iNES battery bit (flags6 bit 1), so the core exposes a real 8KB SAVE_RAM
-// region. No external/commercial ROM needed — these run unconditionally.
+// region. No external/commercial ROM needed - these run unconditionally.
 let DW;
 before(async () => {
   const base = await readFile(await buildExampleRom("nes"));

@@ -1,4 +1,4 @@
-// emit-ft2.js — pure-JS ESM port of the OUTPUT/emit half of FamiTone2's
+// emit-ft2.js - pure-JS ESM port of the OUTPUT/emit half of FamiTone2's
 // `text2data` tool, targeting the FamiTracker-text-export input + `-ca65`
 // output path (the only combination the bundled `music_data.s` /
 // `famitone2.s` driver uses).
@@ -283,7 +283,7 @@ class Ft2Emitter {
         else line += '0,';
       }
 
-      // integer (truncating) division — | 0
+      // integer (truncating) division - | 0
       const tempoPal = ((256 * S.song_original.tempo) / ((50 * 60) / 24)) | 0; // /125
       const tempoNtsc = ((256 * S.song_original.tempo) / ((60 * 60) / 24)) | 0; // /150
 
@@ -324,7 +324,7 @@ class Ft2Emitter {
       this.getEnv(S.envelopePitch, S.instruments[i].pitch).in_use = true;
     }
 
-    // convert envelopes to bytes + dedup — ORDER MATTERS (vol, arp, pitch)
+    // convert envelopes to bytes + dedup - ORDER MATTERS (vol, arp, pitch)
     for (let i = 0; i < MAX_ENVELOPES; ++i) {
       const e = S.envelopeVolume[i];
       e.out_id = this.outputProcessEnvelope(e.value, e.in_use ? e.length : 0, e.loop);
@@ -507,7 +507,7 @@ class Ft2Emitter {
         }
 
         if (ref < 0) {
-          // no match — append + emit @refN: + bytes
+          // no match - append + emit @refN: + bytes
           this.packedPatterns[this.packedCount] = {
             data: tptn.data.slice(0, tptn.length),
             length: tptn.length,
@@ -519,7 +519,7 @@ class Ft2Emitter {
           if (!test) this.emit(`${LL}ref${this.referenceId}:\n`);
           size += this.outputDumpByteArray(tptn.data, tptn.length, test);
         } else {
-          // match — emit $ff,ref_len + .word @ref<id>
+          // match - emit $ff,ref_len + .word @ref<id>
           if (!test) {
             this.emit(`\t${DB} $ff,$${hex2(refLen)}\n`);
             this.emit(`\t${DW} ${LL}ref${this.packedPatterns[ref].refId}\n`);
@@ -613,7 +613,7 @@ class Ft2Emitter {
   }
 
   // ========================================================================
-  //  main() FT-export path, !separate branch (L2353-2400) — output portion.
+  //  main() FT-export path, !separate branch (L2353-2400) - output portion.
   //  (The parser already ran the instrument/first-sweep/cleanup passes.)
   // ========================================================================
   run() {
@@ -704,7 +704,7 @@ function parseSubsongHeader(S, sub) {
  * Compile a FamiTracker song into FamiTone2-format ca65 `.s` source.
  *
  * @param {string|object} songModel  EITHER the raw FamiTracker `.txt` export
- *   contents (a string — what FamiTracker's File > Export Text produces), OR a
+ *   contents (a string - what FamiTracker's File > Export Text produces), OR a
  *   parsed model object as returned by `parseFamiTrackerTxt` (from ./parse-txt.js).
  *   Multi-subsong exports are supported.
  * @param {object} [opts]

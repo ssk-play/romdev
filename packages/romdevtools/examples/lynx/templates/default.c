@@ -1,21 +1,21 @@
-/* ── default.c — minimal Atari Lynx starter ──────────────────────
+/* ── default.c - minimal Atari Lynx starter ──────────────────────
  *
  * Boots TGI (cc65's graphics layer over Suzy's blitter), draws a
  * color-cycling square + greeting. Smallest possible "ROM that does
- * something visible" — use this as the starting point when you're
+ * something visible" - use this as the starting point when you're
  * not yet sure what you want to build.
  *
  * For something more game-shaped:
- *   - hello_sprite — joystick-moved sprite
- *   - shmup / platformer / puzzle / sports / racing — genre scaffolds
- *   - music_demo   — cc65's lynx_snd_play streaming music engine
+ *   - hello_sprite - joystick-moved sprite
+ *   - shmup / platformer / puzzle / sports / racing - genre scaffolds
+ *   - music_demo   - cc65's lynx_snd_play streaming music engine
  */
 
 #include <tgi.h>
 #include <lynx.h>
 
 void main(void) {
-  /* Cycle the centre square through warm/bright shades only — NOT the
+  /* Cycle the centre square through warm/bright shades only - NOT the
    * blues, which would blend into the blue background and make the
    * screen read as "almost one colour". */
   static const unsigned char palette[6] = {
@@ -29,12 +29,12 @@ void main(void) {
   tgi_init();
 
   for (;;) {
-    /* CANONICAL LYNX FRAME LOOP — full redraw every frame, in this order:
+    /* CANONICAL LYNX FRAME LOOP - full redraw every frame, in this order:
      *   1. WAIT for Suzy's blitter to finish the previous frame. Drawing
      *      while it's mid-flight loses the frame → black screen. This is
      *      the #1 "Lynx stays blank" trap.
      *   2. CLEAR with a full-screen tgi_bar in the background colour, NOT
-     *      tgi_clear() — which leaves the back page stale in this
+     *      tgi_clear() - which leaves the back page stale in this
      *      toolchain+emulator path (the other genre scaffolds all do the
      *      same; see shmup.c's LYNX-1 note).
      *   3. DRAW everything.
@@ -45,7 +45,7 @@ void main(void) {
     tgi_setcolor(COLOR_BLUE);
     tgi_bar(0, 0, tgi_getmaxx(), tgi_getmaxy());
 
-    /* A fixed green frame around the centre — always a distinct colour,
+    /* A fixed green frame around the centre - always a distinct colour,
      * so the screen never collapses to a single shade even while the
      * inner square is cycling. */
     tgi_setcolor(COLOR_GREEN);

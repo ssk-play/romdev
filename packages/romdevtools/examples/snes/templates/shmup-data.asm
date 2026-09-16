@@ -1,16 +1,16 @@
-; ── shmup-data.asm — SOLAR BULWARK's assembly half ───────────────────────────
+; ── shmup-data.asm - SOLAR BULWARK's assembly half ───────────────────────────
 ;
 ; What lives here (and why it can't live in shmup.c):
-;   1. sram_read16/sram_write16 — battery SRAM accessors. SRAM sits at
-;      $70:0000 (declared in hdr.asm — see shmup-hdr.asm), reachable only
+;   1. sram_read16/sram_write16 - battery SRAM accessors. SRAM sits at
+;      $70:0000 (declared in hdr.asm - see shmup-hdr.asm), reachable only
 ;      with long (24-bit) addressing, which tcc C pointers don't emit.
 ;   2. Font + sprite tiles + starfield tiles (rodata).
 ;
 ; tilsprite contains three 8×8 4bpp tiles back-to-back:
-;   tile 0 (offset 0)  — ship   (palette colour 1; P2 reuses the SAME tile
-;                                through OBJ palette 1 — see shmup.c)
-;   tile 1 (offset 32) — bullet (palette colour 2, yellow)
-;   tile 2 (offset 64) — enemy  (palette colour 3)
+;   tile 0 (offset 0)  - ship   (palette colour 1; P2 reuses the SAME tile
+;                                through OBJ palette 1 - see shmup.c)
+;   tile 1 (offset 32) - bullet (palette colour 2, yellow)
+;   tile 2 (offset 64) - enemy  (palette colour 3)
 ;
 ; Each 8×8 4bpp tile = 32 bytes: 8 rows of plane0/plane1 byte pairs, then
 ; 8 rows of plane2/plane3 pairs. Colour index bits: p0=1, p1=2, p2=4, p3=8.
@@ -21,9 +21,9 @@
 
 .SECTION ".shmup_asm" SUPERFREE
 
-; ── HARDWARE IDIOM (load-bearing) — battery SRAM accessors ──────────────────
+; ── HARDWARE IDIOM (load-bearing) - battery SRAM accessors ──────────────────
 ; SRAM is mapped at $70:0000 (LoROM, SRAMSIZE $01 in shmup-hdr.asm = 2 KB).
-; Long addressing only — there is no SRAM mirror in the program banks, which
+; Long addressing only - there is no SRAM mirror in the program banks, which
 ; is why these are asm and not C. tcc calling convention: u16 arg at 5,s
 ; (after the 4-byte rtl frame), second arg at 7,s; u16 return in tcc__r0.
 
@@ -364,17 +364,17 @@ palfont:
 .db $00, $00
 
 tilsprite:
-; Tile 0 — ship (cannon: wide base + central barrel, reads as a player)
+; Tile 0 - ship (cannon: wide base + central barrel, reads as a player)
 .db $18, $00, $18, $00, $18, $00, $3C, $00
 .db $7E, $00, $FF, $00, $FF, $00, $E7, $00
 .db $00, $00, $00, $00, $00, $00, $00, $00
 .db $00, $00, $00, $00, $00, $00, $00, $00
-; Tile 1 — bullet (vertical bolt, colour 2 → plane 1 set)
+; Tile 1 - bullet (vertical bolt, colour 2 → plane 1 set)
 .db $00, $18, $00, $18, $00, $3C, $00, $3C
 .db $00, $3C, $00, $3C, $00, $18, $00, $18
 .db $00, $00, $00, $00, $00, $00, $00, $00
 .db $00, $00, $00, $00, $00, $00, $00, $00
-; Tile 2 — enemy (classic invader silhouette, colour 3 → planes 0+1)
+; Tile 2 - enemy (classic invader silhouette, colour 3 → planes 0+1)
 .db $24, $24, $7E, $7E, $DB, $DB, $FF, $FF
 .db $FF, $FF, $5A, $5A, $24, $24, $42, $42
 .db $00, $00, $00, $00, $00, $00, $00, $00
@@ -384,35 +384,35 @@ palsprite:
 .db $00, $00          ; 0 transparent
 .db $1F, $7E          ; 1 cyan-blue (ship)
 .db $E0, $03          ; 2 yellow    (bullet)
-.db $1F, $00          ; 3 green     (enemy — classic invader green)
+.db $1F, $00          ; 3 green     (enemy - classic invader green)
 .db $00, $00, $00, $00, $00, $00, $00, $00
 .db $00, $00, $00, $00, $00, $00, $00, $00
 .db $00, $00, $00, $00, $00, $00, $00, $00
 
 ; ── Starfield tiles (four 8×8 4bpp tiles) ───────────────────────────────────
-; shmup.c checkers tiles 0/1 across BG1 (two near-black space tones — no
+; shmup.c checkers tiles 0/1 across BG1 (two near-black space tones - no
 ; single colour ever dominates the frame, which keeps render-health checks
 ; honest) and scatters tiles 2/3 (stars) with its LFSR. The whole field then
 ; scrolls in hardware (BG1VOFS) while the BG0 text HUD stays put.
 ; 4bpp plane order: bytes 0-15 = rows 0-7 plane0/plane1 pairs, bytes 16-31 =
 ; rows 0-7 plane2/plane3 pairs. Colour bits: p0=1, p1=2, p2=4, p3=8.
 tilbg:
-; tile 0 — space tone A (solid colour 1, one dim speckle = colour 3)
+; tile 0 - space tone A (solid colour 1, one dim speckle = colour 3)
 .db $FF, $00, $FF, $00, $FF, $00, $FF, $00   ; rows 0-3: p0 set = colour 1
 .db $FF, $00, $FF, $08, $FF, $00, $FF, $00   ; row 5: p1 bit → colour 3 dot
 .db $00, $00, $00, $00, $00, $00, $00, $00
 .db $00, $00, $00, $00, $00, $00, $00, $00
-; tile 1 — space tone B (solid colour 2, one dim speckle = colour 3)
+; tile 1 - space tone B (solid colour 2, one dim speckle = colour 3)
 .db $00, $FF, $00, $FF, $10, $FF, $00, $FF   ; row 2: p0 bit → colour 3 dot
 .db $00, $FF, $00, $FF, $00, $FF, $00, $FF
 .db $00, $00, $00, $00, $00, $00, $00, $00
 .db $00, $00, $00, $00, $00, $00, $00, $00
-; tile 2 — bright star on tone A (cross of colour 5 = p0+p2, white)
+; tile 2 - bright star on tone A (cross of colour 5 = p0+p2, white)
 .db $FF, $00, $FF, $00, $FF, $00, $FF, $00
 .db $FF, $00, $FF, $00, $FF, $00, $FF, $00
 .db $00, $00, $00, $00, $10, $00, $38, $00   ; rows 2-4: p2 star cross
 .db $10, $00, $00, $00, $00, $00, $00, $00
-; tile 3 — gold star on tone B (cross of colour 6 = p1+p2, pale gold)
+; tile 3 - gold star on tone B (cross of colour 6 = p1+p2, pale gold)
 .db $00, $FF, $00, $FF, $00, $FF, $00, $FF
 .db $00, $FF, $00, $FF, $00, $FF, $00, $FF
 .db $00, $00, $00, $00, $00, $00, $00, $00

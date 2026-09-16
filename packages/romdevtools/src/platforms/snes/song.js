@@ -1,8 +1,8 @@
-// SNES song compiler — a simple note/duration song → the byte table the bundled
+// SNES song compiler - a simple note/duration song → the byte table the bundled
 // SPC700 driver (lib/audio/apu_blob.asm) plays at ARAM $5000.
 //
 // This is NOT a port of an external tool: the SNES has no single canonical "song
-// compiler" the way Genesis has xgm2tool or GBA has mmutil — the playable format
+// compiler" the way Genesis has xgm2tool or GBA has mmutil - the playable format
 // is whatever OUR driver reads. apu_blob's music engine reads, per row:
 //
 //   db duration_ticks   ; voice-1 note length, in ~62.5 Hz ticks
@@ -15,7 +15,7 @@
 // rate P. The DSP plays the sample at  native_rate * P / 0x1000 , so to sound a
 // pitch `semitones` above the sample's base note you set  P = baseP * 2^(s/12).
 //
-// Input: a compact song — an array of {note, ticks} (or shorthand strings). The
+// Input: a compact song - an array of {note, ticks} (or shorthand strings). The
 // note is a scientific-pitch name ("C4", "A#3", "G-5") or a raw DSP P value
 // ({p: 0x0400}). We resolve names against a configurable base (which note the
 // sample sounds at P=baseP). Output: the 3-byte-per-row table + a $00 terminator,
@@ -63,7 +63,7 @@ export function dspPitch(noteSemi, baseSemi, baseP) {
  *   One entry per note. `{note:"C4", ticks:16}` resolves the pitch from the name;
  *   `{p:0x0400, ticks:16}` uses a raw DSP P. A bare string "C4" or "C4:16" is
  *   shorthand (default ticks from `song.defaultTicks`). A `null`/`"rest"` entry
- *   re-triggers nothing meaningfully on this 1-voice driver — represented as the
+ *   re-triggers nothing meaningfully on this 1-voice driver - represented as the
  *   same row with the previous pitch (the driver always KONs), so prefer real
  *   notes; rests are approximated by repeating the last pitch.
  * @param {string|number} [song.base="C4"]  the note (or absolute semitone) the

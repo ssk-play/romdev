@@ -1,4 +1,4 @@
-// accessScan — the address-aware reader/writer scan (disasm target:'accessScan').
+// accessScan - the address-aware reader/writer scan (disasm target:'accessScan').
 // Unit-tests the asm-text scanner per CPU family, plus the end-to-end core on
 // a real NES ROM and the literal-pool refusal.
 

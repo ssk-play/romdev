@@ -1,15 +1,15 @@
 // Match a ROM to the bundled cheat index and return its decoded entries.
 //
-// CONFIDENCE — the trust model (same discipline as byte-exact disasm: never
+// CONFIDENCE - the trust model (same discipline as byte-exact disasm: never
 // overclaim). Three tiers, always reported so the agent knows how much to trust
 // the labels:
-//   "name"     — matched by No-Intro game name derived from the file. We do NOT
+//   "name"     - matched by No-Intro game name derived from the file. We do NOT
 //                have a CRC database to confirm the exact dump, so this is a
 //                PROBABLE match: the labels are very likely right but the tool
 //                MUST tell the agent it cannot positively identify the ROM.
-//   "filename" — matched by the file's basename alone (weaker than a parsed
+//   "filename" - matched by the file's basename alone (weaker than a parsed
 //                No-Intro name). Probable, lower confidence.
-//   "none"     — no match; return nothing rather than guess.
+//   "none"     - no match; return nothing rather than guess.
 // (A future "crc" tier would confirm via a No-Intro DAT; not bundled yet.)
 
 import { readFile } from "node:fs/promises";
@@ -20,7 +20,7 @@ import Fuse from "fuse.js";
 
 // The cheat index lives in the romdev_game_codes package (kept separate so the
 // main package stays small and the DB versions on its own cadence). Resolve its
-// index/ directory once via the package's module URL — same pattern the core
+// index/ directory once via the package's module URL - same pattern the core
 // registry uses (import.meta.resolve). Fall back to a sibling ./index dir for
 // dev checkouts where the package isn't linked yet.
 function resolveIndexDir() {
@@ -33,7 +33,7 @@ function resolveIndexDir() {
 }
 const INDEX_DIR = resolveIndexDir();
 
-// CRC32 (IEEE) — computed but currently informational (no DAT to verify
+// CRC32 (IEEE) - computed but currently informational (no DAT to verify
 // against). Returned in the result so callers/users can cross-check externally.
 let _crcTable = null;
 function crc32(bytes) {
@@ -63,7 +63,7 @@ async function loadIndex(platform) {
 }
 
 // Per-platform Fuse index, built lazily and cached. We do NOT let Fuse search
-// the raw No-Intro names directly — those are dominated by region/revision tags
+// the raw No-Intro names directly - those are dominated by region/revision tags
 // (`(World)`, `(USA, Europe)`, `(Rev A)`) that swamp the fuzzy distance. Instead
 // we index the TAG-STRIPPED baseName as the search key (Fuse handles typos +
 // word-order/substring fuzz; baseName handles the tag noise), and keep the raw
@@ -98,13 +98,13 @@ function simFromFuse(distance) {
 }
 
 // Normalize a name for fuzzy comparison: lowercase, drop extension, collapse
-// whitespace. We do NOT strip region/revision tags — those distinguish dumps
+// whitespace. We do NOT strip region/revision tags - those distinguish dumps
 // (USA vs Japan have different addresses), so an EXACT match must keep them.
 function normalize(name) {
   return name.toLowerCase().replace(/\.[a-z0-9]+$/i, "").replace(/\s+/g, " ").trim();
 }
 
-// A "base name" with region/revision/dump tags stripped — for FUZZY matching
+// A "base name" with region/revision/dump tags stripped - for FUZZY matching
 // only. "(World)", "(USA, Europe)", "(Rev A)", "[!]", "(Action Replay)" etc. are
 // dropped and separators normalized, so "Some Game - Special Edition (World)",
 // "Some Game Special Edition", and "Some Game - Special Edition (USA) (Rev 1)"
@@ -121,7 +121,7 @@ function baseName(name) {
     .trim();
 }
 
-// The platforms that ship a bundled cheat index — the set searchCheatGames sweeps
+// The platforms that ship a bundled cheat index - the set searchCheatGames sweeps
 // when no `platform` is given. (Kept in step with cheats.js SUPPORTED; C64 has no
 // source cheats so it has no index.)
 const INDEXED_PLATFORMS = [
@@ -133,12 +133,12 @@ const INDEXED_PLATFORMS = [
  * Fuzzy-search the cheat DB by game NAME. Each match carries the `platform` it
  * was found on, so the caller never has to know the console up front. By default
  * this searches EVERY indexed platform (the natural ask: "find a game's cheats"
- * — you shouldn't have to name the device); pass `platform` only to scope the
+ * - you shouldn't have to name the device); pass `platform` only to scope the
  * search to one console. Returns best-matching game names + cheat counts WITHOUT
  * dumping the whole DB.
  * @param {object} a
  * @param {string} a.query
- * @param {string} [a.platform]  optional — restrict to one platform; omit to search all
+ * @param {string} [a.platform]  optional - restrict to one platform; omit to search all
  * @param {number} [a.limit]
  * @param {number} [a.minScore]
  * @returns {Promise<{platform:string|null, query:string, matches:Array<{game:string, platform:string, score:number, cheats:number}>, gameCount:number, note:string}>}
@@ -172,7 +172,7 @@ export async function searchCheatGames({ platform, query, limit = 12, minScore =
     query, matches, gameCount,
     note: matches.length === 0
       ? `No game in ${scope} (${gameCount} games) is close to "${query}". Try fewer/looser words.`
-      : `${matches.length} candidate(s) by fuzzy name match across ${platform ? "1 platform" : "all platforms"} (each match shows its \`platform\`; region/revision tags ignored, typo-tolerant). To read a game's cheats, call cheats({op:'lookup', platform, game}) with the match's own platform. Score is name similarity, not a content guarantee — verify a label before patching.`,
+      : `${matches.length} candidate(s) by fuzzy name match across ${platform ? "1 platform" : "all platforms"} (each match shows its \`platform\`; region/revision tags ignored, typo-tolerant). To read a game's cheats, call cheats({op:'lookup', platform, game}) with the match's own platform. Score is name similarity, not a content guarantee - verify a label before patching.`,
   };
 }
 
@@ -221,7 +221,7 @@ export async function lookupCheats({ platform, romName, fileName, bytes }) {
   // 3. FUZZY fallback (Fuse over the tag-stripped baseName). Catches the common
   //    failure where identifyRom's name differs from the DB key by a region/
   //    revision tag or punctuation ("Some Game - Special Edition (World)" vs a
-  //    (USA) dump or a missing hyphen), AND now typos — the entry IS in the DB,
+  //    (USA) dump or a missing hyphen), AND now typos - the entry IS in the DB,
   //    just under a sibling name. Stricter threshold than searchCheats: this
   //    auto-PICKS an entry, so require a strong (≤0.4 distance → ≥0.6 sim) match.
   let fuzzyAlternatives = [];
@@ -237,7 +237,7 @@ export async function lookupCheats({ platform, romName, fileName, bytes }) {
         hit = ranked[0].n;
         confidence = "fuzzy";
         // Surface a few sibling matches (other regions/revisions) so the agent
-        // can pick the right dump — addresses can differ across regions.
+        // can pick the right dump - addresses can differ across regions.
         fuzzyAlternatives = ranked.slice(0, 6).map((r) => r.n);
       }
     }
@@ -268,14 +268,14 @@ export async function lookupCheats({ platform, romName, fileName, bytes }) {
     // CRITICAL honesty: a name/filename/fuzzy match is NOT a positive identification.
     note:
       "PROBABLE MATCH by " + howMatched +
-      " — NOT a verified (CRC) identification. The cheat labels are very likely " +
+      " - NOT a verified (CRC) identification. The cheat labels are very likely " +
       "correct for this game, but a different ROM revision/region can use different " +
       "addresses. Verify a label (e.g. apply the cheat and observe, or check the " +
       "address in live memory) before relying on it for a patch. crc32 is provided " +
       "for your own cross-check." +
       (confidence === "fuzzy"
-        ? " NOTE: this was a FUZZY match — the exact dump name didn't match the DB, so I picked the closest title" +
-          (fuzzyAlternatives.length > 1 ? `; \`alternatives\` lists sibling region/revision entries — pick the one matching your ROM's region, addresses can differ.` : ".")
+        ? " NOTE: this was a FUZZY match - the exact dump name didn't match the DB, so I picked the closest title" +
+          (fuzzyAlternatives.length > 1 ? `; \`alternatives\` lists sibling region/revision entries - pick the one matching your ROM's region, addresses can differ.` : ".")
         : ""),
   };
 }

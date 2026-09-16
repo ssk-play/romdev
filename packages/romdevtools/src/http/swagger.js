@@ -1,4 +1,4 @@
-// Swagger UI page for GET /documentation — served entirely from the bundled
+// Swagger UI page for GET /documentation - served entirely from the bundled
 // `swagger-ui-dist` package. NO CDN: the CSS + JS are served from our own
 // /documentation/* routes off the local node_modules, so the docs work fully
 // offline / airgapped (consistent with romdev's no-network ethos).
@@ -28,7 +28,7 @@ export function swaggerAsset(name) {
 }
 
 /**
- * The /documentation HTML — references LOCAL assets (served by the route layer
+ * The /documentation HTML - references LOCAL assets (served by the route layer
  * from swagger-ui-dist), never a CDN.
  * @param {{specUrl?: string, title?: string, assetBase?: string}} [opts]
  * @returns {string} HTML
@@ -53,7 +53,7 @@ export function swaggerHtml(opts = {}) {
 <body>
   <div id="fallback">
     <h1>${escapeHtml(title)}</h1>
-    <p>Loading interactive docs… If this doesn't render, the raw OpenAPI spec is at
+    <p>Loading interactive docs... If this doesn't render, the raw OpenAPI spec is at
        <a href="${specUrl}"><code>${specUrl}</code></a>, every tool is callable via
        <code>POST /tool/{name}</code>, and the workflow guide is at
        <a href="/skills/romdev/SKILL.md"><code>/skills/romdev/SKILL.md</code></a>.</p>

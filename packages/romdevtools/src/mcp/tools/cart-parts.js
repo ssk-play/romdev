@@ -1,8 +1,8 @@
-// extractCart / wrapRomFromParts — split ROM into standard pieces, and
+// extractCart / wrapRomFromParts - split ROM into standard pieces, and
 // glue them back together with a build-ready wrapper source + linker cfg.
 //
 // extractCart replaces `dd skip=16 count=16384` per-platform magic numbers
-// with one structured call. wrapRomFromParts handles the reverse — emit the
+// with one structured call. wrapRomFromParts handles the reverse - emit the
 // boilerplate source files (wrapper.s + linkerConfig) that buildSource
 // expects so an "extract → patch → re-wrap → buildSource" cycle has zero
 // hand-written glue.
@@ -45,7 +45,7 @@ export async function packDiskCore(args) {
   await writeFile(out, Buffer.from(d64));
   return {
     packed: true, format: "d64", name, bytes: d64.length, path: out,
-    note: "Autostart-able 1541 disk image. Load it with loadMedia({platform:'c64', path}) — it boots the program automatically. This is the format the Commodore 64 Ultimate hardware and the homebrew scene load.",
+    note: "Autostart-able 1541 disk image. Load it with loadMedia({platform:'c64', path}) - it boots the program automatically. This is the format the Commodore 64 Ultimate hardware and the homebrew scene load.",
   };
 }
 
@@ -125,8 +125,8 @@ function extractNes(data) {
 
 /**
  * Split an SNES ROM into copier-header (if present) + body. SNES doesn't
- * have a separate CHR file the way NES does — graphics live inline in PRG
- * banks — so the "parts" are minimal: just header + ROM. We pull out the
+ * have a separate CHR file the way NES does - graphics live inline in PRG
+ * banks - so the "parts" are minimal: just header + ROM. We pull out the
  * internal header bytes ($FFC0 / $7FC0) too for inspection.
  */
 function extractSnes(data) {
@@ -175,9 +175,9 @@ function extractGenesis(data) {
  */
 /**
  * Split an SMS / Game Gear cart into:
- *   pre_header.bin    — first $7FF0 bytes ($0000-$7FEF)
- *   sega_header.bin   — $7FF0-$7FFF (16 bytes: "TMR SEGA", checksum, product code, region/version)
- *   body.bin          — $8000 onwards (banked region)
+ *   pre_header.bin    - first $7FF0 bytes ($0000-$7FEF)
+ *   sega_header.bin   - $7FF0-$7FFF (16 bytes: "TMR SEGA", checksum, product code, region/version)
+ *   body.bin          - $8000 onwards (banked region)
  * Carts under 32 KB are emitted as a single rom.bin with a note that no
  * header was detected.
  */
@@ -211,7 +211,7 @@ function extractSms(data, platform) {
 }
 
 /**
- * Split an Atari 2600 cart. No real "header" — vectors live at the end.
+ * Split an Atari 2600 cart. No real "header" - vectors live at the end.
  * Emit body (everything except the last 6 bytes) + vectors.bin.
  */
 /** Split a C64 .prg into load_address.bin (2 bytes) + body.bin. */
@@ -296,7 +296,7 @@ function extractAtari7800(data) {
   };
 }
 
-// GameTank .gtr — a flat, headerless cart whose mapper is keyed by SIZE
+// GameTank .gtr - a flat, headerless cart whose mapper is keyed by SIZE
 // (8 KB EEPROM8K / 32 KB EEPROM32K / 2 MB FLASH2M). For the single-bank 32 KB
 // format the 6502 vector table (NMI/RESET/IRQ) is the last 6 bytes ($FFFA), like
 // the 7800. Split into body + vectors (32 KB) or just rom.bin (other sizes), and
@@ -310,7 +310,7 @@ function extractGameTank(data) {
   const parts = {};
   let vectors = null;
   // The 32 KB single-bank format maps at $8000-$FFFF, so the CPU vector table is
-  // the last 6 bytes. (FLASH2M banks the cart — the live vectors are in bank $FF,
+  // the last 6 bytes. (FLASH2M banks the cart - the live vectors are in bank $FF,
   // also the last 6 bytes of the 2 MB image; EEPROM8K mirrors up into $FFFA too.)
   if (n >= 6) {
     parts["body.bin"] = data.slice(0, n - 6);
@@ -327,7 +327,7 @@ function extractGameTank(data) {
     manifest: {
       platform: "gametank",
       bytes: n,
-      mapper,                          // SIZE is the mapper — keep the byte count exact on re-wrap
+      mapper,                          // SIZE is the mapper - keep the byte count exact on re-wrap
       bodyBytes: n >= 6 ? n - 6 : n,
       vectors,
     },
@@ -416,7 +416,7 @@ export async function extractCartCore({ path: romPath, platform, outputDir, inli
     };
   }
 
-  // Inline mode — return parts as base64.
+  // Inline mode - return parts as base64.
   const inlineParts = {};
   for (const [name, bytes] of Object.entries(result.parts)) {
     inlineParts[name] = {
@@ -441,13 +441,13 @@ export async function extractCartCore({ path: romPath, platform, outputDir, inli
  * HEADER, PRG, CHR; one SEGMENT each.
  *
  * Caller passes:
- *   prgPath  — file path to the PRG-ROM bytes (gets INCBIN'd)
- *   chrPath  — file path to the CHR-ROM bytes (or null for CHR-RAM)
- *   mapper   — iNES mapper number (default 0 / NROM)
- *   mirror   — "horizontal" | "vertical" | "four-screen" (default horizontal)
- *   prgBanks — count of 16KB banks (default infer from prgPath size)
- *   chrBanks — count of 8KB banks (default infer; 0 for CHR-RAM)
- *   hasBattery — battery-backed SRAM (iNES flags6 bit 1); preserved on round-trip
+ *   prgPath  - file path to the PRG-ROM bytes (gets INCBIN'd)
+ *   chrPath  - file path to the CHR-ROM bytes (or null for CHR-RAM)
+ *   mapper   - iNES mapper number (default 0 / NROM)
+ *   mirror   - "horizontal" | "vertical" | "four-screen" (default horizontal)
+ *   prgBanks - count of 16KB banks (default infer from prgPath size)
+ *   chrBanks - count of 8KB banks (default infer; 0 for CHR-RAM)
+ *   hasBattery - battery-backed SRAM (iNES flags6 bit 1); preserved on round-trip
  */
 function wrapNes({ prgPath, chrPath, mapper, mirror, prgBanks, chrBanks, hasBattery }) {
   const m = mapper ?? 0;
@@ -458,7 +458,7 @@ function wrapNes({ prgPath, chrPath, mapper, mirror, prgBanks, chrBanks, hasBatt
 
   // ld65 MEMORY `size` is BYTE COUNT (exclusive), not "last valid address."
   // A 16KB region is $4000 bytes, not $3FFF. NROM-128 (1 PRG bank) anchors
-  // at CPU $C000 with hardware mirroring to $8000-$BFFF — vectors at
+  // at CPU $C000 with hardware mirroring to $8000-$BFFF - vectors at
   // $FFFA-$FFFF only resolve when the bank is loaded at $C000.
   const banks = prgBanks ?? 1;
   let prgStart, prgSize;
@@ -467,7 +467,7 @@ function wrapNes({ prgPath, chrPath, mapper, mirror, prgBanks, chrBanks, hasBatt
     prgSize = 0x4000; // 16 KB
   } else if (banks === 2) {
     prgStart = 0x8000;
-    prgSize = 0x8000; // 32 KB — NROM-256
+    prgSize = 0x8000; // 32 KB - NROM-256
   } else {
     throw new Error(
       `wrapRomFromParts[nes]: prgBanks=${banks} requires mapper-specific banking config ` +
@@ -551,9 +551,9 @@ function wrapSnes({ copierHeaderPath, romPath }) {
  * SMS / Game Gear wrapper template. Emits sdasz80 source that concats the
  * pre-header code + sega header + body via .incbin into a flat output.
  *
- *   preHeaderPath  — code in $0000-$7FEF
- *   headerPath     — 16-byte sega header at $7FF0
- *   bodyPath       — banked region from $8000 onwards
+ *   preHeaderPath  - code in $0000-$7FEF
+ *   headerPath     - 16-byte sega header at $7FF0
+ *   bodyPath       - banked region from $8000 onwards
  *
  * Sub-32KB carts can pass `rom.bin` as `bodyPath` and omit preHeader/header.
  */
@@ -620,7 +620,7 @@ function wrapAtari7800({ a78HeaderPath, bodyPath, vectorsPath, romPath, bodyByte
   const hexOrg = "$" + bodyOrg.toString(16).toUpperCase().padStart(4, "0");
   let src = "";
   if (a78HeaderPath) {
-    src += `\t; A78 header (not part of the 6502 image — emitted at file start)\n`;
+    src += `\t; A78 header (not part of the 6502 image - emitted at file start)\n`;
     src += `\t.incbin "${a78HeaderPath}"\n`;
   }
   src += `\t.org ${hexOrg}\n`;
@@ -673,14 +673,14 @@ export async function wrapRomFromPartsCore(args) {
 function wrapC64({ loadAddress, bodyPath, romPath }) {
   if (romPath) {
     const wrapperSource =
-`; C64 .prg wrapper — reassembles a prebuilt body.
+`; C64 .prg wrapper - reassembles a prebuilt body.
         .org    $${(loadAddress ?? 0x0801).toString(16).toUpperCase()}
         .incbin "${romPath}"
 `;
     return { wrapperSource, linkerConfig: null };
   }
   const wrapperSource =
-`; C64 .prg wrapper — load_address.bin is the 2-byte little-endian
+`; C64 .prg wrapper - load_address.bin is the 2-byte little-endian
 ; load address, body.bin is the program bytes that follow.
         .incbin "load_address.bin"
         .incbin "${bodyPath ?? "body.bin"}"
@@ -693,14 +693,14 @@ function wrapC64({ loadAddress, bodyPath, romPath }) {
  * the end) → a size-keyed image (default 32 KB EEPROM32K). The mapper IS the
  * size, so the wrapper PADS to exactly romSize (default $8000) with the vectors
  * forced to the last 6 bytes. Emits a ca65 source that .incbin's the body, pads,
- * then .incbin's the vectors at $FFFA — assemble+link with the gametank preset,
+ * then .incbin's the vectors at $FFFA - assemble+link with the gametank preset,
  * or just `cat body.bin <pad> vectors.bin` to the exact size.
  */
 function wrapGameTank({ bodyPath, vectorsPath, romPath, romSize }) {
   if (romPath) {
-    // already-flat image — just (re)assert the size by including it verbatim.
+    // already-flat image - just (re)assert the size by including it verbatim.
     const wrapperSource =
-`; GameTank .gtr wrapper — a prebuilt flat image (size = mapper).
+`; GameTank .gtr wrapper - a prebuilt flat image (size = mapper).
         .incbin "${romPath}"
 `;
     return { wrapperSource, linkerConfig: null };
@@ -727,7 +727,7 @@ function wrapGameTank({ bodyPath, vectorsPath, romPath, romSize }) {
 export function registerCartPartsTools(server, z) {
   server.tool(
     "cart",
-    "Cartridge container ops — identify / split / reassemble a ROM file. `op`: 'identify' | 'extract' | 'wrap' | 'packDisk'.\n" +
+    "Cartridge container ops - identify / split / reassemble a ROM file. `op`: 'identify' | 'extract' | 'wrap' | 'packDisk'.\n" +
     "'identify': sniff an unknown ROM/zip's platform (which core to load). Handles zip-wrapped ROMs; `path` OR " +
     "`base64` (+`hint` ext for headerless). Returns {platform, format, title, mapper, region, sizes, confidence}. " +
     "RE next steps: cheats({op:'lookup'}) is a free labeled memory/code map; disasm is how you change behavior.\n" +
@@ -740,7 +740,7 @@ export function registerCartPartsTools(server, z) {
     "parts back into a cart. NES auto-generates the iNES header from mapper+mirror (chrPath:null for CHR-RAM; only " +
     "prgBanks 1/2 = NROM-128/256). Per-platform part paths in the param hints (pass `romPath` for a one-shot whole-body incbin).\n" +
     "'packDisk' (C64): wrap a built `.prg` (`prgPath` or `base64`) into a distributable, autostart-able `.d64` disk " +
-    "image — the format the new Commodore 64 Ultimate hardware and the homebrew/demo scene actually load. " +
+    "image - the format the new Commodore 64 Ultimate hardware and the homebrew/demo scene actually load. " +
     "Writes `<prg>.d64` (or `outputPath`/`inline`). loadMedia({platform:'c64', path:<.d64>}) boots it directly. " +
     "(extract on a `.d64` lists its directory; pass `name` to pull one file off the disk.)",
     {
@@ -750,10 +750,10 @@ export function registerCartPartsTools(server, z) {
       base64: z.string().optional().describe("op=identify: base64 ROM bytes (OR path)."),
       hint: z.string().optional().describe("op=identify: with base64, filename extension (e.g. '.nes') to disambiguate headerless formats."),
       // extract / wrap
-      platform: z.enum(["nes", "snes", "genesis", "megadrive", "md", "gb", "gbc", "sms", "gg", "atari2600", "a2600", "atari7800", "a7800", "c64"]).optional().describe("op=extract: override detection. op=wrap: REQUIRED — the target platform."),
+      platform: z.enum(["nes", "snes", "genesis", "megadrive", "md", "gb", "gbc", "sms", "gg", "atari2600", "a2600", "atari7800", "a7800", "c64"]).optional().describe("op=extract: override detection. op=wrap: REQUIRED - the target platform."),
       outputDir: z.string().optional().describe("op=extract: directory to write the parts (+ manifest.json). Required unless inline:true."),
       inline: z.boolean().default(false).describe("op=extract: return the parts as base64 instead of writing to disk."),
-      // wrap — NES
+      // wrap - NES
       prgPath: z.string().optional().describe("op=wrap NES: path to PRG bytes."),
       chrPath: z.string().nullable().optional().describe("op=wrap NES: path to CHR bytes; null for CHR-RAM carts."),
       mapper: z.number().int().min(0).max(255).optional().describe("op=wrap NES: iNES mapper number (default 0 NROM)."),
@@ -761,10 +761,10 @@ export function registerCartPartsTools(server, z) {
       prgBanks: z.number().int().min(1).max(255).optional().describe("op=wrap NES: PRG bank count (16KB each); only 1 (NROM-128) or 2 (NROM-256) supported, default 1."),
       chrBanks: z.number().int().min(0).max(255).optional().describe("op=wrap NES: CHR bank count (8KB each); 0 = CHR-RAM."),
       hasBattery: z.boolean().optional().describe("op=wrap NES: set the iNES battery-backed-SRAM flag (flags6 bit 1). Pass the value from extractCart's manifest.hasBattery for a byte-exact round-trip."),
-      // wrap — SNES
+      // wrap - SNES
       romPath: z.string().optional().describe("op=wrap SNES/SMS/GG/Atari 2600/Atari 7800/C64: whole-ROM body for a one-shot incbin (skips the per-part paths)."),
       copierHeaderPath: z.string().optional().describe("op=wrap SNES: path to a 512B copier header to prepend."),
-      // wrap — Genesis / GB / SMS-GG / Atari / C64
+      // wrap - Genesis / GB / SMS-GG / Atari / C64
       headerPath: z.string().optional().describe("op=wrap Genesis/GB/SMS/GG: header bytes."),
       bodyPath: z.string().optional().describe("op=wrap Genesis/GB/SMS/GG/Atari 2600/Atari 7800/C64: ROM body."),
       bootPath: z.string().optional().describe("op=wrap GB/GBC: boot/jump bytes at $0000-$00FF."),
@@ -783,7 +783,7 @@ export function registerCartPartsTools(server, z) {
         case "identify": return await identifyRomCore(args);
         case "extract": {
           if (!args.path) throw new Error("cart({op:'extract'}): `path` is required.");
-          // A .d64 is a disk image (a container of files), not a flat cart —
+          // A .d64 is a disk image (a container of files), not a flat cart -
           // route it to the disk reader so extract lists/pulls its contents.
           if (/\.d64$/i.test(args.path)) return jsonContent(await extractDiskCore(args));
           return jsonContent(await extractCartCore(args));

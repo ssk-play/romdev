@@ -1,9 +1,9 @@
-; Game Boy Color hello-world — yellow 'H' on a real BLUE background
+; Game Boy Color hello-world - yellow 'H' on a real BLUE background
 ; (only possible on GBC; DMG can only do 4 shades).
 ;
 ; Differences from the DMG example:
 ;   - byte at $0143 = $C0  → "GBC only" cart (boot ROM enables CGB mode)
-;   - palette via BCPS/BCPD ($FF68/$FF69), not BGP — full 15-bit BGR555
+;   - palette via BCPS/BCPD ($FF68/$FF69), not BGP - full 15-bit BGR555
 ;   - palette 0 entry 0 = backdrop (blue here), entry 1 = yellow
 ;
 ; Build with:
@@ -15,16 +15,16 @@ SECTION "Entry", ROM0[$0100]
   nop
   jp Start
 
-  ; Nintendo logo bytes ($0104-$0133) — rgbfix fills these in.
+  ; Nintendo logo bytes ($0104-$0133) - rgbfix fills these in.
   ds $30, 0
 
-  ; Title ($0134-$0142, 15 bytes) — padded.
+  ; Title ($0134-$0142, 15 bytes) - padded.
   ds $0F, 0
 
   ; $0143: CGB flag. $80 = CGB-supported, $C0 = CGB-only.
   db $C0
 
-  ; Remainder of header — rgbfix patches checksums after assembly.
+  ; Remainder of header - rgbfix patches checksums after assembly.
   ds $014F - @ + 1, 0
 
 SECTION "Main", ROM0[$0150]
@@ -52,7 +52,7 @@ Start:
   ld b, 8                  ; first 4 entries = palette 0 (8 bytes)
 .pal_loop
   ld a, [hl+]
-  ldh [$FF69], a           ; BCPD — auto-increments BCPS index
+  ldh [$FF69], a           ; BCPD - auto-increments BCPS index
   dec b
   jr nz, .pal_loop
 
@@ -82,7 +82,7 @@ Start:
   jr nz, .clear_map
 
   ; Tile attribute byte = 0 → palette 0, bank 0, no flip, no priority.
-  ; (We left bank 1 untouched, so all attributes are 0 — perfect.)
+  ; (We left bank 1 untouched, so all attributes are 0 - perfect.)
 
   ; ── Write tile 1 to the center cell ────────────────────────────
   ld hl, $9800 + (8 * 32) + 9
@@ -110,7 +110,7 @@ BgPalette:
   dw $0000     ; color 2
   dw $0000     ; color 3
 
-; Tile data — same 'H' as the DMG example, color index 1 (yellow).
+; Tile data - same 'H' as the DMG example, color index 1 (yellow).
 ; Plane 0 only → all H pixels = color 1.
 TileH:
   db $66, $00   ; row 0

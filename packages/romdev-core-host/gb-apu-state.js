@@ -4,7 +4,7 @@
 // channel playing this frame?" decode straight off the hardware register file,
 // independent of whatever private sound driver the game uses.
 //
-// GB data source: the `gb_io` region — the 128-byte I/O page at $FF00-$FF7F.
+// GB data source: the `gb_io` region - the 128-byte I/O page at $FF00-$FF7F.
 // The APU register block lives at $FF10-$FF3F, i.e. io[0x10]..io[0x3F]:
 //
 //   NR10=$10 sweep      NR11=$11 duty/len   NR12=$12 vol/env
@@ -17,13 +17,13 @@
 //   NR43=$22 noise freq NR44=$23 trigger                (channel 4, noise)
 //   NR50=$24 master vol NR51=$25 panning    NR52=$26 power + channel status
 //
-// GBA data source: the `gba_io_regs` region — the 0x400-byte I/O page at
+// GBA data source: the `gba_io_regs` region - the 0x400-byte I/O page at
 // $4000000. The GBA carries the same four DMG PSG channels (mirrored at byte
 // offsets $60-$81) plus two Direct Sound DMA FIFO channels ($A0/$A4). The
 // PSG decode reuses the exact same formulas as GB; only the offsets differ.
 //
 // These are *register* bytes (what the CPU last wrote), not the APU's internal
-// envelope/sweep counters — which is exactly the pitch/duty/volume layer you
+// envelope/sweep counters - which is exactly the pitch/duty/volume layer you
 // want for music transcription.
 
 // Pulse channels: freq = 131072 / (2048 - freq11) Hz.

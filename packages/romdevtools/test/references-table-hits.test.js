@@ -1,7 +1,7 @@
 // disasm({target:'references'}) pointer-table (trampoline) scan. The operand scan
 // only finds DIRECT control-flow (jsr/jmp/branch naming the address). When a
 // handler is reached ONLY through an inline word table (computed jump / RTS-trick
-// dispatcher), no instruction names it — so references now also scans the raw ROM
+// dispatcher), no instruction names it - so references now also scans the raw ROM
 // for the address as a 16-bit pointer (LE/BE, + the 6502 addr-1 RTS-trick), the
 // exact case the v0.41.0 feedback hit (note 164014 #1 / 185811).
 
@@ -93,7 +93,7 @@ test("RTS-trick (addr-1) is scanned ONLY on the 6502 family, not on GB/Z80/m68k"
   // GB headerless. Put $4234 (direct) AND $4233 (= addr-1) in a word table.
   const gb = new Uint8Array(0x8000);
   gb.set([0x34, 0x42], 0x1000); // $4234 direct
-  gb.set([0x33, 0x42], 0x1002); // $4233 — would be rts+1 of $4234 on a 6502
+  gb.set([0x33, 0x42], 0x1002); // $4233 - would be rts+1 of $4234 on a 6502
   const dir = await mkdtemp(path.join(os.tmpdir(), "reftbl-gb-"));
   try {
     const p = path.join(dir, "t.gb");

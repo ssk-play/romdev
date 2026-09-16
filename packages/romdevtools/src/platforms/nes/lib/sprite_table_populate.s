@@ -1,4 +1,4 @@
-; NES — populating the OAM sprite table.
+; NES - populating the OAM sprite table.
 ;
 ; OAM is 256 bytes: 64 sprites × 4 bytes each.
 ;   byte 0: Y position (NOTE: stored as actual_y - 1; e.g. y=$10 means
@@ -6,7 +6,7 @@
 ;   byte 1: tile number (0..255; PPUCTRL bit 3 picks tile bank for 8x8
 ;           mode; for 8x16 mode, bit 0 of the tile number picks the
 ;           bank and bits 1-7 are the tile index *2)
-;   byte 2: attribute  — vhpxxxpp
+;   byte 2: attribute  - vhpxxxpp
 ;            bit 7: V flip
 ;            bit 6: H flip
 ;            bit 5: behind background (0 = in front)
@@ -14,12 +14,12 @@
 ;   byte 3: X position
 ;
 ; Gotchas:
-;   • Y = $EF (239) or higher hides the sprite — the PPU treats it as
+;   • Y = $EF (239) or higher hides the sprite - the PPU treats it as
 ;     "off screen". So unused sprite slots are conventionally set to
 ;     Y=$FF to hide them.
 ;   • Tile bank for 8x8 sprites is global (PPUCTRL bit 3) and CAN'T be
 ;     per-sprite. For 8x16 mode (PPUCTRL bit 5), the tile byte's bit 0
-;     selects the bank per sprite instead — strange but powerful.
+;     selects the bank per sprite instead - strange but powerful.
 ;   • OAM can only be written via $2003/$2004 (slow, one byte at a
 ;     time) or via DMA from a page-aligned RAM buffer (256 bytes
 ;     in 513 cycles). ALWAYS use DMA in real code.

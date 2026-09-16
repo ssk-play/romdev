@@ -2,8 +2,8 @@
 // disasm({target:'rom'}) emits for sms/gg/msx and the Genesis sound CPU) into
 // the generic recompile IR (ir.js).
 //
-// WHY Z80 FIRST, after 6502: one lifter unlocks FOUR platforms — Master
-// System, Game Gear, MSX, and the Genesis Z80 — because they share the ISA and
+// WHY Z80 FIRST, after 6502: one lifter unlocks FOUR platforms - Master
+// System, Game Gear, MSX, and the Genesis Z80 - because they share the ISA and
 // differ only at the hardware seam, which the IR already keeps separate
 // (irHwReg). Everything else in the pipeline (IR, residue, callee stubbing,
 // the disasm wiring) is shared with 6502.
@@ -23,7 +23,7 @@ import {
 
 /**
  * The documented Z80 mnemonic set (base + CB/ED/DD/FD prefixed forms as
- * objdump renders them). Anything outside this is REFUSED — an undocumented
+ * objdump renders them). Anything outside this is REFUSED - an undocumented
  * opcode, or a data byte that landed in the instruction stream.
  */
 export const DOCUMENTED_Z80 = new Set([
@@ -161,7 +161,7 @@ export function splitCondition(mnemonic, operand) {
 }
 
 /**
- * Is this operand an I/O port access — the Z80 hardware seam?
+ * Is this operand an I/O port access - the Z80 hardware seam?
  *
  * Unlike the 6502 (where hardware is memory-mapped and the seam is an address
  * range), the Z80 reaches hardware through a SEPARATE I/O space via in/out.
@@ -201,7 +201,7 @@ export function seamPort(operand) {
 /** Placeholder replaced with a unique local label when the node is emitted. */
 export const SKIP_LABEL_MARK = "\u0000SKIP";
 
-/** The logical inverse of a condition — what a branch-over expansion needs. */
+/** The logical inverse of a condition - what a branch-over expansion needs. */
 function invertCond(c) {
   const INV = {
     [COND.EQ]: COND.NE, [COND.NE]: COND.EQ,
@@ -258,7 +258,7 @@ function liftInstr(p) {
         irLabel(SKIP_LABEL_MARK),
       ] };
     }
-    if (/\(/.test(rest)) return irRefuse("indirect call — target not statically known", raw, label);
+    if (/\(/.test(rest)) return irRefuse("indirect call - target not statically known", raw, label);
     return irCall(rest, raw, label);
   }
 
@@ -284,7 +284,7 @@ function liftInstr(p) {
     // how a recompiler silently drops half a dispatcher. Refuse, and point at
     // the tool that CAN resolve it.
     if (/\(/.test(rest)) {
-      return irRefuse("computed jump (jp (hl)/(ix)/(iy)) — resolve arms with breakpoint({on:'jumptable'}) and re-lift with them as entries", raw, label);
+      return irRefuse("computed jump (jp (hl)/(ix)/(iy)) - resolve arms with breakpoint({on:'jumptable'}) and re-lift with them as entries", raw, label);
     }
     if (cond) return irBranch(cond, rest, raw, label);
     return irJump(rest, raw, label);
@@ -301,7 +301,7 @@ function liftInstr(p) {
     const access = m.startsWith("in") ? "read" : "write";
     const port = seamPort(operand);
     if (port == null) {
-      // `in a,(c)` / `out (c),a` — the port is dynamic. Still a seam, still
+      // `in a,(c)` / `out (c),a` - the port is dynamic. Still a seam, still
       // hardware; the emitter just cannot constant-fold which register.
       return irHwReg(access, null, "c", raw, label);
     }

@@ -1,7 +1,7 @@
-// sync32 song compiler — a note/duration song → (hz, frames) event tables for
+// sync32 song compiler - a note/duration song → (hz, frames) event tables for
 // a software synth. The console has NO sound chip: a game fills a 48 kHz
 // stereo s16 ring itself, so "music" is whatever the game's own mixer plays.
-// The natural unit is therefore Hz + a duration in 60 Hz frames, per voice —
+// The natural unit is therefore Hz + a duration in 60 Hz frames, per voice -
 // exactly what a square/triangle/noise voice needs and the shape every port
 // hand-writes (jaymcgavren 2026-09-05: `(hz, frames)` note data for a
 // three-voice square synth).
@@ -123,7 +123,7 @@ export function compileSong(song) {
     `/* Minimal square-voice mixer sketch (48 kHz ring, one 60 Hz tick every 800 frames):`,
     ` *   if (++frac == 800) { frac = 0; for each voice: if (--left <= 0) { hz = ev[i*2]; left = ev[i*2+1]; i = (i+1) % nev; period = hz ? 48000/hz : 0; } }`,
     ` *   sample += period ? ((++phase >= period ? (phase = 0) : phase) * 2 < period ? amp : -amp) : 0;`,
-    ` * Push in chunks bounded by audio_space() — the ring holds 1024 frames and a video frame is 800. */`,
+    ` * Push in chunks bounded by audio_space() - the ring holds 1024 frames and a video frame is 800. */`,
     "",
   );
   return { voices, rows, bytes, cSource: lines.join("\n"), frames };

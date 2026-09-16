@@ -1,7 +1,7 @@
-/* ── puzzle.c — C64 falling-trio versus puzzle (complete example game) ────────
+/* ── puzzle.c - C64 falling-trio versus puzzle (complete example game) ────────
  *
- * MAGMA MATCH — a COMPLETE, working game: title screen, 1P MARATHON mode
- * (levels speed the fall as you clear) and 2P SIMULTANEOUS VERSUS mode —
+ * MAGMA MATCH - a COMPLETE, working game: title screen, 1P MARATHON mode
+ * (levels speed the fall as you clear) and 2P SIMULTANEOUS VERSUS mode -
  * two 6x12 wells side by side, P1 on CONTROL PORT 2, P2 on CONTROL PORT 1,
  * both falling at once, where every cascade chain you score erupts garbage
  * rows up from the bottom of your rival's well. Score + in-session hi-score
@@ -15,43 +15,43 @@
  * blocks (horizontal, vertical, or diagonal) clears; survivors fall and
  * cascades chain for multiplied score. First stack to reach the rim loses.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented C64 footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented C64 footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — match rules, garbage, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - match rules, garbage, tuning, art: reshape freely.
  *
  * What depends on what:
- *   c64_registers.h — VIC-II / SID / CIA symbolic addresses (header only).
- *   c64_sfx.{h,c}   — one-shot SID sound effects on voice 2.
+ *   c64_registers.h - VIC-II / SID / CIA symbolic addresses (header only).
+ *   c64_sfx.{h,c}   - one-shot SID sound effects on voice 2.
  *   The BASIC stub + crt0 come from cc65's c64 target: the .prg loads at
  *     $0801, a tiny BASIC line does SYS into the C runtime, and the KERNAL
- *     stays banked in (we lean on that for the IRQ vector — see below).
+ *     stays banked in (we lean on that for the IRQ vector - see below).
  *
  * Memory map this file assumes (VIC bank 0 = $0000-$3FFF):
  *   $0400  screen RAM (40×25 chars)        $D800 color RAM (per-cell color)
  *   $0801  this program (code+data grow up from here)
- *   Keep the program under ~14 KB. (No hardware sprites here — the whole
+ *   Keep the program under ~14 KB. (No hardware sprites here - the whole
  *   board is screen-RAM CHARACTERS, so the classic $0800 / $1000 sprite-data
  *   trap doesn't even come up. The falling trio is drawn as chars too.)
  *
- * Frame budget (PAL, 50fps) — and a TEACHING POINT vs the NES version of
+ * Frame budget (PAL, 50fps) - and a TEACHING POINT vs the NES version of
  * this game (examples/nes/templates/puzzle.c): on the NES, board repaints
  * squeeze through a ~16-entry vblank queue, so a full-board repaint is
  * BUDGETED across 12 frames of dirty-row bitmask tricks. The C64 has NO
- * VRAM port — screen RAM is plain memory, writable any time, mid-frame.
+ * VRAM port - screen RAM is plain memory, writable any time, mid-frame.
  * But the C64's famine is CPU, not bandwidth: a full 880-cell repaint of
  * cc65-generated C costs ~50 frames (a frozen second). So this game NEVER
- * repaints the whole screen during play — it tracks the cells that actually
+ * repaints the whole screen during play - it tracks the cells that actually
  * changed and repaints ONLY those (see the cell-diff idiom). Same genre,
- * a different scarcity to design around — fork accordingly.
+ * a different scarcity to design around - fork accordingly.
  */
 
 #include "c64_registers.h"
 #include "c64_sfx.h"
 #include <stdint.h>
 
-/* cc65 KERNAL disk-I/O prototypes. We DON'T #include <cbm.h> — it drags in
+/* cc65 KERNAL disk-I/O prototypes. We DON'T #include <cbm.h> - it drags in
  * <c64.h>, whose VIC/SID/JOY macros collide with this project's
  * c64_registers.h (cc65 errors "macro redefinition is not identical"). These
  * four are the stable cc65 ABI; declaring them directly avoids the clash. */
@@ -61,7 +61,7 @@ void __fastcall__ cbm_close(unsigned char lfn);
 int __fastcall__ cbm_read(unsigned char lfn, void *buffer, unsigned int size);
 int __fastcall__ cbm_write(unsigned char lfn, const void *buffer, unsigned int size);
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "MAGMA MATCH"
 
@@ -71,13 +71,13 @@ int __fastcall__ cbm_write(unsigned char lfn, const void *buffer, unsigned int s
 #define SCREEN ((volatile uint8_t*)0x0400)
 #define COLORS ((volatile uint8_t*)0xD800)
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Board geometry. Each cell is ONE 40×25 character. Wells are 6 wide × 12
  * tall. In 1P a single well is centred; in 2P two wells split the screen.
- *   char row 0  — HUD text: SC / HI / LV / P2 score  (FIXED, the raster split)
- *   char row 1  — solid divider line                 (FIXED)
- *   char row 2  — blank spacer: the split lands mid-row HERE (jitter-proof)
- *   char rows 3.. — the wells (frame at WELL_TOP-1 / WELL_TOP+GRID_H) */
+ *   char row 0  - HUD text: SC / HI / LV / P2 score  (FIXED, the raster split)
+ *   char row 1  - solid divider line                 (FIXED)
+ *   char row 2  - blank spacer: the split lands mid-row HERE (jitter-proof)
+ *   char rows 3.. - the wells (frame at WELL_TOP-1 / WELL_TOP+GRID_H) */
 #define GRID_W   6
 #define GRID_H   12
 #define WELL_TOP 5            /* top char ROW of a well's interior          */
@@ -102,14 +102,14 @@ static const uint8_t cell_color[4] = {
   COLOR_LIGHT_GRAY,  /* 3 = ash                          */
 };
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * THE RASTER-IRQ SPLIT — the C64's classic "fixed status bar over a moving
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * THE RASTER-IRQ SPLIT - the C64's classic "fixed status bar over a moving
  * world" trick (and the gateway drug to all raster effects). Here it pins a
  * HUD bar at the top while the wells live below it. The VIC-II has ONE
  * $D016 fine-scroll for the whole frame; we don't scroll the wells (a puzzle
  * board holds still), but the split is STILL the idiomatic way to guarantee
  * the HUD's first rows render in a known, fixed scroll state regardless of
- * what the rest of the frame does — and it gives you the per-frame heartbeat
+ * what the rest of the frame does - and it gives you the per-frame heartbeat
  * the main loop paces on. Two IRQs ping-pong per frame:
  *
  *   line 68 (inside the blank spacer row 2): assert the board's $D016
@@ -120,17 +120,17 @@ static const uint8_t cell_color[4] = {
  *
  * The handshake, register by register:
  *   $D012      raster compare line (low 8 bits)
- *   $D011 b7   raster compare bit 8 — MUST be 0 here (both lines < 256).
+ *   $D011 b7   raster compare bit 8 - MUST be 0 here (both lines < 256).
  *              Forgetting this bit is the classic "my IRQ fires on the
  *              wrong line / twice" bug when lines ≥ 256 get involved.
  *   $D01A b0   raster IRQ enable
  *   $D019      IRQ latch. ACK by WRITING THE BITS BACK (write-1-to-clear).
  *              THE LOAD-BEARING LINE: skip the ack and the IRQ re-fires the
- *              instant it returns, forever — the main loop starves and the
+ *              instant it returns, forever - the main loop starves and the
  *              machine looks hung.
  *   $0314/15   the KERNAL's IRQ indirection. The hardware vector ($FFFE)
  *              points into KERNAL ROM, which saves A/X/Y and jumps through
- *              $0314 — so with the KERNAL banked in (cc65 default) we just
+ *              $0314 - so with the KERNAL banked in (cc65 default) we just
  *              repoint $0314. Exit via jmp $EA81 (KERNAL: restore regs +
  *              rti), SKIPPING $EA31's jiffy-clock/keyboard scan.
  *   $DC0D      CIA1 interrupt control. The KERNAL leaves a 60Hz CIA timer
@@ -139,11 +139,11 @@ static const uint8_t cell_color[4] = {
  *              with the raster and fires our handler at random lines.
  *
  * JITTER: an IRQ only starts after the current instruction finishes, so the
- * handler begins 0-7 cycles late, plus the KERNAL thunk (~35 cycles) — the
+ * handler begins 0-7 cycles late, plus the KERNAL thunk (~35 cycles) - the
  * $D016 write lands one-to-two raster lines after SPLIT_LINE. We hide that
  * by splitting inside a UNIFORM blank row, where shifting the (invisible)
  * pixels mid-line changes nothing. Splits next to visible detail need
- * cycle-exact stabilization (double-IRQ trick) — don't go there until you do.
+ * cycle-exact stabilization (double-IRQ trick) - don't go there until you do.
  *
  * The handler is ASSEMBLY-IN-C on purpose: cc65's generated C uses shared
  * zero-page scratch registers, so a C-level IRQ body would corrupt whatever
@@ -154,21 +154,21 @@ static const uint8_t cell_color[4] = {
 #define BOTTOM_LINE  251  /* first line below the 25-row text window */
 #define D016_BAR     0xC0 /* fine X = 0, 38-col mode for both halves */
 
-volatile uint8_t frame_count;  /* bumped by the bottom IRQ — frame heartbeat */
+volatile uint8_t frame_count;  /* bumped by the bottom IRQ - frame heartbeat */
 
 void raster_irq(void) {
   asm("lda $d019");          /* read VIC IRQ latch...                       */
   asm("sta $d019");          /* ...write it back = ACK (write-1-to-clear).
                               * THE line you must not lose (see above).     */
   asm("lda $d012");          /* which raster line woke us? (self-correcting
-                              * dispatch — no phase variable to desync)     */
+                              * dispatch - no phase variable to desync)     */
   asm("cmp #150");
   asm("bcs %g", at_bottom);  /* ≥150 → we're at BOTTOM_LINE                 */
-  /* — split point (line ~68, inside the blank spacer row) — */
-  asm("lda #$C0");           /* = D016_BAR — board holds still, same scroll */
+  /* - split point (line ~68, inside the blank spacer row) - */
+  asm("lda #$C0");           /* = D016_BAR - board holds still, same scroll */
   asm("sta $d016");
   asm("lda #251");           /* = BOTTOM_LINE (cc65's asm %b only takes     */
-  asm("sta $d012");          /* signed bytes, so these are literals — the   */
+  asm("sta $d012");          /* signed bytes, so these are literals - the   */
   asm("jmp $ea81");          /* #if below keeps them honest)                */
 at_bottom:
   asm("lda #$C0");           /* = D016_BAR                                  */
@@ -186,32 +186,32 @@ static void install_raster_irq(void) {
   asm("sei");                       /* no IRQs while we rewire them */
   POKE(CIA1_PRA + 0x0D, 0x7F);      /* $DC0D: disable ALL CIA1 IRQ sources
                                      * (kills the KERNAL jiffy/keyboard IRQ
-                                     * — we read the sticks ourselves) */
+                                     * - we read the sticks ourselves) */
   (void)PEEK(CIA1_PRA + 0x0D);      /* reading $DC0D acks anything pending */
   POKE(0x0314, (uint8_t)((unsigned)raster_irq & 0xFF));
   POKE(0x0315, (uint8_t)((unsigned)raster_irq >> 8));
   POKE(VIC_CTRL1, 0x1B);            /* $D011 = power-on default: screen on,
                                      * 25 rows, YSCROLL=3, and bit 7 (raster
-                                     * compare bit 8) = 0 — both lines < 256 */
+                                     * compare bit 8) = 0 - both lines < 256 */
   POKE(VIC_RASTER, SPLIT_LINE);     /* first stop */
   POKE(VIC_IRQ_ENA, 0x01);          /* raster IRQ on */
   POKE(VIC_IRQ, 0xFF);              /* clear any stale latch bits */
   asm("cli");
 }
 
-/* Wait for the bottom IRQ's heartbeat. Replaces the usual poll-$D012 loop —
+/* Wait for the bottom IRQ's heartbeat. Replaces the usual poll-$D012 loop -
  * the IRQ owns the raster now, the main loop just paces itself on it. */
 static void wait_frame(void) {
   uint8_t f = frame_count;
   while (frame_count == f) { }
 }
 
-/* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ── reading BOTH
+/* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ── reading BOTH
  * joystick ports. CIA1 port A ($DC00) = control port 2, port B ($DC01) =
  * control port 1. Active-low: a pressed switch reads 0, so invert and mask
  * to bits 0-4 (up/down/left/right/fire).
  *
- * THE PORT-1 GOTCHA: $DC01 is ALSO the keyboard row register — the matrix
+ * THE PORT-1 GOTCHA: $DC01 is ALSO the keyboard row register - the matrix
  * hangs off the same CIA lines. Writing $FF to $DC00 first deselects every
  * keyboard column, so held keys can't pull $DC01 rows low and ghost into
  * the port-1 stick. That's also why "port 2 is the C64 game port": P1 lives
@@ -232,8 +232,8 @@ static uint8_t read_stick_port1(void) {     /* player 2 */
 #define JOY_RIGHT 0x08
 #define JOY_FIRE  0x10
 
-/* ── HARDWARE IDIOM (load-bearing) — hi-score persistence: DISK SAVE ─────────
- * The C64 has no battery SRAM — the honest save medium is the FLOPPY. A game
+/* ── HARDWARE IDIOM (load-bearing) - hi-score persistence: DISK SAVE ─────────
+ * The C64 has no battery SRAM - the honest save medium is the FLOPPY. A game
  * persists by writing a file to drive 8; VICE commits it into the live 1541
  * disk image (true-drive GCR write-back), so a save survives a power cycle
  * exactly as it did on real hardware. (To capture it headlessly the host does
@@ -241,7 +241,7 @@ static uint8_t read_stick_port1(void) {     /* player 2 */
  *
  * REQUIRES THE GAME RUN FROM A DISK: build/package it as a .d64 and load THAT
  * (loadMedia autostarts it). A bare .prg injected straight into RAM has no
- * mounted disk to save to, so the save is a silent no-op — still honest (the
+ * mounted disk to save to, so the save is a silent no-op - still honest (the
  * value just stays in-session), it simply has nowhere to persist.
  *
  * We keep a 2-byte record in a SEQ file "HI" on drive 8. These are the STABLE
@@ -271,26 +271,26 @@ static void hiscore_save(uint16_t v) {
     /* No disk mounted (ran as a bare .prg) -> cbm_open fails -> silent no-op. */
 }
 
-/* ── GAME LOGIC (clay) — SID music: 2 voices + THE filter sweep ─────────────
+/* ── GAME LOGIC (clay) - SID music: 2 voices + THE filter sweep ─────────────
  * Voice 0 = melody (pulse), voice 1 = bass (sawtooth THROUGH THE FILTER),
  * voice 2 is reserved for sound effects (c64_sfx). Each voice walks a
  * (freq, frames) note table once per frame; end wraps → continuous loop.
  *
- * THE SID FILTER — the C64's sonic signature, and the part most "music
+ * THE SID FILTER - the C64's sonic signature, and the part most "music
  * drivers ported from other chips" miss. One analog-modeled filter, shared
  * by all voices, four registers:
  *   $D415  cutoff low 3 bits   $D416  cutoff high 8 bits (11-bit total)
  *   $D417  high nibble = resonance 0-15; low 3 bits ROUTE voices into the
  *          filter (bit0=voice0, bit1=voice1, bit2=voice2)
- *   $D418  bit4=lowpass bit5=bandpass bit6=highpass — AND master volume in
+ *   $D418  bit4=lowpass bit5=bandpass bit6=highpass - AND master volume in
  *          bits 0-3. Volume and filter mode share a register: any "set
  *          volume" helper that writes plain $0F silently turns the filter
  *          OFF (c64_sfx's sfx_init does exactly that, so music_init runs
  *          AFTER it and re-asserts the mode bits).
- *          FOOTGUN: bit 7 of $D418 is "3OFF" — it MUTES voice 3 entirely.
+ *          FOOTGUN: bit 7 of $D418 is "3OFF" - it MUTES voice 3 entirely.
  *          Set it by accident and all your sound effects vanish.
  * The sweep: a triangle LFO walks the cutoff up and down each frame over
- * the resonant lowpass — the bass goes from muffled to snarling and back,
+ * the resonant lowpass - the bass goes from muffled to snarling and back,
  * the "wah" that screams Commodore. Hear it change: that IS the chip. */
 #define N_C3 0x1199u
 #define N_D3 0x13EEu
@@ -314,7 +314,7 @@ static void hiscore_save(uint16_t v) {
 
 typedef struct { uint16_t freq; uint8_t len; } Note;
 
-/* The table IS the song — edit these to rescore your fork. A brooding minor
+/* The table IS the song - edit these to rescore your fork. A brooding minor
  * line that suits a magma well. */
 static const Note melody[] = {
   { N_A4, STEP*2 }, { N_C5, STEP }, { N_B4, STEP }, { N_A4, STEP*2 }, { N_E4, STEP*2 },
@@ -325,7 +325,7 @@ static const Note melody[] = {
   { N_A4, STEP }, { N_C5, STEP }, { N_E5, STEP*2 }, { N_C5, STEP }, { N_A4, STEP*2 }, { N_REST, STEP },
 };
 static const Note bassline[] = {
-  /* Octave-pumping bass — the filter sweep chews on this. */
+  /* Octave-pumping bass - the filter sweep chews on this. */
   { N_A3, STEP*3 }, { N_A3, STEP }, { N_E3, STEP*2 }, { N_A3, STEP*2 },
   { N_F3, STEP*3 }, { N_C3, STEP }, { N_F3, STEP*2 }, { N_C4, STEP*2 },
   { N_G3, STEP*3 }, { N_D3, STEP }, { N_G3, STEP*2 }, { N_B3, STEP*2 },
@@ -345,7 +345,7 @@ static void music_trigger(uint8_t v, uint16_t freq, uint8_t wave) {
   }
   POKE(SID_FREQ_LO(v), (uint8_t)(freq & 0xFF));
   POKE(SID_FREQ_HI(v), (uint8_t)(freq >> 8));
-  POKE(SID_CTRL(v), wave);                /* gate OFF then ON — the 6581/8580 */
+  POKE(SID_CTRL(v), wave);                /* gate OFF then ON - the 6581/8580 */
   POKE(SID_CTRL(v), wave | SID_GATE);     /* envelope only retriggers on the
                                            * 0→1 gate edge */
 }
@@ -355,13 +355,13 @@ static void music_init(void) {
   POKE(SID_PW_LO(0), 0x00); POKE(SID_PW_HI(0), 0x08);
   POKE(SID_AD(0), 0x07);    /* attack 0, decay 7 */
   POKE(SID_SR(0), 0x84);    /* sustain 8, release 4 */
-  /* Bass: sawtooth (harmonically rich — gives the filter teeth to chew). */
+  /* Bass: sawtooth (harmonically rich - gives the filter teeth to chew). */
   POKE(SID_AD(1), 0x06);
   POKE(SID_SR(1), 0xA5);
   /* Filter: route VOICE 1 ONLY into it (bit 1 of $D417), resonance 13/15. */
   POKE(SID_RES_FILT, 0xD2);
   /* Lowpass mode + master volume 15. NOTE bits shared with volume, and bit
-   * 7 (3OFF) stays 0 or voice-2 sound effects go silent — see block doc. */
+   * 7 (3OFF) stays 0 or voice-2 sound effects go silent - see block doc. */
   POKE(SID_VOL_MODE, 0x1F);
   filter_cut = 0x180; filter_up = 1;
   m_pos[0] = m_pos[1] = 0;
@@ -380,7 +380,7 @@ static void music_update(void) {
     m_left[1] = bassline[m_pos[1]].len;
     if (++m_pos[1] >= BASS_LEN) m_pos[1] = 0;
   }
-  /* THE FILTER SWEEP — triangle LFO on the cutoff, ~10s round trip.
+  /* THE FILTER SWEEP - triangle LFO on the cutoff, ~10s round trip.
    * 11-bit value split across two registers: low 3 bits in $D415,
    * high 8 in $D416. */
   if (filter_up) { filter_cut += 6; if (filter_cut >= 0x700) filter_up = 0; }
@@ -389,7 +389,7 @@ static void music_update(void) {
   POKE(SID_FILTER_HI, (uint8_t)(filter_cut >> 3));
 }
 
-/* ── GAME LOGIC (clay) — screen text. The C64 has NO VRAM port: screen RAM
+/* ── GAME LOGIC (clay) - screen text. The C64 has NO VRAM port: screen RAM
  * is plain memory, writable any time, mid-frame, no vblank dance. The only
  * translation is ASCII → SCREEN CODES (not PETSCII!): A-Z land at 1-26;
  * space through '?' (incl. digits) keep their ASCII values. ── */
@@ -403,7 +403,7 @@ static void draw_text(uint8_t row, uint8_t col, const char *s) {
     ++off;
   }
 }
-/* Blank the whole 40-col row, then draw `s` on it — a clean text BAND, so
+/* Blank the whole 40-col row, then draw `s` on it - a clean text BAND, so
  * message text reads cleanly over whatever the board left behind. */
 static void draw_text_band(uint8_t row, uint8_t col, const char *s) {
   uint8_t c;
@@ -422,7 +422,7 @@ static void draw_u16(uint8_t row, uint8_t col, uint16_t v) {
   }
 }
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (a few instructions) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (a few instructions) ── */
 static uint16_t rng = 0xACE1;
 static uint8_t random8(void) {
   uint16_t r = rng;
@@ -433,11 +433,11 @@ static uint8_t random8(void) {
   return (uint8_t)r;
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ── game state.
- * Boards are PLAIN STATIC ARRAYS — the C64 has 38 KB of BASIC RAM free, so
+/* ── GAME LOGIC (clay - reshape freely) ── game state.
+ * Boards are PLAIN STATIC ARRAYS - the C64 has 38 KB of BASIC RAM free, so
  * none of the NES version's absolute-address scratch-page gymnastics. The
  * hot ones are file-scope NON-static so they land in the cc65 link map
- * (build symbols) — a headless agent can resolve them by name and read/poke
+ * (build symbols) - a headless agent can resolve them by name and read/poke
  * live state. */
 uint8_t  grid[2][GRID_H][GRID_W];  /* the two wells (P2's unused in 1P)  */
 int8_t   piece_x[2];               /* falling trio: column 0..5          */
@@ -462,26 +462,26 @@ static uint16_t cleared_total;     /* 1P: cells cleared, drives the level */
 #define VS_FALL_DELAY 26           /* 2P: fixed gravity (frames per row) */
 #define GARBAGE_CAP   4            /* max garbage rows per attack        */
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * THE CELL-DIFF REPAINT — the C64's "queued VRAM" equivalent, inverted.
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * THE CELL-DIFF REPAINT - the C64's "queued VRAM" equivalent, inverted.
  * Screen RAM is plain memory, so there's no vblank queue to budget against
  * (the NES version's whole drain_vram_budget machinery is moot). The C64's
  * scarcity is CPU: a naive "repaint the whole 6x12 well every frame" is 72
  * cells × (a colour write + a char write) of cc65 C, and a WHOLE-SCREEN
- * 880-cell repaint costs ~50 frames — a frozen second (the TALUS TROT
+ * 880-cell repaint costs ~50 frames - a frozen second (the TALUS TROT
  * platformer hit exactly this; see its paint_level note).
  *
  * So we keep a SHADOW of what's on screen and repaint ONLY cells that
  * changed. set_cell() compares against shadow[] and writes screen+color RAM
- * only on a difference — most frames touch 0-3 cells (the trio that moved).
+ * only on a difference - most frames touch 0-3 cells (the trio that moved).
  * A full cascade dirties the whole well, but spread across the cells that
  * actually changed it's still a few dozen writes, not 880. THE RULE: never
  * blit the board wholesale during play; always go through set_cell so the
- * diff does the work. (Static screens — title, game-over — CAN repaint
+ * diff does the work. (Static screens - title, game-over - CAN repaint
  * freely; they're not in the per-frame path.) */
 static uint8_t shadow[25][40];     /* mirror of screen RAM char codes      */
 static uint8_t shadow_c[25][40];   /* mirror of color RAM (so a colour-only
-                                    * change still repaints — empty cells share
+                                    * change still repaints - empty cells share
                                     * CH_DOT with the backdrop but want their
                                     * own well colour) */
 
@@ -512,7 +512,7 @@ static void draw_board_cell(uint8_t p, uint8_t r, uint8_t c) {
                   CH_DOT, cell_color[0]);
 }
 
-/* Repaint a whole well through the cell-diff (used on board changes — the
+/* Repaint a whole well through the cell-diff (used on board changes - the
  * diff means only the cells that really moved cost anything). */
 static void draw_well(uint8_t p) {
   uint8_t r, c;
@@ -520,7 +520,7 @@ static void draw_well(uint8_t p) {
     for (c = 0; c < GRID_W; c++) draw_board_cell(p, r, c);
 }
 
-/* ── GAME LOGIC (clay) — the HUD bar (rows 0-1, the fixed split) ── */
+/* ── GAME LOGIC (clay) - the HUD bar (rows 0-1, the fixed split) ── */
 static void draw_bar_labels(void) {
   uint8_t c;
   for (c = 0; c < 40; c++) {              /* row 1: solid divider line */
@@ -545,7 +545,7 @@ static void draw_bar_stats(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — paint the well frame (one cell outside the interior).
+/* ── GAME LOGIC (clay) - paint the well frame (one cell outside the interior).
  * Runs on state changes only (a static screen), so it may write directly. ── */
 static void paint_frame(uint8_t p) {
   uint8_t r, c, x0 = well_x[p];
@@ -560,20 +560,20 @@ static void paint_frame(uint8_t p) {
 }
 
 /* Clear the whole 25-row screen to blanks (and sync the shadow). Used on
- * state changes — a static-screen operation, cheap enough once. */
+ * state changes - a static-screen operation, cheap enough once. */
 static void clear_screen(void) {
   uint16_t i;
   for (i = 0; i < 1000; i++) { SCREEN[i] = CH_BLANK; COLORS[i] = COLOR_BLACK; }
   for (i = 0; i < 25 * 40; i++) { ((uint8_t*)shadow)[i] = CH_BLANK; ((uint8_t*)shadow_c)[i] = COLOR_BLACK; }
 }
 
-/* ── GAME LOGIC (clay) — a thin ember speck band along the screen edges for
+/* ── GAME LOGIC (clay) - a thin ember speck band along the screen edges for
  * the static screens (title / game-over). Just the top + bottom playfield
- * rows get a sparse colour texture — enough to read as "alive" without the
+ * rows get a sparse colour texture - enough to read as "alive" without the
  * ~3-second full-screen 880-cell repaint freeze (the C64's documented
  * full-repaint footgun; see the cell-diff idiom). The coloured BORDER (set
  * once in main) does the heavy lifting for screen liveliness; this is garnish.
- * Static-screen only — never per frame. ── */
+ * Static-screen only - never per frame. ── */
 static void paint_edge_band(void) {
   uint8_t c;
   volatile uint8_t *top = SCREEN + 3 * 40, *bot = SCREEN + 24 * 40;
@@ -587,7 +587,7 @@ static void paint_edge_band(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — the title screen (static, free to repaint) ── */
+/* ── GAME LOGIC (clay) - the title screen (static, free to repaint) ── */
 static void paint_title(void) {
   clear_screen();
   paint_edge_band();
@@ -604,7 +604,7 @@ static void paint_title(void) {
   state = ST_TITLE;
 }
 
-/* ── GAME LOGIC (clay) — paint the playfield (wells + HUD), static. ── */
+/* ── GAME LOGIC (clay) - paint the playfield (wells + HUD), static. ── */
 static void paint_play(void) {
   clear_screen();
   paint_edge_band();              /* thin ember edge garnish (static) */
@@ -619,7 +619,7 @@ static void paint_play(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — game-over / results (static screen). ── */
+/* ── GAME LOGIC (clay) - game-over / results (static screen). ── */
 static void paint_over(uint8_t loser) {
   clear_screen();
   paint_edge_band();
@@ -639,13 +639,13 @@ static void paint_over(uint8_t loser) {
   draw_text_band(21, 12, "FIRE - TITLE");
 }
 
-/* ── GAME LOGIC (clay) — end of game (top-out). `loser` topped out. ── */
+/* ── GAME LOGIC (clay) - end of game (top-out). `loser` topped out. ── */
 static void game_end(uint8_t loser) {
   uint16_t best = score[0];
   if (two_player && score[1] > best) best = score[1];
   if (best > hiscore) {
     hiscore = best;
-    hiscore_save(hiscore);   /* the persistence seam — see its block doc   */
+    hiscore_save(hiscore);   /* the persistence seam - see its block doc   */
   }
   sfx_noise(24);                                 /* game-over rumble        */
   state = ST_OVER;
@@ -653,9 +653,9 @@ static void game_end(uint8_t loser) {
   paint_over(loser);
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Match scan: mark every straight run of 3+ same-coloured blocks in all 4
- * directions (a cell can belong to several runs — the mask de-dupes), and
+ * directions (a cell can belong to several runs - the mask de-dupes), and
  * return how many cells matched. Same routine as every other platform's
  * version of this game. */
 static const int8_t DIRS4[4][2] = { {0,1}, {1,0}, {1,1}, {1,-1} };
@@ -707,7 +707,7 @@ static void apply_gravity(uint8_t p) {
   }
 }
 
-/* ── GAME LOGIC (clay) — clear matches, drop survivors, chain cascades.
+/* ── GAME LOGIC (clay) - clear matches, drop survivors, chain cascades.
  * Returns the chain depth (0 = the lock matched nothing). Repaints go
  * through the cell-diff via draw_well. */
 static uint8_t resolve_board(uint8_t p) {
@@ -724,7 +724,7 @@ static uint8_t resolve_board(uint8_t p) {
     amt = (uint16_t)n * 10;
     if (chain > 1) amt *= chain;               /* cascades pay multiplied */
     if (score[p] < 65000) score[p] += amt;
-    /* clear chime — pitch rises with chain depth (higher freq_hi byte). */
+    /* clear chime - pitch rises with chain depth (higher freq_hi byte). */
     sfx_tone(2, 0x00, (uint8_t)(0x30 + (chain << 2)), 8);
     apply_gravity(p);
     draw_well(p);
@@ -737,8 +737,8 @@ static uint8_t resolve_board(uint8_t p) {
   return chain;
 }
 
-/* ── GAME LOGIC (clay) — VERSUS attack: garbage rows ERUPT up from the bottom
- * of the victim's well (random blocks with one gap — matchable, so a skilled
+/* ── GAME LOGIC (clay) - VERSUS attack: garbage rows ERUPT up from the bottom
+ * of the victim's well (random blocks with one gap - matchable, so a skilled
  * victim digs out). The victim's stack rising means the falling trio shifts
  * up one to stay board-aligned; if the top row is already occupied, the
  * victim tops out and loses. ── */
@@ -783,7 +783,7 @@ static void spawn_piece(uint8_t p) {
   if (!can_place(p, piece_x[p], piece_y[p])) game_end(p);
 }
 
-/* ── GAME LOGIC (clay) — land the trio, resolve, attack, respawn. ── */
+/* ── GAME LOGIC (clay) - land the trio, resolve, attack, respawn. ── */
 static void lock_piece(uint8_t p) {
   int8_t i, y;
   uint8_t chain;
@@ -803,12 +803,12 @@ static void lock_piece(uint8_t p) {
   spawn_piece(p);
 }
 
-/* ── GAME LOGIC (clay) — per-player input + gravity. Edge-triggered moves
+/* ── GAME LOGIC (clay) - per-player input + gravity. Edge-triggered moves
  * (one cell per press), held DOWN soft-drops, UP cycles the trio's colours
  * (the classic trio "rotate"), FIRE hard-drops. P2 reads control PORT 1. ──
  * The board cells the trio used to occupy are repainted via draw_board_cell
  * before/after the move, so the cell-diff erases its trail and stamps its
- * new spot — never a whole-well blit. */
+ * new spot - never a whole-well blit. */
 static void erase_trio(uint8_t p) {
   int8_t i, y;
   for (i = 0; i < 3; i++) {
@@ -858,7 +858,7 @@ static void update_player(uint8_t p, uint8_t pad, uint8_t prev) {
   if (state == ST_PLAY) stamp_trio(p);           /* re-stamp the trio's new spot */
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_game(uint8_t versus) {
   uint8_t p, r, c;
   two_player = versus;
@@ -889,12 +889,12 @@ static void start_game(uint8_t versus) {
 void main(void) {
   uint8_t pad0, pad1;
 
-  /* ── HARDWARE IDIOM (load-bearing) — boot order. VIC + SID config before
+  /* ── HARDWARE IDIOM (load-bearing) - boot order. VIC + SID config before
    * the IRQ goes live; sfx_init BEFORE music_init (sfx_init writes a plain
    * volume to $D418, music_init re-asserts the filter-mode bits on top). ── */
-  POKE(VIC_SPR_ENA, 0);                    /* no hardware sprites — board is chars */
+  POKE(VIC_SPR_ENA, 0);                    /* no hardware sprites - board is chars */
   /* A coloured BORDER (one register, zero per-frame cost) keeps the screen
-   * visibly alive even though the board itself is small over a black BG —
+   * visibly alive even though the board itself is small over a black BG -
    * the border is ~40% of the framebuffer, so no single colour dominates the
    * render-health pixel scan. (Compare the platformer/shmup, which instead
    * fill the field with a scrolling starfield; a puzzle board doesn't.) */
@@ -917,12 +917,12 @@ void main(void) {
 
     music_update();
     sfx_update();
-    pad0 = read_stick_port2();             /* P1 — control port 2 (convention) */
-    pad1 = read_stick_port1();             /* P2 — control port 1 */
+    pad0 = read_stick_port2();             /* P1 - control port 2 (convention) */
+    pad1 = read_stick_port1();             /* P2 - control port 1 */
 
     if (state == ST_TITLE) {
       /* Mode select doubles as a controls demo: the stick that presses FIRE
-       * picks the mode — port 2 starts 1P, port 1 starts 2P versus. */
+       * picks the mode - port 2 starts 1P, port 1 starts 2P versus. */
       if ((pad0 & JOY_FIRE) && !(prev0 & JOY_FIRE)) start_game(0);
       else if ((pad1 & JOY_FIRE) && !(prev1 & JOY_FIRE)) start_game(1);
       prev0 = pad0; prev1 = pad1;

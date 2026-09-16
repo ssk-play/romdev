@@ -1,4 +1,4 @@
-/* ── Hello, Game Boy in C — SDCC sm83 port ─────────────────────────
+/* ── Hello, Game Boy in C - SDCC sm83 port ─────────────────────────
  * Minimal: cycle the BG palette on every vblank.
  *
  * Build: build({ output: "rom",  platform: "gb", source: <this file>, language: "c" })
@@ -42,7 +42,7 @@ void main(void) {
     while (LY <  144) { }
     while (LY >= 144) { }
     vblank_count++;
-    /* Cycle palette every 32 frames — leaves the eye time to register. */
+    /* Cycle palette every 32 frames - leaves the eye time to register. */
     idx = (vblank_count >> 5) & 0x03;
     BGP = palettes[idx];
   } while (1);

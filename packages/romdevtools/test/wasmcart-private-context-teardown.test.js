@@ -35,7 +35,7 @@ import { glStackAvailable } from "romdev-core-host/glOptionalDep.js";
 let _glReady = true;
 try { await import("webgl-node"); } catch { _glReady = false; }
 if (_glReady) _glReady = await glStackAvailable();
-const GUARD = _glReady ? {} : { skip: "no usable GL stack here (headless CI) — GL carts cannot load" };
+const GUARD = _glReady ? {} : { skip: "no usable GL stack here (headless CI) - GL carts cannot load" };
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const GLCART = path.join(HERE, "fixtures", "glcart.wasc");

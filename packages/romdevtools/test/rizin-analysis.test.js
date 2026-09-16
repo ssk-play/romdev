@@ -46,8 +46,8 @@ test("Rizin: NES ROM → functions / CFG / xrefs / structure", async () => {
   }
 
   // xrefs: a heavily-called function has at least one cross-reference, each
-  // from a real address. (axt CALL/CODE refs are a subset of graph indegree —
-  // indegree also counts fall-through edges — so they need not be equal.)
+  // from a real address. (axt CALL/CODE refs are a subset of graph indegree -
+  // indegree also counts fall-through edges - so they need not be equal.)
   if (target.callers > 0) {
     const xr = await analyzeXrefs(rom, target.address, "nes");
     assert.ok(xr.count >= 1, `expected >=1 xref to ${target.addressHex}, got ${xr.count}`);
@@ -95,7 +95,7 @@ test("RE engine: flat-map platforms force file-offset == CPU-address (the +0x200
   // into vtable/header/text segments and reports delta=0x200 on the code
   // segment, so vaMapping returned paddr = vaddr-0x200 and the decompiler
   // returned the WRONG function. Genesis carts map 1:1 (file offset == CPU
-  // address) — the fix forces identity for flat-map platforms.
+  // address) - the fix forces identity for flat-map platforms.
   const { vaMapping, FLAT_CPU_MAP } = await import("../src/analysis/analyze.js");
 
   // Flat-cartridge platforms must map file offset == CPU address (delta 0),
@@ -114,14 +114,14 @@ test("RE engine: flat-map platforms force file-offset == CPU-address (the +0x200
   }
 
   // And a non-flat platform (NES, banked, goes through forcedBase/Rizin map)
-  // must NOT be forced — its mapping path stays active.
+  // must NOT be forced - its mapping path stays active.
   assert.ok(!FLAT_CPU_MAP.has("nes"), "nes is not a flat-map platform (uses the Rizin/forcedBase path)");
 }, { timeout: 60000 });
 
 test("RE engine: SNES decompile lays the cart out by CPU address (LoROM/HiROM)", async () => {
   // Regression for the 0.40.1→0.40.2 bug: SNES decompile treated the LoROM CPU
   // address as a raw FILE offset, so `decompile address:0x8000` returned the
-  // function at file 0x8000 (CPU $01:8000) — the WRONG one. Fix: lay the image
+  // function at file 0x8000 (CPU $01:8000) - the WRONG one. Fix: lay the image
   // out by 24-bit CPU address so both the function address AND in-bank/JSL
   // operands resolve. This unit-tests the layout directly (deterministic, no
   // toolchain): distinct marker bytes per file-bank must land at their CPU

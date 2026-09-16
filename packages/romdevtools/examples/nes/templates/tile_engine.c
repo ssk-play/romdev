@@ -1,4 +1,4 @@
-/* ── tile_engine.c — NES starter with a tile map + multiple rooms ──
+/* ── tile_engine.c - NES starter with a tile map + multiple rooms ──
  *
  * Single-screen-per-room layout (top-down dungeon-crawler / room-puzzle shape).
  *   - 32×30 BG nametable rendered from a `room[]` array
@@ -7,11 +7,11 @@
  *   - 3 hand-written rooms wired up; extend with more for a real game
  *
  * Tile data layout (8×8, 2bpp NES format):
- *   tile 0 — blank          (always reserved so OAM Y=0 doesn't glitch)
- *   tile 1 — floor          (light pattern)
- *   tile 2 — wall           (solid)
- *   tile 3 — door           (different color)
- *   tile 4 — player sprite
+ *   tile 0 - blank          (always reserved so OAM Y=0 doesn't glitch)
+ *   tile 1 - floor          (light pattern)
+ *   tile 2 - wall           (solid)
+ *   tile 3 - door           (different color)
+ *   tile 4 - player sprite
  *
  * NES BG fetches from $1000-$1FFF in the default PPUCTRL we use, so
  * BG tiles get uploaded there. Sprite tiles go to $0000-$0FFF.
@@ -22,7 +22,7 @@
 /* ── Tile data ──────────────────────────────────────────────────
  * Layout per tile: 8 bytes plane 0 + 8 bytes plane 1 = 16 bytes.
  * For row N: byte 2N is plane-0 (low bit), byte 2N+1 (... wait no):
- * Actually NES is INTERLEAVED differently — first 8 bytes is plane 0,
+ * Actually NES is INTERLEAVED differently - first 8 bytes is plane 0,
  * second 8 bytes is plane 1.
  *
  *  bit value of pixel = plane0_bit + plane1_bit * 2
@@ -30,13 +30,13 @@
 static const uint8_t bg_tiles[4 * 16] = {
   /* tile 0: blank */
   0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
-  /* tile 1: floor — light speckle pattern (color 1) */
+  /* tile 1: floor - light speckle pattern (color 1) */
   0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA,
   0,    0,    0,    0,    0,    0,    0,    0,
-  /* tile 2: wall — solid (color 3, both planes set) */
+  /* tile 2: wall - solid (color 3, both planes set) */
   0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
   0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-  /* tile 3: door — outline color 2 */
+  /* tile 3: door - outline color 2 */
   0xFF, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0xFF,
   0xFF, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0xFF,
 };
@@ -53,12 +53,12 @@ static const uint8_t player_tile[16] = {
 };
 
 static const uint8_t palette[32] = {
-  /* BG palettes — 0 used for the room */
+  /* BG palettes - 0 used for the room */
   0x0F, 0x10, 0x06, 0x16,    /* dark grey backdrop, light grey floor, brown walls */
   0x0F, 0x21, 0x11, 0x01,
   0x0F, 0x27, 0x17, 0x07,
   0x0F, 0x2A, 0x1A, 0x0A,
-  /* Sprite palettes — 0 used for player */
+  /* Sprite palettes - 0 used for player */
   0x0F, 0x2C, 0x14, 0x20,    /* transparent, cyan, magenta, white */
   0x0F, 0x21, 0x11, 0x01,
   0x0F, 0x27, 0x17, 0x07,
@@ -177,7 +177,7 @@ void main(void) {
     oam_clear();
     oam_spr(px, py, 1, 0);
 
-    /* Wait for vblank — NMI handler will DMA shadow_oam to OAM. */
+    /* Wait for vblank - NMI handler will DMA shadow_oam to OAM. */
     ppu_wait_nmi();
 
     /* Read input. */
@@ -193,7 +193,7 @@ void main(void) {
     tx = (uint8_t)(nx >> 3);
     ty = (uint8_t)(ny >> 3);
 
-    /* Door — transition to neighbouring room. */
+    /* Door - transition to neighbouring room. */
     if (is_door(current_room, tx, ty)) {
       if (nx >= 240 && current_room < ROOMS - 1) {
         ++current_room;

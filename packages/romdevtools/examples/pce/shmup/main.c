@@ -1,20 +1,20 @@
-/* ── main.c — PC Engine vertical shooter (complete example game) ─────────────
+/* ── main.c - PC Engine vertical shooter (complete example game) ─────────────
  *
- * A COMPLETE, working game — title screen, lives, score + persistent hi-score
- * (in-session — a bare HuCard can't save), music + SFX, enemy waves, and the PCE's signature
+ * A COMPLETE, working game - title screen, lives, score + persistent hi-score
+ * (in-session - a bare HuCard can't save), music + SFX, enemy waves, and the PCE's signature
  * hardware feature: LARGE MULTI-SPRITE OBJECTS. The boss is a 64x32 war
- * machine built from two 32x32 HuC6270 sprites that move as one unit — the
+ * machine built from two 32x32 HuC6270 sprites that move as one unit - the
  * kind of object that needs 8+ hardware sprites on the NES and exactly TWO
  * SATB entries here.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented PCE footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented PCE footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — enemy patterns, scoring, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - enemy patterns, scoring, tuning, art: reshape freely.
  *
  * What depends on what:
- *   pce_hw.h / pce_video.c / pce_input.c / pce_sound.c — the helper lib
+ *   pce_hw.h / pce_video.c / pce_input.c / pce_sound.c - the helper lib
  *     (VDC/VCE/PSG register dances + joypad). The HARDWARE IDIOM markers in
  *     pce_video.c say which parts are load-bearing.
  *   cc65's pce crt0 + pce.lib are auto-linked; the 'rom32k' linker preset
@@ -23,7 +23,7 @@
  * SINGLE PLAYER, honestly: the stock PC Engine has ONE controller port;
  * 2P needs a TurboTap. The geargrafx core implements the TurboTap but ships
  * with it disabled (a core option, no headless override today), so a second
- * pad's input never reaches the game — verified by scanning all 5 multitap
+ * pad's input never reaches the game - verified by scanning all 5 multitap
  * slots while driving port-1 input (force-enabling geargrafx_turbotap DOES
  * deliver pad 2, so a future host core-option round can unlock PCE 2P).
  * This game is therefore 1P by design.
@@ -35,19 +35,19 @@
 #include <pce.h>
 #include "pce_hw.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "ZENITH BARRAGE"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * VRAM map (WORD addresses — the VDC is a 16-bit-word machine; a tile is 16
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * VRAM map (WORD addresses - the VDC is a 16-bit-word machine; a tile is 16
  * words, a 16x16 sprite cell is 64). Sprites and BG tiles share one 64KB
  * VRAM, so lay it out ONCE and keep the SATB out of pattern space:
- *   $0000  BAT (32x32 background map — matches vdc_init's VDC_MWR setting)
+ *   $0000  BAT (32x32 background map - matches vdc_init's VDC_MWR setting)
  *   $1000  font glyphs (38 tiles: blank, 0-9, A-Z, dash)
  *   $1400  starfield BG tiles
  *   $1800  16x16 sprite cells: ship, bullet, enemy
- *   $1900  BOSS pattern cells — 4-ALIGNED cell index (see the boss idiom)
+ *   $1900  BOSS pattern cells - 4-ALIGNED cell index (see the boss idiom)
  *   $7F00  shadow SATB destination (satb_dma copies it here, VDC reads it) */
 #define BAT_VRAM     0x0000
 #define FONT_VRAM    0x1000
@@ -65,11 +65,11 @@
 #define SHIP_PAT    (SHIP_VRAM >> 6)
 #define BULLET_PAT  (BULLET_VRAM >> 6)
 #define ENEMY_PAT   (ENEMY_VRAM >> 6)
-#define BOSSL_PAT   (BOSS_VRAM >> 6)          /* 0x64 — multiple of 4        */
-#define BOSSR_PAT   ((BOSS_VRAM >> 6) + 4)    /* 0x68 — multiple of 4        */
+#define BOSSL_PAT   (BOSS_VRAM >> 6)          /* 0x64 - multiple of 4        */
+#define BOSSR_PAT   ((BOSS_VRAM >> 6) + 4)    /* 0x68 - multiple of 4        */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * Object pools — fixed slots, no allocation. SATB slot plan (slot order is
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * Object pools - fixed slots, no allocation. SATB slot plan (slot order is
  * also priority: LOWER slot wins overlaps on the HuC6270):
  *   0      player ship
  *   1-6    bullets
@@ -100,8 +100,8 @@ static Obj bullets[MAX_BULLETS];
 static Obj enemies[MAX_ENEMIES];
 static u16 score, hiscore;
 static u8  lives;
-static u8  level;          /* +1 per boss defeated — feeds speed/HP          */
-static u8  kills;          /* kills since the last boss — triggers the next  */
+static u8  level;          /* +1 per boss defeated - feeds speed/HP          */
+static u8  kills;          /* kills since the last boss - triggers the next  */
 static u8  invuln;         /* post-hit mercy frames (ship flickers)          */
 static u8  fire_cd;
 static u8  spawn_timer;
@@ -119,7 +119,7 @@ static u8  boss_hp;
 static u8  boss_flash;     /* hit feedback: swap palette for a few frames    */
 static u8  boss_shot_timer;
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
@@ -128,7 +128,7 @@ static u8 state;
 static u16 tile_buf[16];   /* scratch for one 8x8 tile                       */
 static u16 spr_buf[64];    /* scratch for one 16x16 sprite cell              */
 
-/* ── GAME LOGIC (clay) — 5x7 glyph font: blank, 0-9, A-Z, dash ──────────────
+/* ── GAME LOGIC (clay) - 5x7 glyph font: blank, 0-9, A-Z, dash ──────────────
  * Each glyph is 7 rows of 5 bits (bit4 = leftmost). upload_font() expands
  * them into 8x8 1-plane tiles; drawn with BG sub-palette 1 (white). */
 #define G_BLANK 0
@@ -160,7 +160,7 @@ static const u8 FONT5x7[NUM_GLYPHS][7] = {
     {0x00,0x00,0x00,0x1F,0x00,0x00,0x00},
 };
 
-/* ── GAME LOGIC (clay) — sprite masks (16 rows × 16 bits, bit15 leftmost) ── */
+/* ── GAME LOGIC (clay) - sprite masks (16 rows × 16 bits, bit15 leftmost) ── */
 static const u16 ship_mask[16] = {
     0x0180, 0x0180, 0x03C0, 0x03C0, 0x07E0, 0x07E0, 0x0FF0, 0x0FF0,
     0x1FF8, 0x1FF8, 0x3FFC, 0x7FFE, 0xFFFF, 0xE187, 0xC003, 0x8001
@@ -174,9 +174,9 @@ static const u16 enemy_mask[16] = {
     0xFFFF, 0x7FFE, 0x3FFC, 0x1FF8, 0x300C, 0x6006, 0x4002, 0x0000
 };
 
-/* ── GAME LOGIC (clay) — the boss's LEFT half (32x32). 2 u16 per row
+/* ── GAME LOGIC (clay) - the boss's LEFT half (32x32). 2 u16 per row
  * (cols 0-15, cols 16-31). The right half is this art MIRRORED at upload
- * time — symmetric bosses cost half the data. body = hull (colour 1);
+ * time - symmetric bosses cost half the data. body = hull (colour 1);
  * core = the glowing eye + cannon tips (colour 3, a subset of body). */
 static const u16 boss_body[64] = {
     0x0000,0x0000, 0x0000,0x001F, 0x0000,0x007F, 0x0000,0x00FF,
@@ -199,7 +199,7 @@ static const u16 boss_core[64] = {
     0x0000,0x0000, 0x0000,0x0000, 0x0000,0x0000, 0x0000,0x0000,
 };
 
-/* ── GAME LOGIC (clay) — tile/sprite builders ────────────────────────────── */
+/* ── GAME LOGIC (clay) - tile/sprite builders ────────────────────────────── */
 static void make_solid_tile(u16 *t, u8 ci) {
     u8 r;
     u8 p0 = (ci & 1) ? 0xFF : 0x00;
@@ -251,12 +251,12 @@ static u16 rev16(u16 v) {
     return out;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * LARGE-SPRITE PATTERN LAYOUT — the half of the boss trick that lives in
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * LARGE-SPRITE PATTERN LAYOUT - the half of the boss trick that lives in
  * VRAM. A 32x32 HuC6270 sprite is FOUR 16x16 cells (64 words each) stored
  * consecutively in TL, TR, BL, BR order, and its SATB pattern code must be
  * 4-ALIGNED (the hardware ignores the low 2 bits and adds them back as
- * column/row). Get the order wrong and the boss renders scrambled — four
+ * column/row). Get the order wrong and the boss renders scrambled - four
  * recognizable quarters in the wrong places. The other half of the trick
  * (the SATB attribute bits) is in push_sprites() below.
  *
@@ -280,7 +280,7 @@ static void upload_boss(void) {
                         core_bits = rev16(boss_core[y * 2 + (1 - cc)]);
                     }
                     /* hull pixels = colour 1 (plane0), eye/cannon core =
-                     * colour 3 (planes 0+1) — core is a subset of body.   */
+                     * colour 3 (planes 0+1) - core is a subset of body.   */
                     spr_buf[row]      = body_bits;
                     spr_buf[row + 16] = core_bits;
                 }
@@ -303,7 +303,7 @@ static void upload_art(void) {
     upload_boss();
 }
 
-/* ── GAME LOGIC (clay) — BAT text + starfield ─────────────────────────────── */
+/* ── GAME LOGIC (clay) - BAT text + starfield ─────────────────────────────── */
 static void put_glyph(u8 col, u8 row, u8 glyph) {
     u16 e = BAT_ENTRY(1, (u16)(FONT_VRAM + glyph * 16));  /* pal 1 = white   */
     vram_set_write_addr((u16)(BAT_VRAM + row * 32 + col));
@@ -329,7 +329,7 @@ static void draw_num5(u8 col, u8 row, u16 v) {
 }
 
 /* banded starfield over the whole 32x32 BAT (two band colours + sparse
- * twinkle tiles — the bands keep the screen from being one flat colour) */
+ * twinkle tiles - the bands keep the screen from being one flat colour) */
 static void draw_starfield(void) {
     u8 r, c;
     u16 e0 = BAT_ENTRY(0, STAR0_VRAM);
@@ -364,7 +364,7 @@ static void draw_hud_numbers(void) {
  * This was researched and corrected: earlier versions wrote the hi-score to
  * BRAM ("backup RAM", bank $F7) and claimed it persisted across power cycles.
  * That is NOT honest for a HuCard game. On REAL hardware a plain HuCard plugged
- * into a base PC Engine / TurboGrafx-16 has NO backup RAM at all — BRAM exists
+ * into a base PC Engine / TurboGrafx-16 has NO backup RAM at all - BRAM exists
  * ONLY when a peripheral is attached: the CD-ROM² System (2KB kept by a
  * supercapacitor), the Tennokoe Bank HuCard, or the Memory Base 128. No
  * commercial HuCard self-saved; they used PASSWORDS. (The often-cited Populous
@@ -373,7 +373,7 @@ static void draw_hud_numbers(void) {
  * "worked" in emulation in a way the real machine never would.
  *
  * So this game keeps an IN-SESSION hi-score only (like the honest 2600/Lynx
- * examples) — it survives game-overs within a power-on, resets to 0 on a cold
+ * examples) - it survives game-overs within a power-on, resets to 0 on a cold
  * boot. To make it ACTUALLY persist on real hardware you would target a
  * peripheral: write to BRAM only after detecting one (and go through the System
  * Card BIOS's 'HUBM' directory for CD saves), or move the game to a CD-ROM²
@@ -383,10 +383,10 @@ static u16 hiscore_load(void) {
 }
 
 static void hiscore_save(u16 v) {
-    (void)v;           /* in-session only — nowhere to persist on real HW */
+    (void)v;           /* in-session only - nowhere to persist on real HW */
 }
 
-/* ── GAME LOGIC (clay) — music: a 2-channel tune ticked once per frame ──────
+/* ── GAME LOGIC (clay) - music: a 2-channel tune ticked once per frame ──────
  * PSG channel plan: 5 = melody, 4 = bass, 2/3 = SFX (tones cut by sfx_timer).
  * PCE frequency regs are DIVIDERS: pitch ≈ 3.58MHz / (32 × value), so a
  * BIGGER number is a LOWER note. Note indices into NOTE_DIV below. */
@@ -441,7 +441,7 @@ static void music_tick(void) {
     if (music_timer >= 8) music_timer = 0;
 }
 
-/* ── GAME LOGIC (clay) — helpers ──────────────────────────────────────────── */
+/* ── GAME LOGIC (clay) - helpers ──────────────────────────────────────────── */
 static u16 next_rand(void) {
     rng = (u16)(rng * 25173u + 13849u);
     return rng;
@@ -477,7 +477,7 @@ static void spawn_enemy(u16 x, u16 y) {
     }
 }
 
-/* ── GAME LOGIC (clay) — screen painters (full repaint per state change) ── */
+/* ── GAME LOGIC (clay) - screen painters (full repaint per state change) ── */
 static void paint_title(void) {
     draw_starfield();
     draw_text((u8)((32 - (sizeof(GAME_TITLE) - 1)) / 2), 8, GAME_TITLE);
@@ -544,28 +544,28 @@ static void boss_die(void) {
     sfx_timer = 24;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * SPRITE STAGING + THE SATB DMA. The VDC never reads your RAM: sprites live
  * in its INTERNAL sprite attribute table, refreshed by a DMA you schedule by
  * writing R19 (satb_dma() does the copy + the R19 write; the transfer itself
  * happens at the next vblank). So the per-frame contract is:
  *   waitvsync() → restage EVERY slot → satb_dma()
- * Stage during vblank — satb_dma() also streams 256 words through the VWR
+ * Stage during vblank - satb_dma() also streams 256 words through the VWR
  * port, and doing that mid-display tears sprite pattern fetches.
  *
  * THE BOSS (the PCE signature): one logical object, TWO SATB entries. Each
- * half is a 32x32 sprite — SPR_CGX_32|SPR_CGY_32 in the attribute word —
+ * half is a 32x32 sprite - SPR_CGX_32|SPR_CGY_32 in the attribute word -
  * placed at (boss_x, boss_y) and (boss_x+32, boss_y). They move as one unit
  * because ONE pair of variables drives both entries; nothing else keeps
  * them glued. A 64x32 boss this way costs 2 sprites of the 64-sprite budget
- * (and 4 of the 16-sprites-per-scanline budget) — the same object on a
+ * (and 4 of the 16-sprites-per-scanline budget) - the same object on a
  * 8x8/8x16-sprite machine costs 16+. CGY goes to 64 if you want a 32x64
  * tower from a SINGLE entry (SPR_CGY_64, 8-aligned pattern).
  *
  * requires: set_sprite_ex() + the 4-aligned boss cells from upload_boss(). */
 static void push_sprites(void) {
     u8 i;
-    /* ship (slot 0) — flickers while invulnerable by parking on odd frames */
+    /* ship (slot 0) - flickers while invulnerable by parking on odd frames */
     if (player.alive && !(invuln & 2)) set_sprite(SLOT_SHIP, player.x, player.y, SHIP_PAT, PAL_SHIP);
     else set_sprite(SLOT_SHIP, player.x, OFFSCREEN_Y, SHIP_PAT, PAL_SHIP);
     for (i = 0; i < MAX_BULLETS; ++i)
@@ -586,7 +586,7 @@ static void push_sprites(void) {
     }
 }
 
-/* twinkle: rewrite the star tile's pixel row every 16 frames — animation
+/* twinkle: rewrite the star tile's pixel row every 16 frames - animation
  * without touching the BAT (one 16-word upload in vblank) */
 static void twinkle(void) {
     u8 phase;
@@ -599,7 +599,7 @@ static void twinkle(void) {
     load_tiles(STAR2_VRAM, tile_buf, 16);
 }
 
-/* ── GAME LOGIC (clay) — the per-state updates ────────────────────────────── */
+/* ── GAME LOGIC (clay) - the per-state updates ────────────────────────────── */
 static void hit_ship(void) {
     if (invuln) return;
     psg_tone(3, 0x500, 31);
@@ -707,9 +707,9 @@ void main(void) {
 
     _pce_keep[0] = 0;   /* see the EMPTY-BSS TRAP note in pce_hw.h */
 
-    /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
      * Init order: palette → VRAM uploads → BAT paint → joypad → display ON.
-     * disp_enable() also sets the VBlank IRQ bit — without it waitvsync()
+     * disp_enable() also sets the VBlank IRQ bit - without it waitvsync()
      * never returns and the game freezes on its first frame. */
     /* BG sub-pal 0: starfield. BG sub-pal 1: HUD/text (white on band). */
     vce_set_color(0,   PCE_RGB(0, 0, 1));   /* backdrop: near-black blue     */
@@ -728,7 +728,7 @@ void main(void) {
 
     upload_art();
 
-    hiscore = hiscore_load();   /* always 0 — no persistence on a bare HuCard */
+    hiscore = hiscore_load();   /* always 0 - no persistence on a bare HuCard */
     state = ST_TITLE;
     paint_title();
     music_set(ST_TITLE);

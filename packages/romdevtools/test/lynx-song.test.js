@@ -1,4 +1,4 @@
-// Lynx (Mikey) song compiler — note/ticks → the bundled cc65 driver's bytestream
+// Lynx (Mikey) song compiler - note/ticks → the bundled cc65 driver's bytestream
 // (lib/cc65-src/lynx-snd.s, parsed by SndGetCmd: note/length pairs, 0x82=rest,
 // 0x00=end). Pitch comes from the driver's SndPrescaler/SndReload tables via the
 // Mikey square-wave formula f = 1e6/(2^prescaler·(reload+1)·2).

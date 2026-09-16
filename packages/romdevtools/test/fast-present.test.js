@@ -1,11 +1,11 @@
-// playtest({op:'open', fastPresent:true}) — reload a GL cart onto its own
+// playtest({op:'open', fastPresent:true}) - reload a GL cart onto its own
 // GL context so the window presents by GPU blit + swap.
 //
 // A wasmcart GL cart loaded the ordinary way shares the ONE process-wide
 // offscreen GL context, which can never be bound to a window (attaching it
 // would drag every other session's cart into that window). So it presents by
 // dragging every frame back to the CPU: measured 27.9/45.1/54.9 ms per frame
-// at 1080p versus 3.4/6.1/9.1 GL-direct — a human playing at 41 fps.
+// at 1080p versus 3.4/6.1/9.1 GL-direct - a human playing at 41 fps.
 //
 // `loadMedia({presentWindow:true})` is the fix and must be decided at LOAD
 // time, so the only route for an already-loaded cart is a reload. Before this,

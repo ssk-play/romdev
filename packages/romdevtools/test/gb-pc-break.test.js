@@ -1,4 +1,4 @@
-// GB (gambatte / SM83) execution breakpoint + read watch + single-step — e2e.
+// GB (gambatte / SM83) execution breakpoint + read watch + single-step - e2e.
 // Mirrors test/genesis-pc-break.test.js for the SM83 core.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -67,7 +67,7 @@ test("GB PC breakpoint + read watch + single-step (gambatte sm83)", { timeout: 2
   const bp = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "pc",  address: writerPC, maxFrames: 300 },
   }));
-  assert.equal(bp.notSupported, undefined, "PC breakpoint notSupported — patch missing?");
+  assert.equal(bp.notSupported, undefined, "PC breakpoint notSupported - patch missing?");
   assert.equal(bp.hit, true, "runUntilPC did not hit: " + JSON.stringify(bp));
   assert.equal(bp.pcRaw, writerPC, "frozen PC != requested PC: " + JSON.stringify(bp));
   console.log("frozen at", bp.pcRaw.toString(16));
@@ -92,7 +92,7 @@ test("GB PC breakpoint + read watch + single-step (gambatte sm83)", { timeout: 2
   const rd = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "read",  address: 0xC002, maxFrames: 120 },
   }));
-  assert.equal(rd.notSupported, undefined, "runUntilRead notSupported — read-watch patch missing?");
+  assert.equal(rd.notSupported, undefined, "runUntilRead notSupported - read-watch patch missing?");
   assert.equal(rd.hit, true, "runUntilRead did not catch the 0xC002 read: " + JSON.stringify(rd));
   console.log("read caught at PC", (rd.pcRaw ?? 0).toString(16));
 });

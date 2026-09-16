@@ -1,6 +1,6 @@
 // Shared C-SDK build-pipeline helper (0.81.0). The gba-c / genesis-c / mips-c / sh-c
-// builders all walk the SAME spine — compile each .c (cc1 → as), assemble raw .s,
-// assemble a crt0, link, optionally objcopy, finalize — and at EVERY stage repeat the
+// builders all walk the SAME spine - compile each .c (cc1 → as), assemble raw .s,
+// assemble a crt0, link, optionally objcopy, finalize - and at EVERY stage repeat the
 // identical 5-part dance:
 //
 //     const r = await runX(...);
@@ -12,7 +12,7 @@
 // CBuild owns it: each builder makes one `new CBuild()`, calls `.stage(name, () => runX(...), pick)`,
 // and the helper accumulates the log + THROWS a BuildError on any failure. The builder
 // wraps its body in try/catch and turns a BuildError into the same `{ ok:false, ... }` shape
-// it returned before — so the public contract is byte-for-byte unchanged, the boilerplate
+// it returned before - so the public contract is byte-for-byte unchanged, the boilerplate
 // is gone, and each builder keeps only its genuinely-per-platform wiring (which crt0, which
 // libs, finalize). No behavior change.
 
@@ -40,11 +40,11 @@ export class BuildError extends Error {
   }
 
   /**
-   * The failure fields WITHOUT a forced `ok` — for builders (cc65/sdcc) whose
+   * The failure fields WITHOUT a forced `ok` - for builders (cc65/sdcc) whose
    * lower layer returns `{ binary, log, exitCode, stage }` and lets the caller
    * (index.js) add `ok`. Same { binary:null, log, exitCode, stage, crash? } core
    * + any `extra` (e.g. sdcc's `failedTU` / `compiledOK`). Note: crash is only
-   * spread when present (cc65/sdcc historically never carried it — pass nothing).
+   * spread when present (cc65/sdcc historically never carried it - pass nothing).
    * @param {Record<string, any>} [extra]
    */
   fields(extra = {}) {
@@ -66,7 +66,7 @@ export class BuildError extends Error {
  *   const cb = new CBuild();
  *   const cc = await cb.stage(`cc1 (${name})`, () => runCc1x({...}), r => r.asmSource);
  *   // cc is the full run result; cb.log has the accumulated log.
- *   // a failure THROWS BuildError — wrap the build body in try/catch.
+ *   // a failure THROWS BuildError - wrap the build body in try/catch.
  */
 export class CBuild {
   constructor() {
@@ -78,7 +78,7 @@ export class CBuild {
    * Run one toolchain stage, append its log, and throw BuildError on failure.
    *
    * @template T
-   * @param {string} name  stage label — the failure `stage` field AND, by default,
+   * @param {string} name  stage label - the failure `stage` field AND, by default,
    *                       the log header. Most builders use one string for both.
    * @param {() => Promise<T>} run  the toolchain call (returns {log, exitCode, crash?, ...output})
    * @param {(r: T) => any} pick  selects the stage's required output (e.g. r => r.object);

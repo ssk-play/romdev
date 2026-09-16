@@ -1,5 +1,5 @@
 // Lynx (65C02) disassembly: confirm the disassembleRom enum/sniff + findReferences
-// path are wired (they were gapped — only disassembleProject supported lynx).
+// path are wired (they were gapped - only disassembleProject supported lynx).
 // The cart is a flat 6502-family image after a 64-byte "LYNX" header, run at $0200.
 
 import { test } from "node:test";

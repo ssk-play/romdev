@@ -1,4 +1,4 @@
-# MSX — music_sfx
+# MSX - music_sfx
 
 AY-3-8910 PSG demo with on-screen state.
 
@@ -7,7 +7,7 @@ AY-3-8910 PSG demo with on-screen state.
 - **Channel C** fires a descending "blip" SFX on the joystick **trigger** press
   edge (`gttrig(1)`, bit 7 = pressed).
 
-On screen (sprites — screen 2's font isn't loaded, so sprites are the reliable
+On screen (sprites - screen 2's font isn't loaded, so sprites are the reliable
 "visible state"):
 
 - A **step sequencer**: eight beat markers, the one for the current melody step
@@ -25,8 +25,8 @@ Build (link the helper lib):
 ```js
 buildForPlatform({
   platform: "msx",
-  sources:  { "main.c": …, "msx_vdp.c": …, "msx_crt0.s": … },
-  includes: { "msx_hw.h": … },
+  sources:  { "main.c": ..., "msx_vdp.c": ..., "msx_crt0.s": ... },
+  includes: { "msx_hw.h": ... },
   crt0: ".module empty\n", sourceName: "main.c",
 })
 ```
@@ -34,5 +34,5 @@ buildForPlatform({
 Verified on the bluemsx core: chA cycles 6 distinct note periods, chB 3 bass
 periods, chC stays silent until the trigger is held then sweeps through 17
 descending periods. Screenshots before/after a held trigger confirm the ring
-indicator flips white → red and the sequencer beat lights — see
-`audioDebug({op:'inspect', chip:"ay8910"})` and `memory({op:'read'}, "msx_psg_regs", …)`.
+indicator flips white → red and the sequencer beat lights - see
+`audioDebug({op:'inspect', chip:"ay8910"})` and `memory({op:'read'}, "msx_psg_regs", ...)`.

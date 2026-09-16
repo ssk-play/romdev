@@ -6,7 +6,7 @@
 //   - PATTERN: 8 bytes, 1bpp (bit 7 = leftmost pixel; 1 = foreground)
 //   - COLOR:   8 bytes, one per row: high nibble = fg color (0-15), low = bg.
 // The 16 colors are the fixed TMS9918 palette. Each ROW of a tile is limited to
-// 2 colors — that's the classic MSX constraint this converter honors.
+// 2 colors - that's the classic MSX constraint this converter honors.
 //
 // A full 256×192 screen-2 picture is 768 unique tiles (3 banks of 256). This
 // converter emits the name table (768 bytes: 0..255 ×3), the pattern table

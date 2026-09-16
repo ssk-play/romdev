@@ -1,12 +1,12 @@
-; SMS tile loader — VRAM upload.
+; SMS tile loader - VRAM upload.
 ;
 ; SMS tiles are 32 bytes each (4bpp interleaved). VRAM is 16 KB at
 ; $0000-$3FFF. Tile N lives at VRAM offset (N * 32).
 ;
 ; To write VRAM:
-;   1. Set VDP address: low byte first, then (high | $40) — the $40
+;   1. Set VDP address: low byte first, then (high | $40) - the $40
 ;      prefix in the high byte signals VRAM write.
-;   2. Write bytes to VDP_DATA — auto-increments.
+;   2. Write bytes to VDP_DATA - auto-increments.
 ;
 ; CALLING:
 ;   HL  → source bytes

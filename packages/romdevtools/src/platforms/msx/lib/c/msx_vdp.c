@@ -1,8 +1,8 @@
-/* MSX VDP + PSG + input helpers (SDCC z80, C89) — DIRECT-PORT implementation.
+/* MSX VDP + PSG + input helpers (SDCC z80, C89) - DIRECT-PORT implementation.
  *
  * The previous version drove the BIOS through `ld c,4(ix)` inline asm. That is
  * broken under SDCC's default `--sdcccall 1`: the first argument is passed in a
- * register, so 4(ix) reads a stale stack slot — msx_wrtvdp(7,0x55) wrote 0xF5
+ * register, so 4(ix) reads a stale stack slot - msx_wrtvdp(7,0x55) wrote 0xF5
  * instead of 0x55. Everything here goes straight to the Z80 I/O ports declared
  * in msx_hw.h, so the C arguments are used exactly as written. Verified on the
  * bluemsx core.
@@ -36,7 +36,7 @@ void msx_wrtvdp(uint8_t reg, uint8_t value) {
  * bare `call` is safe under any calling convention. */
 void msx_set_screen2(void) {
     __asm
-        call #0x0072            ; INIGRP — screen 2, clear VRAM, display on
+        call #0x0072            ; INIGRP - screen 2, clear VRAM, display on
     __endasm;
 }
 
@@ -59,7 +59,7 @@ void msx_fill_vram(uint16_t addr, uint16_t len, uint8_t byte) {
 /* Set one V9938 palette entry (MSX2). `grb` packs 3-bit components as
  * 0x0GRB-ish: bits 8..10 = green, bits 4..6 = red, bits 0..2 = blue. The V9938
  * protocol: point R16 (colour pointer) at the index, then write two bytes to
- * port 0x9A — first (red<<4)|blue, then green. */
+ * port 0x9A - first (red<<4)|blue, then green. */
 void msx_set_palette_entry(uint8_t idx, uint16_t grb) {
     uint8_t r = (uint8_t)((grb >> 4) & 0x07);
     uint8_t g = (uint8_t)((grb >> 8) & 0x07);
@@ -93,7 +93,7 @@ void msx_clear_sprites(void) {
     }
 }
 
-/* Spin until the BIOS frame counter (JIFFY, $FC9E low byte) advances — i.e.
+/* Spin until the BIOS frame counter (JIFFY, $FC9E low byte) advances - i.e.
  * until the next VBlank interrupt has been serviced. Reading a fixed RAM
  * address is convention-independent, so plain asm is fine here. */
 void msx_vblank_wait(void) {
@@ -123,7 +123,7 @@ void msx_psg_tone(uint8_t chan, uint16_t period, uint8_t vol) {
 
     /* DI around the whole register sequence: the BIOS KEYINT ISR reads
      * PSG R14 (joystick row) every frame, and it CLOBBERS the PSGADDR
-     * latch — an IRQ between our PSGADDR and PSGWRITE sent the period/
+     * latch - an IRQ between our PSGADDR and PSGWRITE sent the period/
      * volume bytes into R14 instead. Symptom: mixer set, period 0,
      * amplitude 0 → every MSX scaffold was silent. */
     __asm__("di");
@@ -147,11 +147,11 @@ void msx_psg_tone(uint8_t chan, uint16_t period, uint8_t vol) {
 }
 
 /* Play NOISE on PSG channel 0/1/2: the AY's one shared noise generator
- * (reg 6, 5-bit period — bigger = lower rumble) routed into this channel by
+ * (reg 6, 5-bit period - bigger = lower rumble) routed into this channel by
  * clearing its noise-disable mixer bit (reg 7 bits 3-5) while setting its
  * tone-disable bit. The classic explosion/impact voice.
  * msx_psg_noise(chan, rate, 0) silences the channel and re-masks its noise
- * bit (msx_psg_off only re-masks TONE — it doesn't know about noise). */
+ * bit (msx_psg_off only re-masks TONE - it doesn't know about noise). */
 void msx_psg_noise(uint8_t chan, uint8_t rate, uint8_t vol) {
     uint8_t mixer;
     __asm__("di");                                /* same KEYINT race as above */
@@ -209,7 +209,7 @@ void msx_music_tick(void) {
     if (_msx_music_timer == 0) {
         p = _msx_music_per[_msx_music_step & 15];
         if (p) {
-            msx_psg_tone(2, p, 12);            /* AY volume is ~logarithmic — 9 was a whisper */
+            msx_psg_tone(2, p, 12);            /* AY volume is ~logarithmic - 9 was a whisper */
         } else {
             msx_psg_off(2);                    /* rest */
         }

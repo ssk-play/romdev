@@ -5,7 +5,7 @@
 // where is the display pointed this frame?" decode straight off the hardware
 // register file, independent of whatever private driver the game uses.
 //
-// Data source: the `lynx_hw_regs` region — the 512-byte Lynx hardware window
+// Data source: the `lynx_hw_regs` region - the 512-byte Lynx hardware window
 // at $FC00-$FDFF. Byte offset `i` in the array == Lynx address $FC00 + i, so
 // the Mikey registers ($FD00-$FDFF) live in the second half, offsets
 // 0x100-0x1FF. (Suzy is the first half, $FC00-$FCFF; we don't decode it here.)
@@ -126,7 +126,7 @@ export function decodeLynxMikey(hw) {
     const integrate = !!(control & 0x20); // bit 5: integrate mode
 
     // Frequency only means something when the channel is actually counting
-    // (enable-count set). A disabled channel — or clockSelect 7 "link" — has no
+    // (enable-count set). A disabled channel - or clockSelect 7 "link" - has no
     // standalone tone, so report null rather than a bogus ultrasonic value (a
     // disabled channel commonly reads backup=0 → a meaningless 500 kHz).
     const usPerTick = clockSelect < 7 ? US_PER_TICK[clockSelect] : null;
@@ -201,7 +201,7 @@ export function decodeLynxPalette(hw) {
  * DISPCTL ($FD92) bits: bit0 = display DMA enable, bit1 = flip (left-handed
  * mode / vertical flip), bit3 = 4-colour mode (vs the default 4 bits-per-pixel
  * 16-colour mode). DISPADR ($FD94-$FD95, 16-bit LE) is the display DMA base
- * address — where Mikey reads the framebuffer from.
+ * address - where Mikey reads the framebuffer from.
  *
  * @param {Uint8Array} hw the 512-byte `lynx_hw_regs` region ($FC00-$FDFF)
  * @returns {{

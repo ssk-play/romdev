@@ -1,9 +1,9 @@
-// ledger.js — what "100% decompiled" actually means, measured per dimension.
+// ledger.js - what "100% decompiled" actually means, measured per dimension.
 //
 // `progress` reports CPU code honestly and says outright that data and assets
 // are not tracked. That is the right kind of honesty and it leaves the real
-// question unanswerable: this ROM has 7,238,640 bytes inside `bin` ranges —
-// 86.3% of the image — and none of it is code.
+// question unanswerable: this ROM has 7,238,640 bytes inside `bin` ranges -
+// 86.3% of the image - and none of it is code.
 //
 // TWO NUMBERS ARE BOTH WRONG. "54.4% done" ignores everything that is not CPU
 // code. "86.3% undecompiled" is worse: those bin ranges are compressed assets,
@@ -32,7 +32,7 @@ import path from "node:path";
 export const LEDGER_SCHEMA = "romdev-decomp-ledger-v1";
 
 export const RANGE_STATES = Object.freeze({
-  raw: "bytes only — nothing is known about this range",
+  raw: "bytes only - nothing is known about this range",
   "format-identified": "the format is known; no round-trip tool yet",
   "round-trip-tool": "a tool unpacks AND repacks it byte-exactly",
   "editable-source": "present as editable source in the tree",
@@ -78,8 +78,8 @@ export async function buildLedger(project, { progress, workClasses } = {}) {
       if (own > 0) add(seg.type, own, `${seg.name} (uncovered)`);
     } else {
       // A TOP-LEVEL SEGMENT WITH NO SUBSEGMENTS STILL HAS BYTES. Walking only
-      // subsegments lost 4,890,448 of them here — every large `bin` asset
-      // segment — and the ledger then under-reported the opaque bucket by more
+      // subsegments lost 4,890,448 of them here - every large `bin` asset
+      // segment - and the ledger then under-reported the opaque bucket by more
       // than half the ROM while calling the remainder "unmapped".
       add(seg.type, Math.max(0, (seg.romEnd ?? 0) - (seg.romStart ?? 0)), seg.name);
     }
@@ -148,7 +148,7 @@ export async function buildLedger(project, { progress, workClasses } = {}) {
       policy: "not separable until the audio bank/sequence formats are identified." },
     "symbol-type-quality": { unit: "judgement", policy: "how many symbols and struct fields carry real names and types rather than unk_/D_ placeholders. Not a byte count and must not be folded into one." },
     "source-confidence-debt": { unit: "judgement",
-      policy: "explicit FAKE constructs, overwritten-assignment matches, opaque struct fields. A byte-exact build does NOT settle these — "
+      policy: "explicit FAKE constructs, overwritten-assignment matches, opaque struct fields. A byte-exact build does NOT settle these - "
         + "that is precisely why exactness and source quality are separate dimensions." },
     "build-verification": {
       builtRomMatchesBase: progress?.builtRomMatchesBase ?? null,
@@ -164,7 +164,7 @@ export async function buildLedger(project, { progress, workClasses } = {}) {
     rangeStates: RANGE_STATES,
     rollUp: null,
     policy: "NO single percentage is produced. Each dimension has its own denominator and acceptance policy, and collapsing them requires "
-      + "weights the PROJECT must declare — a number whose meaning nobody defined is what lets a matching mixed build be called a finished "
+      + "weights the PROJECT must declare - a number whose meaning nobody defined is what lets a matching mixed build be called a finished "
       + "decompilation. '54.4% of code bytes are C' and '86.3% of the ROM is bin ranges' are both true and neither is a completion figure.",
   };
 }

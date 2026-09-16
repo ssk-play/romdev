@@ -1,7 +1,7 @@
-// romdev-core-beetle-psx-hw — binary package: Beetle PSX HW libretro core (PlayStation).
+// romdev-core-beetle-psx-hw - binary package: Beetle PSX HW libretro core (PlayStation).
 // mednafen PSX with the GLES3/WebGL2 HARDWARE renderer → rendered on the real GPU through
 // native-gles (the host's WebGL2 bridge), like glide64-N64 + Flycast-DC. Ships with
-// OpenBIOS EMBEDDED (PCSX-Redux, MIT, region-free) — no copyrighted Sony firmware, no BIOS
+// OpenBIOS EMBEDDED (PCSX-Redux, MIT, region-free) - no copyrighted Sony firmware, no BIOS
 // file to supply. Built reproducibly by scripts/build-beetle-psx-hw.sh.
 import { fileURLToPath } from "node:url";
 import path from "node:path";

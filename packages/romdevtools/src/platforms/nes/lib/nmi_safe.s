@@ -1,6 +1,6 @@
-; NES — safe NMI/VBlank handler skeleton.
+; NES - safe NMI/VBlank handler skeleton.
 ;
-; The NES 6502's NMI doesn't preserve registers — you MUST push them
+; The NES 6502's NMI doesn't preserve registers - you MUST push them
 ; yourself. Gotchas this snippet covers:
 ;
 ; 1. **Register preservation.** Push A, X, Y. Without this, your main

@@ -4,9 +4,9 @@
 ; payload the SNES uploads into SPC700 ARAM at $0200).
 ;
 ; ARAM layout produced (R46):
-;   $0200..$02xx    driver code   (~230 bytes — sfx + music engine)
+;   $0200..$02xx    driver code   (~230 bytes - sfx + music engine)
 ;   $02xx..$0FFF    padding       (zero-filled by org)
-;   $1000..$2417    sample bank   (5656 bytes — directory + BRR samples)
+;   $1000..$2417    sample bank   (5656 bytes - directory + BRR samples)
 ;     of which:
 ;       $1000..$100F  sample directory (4-byte entries × 2 samples + filler)
 ;       $1100..$1807  shoot.brr      (1800 bytes)
@@ -202,7 +202,7 @@ incbin "sample_bank.bin"
 ; ~115 BPM). Terminator: a single $00 byte (duration 0) → loop.
 ;
 ; Melody is a 16-step ascending/descending C-major-ish run over a
-; non-looping BRR sample — the shoot.brr is short so each "note" is
+; non-looping BRR sample - the shoot.brr is short so each "note" is
 ; really a re-trigger of the sample at a different playback rate.
 ; It sounds like a chirpy chiptune arpeggio, which is exactly the
 ; vibe we want for a minimum-viable music demo.
@@ -224,5 +224,5 @@ song:
   db $10, $00, $05
   db $10, $80, $04
   db $10, $00, $04
-  db $10, $80, $03        ; pitch $0380 — slight bass note
+  db $10, $80, $03        ; pitch $0380 - slight bass note
   db $00                  ; loop marker

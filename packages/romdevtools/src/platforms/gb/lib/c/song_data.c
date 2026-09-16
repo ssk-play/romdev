@@ -1,4 +1,4 @@
-/* ── song_data.c — sample song for hUGEDriver.c (compact format) ────
+/* ── song_data.c - sample song for hUGEDriver.c (compact format) ────
  *
  * A short hand-authored two-channel tune in C-major. 4 patterns, 16
  * rows each, ticks_per_row = 8 (~7.5 rows per second at 60 Hz).
@@ -9,11 +9,11 @@
  *                           C5=24 D5=26 E5=28 F5=29 G5=31 A5=33 B5=35
  *                           C6=36
  *           Octave below: C3=0 G3=7 C4=12.
- *   flags = 0 (re-trigger) / 0x80 (sustain — leave APU alone)
+ *   flags = 0 (re-trigger) / 0x80 (sustain - leave APU alone)
  *           0xFF as note = rest (silence channel)
  *
  * For agents: to author your own song, replace these arrays with your
- * own pattern data. The format is intentionally simple — a 16-row
+ * own pattern data. The format is intentionally simple - a 16-row
  * pattern is 32 bytes. A 4-pattern song is 128 bytes per channel.
  */
 
@@ -25,7 +25,7 @@
 #define _S  { 0,    0x80 }         /* sustain (note byte ignored) */
 #define N(n) { (uint8_t)(n), 0 }
 
-/* ── CH1 (melody — square 1) ───────────────────────────────────────── */
+/* ── CH1 (melody - square 1) ───────────────────────────────────────── */
 
 static const huge_row_t mel_p0[HUGE_ROWS_PER_PATTERN] = {
   N(24), _S, N(28), _S, N(31), _S, N(36), _S,   /* C5 E5 G5 C6 */
@@ -51,7 +51,7 @@ static const huge_row_t * const mel_orders[] = {
   mel_p0, mel_p1, mel_p2, mel_p3
 };
 
-/* ── CH2 (bass — square 2) ────────────────────────────────────────── */
+/* ── CH2 (bass - square 2) ────────────────────────────────────────── */
 
 static const huge_row_t bas_p0[HUGE_ROWS_PER_PATTERN] = {
   N(0),  _S, _S, _S, N(0),  _S, _S, _S,         /* C3 */

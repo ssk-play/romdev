@@ -1,18 +1,18 @@
-/* ── racing.c — GameTank top-down road racer (complete example) ──────────────
+/* ── racing.c - GameTank top-down road racer (complete example) ──────────────
  *
  * A COMPLETE, working game on the bundled GameTank SDK draw-queue runtime: a
  * vertically-scrolling road with moving lane stripes, your car steering between
  * lanes, rival cars + obstacles to dodge, a distance score that climbs with
  * speed, and crash → lives → restart. The framebuffer makes the scrolling road
- * EASY — the stripes are rects at a moving y-offset; no scroll register, no
+ * EASY - the stripes are rects at a moving y-offset; no scroll register, no
  * tilemap streaming.
  *
  * FORK THIS. Markers:
- *   HARDWARE IDIOM (load-bearing) — the "scroll" is a phase counter; road, stripes
+ *   HARDWARE IDIOM (load-bearing) - the "scroll" is a phase counter; road, stripes
  *     and rivals are rects drawn at (phase-shifted) y each frame. The road slab is
  *     drawn at HEIGHT 127, never 128: a full-screen-dimension box is silently
- *     dropped by the blitter (the road would vanish — see gt_draw.h).
- *   GAME LOGIC (clay) — speed curve, spawn rate, lane count, scoring: tune freely.
+ *     dropped by the blitter (the road would vanish - see gt_draw.h).
+ *   GAME LOGIC (clay) - speed curve, spawn rate, lane count, scoring: tune freely.
  *
  * High-contrast palette (dark asphalt vs bright grass) so the road reads clearly.
  * SFX (gt_sound.h): a crash explosion when you hit a rival. Box-drawn HUD.
@@ -90,7 +90,7 @@ void main(void) {
     for (;;) {
       update_inputs();
 
-      /* steer (clamped to the road) — a soft tick on each steer input */
+      /* steer (clamped to the road) - a soft tick on each steer input */
       if ((player1_buttons & INPUT_MASK_LEFT)  && car_x > ROAD_X + 2)            car_x -= 3;
       if ((player1_buttons & INPUT_MASK_RIGHT) && car_x < ROAD_X + ROAD_W - 16)  car_x += 3;
       /* throttle with A = faster (more score, more danger) */

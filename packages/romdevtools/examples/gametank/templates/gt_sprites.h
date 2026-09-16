@@ -1,4 +1,4 @@
-/* ── gt_sprites.h — runtime pixel-art sprites in GRAM (no asset pipeline) ──────
+/* ── gt_sprites.h - runtime pixel-art sprites in GRAM (no asset pipeline) ──────
  *
  * Real colored sprite art without the SDK's .bmp asset pipeline: define a sprite
  * as a flat array of PALETTE-INDEX bytes (0 = transparent) and gt_load_sprite()
@@ -8,14 +8,14 @@
  * This mirrors the SDK's load_spritesheet() EXACTLY (the only correct GRAM-write
  * path) but copies raw bytes instead of inflatemem-decompressing them, so no
  * asset build step is needed:
- *   - flagsMirror = 0  (plain mode — NOT DMA_CPU_TO_VRAM; that mode corrupts it)
+ *   - flagsMirror = 0  (plain mode - NOT DMA_CPU_TO_VRAM; that mode corrupts it)
  *   - bank_reg = bankflip | GRAM_PAGE(ramBank)  (select the GRAM page)
  *   - then plain CPU writes to vram[] ($4000) land in that GRAM page, row-major.
  * (My earlier version used direct_prepare_array_mode/DMA_CPU_TO_VRAM + the wrong
  * bank → the sprite read uninitialized GRAM and showed as noise.)
  *
  * GRAM page geometry is 128 wide. Lay sprites out on a grid in the page and pass
- * each one's (gx,gy,w,h). Colors are SDK-draw-path palette indices — see
+ * each one's (gx,gy,w,h). Colors are SDK-draw-path palette indices - see
  * gt_palette.h. Call gt_load_sprite() ONCE per sprite at init.
  */
 #ifndef GT_SPRITES_H

@@ -1,11 +1,11 @@
-/* ── gb_runtime.h — GBDK-lite helpers (auto-included on gb/gbc C builds) ──
+/* ── gb_runtime.h - GBDK-lite helpers (auto-included on gb/gbc C builds) ──
  * Function declarations only; implementations are in gb_runtime.c which
  * the build wires in automatically. Pair with gb_hardware.h for the I/O
  * register names.
  *
  * Functions:
  *   void     wait_vblank(void);
- *       Busy-wait until the next vblank starts. SAFE WHEN LCD IS OFF —
+ *       Busy-wait until the next vblank starts. SAFE WHEN LCD IS OFF -
  *       returns immediately rather than hanging (LY is frozen at 0 with
  *       LCD off; a blind LY-wait would never exit).
  *
@@ -24,7 +24,7 @@
  *
  *   void     lcd_init_default(void);
  *       DMG defaults: BGP=$E4, OBP0/1=$E0, SCY/SCX=0, then turn LCD on
- *       with BG + OBJ enabled. SAFE TO CALL WHEN LCD IS OFF — checks
+ *       with BG + OBJ enabled. SAFE TO CALL WHEN LCD IS OFF - checks
  *       LCDC.7 first instead of blindly waiting for vblank.
  *
  *   void     oam_clear(void);
@@ -58,7 +58,7 @@
 void    wait_vblank(void);
 
 /* Switch wait_vblank() from busy-poll-LY to HALT-driven (interrupt
- * wake). Strongly recommended — busy-poll wait_vblank runs at ~1/30
+ * wake). Strongly recommended - busy-poll wait_vblank runs at ~1/30
  * intended speed on the WASM emulator because LY only updates at
  * frame({op:'step'}) quantum boundaries. Call once at boot after lcd_init_*.
  * Safe to call before lcd_init_default (the HALT path checks LCDC
@@ -66,7 +66,7 @@ void    wait_vblank(void);
  *
  * Once enabled, wait_vblank() sleeps the CPU until the vblank IRQ
  * fires (~10 cycles per wait instead of thousands of LY-polls). The
- * IRQ handler in gb_crt0.s is just `reti` — its job is to wake the
+ * IRQ handler in gb_crt0.s is just `reti` - its job is to wake the
  * CPU, not to do any work.
  *
  * Implementation: writes IE_REG = IE_VBLANK + clears IF_REG + executes
@@ -85,7 +85,7 @@ void    lcd_init_default(void);
  *
  * Why this is mandatory (R55 fix): during OAM DMA the CPU can only
  * fetch from HRAM. Pre-r55 oam_dma_copy spun in main code, fetching
- * $FF (the bus-conflict default) for every instruction — that decodes
+ * $FF (the bus-conflict default) for every instruction - that decodes
  * as `rst $38` which corrupts the stack. Symptom under long-running
  * code: LCDC flips to $FF, BG tile map wiped to zeros, sprites jump.
  * The HRAM stub fixes it by running the spin from HRAM where DMA
@@ -99,7 +99,7 @@ void    oam_dma_flush(void);
 /* shadow_oam is page-aligned at $C100 because OAM DMA uses only the
  * high byte of the source address and always copies 160 bytes from
  * `$XX00`. The `__at` annotation MUST appear on BOTH the extern AND
- * the definition (in gb_runtime.c) — without it SDCC raises "extern
+ * the definition (in gb_runtime.c) - without it SDCC raises "extern
  * definition mismatches". Round 26 footgun fix; see gb_runtime.c. */
 extern __at (0xC100) uint8_t shadow_oam[160];
 
@@ -119,13 +119,13 @@ extern __at (0xC100) uint8_t shadow_oam[160];
  *     Channels are { 1 = sweep square, 2 = plain square }.
  *
  * sound_play_noise(length_frames)
- *     Trigger a short noise burst on channel 4 — useful for hit/explosion
+ *     Trigger a short noise burst on channel 4 - useful for hit/explosion
  *     SFX. Length in frame-equivalents.
  *
  * sound_off()
  *     Power down the APU (NR52 = 0). All 4 channels go silent.
  *
- * These helpers are fire-and-forget — the APU plays autonomously
+ * These helpers are fire-and-forget - the APU plays autonomously
  * after one trigger. No per-frame upkeep needed.
  */
 void    sound_init(void);

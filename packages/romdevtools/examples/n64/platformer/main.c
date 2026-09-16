@@ -1,5 +1,5 @@
 /*
- * platformer/main.c — BLOCK HOP: a 3D Nintendo 64 platformer.
+ * platformer/main.c - BLOCK HOP: a 3D Nintendo 64 platformer.
  *
  * A 3D character (cube hero) runs and jumps across floating platforms rendered in
  * perspective. Gravity + jump physics in 16.16 fixed point, AABB landing tests

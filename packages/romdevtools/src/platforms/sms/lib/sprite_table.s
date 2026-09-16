@@ -1,4 +1,4 @@
-; SMS sprite attribute table (SAT) — populate from shadow OAM.
+; SMS sprite attribute table (SAT) - populate from shadow OAM.
 ;
 ; SAT lives at VRAM $3F00 by default (set via VDP R5). Layout:
 ;   $00-$3F:  64 Y bytes. $D0 in any slot = terminator (VDP stops rendering).

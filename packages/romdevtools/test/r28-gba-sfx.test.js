@@ -1,4 +1,4 @@
-// R28 — GBA sfx wrapper smoke test.
+// R28 - GBA sfx wrapper smoke test.
 //
 // Confirms gba_sfx.{h,c} compiles + links alongside main.c on the
 // libtonc runtime. The wrapper provides sfx_init / sfx_tone / sfx_noise

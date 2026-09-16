@@ -1,9 +1,9 @@
-/* ── maxmod_demo.c — Game Boy Advance maxmod music demo (R34) ───────
+/* ── maxmod_demo.c - Game Boy Advance maxmod music demo (R34) ───────
  *
  * Plays a CC0 tracker module compiled into a Maxmod soundbank.
  * Demonstrates the canonical Maxmod boot dance:
  *
- *   1. Hook mmVBlank into the VBlank IRQ slot — Maxmod's per-frame
+ *   1. Hook mmVBlank into the VBlank IRQ slot - Maxmod's per-frame
  *      mixer state advance depends on this firing every vblank.
  *   2. Call mmInitDefault(soundbank, channels) once at boot.
  *   3. Call mmFrame() once per frame (anywhere outside the IRQ).
@@ -24,7 +24,7 @@
  *   build/maxmod/host/mmutil chiptune.xm -osoundbank.bin -hsoundbank.h
  *
  * (Source .xm tracker module + Node-based regenerator both live under
- *  romdev-platform-gba/share/gba/lib/maxmod/music/ — see make_chiptune_xm.js. The
+ *  romdev-platform-gba/share/gba/lib/maxmod/music/ - see make_chiptune_xm.js. The
  *  buildGbaC layer auto-emits a `.incbin "soundbank.bin"` asm stub
  *  exposing the soundbank under the global symbol `soundbank_bin`.)
  *
@@ -39,7 +39,7 @@
 
 /* soundbank_bin is the symbol auto-defined by buildGbaC's incbin stub
  * when binaryIncludes contains "soundbank.bin". Treat it as a generic
- * byte pointer — Maxmod casts it internally. */
+ * byte pointer - Maxmod casts it internally. */
 extern const u8 soundbank_bin[];
 
 /* Module IDs come from the auto-generated soundbank.h. For the bundled
@@ -50,7 +50,7 @@ extern const u8 soundbank_bin[];
 /* ── Backdrop tiles (4bpp) ───────────────────────────────────────────
  * Two solid-colour tiles so we can lay a two-tone checkerboard across the
  * whole BG1 map. Without a filled backdrop the screen is just the black
- * backdrop colour plus a few text glyphs — which reads as "blank". */
+ * backdrop colour plus a few text glyphs - which reads as "blank". */
 static const u32 tile_solid1[8] = {
     0x11111111, 0x11111111, 0x11111111, 0x11111111,
     0x11111111, 0x11111111, 0x11111111, 0x11111111,
@@ -72,7 +72,7 @@ int main(void) {
      * Lay a two-tone checkerboard across the whole 32x32 BG1 map so the
      * frame has real content behind the text instead of a flat black
      * backdrop (which reads as "blank"). Tiles → char-block 1, map →
-     * screen-block 28 — clear of TTE's char-block 0 / screen-block 31. */
+     * screen-block 28 - clear of TTE's char-block 0 / screen-block 31. */
     pal_bg_mem[0] = CLR_BLACK;
     pal_bg_mem[1] = RGB15(3, 6, 14);   /* deep sky blue */
     pal_bg_mem[2] = RGB15(2, 4, 9);    /* darker navy   */
@@ -117,7 +117,7 @@ int main(void) {
     while (1) {
         VBlankIntrWait();
 
-        /* Maxmod mixer step — MUST be called once per frame from main
+        /* Maxmod mixer step - MUST be called once per frame from main
          * context (not from IRQ). The vblank IRQ handler (mmVBlank)
          * only flips the double buffers; the actual song advance + new
          * sample generation happens here. */

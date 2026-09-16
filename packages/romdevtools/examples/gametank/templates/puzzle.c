@@ -1,4 +1,4 @@
-/* ── puzzle.c — CHROMA WELL: GameTank falling-jewel matcher (complete example) ──
+/* ── puzzle.c - CHROMA WELL: GameTank falling-jewel matcher (complete example) ──
  *
  * A COMPLETE, working game on the bundled GameTank SDK draw-queue runtime, in the
  * Columns mold: a vertical COLUMN OF 3 JEWELS falls as a unit into an 8-wide ×
@@ -8,10 +8,10 @@
  * cascades for bonus points. Title → play → game-over → restart.
  *
  * FORK THIS. Markers:
- *   HARDWARE IDIOM (load-bearing) — every frame is redrawn from the grid as
+ *   HARDWARE IDIOM (load-bearing) - every frame is redrawn from the grid as
  *     blitter rects via the draw QUEUE (gt_draw.h); the top scanline is re-cleaned
  *     with queue_clear_border() last (sprite/edge draws otherwise leave a seam).
- *   GAME LOGIC (clay) — well size, colors, fall speed, scoring, the cycle keys.
+ *   GAME LOGIC (clay) - well size, colors, fall speed, scoring, the cycle keys.
  *
  * CONTROLS: ←/→ move · A cycle colors up · B cycle colors down · Down soft-drop ·
  *           A/START to begin. SCREEN: 128x128. PLAYERS: 1.
@@ -37,14 +37,14 @@
 #define C_FRAME GT_NAVY            /* well frame + HUD bar */
 #define C_HUD   GT_WHITE
 
-/* 6 jewel colors chosen to be clearly distinct hues — no two oranges. Bevel is a
+/* 6 jewel colors chosen to be clearly distinct hues - no two oranges. Bevel is a
  * lighter shade of each for the top-left highlight.
  *   red · orange · green · cyan · blue · magenta  (≈ a 6-hue rainbow) */
 static const unsigned char JEWEL[N_COLORS]  = { GT_RED,  GT_ORANGE, GT_GREEN, GT_CYAN, GT_SKY, GT_MAGENTA };
 static const unsigned char JLITE[N_COLORS]  = { GT_ROSE, GT_GOLD,   GT_LIME,  GT_TEAL, GT_WHITE, GT_PINK   };
 
 /* Draw one beveled jewel (1-based color) at screen (x,y), with its 4 CORNER pixels
- * left as the well color so the gem reads as rounded — an octagon, not a flat box.
+ * left as the well color so the gem reads as rounded - an octagon, not a flat box.
  * The body is a 7x7 with the corners cut: a tall center strip + a wide middle strip
  * cover everything except the 4 corner cells, which stay C_WELL (the backdrop).
  * (Background param so the title pile / NEXT preview round against their own bg.) */
@@ -71,7 +71,7 @@ static unsigned char fall_t;
 static unsigned int  score;
 static unsigned char move_cool;
 
-/* tiny xorshift PRNG comes from gt_draw.h (rnd8) — the SDK rnd() corrupts state. */
+/* tiny xorshift PRNG comes from gt_draw.h (rnd8) - the SDK rnd() corrupts state. */
 static void roll(unsigned char *p) {
   p[0] = 1 + (unsigned char)(rnd8() % N_COLORS);
   p[1] = 1 + (unsigned char)(rnd8() % N_COLORS);

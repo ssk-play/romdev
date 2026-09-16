@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.DataBank — a VGM data-block sample bank.
+// Port of sgdk.xgm2tool.format.DataBank - a VGM data-block sample bank.
 
 export class DataBank {
   /**

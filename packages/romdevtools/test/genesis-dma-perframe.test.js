@@ -1,4 +1,4 @@
-// Genesis feel/perf diagnostic — watch({on:'dma', perFrame:true}) end to end.
+// Genesis feel/perf diagnostic - watch({on:'dma', perFrame:true}) end to end.
 //
 // Proves the per-frame VDP-DMA WORK timeline (the cheap "why is horizontal
 // movement choppy?" answer) against the two_plane_parallax scaffold:
@@ -9,7 +9,7 @@
 //     (the whole point: no per-frame tilemap rewrites → tiny per-frame DMA)
 //
 // Lives under test/ (not src/) because it cold-loads the genesis-c toolchain +
-// gpgx wasm — same family as r21-template-parity / genesis-re-primitives.
+// gpgx wasm - same family as r21-template-parity / genesis-re-primitives.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -76,14 +76,14 @@ test("Genesis perFrame DMA: two_plane_parallax scaffold settles to a low flat cu
 
   // The WHOLE POINT: a hardware-scroll-only loop (no per-frame tilemap rewrites)
   // does only the tiny SAT/scroll refresh each settled frame. After boot the
-  // average per-frame DMA must be small — orders of magnitude below a tilemap
+  // average per-frame DMA must be small - orders of magnitude below a tilemap
   // rewrite (which would be hundreds-to-thousands of bytes EVERY frame). Guard
   // generously (one-time post-boot resource blits can still appear) but tight
   // enough that a regression to per-frame plane redraws would trip it.
   assert.ok(pf.avgBytesPerFrame < 600,
     "hardware-scroll loop should have a LOW avg per-frame DMA; got " + pf.avgBytesPerFrame +
-    " — a per-frame tilemap rewrite would push this into the thousands. " + JSON.stringify(pf).slice(0, 300));
+    " - a per-frame tilemap rewrite would push this into the thousands. " + JSON.stringify(pf).slice(0, 300));
 
-  // And it must actually be doing SOME DMA (the SAT refresh) — not silently zero.
+  // And it must actually be doing SOME DMA (the SAT refresh) - not silently zero.
   assert.ok(pf.totalDmas > 0, "expected the per-frame SAT/scroll refresh DMAs, got none");
 });

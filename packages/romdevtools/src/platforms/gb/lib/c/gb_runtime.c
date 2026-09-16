@@ -1,4 +1,4 @@
-/* ── gb_runtime.c — GBDK-lite helper implementations ───────────────
+/* ── gb_runtime.c - GBDK-lite helper implementations ───────────────
  * Auto-linked into every GB/GBC build that uses `language:"c"`.
  * See gb_runtime.h for the function list.
  */
@@ -6,10 +6,10 @@
 #include "gb_runtime.h"
 
 /* When `enable_vblank_irq()` has been called, wait_vblank uses HALT +
- * the vblank IRQ to sleep until the next vblank — fast on hardware
+ * the vblank IRQ to sleep until the next vblank - fast on hardware
  * AND on the WASM emulator (where the busy-poll fallback below spins
  * through many WASM-time iterations per emulated LY tick, dropping
- * the game loop to ~1/30 of intended speed — round 26 friction). */
+ * the game loop to ~1/30 of intended speed - round 26 friction). */
 static uint8_t vblank_irq_enabled;
 
 void enable_vblank_irq(void) {
@@ -26,14 +26,14 @@ void wait_vblank(void) {
     /* HALT blocks the CPU until any enabled IRQ fires. With only the
      * vblank IRQ enabled, this is "sleep until vblank, ~10 cycles
      * total per wait." gb_crt0.s vectors $0040 to `reti` which is
-     * exactly what we need — no handler body required, just a wake.
+     * exactly what we need - no handler body required, just a wake.
      *
      * Round 27 defensive: explicitly NOP after HALT to dodge the
-     * famous DMG "HALT bug" — if IME=0 and (IF & IE) != 0 at the
+     * famous DMG "HALT bug" - if IME=0 and (IF & IE) != 0 at the
      * moment HALT executes, the CPU skips HALT and duplicates the
      * BYTE that follows. With a NOP in that slot the duplication is
      * harmless. We always run HALT with IME=1 here (enable_vblank_irq
-     * leaves IME enabled), so the bug shouldn't fire — but agents
+     * leaves IME enabled), so the bug shouldn't fire - but agents
      * have reported "wait_vblank seems involved in long-running
      * corruption" symptoms and this is a 1-byte insurance policy. */
     __asm__("halt");
@@ -48,7 +48,7 @@ void wait_vblank(void) {
   while (LY <  144) { }
 }
 
-/* Read JOYP into a packed byte. Safe anytime — independent of LCD
+/* Read JOYP into a packed byte. Safe anytime - independent of LCD
  * state, vblank, etc. Returns 1 = pressed, 0 = not (after inverting
  * the hardware's active-low signal).
  *
@@ -77,7 +77,7 @@ uint8_t joypad_read(void) {
   return (uint8_t)((dpad << 4) | btns);
 }
 
-/* ── OAM DMA — the HRAM-stub idiom (R55 fix) ────────────────────────
+/* ── OAM DMA - the HRAM-stub idiom (R55 fix) ────────────────────────
  *
  * The GB OAM DMA engine ($FF46) transfers 160 bytes from `$XX00` (high
  * byte set by the write) to OAM at $FE00-$FE9F. It takes ~160 µs
@@ -87,7 +87,7 @@ uint8_t joypad_read(void) {
  *
  * The "$FF returned for instruction fetch" bug is nasty: $FF decodes
  * as `rst $38`, which CALLs $0038. gb_crt0.s vectors $0038 to a bare
- * `ret`, which pops the stack — but the stack just had the rst's
+ * `ret`, which pops the stack - but the stack just had the rst's
  * return address pushed, so we return to PC+1. Effectively the CPU
  * skips one byte. Eventually a misaligned fetch lands as the operand
  * of an earlier instruction and you jump into garbage. Common symptom:
@@ -95,7 +95,7 @@ uint8_t joypad_read(void) {
  * during a DMA window for an unrelated I/O write), BG VRAM at
  * $9800-$9BFF gets a wild burst of zeros, etc. Many emulators (incl.
  * gambatte) don't enforce the DMA-bus-conflict rule strictly which is
- * why the broken pattern "worked" in light testing — but the bug
+ * why the broken pattern "worked" in light testing - but the bug
  * shows up under longer / different code paths (round 27).
  *
  * The canonical fix: install a tiny stub in HRAM that does the DMA
@@ -105,10 +105,10 @@ uint8_t joypad_read(void) {
  * called us and normal bus access resumes.
  *
  * HRAM stub (placed at $FF80):
- *   F0 46 / E0 46  ;   ldh ($46), a    — write DMA register (start)
- *   3E 28         ;   ld  a, 40        — spin counter (160 / 4 = 40)
+ *   F0 46 / E0 46  ;   ldh ($46), a    - write DMA register (start)
+ *   3E 28         ;   ld  a, 40        - spin counter (160 / 4 = 40)
  *   3D            ; - dec a
- *   20 FD         ;   jr  nz, -3       — back to dec a
+ *   20 FD         ;   jr  nz, -3       - back to dec a
  *   C9            ;   ret
  * Total: 9 bytes. We install it at boot from `oam_dma_init_hram()`.
  */
@@ -119,10 +119,10 @@ uint8_t joypad_read(void) {
  * `oam_dma_flush()`). The bundled bootstrap can do this for you;
  * games that bypass the bootstrap should call this themselves. */
 void oam_dma_init_hram(void) {
-  /* Stub bytes — see comment block above. */
+  /* Stub bytes - see comment block above. */
   static const uint8_t stub[] = {
-    0xE0, 0x46,             /* ldh ($46), a — start DMA from page in A */
-    0x3E, 0x28,             /* ld  a, 40    — spin counter */
+    0xE0, 0x46,             /* ldh ($46), a - start DMA from page in A */
+    0x3E, 0x28,             /* ld  a, 40    - spin counter */
     0x3D,                   /* dec a        ─┐ */
     0x20, 0xFD,             /* jr nz, -3    ─┘  spin while a != 0 */
     0xC9,                   /* ret */
@@ -133,19 +133,19 @@ void oam_dma_init_hram(void) {
   memcpy_vram(HRAM_DMA_STUB, stub, sizeof(stub));
 }
 
-/* OAM DMA — copy 160 bytes from `src` to OAM ($FE00-$FE9F) via the
+/* OAM DMA - copy 160 bytes from `src` to OAM ($FE00-$FE9F) via the
  * HRAM stub installed by oam_dma_init_hram(). Caller passes the source
  * pointer; we extract the high byte (DMA reads source as `src >> 8`)
  * and CALL the HRAM stub. The stub executes from HRAM (the only
  * memory the CPU can fetch from during DMA) so we don't trip the
  * ROM-bus-conflict bug.
  *
- * Should be called during VBlank — DMA writes to OAM and OAM is
+ * Should be called during VBlank - DMA writes to OAM and OAM is
  * inaccessible to the PPU during scanline drawing, so a mid-frame
  * DMA flush will flash sprite glitches. */
 void oam_dma_copy(void *src) {
   /* Build a function pointer to the HRAM stub. SDCC sm83 calling
-   * convention passes the first uint8_t arg in register A — which is
+   * convention passes the first uint8_t arg in register A - which is
    * what `ldh ($46), a` consumes inside the stub. */
   void (*hram_dma)(uint8_t) = (void (*)(uint8_t))HRAM_DMA_STUB;
   hram_dma((uint8_t)(((uint16_t)src) >> 8));
@@ -153,7 +153,7 @@ void oam_dma_copy(void *src) {
 
 void memcpy_vram(void *dst, const void *src, uint16_t n) {
   /* Safe VRAM access is in modes 0 (HBlank), 1 (VBlank), or with the LCD
-   * off. Caller is expected to ensure one of those — usually by calling
+   * off. Caller is expected to ensure one of those - usually by calling
    * wait_vblank() first. We just do the byte copy. */
   uint8_t *d = (uint8_t *)dst;
   const uint8_t *s = (const uint8_t *)src;
@@ -164,16 +164,16 @@ void memcpy_vram(void *dst, const void *src, uint16_t n) {
 }
 
 void lcd_init_default(void) {
-  /* Install the OAM-DMA HRAM stub. Idempotent — installing it more
+  /* Install the OAM-DMA HRAM stub. Idempotent - installing it more
    * than once just rewrites the same bytes. Doing it here (rather
    * than in crt0) means single-file projects that include this
    * runtime get the fix without having to call it themselves. */
   oam_dma_init_hram();
 
   /* If the LCD is on, wait for vblank so it's safe to turn it off.
-   * If it's already off (typical at boot — DMG/CGB power-up has LCDC=0x91
+   * If it's already off (typical at boot - DMG/CGB power-up has LCDC=0x91
    * on Nintendo-bootrom paths but LCDC=0 in many homebrew startups), skip
-   * the wait — LY is frozen at 0 with the LCD off, so a blind
+   * the wait - LY is frozen at 0 with the LCD off, so a blind
    * `while (LY < 144)` would hang the whole game. */
   if (LCDC & LCDC_LCD_ON) {
     while (LY < 144) { }
@@ -199,7 +199,7 @@ void lcd_init_default(void) {
  *   +3  Attributes (palette / flip / priority / CGB palette + VRAM bank)
  *
  * Round 26 footgun fix: shadow_oam MUST be page-aligned. The OAM DMA
- * engine takes ONLY the high byte of the source address — it always
+ * engine takes ONLY the high byte of the source address - it always
  * copies 160 bytes from `$XX00` to OAM. If shadow_oam happens to land
  * at e.g. $C017, oam_dma_copy(&shadow_oam) latches DMA = $C0 and the
  * hardware DMA's $C000..$C09F (NOT $C017..$C0B6). Result: silent

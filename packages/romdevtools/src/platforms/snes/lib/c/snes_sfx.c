@@ -1,13 +1,13 @@
-/* ── snes_sfx.c — SPC driver uploader + sfx + music dispatch ────────
+/* ── snes_sfx.c - SPC driver uploader + sfx + music dispatch ────────
  *
  * Direct C port of the apu_upload routine from
  * rom-games/snes/invaders/main.asm. The protocol is well-known but
- * timing-sensitive — every byte transfer requires a handshake with
+ * timing-sensitive - every byte transfer requires a handshake with
  * the SPC700 driver, which is why it's spelled out byte-by-byte here.
  *
  * Upload protocol (from Nintendo's "Audio Programming Manual"):
  *   1. Wait for SPC to write $AA $BB into ports 0+1 (its boot ROM
- *      handshake — says "I'm ready"). $2140 = $AA, $2141 = $BB.
+ *      handshake - says "I'm ready"). $2140 = $AA, $2141 = $BB.
  *   2. Write destination ARAM address into ports 2+3 ($2142/$2143).
  *   3. Write $01 to $2141 (kick command).
  *   4. Write $CC to $2140 and wait for SPC to echo it back. Now
@@ -25,7 +25,7 @@
  * `apu_blob_end` symbol so the song table can grow without touching
  * this file. The R46 driver added music engine state + an extra
  * voice config (voice 1), bumping the driver from ~150 to ~230 bytes,
- * and song data lives at ARAM $5000 — so the upload payload jumped
+ * and song data lives at ARAM $5000 - so the upload payload jumped
  * from 9240 to ~20 KB.
  */
 
@@ -41,12 +41,12 @@ extern const u8 apu_blob_end[];
 #define APU_LOAD_ADDR  0x0200
 
 /* EVERY wait below is BOUNDED. A wedged SPC (bad previous state, flaky
- * boot) must NEVER hang the main CPU here — pre-R7 the kick/per-byte/jump
+ * boot) must NEVER hang the main CPU here - pre-R7 the kick/per-byte/jump
  * waits were unbounded `while` spins, so a stalled upload froze the whole
  * game with a black screen (build succeeds, ROM boots, video never starts).
  * Now each spin times out and sfx_init returns a distinct nonzero code so
  * the caller can keep rendering (sound just won't play). ALWAYS call
- * sfx_init AFTER setScreenOn() and check the return — see snes_sfx.h. */
+ * sfx_init AFTER setScreenOn() and check the return - see snes_sfx.h. */
 #define SFX_SPIN_LIMIT 0x8000u
 
 u8 sfx_init(void) {
@@ -54,7 +54,7 @@ u8 sfx_init(void) {
     u16 to;
     u8 jmp_cmd;
     u16 blob_size = (u16)(apu_blob_end - apu_blob);
-    /* Wait for SPC700 boot handshake — it writes $AA into $2140 and
+    /* Wait for SPC700 boot handshake - it writes $AA into $2140 and
      * $BB into $2141 once its internal ROM finishes initializing. */
     u16 timeout = 0xFFFF;
     while (REG_APU0001 != 0xBBAA) {
@@ -65,7 +65,7 @@ u8 sfx_init(void) {
     REG_APU0203 = APU_LOAD_ADDR;
     REG_APU01 = 0x01;
 
-    /* Kick handshake — write $CC to $2140 and wait for echo (bounded). */
+    /* Kick handshake - write $CC to $2140 and wait for echo (bounded). */
     REG_APU00 = 0xCC;
     to = SFX_SPIN_LIMIT;
     while (REG_APU00 != 0xCC) { if (--to == 0) return 2; }
@@ -80,7 +80,7 @@ u8 sfx_init(void) {
     }
 
     /* Finish: set entry-point address, $00 in $2141, then "index + 2"
-     * in $2140 (must be nonzero — if it would be zero, bump it). */
+     * in $2140 (must be nonzero - if it would be zero, bump it). */
     REG_APU0203 = APU_LOAD_ADDR;
     REG_APU01 = 0x00;
     jmp_cmd = (u8)((i + 2) & 0xFF);

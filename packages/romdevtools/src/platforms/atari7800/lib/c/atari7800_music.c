@@ -1,13 +1,13 @@
-/* atari7800_music.c — 2-voice TIA music driver for Atari 7800.
+/* atari7800_music.c - 2-voice TIA music driver for Atari 7800.
  *
  * TIA audio register layout (same as atari7800_sfx.c):
- *   $15 AUDC0 / $16 AUDC1 — waveform/distortion (0..15)
- *   $17 AUDF0 / $18 AUDF1 — frequency divider (0..31, lower = higher pitch)
- *   $19 AUDV0 / $1A AUDV1 — volume (0..15)
+ *   $15 AUDC0 / $16 AUDC1 - waveform/distortion (0..15)
+ *   $17 AUDF0 / $18 AUDF1 - frequency divider (0..31, lower = higher pitch)
+ *   $19 AUDV0 / $1A AUDV1 - volume (0..15)
  *
  * Distortion modes used here:
- *   4  = pure tone via 5-bit polynomial — used for both melody and bass
- *   6  = pure tone (div-by-31), lower-pitched character — used for bass
+ *   4  = pure tone via 5-bit polynomial - used for both melody and bass
+ *   6  = pure tone (div-by-31), lower-pitched character - used for bass
  *        so the two voices have distinct timbres even when their AUDF
  *        values overlap (TIA's 5-bit divider gives only 32 pitches).
  *
@@ -16,7 +16,7 @@
  * Bass walks an octave below the melody (AUDF=24/18 range).
  *
  * Each table entry is 3 bytes: { distortion, freq, frames }. The trailing
- * sentinel is { 0, 0, 0 } — the player wraps to index 0 when it sees
+ * sentinel is { 0, 0, 0 } - the player wraps to index 0 when it sees
  * frames==0 OR when it runs past the table end (frames==0 doubles as
  * "end of song"). Each voice loops independently.
  *
@@ -35,7 +35,7 @@
 #define AUDV1  (*(volatile uint8_t*)0x1A)
 
 /* Pitch shorthand (AUDF values, picked by ear on TIA distortion 4).
- * These aren't equal-tempered — TIA can't be — but they're audibly
+ * These aren't equal-tempered - TIA can't be - but they're audibly
  * distinct and form a usable "scale". */
 #define M_DO_HI  6
 #define M_TI     7
@@ -116,7 +116,7 @@ static const uint8_t melody_notes[] = {
   4, M_MI,    15,
   4, M_DO,    15,
   4, M_DO,    30,
-  0, 0,        0    /* sentinel — loop */
+  0, 0,        0    /* sentinel - loop */
 };
 
 /* Bass: walking quarter-notes following a do-do-sol-sol / do-do-fa-sol
@@ -139,7 +139,7 @@ static const uint8_t bass_notes[] = {
   6, B_SOL, 60,
   6, B_DO,  60,
   6, B_DO,  60,
-  0, 0,      0    /* sentinel — loop */
+  0, 0,      0    /* sentinel - loop */
 };
 
 /* Per-voice playback state. */
@@ -152,7 +152,7 @@ static void start_melody_note(void) {
   uint8_t c = melody_notes[mel_idx];
   uint8_t f = melody_notes[mel_idx + 1];
   uint8_t l = melody_notes[mel_idx + 2];
-  if (l == 0) {           /* sentinel — loop back to start */
+  if (l == 0) {           /* sentinel - loop back to start */
     mel_idx = 0;
     c = melody_notes[0];
     f = melody_notes[1];

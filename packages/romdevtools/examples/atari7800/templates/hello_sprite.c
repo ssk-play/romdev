@@ -1,8 +1,8 @@
-/* hello_sprite.c — Atari 7800 single movable sprite + joystick.
+/* hello_sprite.c - Atari 7800 single movable sprite + joystick.
  *
  * Extends default.c with joystick input: stick port A (SWCHA) drives
  * X/Y. Same MARIA pattern (1-scanline zones, 7-byte DLs, 243-entry
- * DLL — see default.c and MENTAL_MODEL.md for the full explanation
+ * DLL - see default.c and MENTAL_MODEL.md for the full explanation
  * of why every detail matters).
  *
  * Horizontal movement: mutate the X byte in each row's DL.
@@ -26,9 +26,9 @@
 #define CTRL      (*(volatile uint8_t*)0x3C)
 #define SWCHA     (*(volatile uint8_t*)0x280)
 
-/* SWCHA bit pattern (port A, active LOW — invert before testing) */
+/* SWCHA bit pattern (port A, active LOW - invert before testing) */
 /* SWCHA P0 nibble, active-low after the ~SWCHA invert. The bit order is
- * Right/Left/Down/Up from bit7 down — the OLD defines here were exactly
+ * Right/Left/Down/Up from bit7 down - the OLD defines here were exactly
  * REVERSED (UP=0x80 etc.), which made up/down move the sprite left/right
  * on every 7800 scaffold. */
 #define JOY_RIGHT 0x80

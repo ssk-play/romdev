@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.VGMCommand — VGM command descriptor class.
+// Port of sgdk.xgm2tool.format.VGMCommand - VGM command descriptor class.
 
 import { Command } from "./command.js";
 import {

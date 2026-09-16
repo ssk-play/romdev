@@ -1,8 +1,8 @@
-// SNES RE primitives round 2 (snes9x / 65816) — end to end.
+// SNES RE primitives round 2 (snes9x / 65816) - end to end.
 //   - setRegister  (item 1: write a CPU register by romdev reg-id; inverse of getCPUState)
-//   - watchRange   (item 2a: log every read/write in a range — discovery)
-//   - logPCRange   (item 2b: coverage trace — distinct PCs executed in a window)
-//   - callSubroutine status (item 1: see note below — 65816 stack/return-width
+//   - watchRange   (item 2a: log every read/write in a range - discovery)
+//   - logPCRange   (item 2b: coverage trace - distinct PCs executed in a window)
+//   - callSubroutine status (item 1: see note below - 65816 stack/return-width
 //     differs from the m68k-shaped host helper; PC-set-and-execute is proven via
 //     S9xSetPCBase regardless).
 //
@@ -35,7 +35,7 @@ const toJSON = (res) => {
 };
 
 // Writes an incrementing counter byte to low WRAM $0010 (mirrors $7E0010) every
-// frame — the per-frame write the discovery tools detect. The range hook
+// frame - the per-frame write the discovery tools detect. The range hook
 // canonicalizes the low-8KB WRAM mirror, so a window on $7E0010 catches the store.
 const SRC = `
 #include <snes.h>
@@ -67,9 +67,9 @@ test("SNES RE primitives: setRegister + watchRange + logPCRange (+callSubroutine
 
   // ── item 1: setRegister round-trips ──
   // regId 0 = A (16-bit accumulator). Write 0xCAFE, read it back (A.W is uint16,
-  // so the value is masked to 16 bits — assert the masked form).
+  // so the value is masked to 16 bits - assert the masked form).
   const sr = toJSON(await client.callTool({ name: "cpu", arguments: { op: "setReg",  regId: 0, value: 0xCAFE } }));
-  assert.equal(sr.notSupported, undefined, "setRegister notSupported — romdev_setreg missing?");
+  assert.equal(sr.notSupported, undefined, "setRegister notSupported - romdev_setreg missing?");
   assert.equal((sr.valueRaw & 0xFFFF), 0xCAFE, "setRegister(A) didn't round-trip: " + JSON.stringify(sr));
 
   // X (regId 1) too, to exercise a second mapping.
@@ -77,17 +77,17 @@ test("SNES RE primitives: setRegister + watchRange + logPCRange (+callSubroutine
   assert.equal((srX.valueRaw & 0xFFFF), 0x1234, "setRegister(X) didn't round-trip: " + JSON.stringify(srX));
 
   // ── item 2a: watchRange logs writes to $7E0010 with pc/addr/value ──
-  // (Run BEFORE the destructive callSubroutine probe — it hijacks the CPU.)
+  // (Run BEFORE the destructive callSubroutine probe - it hijacks the CPU.)
   const wr = toJSON(await client.callTool({
     name: "watch", arguments: { on: "range",  start: 0x7E0010, end: 0x7E0010, kind: "write", frames: 10, limit: 20 },
   }));
-  assert.equal(wr.notSupported, undefined, "watchRange notSupported — romdev_range_* missing?");
+  assert.equal(wr.notSupported, undefined, "watchRange notSupported - romdev_range_* missing?");
   assert.ok(wr.total > 0, "watchRange caught no writes to $7E0010: " + JSON.stringify(wr));
   assert.ok(wr.distinctPCs.length > 0, "watchRange returned no PCs: " + JSON.stringify(wr));
   // value should be the incrementing counter byte (non-undefined, byte-shaped).
   assert.ok(wr.events.length > 0 && /^0x[0-9A-F]{2}$/.test(wr.events[0].value), "watchRange event value malformed: " + JSON.stringify(wr.events[0]));
 
-  // The PC watchRange reports is the writer instruction — capture it for the
+  // The PC watchRange reports is the writer instruction - capture it for the
   // coverage window so logPCRange definitely has live code to find.
   const writerPCHex = wr.distinctPCs[0];               // e.g. "$808123"
   const writerPC = parseInt(writerPCHex.replace("$", ""), 16);
@@ -100,7 +100,7 @@ test("SNES RE primitives: setRegister + watchRange + logPCRange (+callSubroutine
   const cov = toJSON(await client.callTool({
     name: "watch", arguments: { on: "pc",  start: covLo, end: covHi, frames: 10 },
   }));
-  assert.equal(cov.notSupported, undefined, "logPCRange notSupported — romdev_cov_* missing?");
+  assert.equal(cov.notSupported, undefined, "logPCRange notSupported - romdev_cov_* missing?");
   assert.ok(cov.distinct > 0, "logPCRange found no PCs in the writer window: " + JSON.stringify(cov));
   assert.ok(cov.pcs.includes(writerPCHex) || cov.distinct > 0,
     "logPCRange window had no coverage: " + JSON.stringify(cov));
@@ -123,14 +123,14 @@ test("SNES RE primitives: setRegister + watchRange + logPCRange (+callSubroutine
   const step = toJSON(await client.callTool({ name: "frame", arguments: { op: "stepInstruction" } }));
   assert.equal(step.notSupported, undefined, "stepInstruction notSupported");
   assert.equal(step.stepped, true, "single-step from set PC failed: " + JSON.stringify(step));
-  assert.notEqual(step.pcRaw, writerPC, "PC did not advance from the set address — S9xSetPCBase refresh failed: " + JSON.stringify(step));
+  assert.notEqual(step.pcRaw, writerPC, "PC did not advance from the set address - S9xSetPCBase refresh failed: " + JSON.stringify(step));
 
   // callSubroutine wiring is present (the register-write feature-detect passes),
   // but the HOST helper is m68k-shaped: it reads the stack pointer via reg-id 18
   // and pushes a 4-byte big-endian return address. On the 65816 the SP is reg-id
   // 4 (not 18) and RTS/RTL pop 2/3 bytes, so the generic sentinel-push underflows
   // / mismatches. That's a HOST-layer limitation (the host hardcodes spReg=18),
-  // NOT a core-patch gap — the core exports (romdev_setreg incl. PC, getreg) are
+  // NOT a core-patch gap - the core exports (romdev_setreg incl. PC, getreg) are
   // all present and the PC-set-executes guarantee is proven above. We invoke it
   // only to record the status; an isError here is expected and documented.
   let csStatus;

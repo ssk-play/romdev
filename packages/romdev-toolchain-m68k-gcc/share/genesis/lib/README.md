@@ -1,4 +1,4 @@
-# Genesis / Mega Drive — quickstart
+# Genesis / Mega Drive - quickstart
 
 The compressed version of "everything I had to learn the hard way
 building a Genesis ROM with romdev."
@@ -7,8 +7,8 @@ building a Genesis ROM with romdev."
 
 | File | Purpose |
 |---|---|
-| `header.s` | 256-byte ROM header + interrupt vector table. **Required** for every Genesis ROM — without it the cart is unbootable. |
-| `vdp_init.s` | Standard 320×224 VDP register init (plane bases, scroll, sprite table, etc.) — call from `_reset`. |
+| `header.s` | 256-byte ROM header + interrupt vector table. **Required** for every Genesis ROM - without it the cart is unbootable. |
+| `vdp_init.s` | Standard 320×224 VDP register init (plane bases, scroll, sprite table, etc.) - call from `_reset`. |
 | `wram.s` | How to declare WRAM variables WITHOUT exploding your ROM size to 16 MB. |
 | `pad_read.s` | 3-button controller read with edge detection (held / pressed / released). |
 | `vblank_wait.s` | Busy-wait pattern for syncing to VBlank without interrupts. |
@@ -58,7 +58,7 @@ in a prominent comment at the top.
 ### 4. VDP control reads: bit 3 of LOW byte, address $C00005
 
 The VDP status register is a 16-bit big-endian word at $C00004. The
-"vblank in progress" flag is bit 3 of the LOW byte — accessed at
+"vblank in progress" flag is bit 3 of the LOW byte - accessed at
 $C00005, not $C00004. Lots of old Genesis tutorials test the wrong
 address and busy-wait forever. `vblank_wait.s` gets this right.
 
@@ -75,7 +75,7 @@ The 68000's instruction set requires at least one operand of most
 arithmetic ops to be a register (D0-D7 or A0-A7). Coming from cc65 or
 asar (where memory-to-memory is sometimes legal) this catches you.
 The "instruction not supported on selected architecture" error from
-vasm is technically correct but cryptic — it means "this addressing-
+vasm is technically correct but cryptic - it means "this addressing-
 mode combination is invalid for the 68000," not "your CPU is too old."
 
 ## Build + iterate workflow
@@ -125,7 +125,7 @@ Source can then `incbin "tiles.bin"` directly.
 
 ## Debugging tools available
 
-Genesis has full debugging parity with SNES — all tools are loaded at session
+Genesis has full debugging parity with SNES - all tools are loaded at session
 start (see `catalog({op:'categories'})` for the map):
 
 | Tool | What it gives you |
@@ -154,7 +154,7 @@ we do not emit.
 ## Open question: live Z80 driver state
 
 The YM2612 + Z80 sound CPU state is not currently as deeply
-introspectable as the SNES SPC700 + DSP — YM2612 in particular
+introspectable as the SNES SPC700 + DSP - YM2612 in particular
 requires walking gpgx's internal struct which is version-fragile.
 If you hit a sound-debugging wall here, open an issue at
 https://github.com/monteslu/romdev/issues.

@@ -1,4 +1,4 @@
-// Platform-aware inspection tools. The MCP surface stays generic — every
+// Platform-aware inspection tools. The MCP surface stays generic - every
 // tool takes a `platform` argument (or auto-detects from the loaded host)
 // and dispatches to the right per-platform decoder under src/platforms/.
 
@@ -14,15 +14,15 @@ import { imageContent, jsonContent, unsupported } from "../util.js";
 // sprites/audioDebug, defined in their own router files) import + call. They're
 // assigned inside registerPlatformTools (they close over the module-scope
 // helpers) and exported as live bindings. registerPlatformTools must run first.
-export let inspectPaletteCore = async () => { throw new Error("platform-tools cores not initialized — registerPlatformTools must run first"); };
-export let getPlatformMasterPaletteCore = async () => { throw new Error("platform-tools cores not initialized — registerPlatformTools must run first"); };
-export let getAudioStateCore = async () => { throw new Error("platform-tools cores not initialized — registerPlatformTools must run first"); };
-export let inspectSpritesCore = async () => { throw new Error("platform-tools cores not initialized — registerPlatformTools must run first"); };
-export let inspectBackgroundMapCore = async () => { throw new Error("platform-tools cores not initialized — registerPlatformTools must run first"); };
-export let inspectPatternTilesCore = async () => { throw new Error("platform-tools cores not initialized — registerPlatformTools must run first"); };
-export let convertImageToTilesCore = async () => { throw new Error("platform-tools cores not initialized — registerPlatformTools must run first"); };
-export let imageToTilemapCore = async () => { throw new Error("platform-tools cores not initialized — registerPlatformTools must run first"); };
-export let getCPUStateCore = async () => { throw new Error("platform-tools cores not initialized — registerPlatformTools must run first"); };
+export let inspectPaletteCore = async () => { throw new Error("platform-tools cores not initialized - registerPlatformTools must run first"); };
+export let getPlatformMasterPaletteCore = async () => { throw new Error("platform-tools cores not initialized - registerPlatformTools must run first"); };
+export let getAudioStateCore = async () => { throw new Error("platform-tools cores not initialized - registerPlatformTools must run first"); };
+export let inspectSpritesCore = async () => { throw new Error("platform-tools cores not initialized - registerPlatformTools must run first"); };
+export let inspectBackgroundMapCore = async () => { throw new Error("platform-tools cores not initialized - registerPlatformTools must run first"); };
+export let inspectPatternTilesCore = async () => { throw new Error("platform-tools cores not initialized - registerPlatformTools must run first"); };
+export let convertImageToTilesCore = async () => { throw new Error("platform-tools cores not initialized - registerPlatformTools must run first"); };
+export let imageToTilemapCore = async () => { throw new Error("platform-tools cores not initialized - registerPlatformTools must run first"); };
+export let getCPUStateCore = async () => { throw new Error("platform-tools cores not initialized - registerPlatformTools must run first"); };
 
 // Image-output contract: a PNG image goes to disk (path) OR comes back
 // inline (inline:true). No path + not inline → error. The structured
@@ -56,11 +56,11 @@ function resolvePlatform(host, requested) {
 
 export function registerPlatformTools(server, z, sessionKey) {
   // inspectPatternTiles lives in the `tiles` tool (tiles({op:'png'}), in
-  // tile-inspect.js) now — extracted here as a live-binding core. Reads the
+  // tile-inspect.js) now - extracted here as a live-binding core. Reads the
   // running emulator's pattern tables / VRAM (or an iNES file via `path`).
   inspectPatternTilesCore = async ({ platform, path: romPath, bpp = 4, tileBaseByte = 0, paletteBase = 0, paletteIndex = 0, tileCount = 0, scale = 1, outputPath, inline }, callerSessionKey) => {
       requireImageTarget(outputPath, inline, "inspectPatternTiles");
-      // Integer nearest-neighbor upscale of a PNG — keeps pixel-art tiles crisp
+      // Integer nearest-neighbor upscale of a PNG - keeps pixel-art tiles crisp
       // while making a small tile strip actually readable inline.
       const upscalePng = (pngBuf) => {
         if (!scale || scale <= 1) return pngBuf;
@@ -104,7 +104,7 @@ export function registerPlatformTools(server, z, sessionKey) {
         const bytes = new Uint8Array(await readFile(romPath));
         const { chrFromINes } = await import("../../platforms/nes/ppu.js");
         const { width, height, png, hasChr } = chrFromINes(bytes);
-        if (!hasChr) throw new Error(`'${romPath}' is a CHR-RAM cart — no graphics in the ROM file. Load it and call inspectPatternTiles without path.`);
+        if (!hasChr) throw new Error(`'${romPath}' is a CHR-RAM cart - no graphics in the ROM file. Load it and call inspectPatternTiles without path.`);
         return emit(png, { platform: p, source: "file", sourcePath: romPath, width, height });
       }
       const host = getHost(callerSessionKey ?? sessionKey);
@@ -113,15 +113,15 @@ export function registerPlatformTools(server, z, sessionKey) {
         const { snapshotPatternTables } = await import("../../platforms/nes/ppu.js");
         const { width, height, png, source, hasChr } = await snapshotPatternTables(host);
         const note = source === "ines"
-          ? `CHR pattern tables (${width}×${height}, both 4KB banks). Source: iNES file CHR-ROM bank — these tiles are baked into the ROM and never change at runtime.`
+          ? `CHR pattern tables (${width}×${height}, both 4KB banks). Source: iNES file CHR-ROM bank - these tiles are baked into the ROM and never change at runtime.`
           : hasChr === null
-            ? `CHR pattern tables (${width}×${height}, live from CHR-RAM). Source: emulator's live CHR-RAM — these change as the game writes to PPU $0000-$1FFF. If you see blank tiles, your game hasn't uploaded tiles yet.`
+            ? `CHR pattern tables (${width}×${height}, live from CHR-RAM). Source: emulator's live CHR-RAM - these change as the game writes to PPU $0000-$1FFF. If you see blank tiles, your game hasn't uploaded tiles yet.`
             : `CHR pattern tables (${width}×${height}, both 4KB banks, live from emulator).`;
         const structuredSource = source === "ines" ? "file" : "emulator";
         return emit(png, { platform: p, source: structuredSource, width, height, note });
       }
       if (p === "sms" || p === "gg") {
-        // SMS tiles live in VRAM at runtime — the cart has no fixed CHR
+        // SMS tiles live in VRAM at runtime - the cart has no fixed CHR
         // region. Render all 448 tiles (the entire 16KB VRAM mapped to
         // tiles), using the live first-BG-palette so colors look right.
         const { snapshotPalette } = await import("../../platforms/sms/vdp.js");
@@ -134,7 +134,7 @@ export function registerPlatformTools(server, z, sessionKey) {
         const { width, height, png, tileCount } = renderSmsTilesheet(vram, bgPal);
         return emit(png, {
           platform: p, source: "emulator", width, height, tileCount,
-          note: `${tileCount} tiles from 16 KB VRAM (covers tiles + name table + SAT — late ` +
+          note: `${tileCount} tiles from 16 KB VRAM (covers tiles + name table + SAT - late ` +
             `tiles will be noise from those regions). For the active BG pattern range, check ` +
             `getRenderingContext().sms.bgTileDataBase.`,
         });
@@ -145,7 +145,7 @@ export function registerPlatformTools(server, z, sessionKey) {
         return emit(png, {
           platform: p, source: "emulator", width, height, tileCount,
           note: `${tileCount} tiles from VRAM $8000-$97FF (the entire tile region). ` +
-            `Active BG/Window/sprite tile data area is selected by LCDC bit 4 — check ` +
+            `Active BG/Window/sprite tile data area is selected by LCDC bit 4 - check ` +
             `getRenderingContext().gb.bgTileDataBase.`,
         });
       }
@@ -264,7 +264,7 @@ export function registerPlatformTools(server, z, sessionKey) {
         const { snapshotPaletteSwatch } = await import("../../platforms/atari2600/tia.js");
         const { colors, png } = snapshotPaletteSwatch(host);
         return emit({ platform: p, colors,
-          note: "2600 has only 4 active colors at any moment (P0/P1/PF/BK). The TIA color regs change frequently as the kernel races the beam — this is a snapshot of the current state, NOT the full frame's colors." }, png);
+          note: "2600 has only 4 active colors at any moment (P0/P1/PF/BK). The TIA color regs change frequently as the kernel races the beam - this is a snapshot of the current state, NOT the full frame's colors." }, png);
       }
 
       if (p === "atari7800") {
@@ -300,7 +300,7 @@ export function registerPlatformTools(server, z, sessionKey) {
       if (p === "sync32") {
         // 256 entries, RGB565, straight from the console palette the game set
         // with api->palette_set(). Every sprite sheet and canvas byte indexes
-        // into this one table — there are no sub-palettes or banks.
+        // into this one table - there are no sub-palettes or banks.
         const pal = host.readMemory("sync32_palette", 0, 512);
         const dv = new DataView(pal.buffer, pal.byteOffset, pal.byteLength);
         const colors = [];
@@ -320,7 +320,7 @@ export function registerPlatformTools(server, z, sessionKey) {
           platform: p,
           colors,
           note: "sync32 palette: 256 entries, RGB565, as set by api->palette_set(). " +
-            "One flat table — sheets and the canvas both index it directly, with no " +
+            "One flat table - sheets and the canvas both index it directly, with no " +
             "sub-palettes. `raw` is the RGB565 word; r/g/b are expanded to 8 bits.",
         }, png);
       }
@@ -391,7 +391,7 @@ export function registerPlatformTools(server, z, sessionKey) {
       return jsonContent({ platform: p, cpu, ...state });
   };
 
-  // ── getAudioState — unified sound-chip introspection ──────────────
+  // ── getAudioState - unified sound-chip introspection ──────────────
   // One tool, `chip` enum discriminator (mirrors getCPUState({cpu})).
   // Subsumes the old getDspState / getPsgState / getYm2612State, which
   // remain as thin deprecated aliases below for back-compat.
@@ -410,7 +410,7 @@ export function registerPlatformTools(server, z, sessionKey) {
       return { platform: "genesis", chip, ...decodeGenesisYM2612(blob) };
     }
     if (chip === "psg") {
-      // SN76489 — gpgx runs Genesis AND SMS/GG, and exposes the PSG via the
+      // SN76489 - gpgx runs Genesis AND SMS/GG, and exposes the PSG via the
       // same gpgx-internal region regardless of which is loaded, so chip:'psg'
       // works for all three. Report the actual loaded platform.
       const p = resolvePlatform(host);
@@ -424,64 +424,64 @@ export function registerPlatformTools(server, z, sessionKey) {
       return { platform: p, chip, ...apu };
     }
     if (chip === "gb") {
-      // GB/GBC DMG APU — read the APU register file from gb_io ($FF00-$FF7F).
+      // GB/GBC DMG APU - read the APU register file from gb_io ($FF00-$FF7F).
       const p = resolvePlatform(host);
       if (p !== "gb" && p !== "gbc") throw new Error("getAudioState chip:'gb' is for Game Boy / Game Boy Color only.");
       const io = host.readMemory("gb_io", 0, 0x80);
       return { platform: p, chip, ...decodeGbApu(io) };
     }
     if (chip === "gba") {
-      // GBA APU — the IO page carries the 4 DMG PSG channels + 2 DMA FIFO channels.
+      // GBA APU - the IO page carries the 4 DMG PSG channels + 2 DMA FIFO channels.
       const io = host.readMemory("gba_io_regs", 0, 0x400);
       return { platform: "gba", chip, ...decodeGbaApu(io) };
     }
     if (chip === "sid") {
-      // C64 SID (6581/8580) — 3 voices + filter, from c64_sid_regs ($D400-$D41C).
+      // C64 SID (6581/8580) - 3 voices + filter, from c64_sid_regs ($D400-$D41C).
       const regs = host.readMemory("c64_sid_regs", 0, 29);
       return { platform: "c64", chip, ...decodeC64Sid(regs) };
     }
     if (chip === "mikey") {
-      // Lynx Mikey — 4 audio channels, from the $FC00-$FDFF HW window.
+      // Lynx Mikey - 4 audio channels, from the $FC00-$FDFF HW window.
       const hw = host.readMemory("lynx_hw_regs", 0, 0x200);
       return { platform: "lynx", chip, ...decodeLynxMikey(hw) };
     }
     if (chip === "pce") {
-      // PC Engine HuC6280 PSG — 6 wavetable channels (ch 4/5 can do noise).
+      // PC Engine HuC6280 PSG - 6 wavetable channels (ch 4/5 can do noise).
       const psg = getPcePsgState(host);
-      if (!psg) throw new Error("getAudioState chip:'pce' — no PSG region (load a PCE ROM into the patched geargrafx core).");
+      if (!psg) throw new Error("getAudioState chip:'pce' - no PSG region (load a PCE ROM into the patched geargrafx core).");
       return { platform: "pce", ...psg };
     }
     if (chip === "ay8910") {
-      // MSX AY-3-8910 — 3 square + noise + envelope.
+      // MSX AY-3-8910 - 3 square + noise + envelope.
       const ay = getMsxAyState(host);
-      if (!ay) throw new Error("getAudioState chip:'ay8910' — no PSG region (load an MSX ROM into the patched blueMSX core).");
+      if (!ay) throw new Error("getAudioState chip:'ay8910' - no PSG region (load an MSX ROM into the patched blueMSX core).");
       return { platform: "msx", ...ay };
     }
     if (chip === "spu") {
-      // PS1 SPU — 24 ADPCM voices (volume/pitch/ADSR + key-on/off).
+      // PS1 SPU - 24 ADPCM voices (volume/pitch/ADSR + key-on/off).
       const regs = host.getSpuRegs?.();
-      if (!regs) throw new Error("getAudioState chip:'spu' — no SPU region (load a PS1 program into the rebuilt pcsx_rearmed core).");
+      if (!regs) throw new Error("getAudioState chip:'spu' - no SPU region (load a PS1 program into the rebuilt pcsx_rearmed core).");
       return { platform: "ps1", ...decodePs1Spu(regs) };
     }
     if (chip === "ai") {
-      // N64 AI — the audio OUTPUT state (sample rate + playing + DMA source). N64
+      // N64 AI - the audio OUTPUT state (sample rate + playing + DMA source). N64
       // audio is RSP-mixed, so there are no per-voice registers to decode.
       const regs = host.getAiRegs?.();
-      if (!regs) throw new Error("getAudioState chip:'ai' — no AI region (load an N64 ROM into the rebuilt parallel_n64 core).");
+      if (!regs) throw new Error("getAudioState chip:'ai' - no AI region (load an N64 ROM into the rebuilt parallel_n64 core).");
       return { platform: "n64", ...decodeN64Ai(regs) };
     }
     if (chip === "aica") {
-      // Dreamcast AICA — 64 PCM/ADPCM channels (key-on/volume/pitch/loop) + master
+      // Dreamcast AICA - 64 PCM/ADPCM channels (key-on/volume/pitch/loop) + master
       // volume, from the rebuilt flycast core's romdev_aica_get register window.
       const regs = host.getAicaRegs?.();
-      if (!regs) throw new Error("getAudioState chip:'aica' — no AICA region (load a Dreamcast program into the rebuilt flycast core).");
+      if (!regs) throw new Error("getAudioState chip:'aica' - no AICA region (load a Dreamcast program into the rebuilt flycast core).");
       return { platform: "dreamcast", ...decodeAica(regs) };
     }
     if (chip === "acp") {
-      // GameTank ACP — a second 65C02 driving a DAC from 4 KB audio RAM (no fixed
+      // GameTank ACP - a second 65C02 driving a DAC from 4 KB audio RAM (no fixed
       // synth registers), from the patched core's romdev_acp_get state block.
       const regs = host.getAcpState?.();
-      if (!regs) throw new Error("getAudioState chip:'acp' — no ACP state (load a GameTank ROM into the patched gametank core).");
+      if (!regs) throw new Error("getAudioState chip:'acp' - no ACP state (load a GameTank ROM into the patched gametank core).");
       return { platform: "gametank", ...decodeGameTankAcp(regs) };
     }
     throw new Error(`getAudioState: unknown chip '${chip}'. Use 'nes' (NES 2A03), 'gb' (Game Boy/GBC), 'gba' (GBA), 'dsp' (SNES), 'psg' (Genesis/SMS/GG SN76489), 'ym2612' (Genesis FM), 'sid' (C64), 'mikey' (Lynx), 'pce', 'ay8910' (MSX), 'spu' (PS1), 'aica' (Dreamcast), or 'acp' (GameTank).`);
@@ -489,14 +489,14 @@ export function registerPlatformTools(server, z, sessionKey) {
 
   getAudioStateCore = async ({ chip }, callerSessionKey) => jsonContent(readAudioChip(chip, callerSessionKey));
 
-  // inspectSprites lives in the `sprites` tool (metasprite-tools.js) now —
+  // inspectSprites lives in the `sprites` tool (metasprite-tools.js) now -
   // extracted here as a live-binding core so the router can call it without
   // disturbing the other handlers registerPlatformTools owns.
   inspectSpritesCore = async ({ platform, maxSlots, slots, outputPath, inline }, callerSessionKey) => {
       // sessionKey MUST come from the live call, not the closure: these *Core
       // functions are module-level `export let` bindings reassigned on every
       // registerPlatformTools() run, so the closure's `sessionKey` is whatever
-      // session registered LAST — not the caller's. Threading it through the
+      // session registered LAST - not the caller's. Threading it through the
       // call args keeps each session reading its OWN host. (Same fix shape as
       // inspectPaletteCore.) Falls back to the registration key for any caller
       // that still invokes the old 1-arg form.
@@ -547,7 +547,7 @@ export function registerPlatformTools(server, z, sessionKey) {
             priority: (attr >> 5) & 0x1, // NES is 1-bit priority
             flipH: !!((attr >> 6) & 0x1),
             flipV: !!((attr >> 7) & 0x1),
-            size: { w: 8, h: 8 }, // NES sprites are 8x8 or 8x16 (PPUCTRL bit) — default to 8x8
+            size: { w: 8, h: 8 }, // NES sprites are 8x8 or 8x16 (PPUCTRL bit) - default to 8x8
             visible: y < 0xF0,
             raw: { byte0: y, byte1: tile, byte2: attr, byte3: x },
           });
@@ -577,13 +577,13 @@ export function registerPlatformTools(server, z, sessionKey) {
         const renderableCount = sprites.filter((s) => s.renderable).length;
         const summary = [
           `${renderableCount} of 128 OBJ slots are renderable on-screen` +
-            ` (the other ${128 - renderableCount} are parked off-screen/hidden — not drawn).`,
+            ` (the other ${128 - renderableCount} are parked off-screen/hidden - not drawn).`,
           regsLive
             ? `OBSEL=$${ppu.obsel.toString(16)}: OBJ size pair ${JSON.stringify(ppu.objSize.small)}/` +
               `${JSON.stringify(ppu.objSize.large)}, OBJ tile base VRAM 0x${ppu.objNameBaseByte.toString(16)}, ` +
               `OBJ layer ${ppu.mainScreen.obj ? "ENABLED" : "DISABLED"} on main screen (TM=$${ppu.tm.toString(16)}). ` +
               `Each sprite's tileVramAddr + cgramPaletteRange are resolved from this.`
-            : `PPU registers not yet populated (step more frames before trusting OBJ size/base — ` +
+            : `PPU registers not yet populated (step more frames before trusting OBJ size/base - ` +
               `sizes assume the {8×8,16×16} default and tileVramAddr is null).`,
         ];
         if (warnings.length) summary.push(...warnings);
@@ -644,7 +644,7 @@ export function registerPlatformTools(server, z, sessionKey) {
       }
 
       if (p === "atari2600") {
-        // 2600 has no traditional "sprite list" — instead the TIA holds 5
+        // 2600 has no traditional "sprite list" - instead the TIA holds 5
         // graphics objects (P0/P1/M0/M1/Ball) whose state we sample. The
         // kernel re-positions them per-scanline; this is a snapshot.
         const { snapshotTia, snapshotScanline } = await import("../../platforms/atari2600/tia.js");
@@ -669,7 +669,7 @@ export function registerPlatformTools(server, z, sessionKey) {
 
       if (p === "atari7800") {
         // 7800 sprites are driven by MARIA's display list, which lives in
-        // RAM at addresses chosen by the game — there's no fixed OAM. We
+        // RAM at addresses chosen by the game - there's no fixed OAM. We
         // return MARIA regs (background, 8 palettes, control) so the
         // agent can locate the display list via DPP and parse from there.
         const { snapshotPalette } = await import("../../platforms/atari7800/maria.js");
@@ -678,7 +678,7 @@ export function registerPlatformTools(server, z, sessionKey) {
         const dpp = ram[0x04] | (ram[0x05] << 8);  // DPPH/DPPL at $84/$85
         return emitImage(png, {
           platform: p,
-          note: "7800 has no fixed OAM. MARIA reads a display list from RAM (pointed at by DPP at $84/$85) each scanline — each entry describes one drawable. To enumerate sprites for the current frame, parse the DL starting at the dpp address. This snapshot shows MARIA's control regs + palette state.",
+          note: "7800 has no fixed OAM. MARIA reads a display list from RAM (pointed at by DPP at $84/$85) each scanline - each entry describes one drawable. To enumerate sprites for the current frame, parse the DL starting at the dpp address. This snapshot shows MARIA's control regs + palette state.",
           dpp: "0x" + dpp.toString(16).toUpperCase().padStart(4, "0"),
           maria: regs,
         });
@@ -725,7 +725,7 @@ export function registerPlatformTools(server, z, sessionKey) {
           platform: p,
           sprites: [],
           scbListHead: "$" + scbnext.toString(16).toUpperCase().padStart(4, "0"),
-          note: "Lynx has no fixed OAM — sprites are SCB (Sprite Control Block) linked lists in main RAM, " +
+          note: "Lynx has no fixed OAM - sprites are SCB (Sprite Control Block) linked lists in main RAM, " +
             "walked by Suzy from the SCBNEXT pointer ($FC10/$FC11, shown as scbListHead). To enumerate sprites, " +
             "read system_ram starting at scbListHead and follow each SCB's next-pointer: each SCB begins with " +
             "SPRCTL0 (type/flip/bpp), SPRCTL1, collision#, then the next-SCB pointer, sprite-data pointer, and " +
@@ -767,13 +767,13 @@ export function registerPlatformTools(server, z, sessionKey) {
   };
 
   // inspectBackgroundMap lives in the `background` tool (rendering-context.js)
-  // now — extracted here as a live-binding core so the router can call it
+  // now - extracted here as a live-binding core so the router can call it
   // without disturbing the other handlers registerPlatformTools owns.
   inspectBackgroundMapCore = async ({ platform, render, region, attributesOnly, tilesOnly, which, window, plane, tilemapBaseByte, tileBaseByte, bpp, mapWidth, mapHeight, outputPath, inline }, callerSessionKey) => {
       const host = getHost(callerSessionKey ?? sessionKey);
       const p = resolvePlatform(host, platform);
       if (attributesOnly && tilesOnly) {
-        throw new Error("inspectBackgroundMap: attributesOnly and tilesOnly are mutually exclusive — omit both to get tiles + subPaletteGrid together.");
+        throw new Error("inspectBackgroundMap: attributesOnly and tilesOnly are mutually exclusive - omit both to get tiles + subPaletteGrid together.");
       }
       // Gate the PNG; the textual note travels alongside it. Used by every
       // image-producing path. NES render:false stays JSON-only (no image).
@@ -805,7 +805,7 @@ export function registerPlatformTools(server, z, sessionKey) {
         const ciram = host.readMemory("nes_nametables", 0, 2048);
         const dec = decodeNametable(ciram, { which, region });
         const base = { platform: p, which, region: dec.region };
-        // tilesOnly: just the tile-index grid (+ distinctTiles) — the cheapest
+        // tilesOnly: just the tile-index grid (+ distinctTiles) - the cheapest
         // "what tiles are here?" read, no attribute annotation.
         if (tilesOnly) {
           return jsonContent({
@@ -815,7 +815,7 @@ export function registerPlatformTools(server, z, sessionKey) {
             note: "tilesOnly: tile indices for the region. Re-call with attributesOnly:true (or neither flag) to also get the per-tile subPaletteGrid.",
           });
         }
-        // attrTableHex is the FULL 64-byte attribute table for the nametable —
+        // attrTableHex is the FULL 64-byte attribute table for the nametable -
         // one byte covers a 32×32px (4×4-tile) area, so it can't be cleanly
         // sliced to an arbitrary region. subPaletteGrid IS region-clipped (and
         // is what you actually want); attrTableHex is labeled as the raw table.
@@ -823,7 +823,7 @@ export function registerPlatformTools(server, z, sessionKey) {
           ...base,
           subPaletteGrid: dec.subPaletteGrid,
           attrTableFullHex: dec.attrTableHex,
-          note: "subPaletteGrid[row][col] = BG sub-palette 0-3 per tile in the requested region (decoded from the attribute table). On NES, palette indices for sub-palette N are nes_palette[N*4 .. N*4+3]. attrTableFullHex is the raw 64-byte attribute table for the WHOLE nametable (not region-clipped — one byte spans a 4×4-tile area).",
+          note: "subPaletteGrid[row][col] = BG sub-palette 0-3 per tile in the requested region (decoded from the attribute table). On NES, palette indices for sub-palette N are nes_palette[N*4 .. N*4+3]. attrTableFullHex is the raw 64-byte attribute table for the WHOLE nametable (not region-clipped - one byte spans a 4×4-tile area).",
         };
         if (attributesOnly) {
           return jsonContent(common);
@@ -884,7 +884,7 @@ export function registerPlatformTools(server, z, sessionKey) {
         throw new Error("convertImageToTiles: pass outputDir (write tiles.bin/palette.bin to disk, returns paths) or inline:true (return base64 in the response).");
       }
       if (!pngBase64 && !pngPath) {
-        throw new Error("convertImageToTiles: pass pngPath (a PNG on disk — preferred) or pngBase64.");
+        throw new Error("convertImageToTiles: pass pngPath (a PNG on disk - preferred) or pngBase64.");
       }
       // Resolve the PNG bytes once: from disk (preferred) or from base64.
       const pngBuf = pngPath ? await readFile(pngPath) : Buffer.from(pngBase64, "base64");
@@ -918,7 +918,7 @@ export function registerPlatformTools(server, z, sessionKey) {
           platform: "msx", mode: "screen2",
           tilesAcross, tilesDown, totalTiles: tilesAcross * tilesDown,
           patternBytes: pattern.length, colorBytes: color.length,
-          note: "MSX screen-2 tiles = TWO tables: pattern.bin (1bpp, bit7=leftmost) and color.bin (per-row high-nibble=fg, low-nibble=bg color index into the fixed 16-color TMS9918 palette). DMA pattern.bin to the pattern-generator base and color.bin to the color-table base (see background({view:'renderState'}) for those VRAM addresses). Each 8-pixel ROW is limited to 2 colors — that's the classic MSX constraint.",
+          note: "MSX screen-2 tiles = TWO tables: pattern.bin (1bpp, bit7=leftmost) and color.bin (per-row high-nibble=fg, low-nibble=bg color index into the fixed 16-color TMS9918 palette). DMA pattern.bin to the pattern-generator base and color.bin to the color-table base (see background({view:'renderState'}) for those VRAM addresses). Each 8-pixel ROW is limited to 2 colors - that's the classic MSX constraint.",
         };
         if (inline) {
           msxOut.patternBase64 = Buffer.from(pattern).toString("base64");
@@ -975,9 +975,9 @@ export function registerPlatformTools(server, z, sessionKey) {
       } else if (platform === "sms" || platform === "gg") {
         out.note = "SMS/GG 4bpp 'interleaved' layout (32 B/tile, per-row [p0,p1,p2,p3]). Write tiles to VRAM tile data base (VDP reg 4); `paletteHex` is a suggested CRAM palette.";
       } else if (platform === "c64") {
-        out.note = "C64 hi-res charset: each tile is one 8×8 char (8 B, 1bpp — bit set = foreground in the cell's Color-RAM color, clear = shared background). Load the tile bytes (tilesPath / tilesBase64) into your char base ($0800/$1000/etc.). For a full picture with per-cell colors + screen RAM, use imageToTilemap({platform:'c64'}) instead.";
+        out.note = "C64 hi-res charset: each tile is one 8×8 char (8 B, 1bpp - bit set = foreground in the cell's Color-RAM color, clear = shared background). Load the tile bytes (tilesPath / tilesBase64) into your char base ($0800/$1000/etc.). For a full picture with per-cell colors + screen RAM, use imageToTilemap({platform:'c64'}) instead.";
       } else if (platform === "pce") {
-        out.note = "PC Engine HuC6270 4bpp 'planar-pairs' layout (32 B/tile, same as SNES: 16 B plane 0+1, then 16 B plane 2+3). DMA the tile bytes into VRAM at your BG/SPR pattern base. `paletteHex` is a suggested 16-color set — pack each to the VCE's 9-bit GRB at use time. (MSX returns pattern.bin/color.bin instead — see its branch.)";
+        out.note = "PC Engine HuC6270 4bpp 'planar-pairs' layout (32 B/tile, same as SNES: 16 B plane 0+1, then 16 B plane 2+3). DMA the tile bytes into VRAM at your BG/SPR pattern base. `paletteHex` is a suggested 16-color set - pack each to the VCE's 9-bit GRB at use time. (MSX returns pattern.bin/color.bin instead - see its branch.)";
       }
       return jsonContent(out);
   };
@@ -1295,8 +1295,8 @@ async function imageToTilemap(platform, args) {
   }
   if (platform === "atari7800" || platform === "a7800") {
     throw new Error(
-      `imageToTilemap[7800]: MARIA reads "display lists" — variable-width sprite/ ` +
-      `character chunks at user-defined RAM addresses — instead of a fixed tilemap. ` +
+      `imageToTilemap[7800]: MARIA reads "display lists" - variable-width sprite/ ` +
+      `character chunks at user-defined RAM addresses - instead of a fixed tilemap. ` +
       `Converting an arbitrary PNG would require generating a per-zone display list ` +
       `tuned to the cart, which is game-specific. Not auto-implemented.`
     );
@@ -1343,7 +1343,7 @@ async function validateImagePalette(platform, pngBuf) {
         );
       }
     } else {
-      // Truecolor — scan distinct RGB triples (cap at 256 for cost).
+      // Truecolor - scan distinct RGB triples (cap at 256 for cost).
       const seen = new Map();
       const buf = decoded.data;
       const MAX_DISTINCT = 256;
@@ -1367,7 +1367,7 @@ async function validateImagePalette(platform, pngBuf) {
           `PNG has ${oob.length}/${seen.size} distinct colors outside the ${platform} palette` +
           ` (tolerance ±${TOL}/channel): ` +
           oob.slice(0, 8).join(", ") + (oob.length > 8 ? `, ... (+${oob.length - 8} more)` : "") +
-          `. Quantize to the platform palette first — call getPlatformPalettePng({platform:"${platform}"}) and use the PNG as ImageMagick's -remap target.`
+          `. Quantize to the platform palette first - call getPlatformPalettePng({platform:"${platform}"}) and use the PNG as ImageMagick's -remap target.`
         );
       }
     }

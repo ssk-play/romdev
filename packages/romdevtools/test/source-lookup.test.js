@@ -1,4 +1,4 @@
-// disasm({target:'sourceLookup'}) — address -> the project's OWN annotated source.
+// disasm({target:'sourceLookup'}) - address -> the project's OWN annotated source.
 //
 // The v0.98.0 headline ask: "show me my commented source for $E4DB" had no tool.
 // target:'rom' re-decodes fresh (losing annotations, and re-decoding data as
@@ -12,7 +12,7 @@
 // lines whose comment bytes happen to read as that address.
 //
 // The implementation shipped without tests; these cover the behaviours the ask
-// actually depends on — range matching, annotations preserved, context, and the
+// actually depends on - range matching, annotations preserved, context, and the
 // silent-truncation failure the grep had.
 
 import { test } from "node:test";
@@ -24,11 +24,11 @@ import { sourceLookupCore } from "../src/analysis/source-lookup.js";
 
 // An annotated bank file in the shape disasm({target:'project'}) emits:
 // instruction, then a trailing `; ADDR bytes` comment. The human comments are
-// the thing that must survive — they are the reason to read source over a
+// the thing that must survive - they are the reason to read source over a
 // fresh decode.
 const BANK7 = [
     "; ---------------------------------------------------------------",
-    "; HighScoreCommit — writes the seven score digits back to $0182.",
+    "; HighScoreCommit - writes the seven score digits back to $0182.",
     "; ---------------------------------------------------------------",
     "HighScoreCommit:",
     "        lda     $0182                           ; E4D8 AD 82 01",
@@ -37,7 +37,7 @@ const BANK7 = [
     "        sta     $0182                           ; E4DF 8D 82 01",
     "        rts                                     ; E4E2 60",
     "",
-    "; A data table whose bytes READ like the address above — the exact thing",
+    "; A data table whose bytes READ like the address above - the exact thing",
     "; that pollutes a naive grep for 'E4D'.",
     "ScoreTable:",
     "        .byte   $E4, $DB, $20, $E4              ; F100 E4 DB 20 E4",
@@ -83,7 +83,7 @@ test("context lines surround the hit and are marked as non-hits", async () => {
   assert.equal(block.lines.filter((l) => l.hit).length, 1, "exactly one line matched");
 });
 
-test("a RANGE matches every address inside it — no nibble classes to get wrong", async () => {
+test("a RANGE matches every address inside it - no nibble classes to get wrong", async () => {
   // The grep this replaces needed 'E4[A-C][0-9A-F] |E4D[0-9A-F] |E4E[0-9A-F] '
   // and silently truncated if a class was missed.
   const r = await sourceLookupCore({ projectDir: PROJECT, startAddress: 0xE4D8, endAddress: 0xE4E2, context: 0 });
@@ -94,7 +94,7 @@ test("a RANGE matches every address inside it — no nibble classes to get wrong
 });
 
 test("a data table whose BYTES look like the address is not a hit", async () => {
-  // `.byte $E4,$DB,...` at F100 must not match a lookup for $E4DB — only the
+  // `.byte $E4,$DB,...` at F100 must not match a lookup for $E4DB - only the
   // line's OWN address annotation counts. The naive grep matched this.
   const r = await sourceLookupCore({ projectDir: PROJECT, startAddress: 0xE4DB, context: 0 });
   const texts = r.results.flatMap((b) => b.lines.filter((l) => l.hit).map((l) => l.text));

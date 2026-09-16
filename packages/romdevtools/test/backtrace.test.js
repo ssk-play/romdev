@@ -1,4 +1,4 @@
-// Call-stack reconstruction (backtrace.js) — unit + live e2e.
+// Call-stack reconstruction (backtrace.js) - unit + live e2e.
 //
 // Unit: the 6502 decoder recovers caller PCs from stack bytes (the exact
 // convention from the v0.41.0 feedback: return = JSR_addr + 2; the JSR is at
@@ -68,7 +68,7 @@ test("buildBacktrace: Z80/SM83 family decodes the 2-byte LE call stack", () => {
   const gb = buildBacktrace({ platform: "gb", regs: { sp: "$C100" }, readMemory: () => new Uint8Array(0), readCpuWord });
   assert.equal(gb.isa, "sm83");
   assert.deepEqual(gb.frames.map((f) => f.callerPc), [0x8234, 0x9abc]);
-  // Z80 (SMS) — same frame format, different isa label
+  // Z80 (SMS) - same frame format, different isa label
   const sms = buildBacktrace({ platform: "sms", regs: { sp: "$C100" }, readMemory: () => new Uint8Array(0), readCpuWord });
   assert.equal(sms.isa, "z80");
   assert.deepEqual(sms.frames.map((f) => f.callerPc), [0x8234, 0x9abc]);

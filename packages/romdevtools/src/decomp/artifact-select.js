@@ -1,7 +1,7 @@
-// artifact-select.js — choosing WHICH stored comparison to analyse, out loud.
+// artifact-select.js - choosing WHICH stored comparison to analyse, out loud.
 //
 // Client reply, 2026-09-15: a symbol-only `diagnose` call silently picked an
-// older, worse candidate — 13 linked mismatches when the caller had already
+// older, worse candidate - 13 linked mismatches when the caller had already
 // produced one with 11 and corrected stack homes. Both shared a dependency
 // hash, so this was not stale evidence; it was a bad default, chosen without
 // saying so.
@@ -91,7 +91,7 @@ export async function selectArtifact(project, symbol, { prefer = "best", fn, cur
   let files = [];
   try { files = (await readdir(dir)).filter((f) => f.endsWith(".diff.json")); } catch {}
   if (!files.length) {
-    throw Object.assign(new Error(`no stored comparison for '${symbol}'. Run decomp({op:'compare', ...}) first, then pass its artifacts.diff — or call again once one exists.`), { code: "NO_ARTIFACT" });
+    throw Object.assign(new Error(`no stored comparison for '${symbol}'. Run decomp({op:'compare', ...}) first, then pass its artifacts.diff - or call again once one exists.`), { code: "NO_ARTIFACT" });
   }
 
   let expectedHash = currentDependencyHash ?? null;

@@ -2,7 +2,7 @@
 //
 // The PCE background is a tilemap ("BAT" = Background Attribute Table) of 16-bit
 // entries in VRAM, each: bits 0-10 = tile index, bits 12-15 = sub-palette (0-15).
-// Tiles are 8×8, 4bpp, in the "planar-pairs" layout (see pce/tiles.js — identical
+// Tiles are 8×8, 4bpp, in the "planar-pairs" layout (see pce/tiles.js - identical
 // to SNES: 16 B plane 0+1, then 16 B plane 2+3). This converter:
 //   1. quantizes the image to ≤16 colors (one BG sub-palette),
 //   2. cuts 8×8 tiles, dedups them (h/v-flip NOT supported by the PCE BAT, so
@@ -48,7 +48,7 @@ export function pceImageToTilemap(args) {
     if (idx === undefined) {
       idx = colorIndex.size;
       if (idx >= 16) {
-        throw new Error("PCE BG tiles take ≤16 colors per sub-palette; image quantizes to more. Reduce to 16 colors first (e.g. `magick … -colors 16 -dither FloydSteinberg`).");
+        throw new Error("PCE BG tiles take ≤16 colors per sub-palette; image quantizes to more. Reduce to 16 colors first (e.g. `magick ... -colors 16 -dither FloydSteinberg`).");
       }
       colorIndex.set(c, idx);
     }

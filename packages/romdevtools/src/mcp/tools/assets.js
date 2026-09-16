@@ -1,4 +1,4 @@
-// Generic file I/O for agent-authored assets — the consolidated `files` tool.
+// Generic file I/O for agent-authored assets - the consolidated `files` tool.
 //
 // romdev tools can take {outputPath} on the build/patch tools, but agents often
 // need to save/read/list arbitrary intermediate artifacts: a generated PNG, a
@@ -62,7 +62,7 @@ export function registerAssetTools(server, z) {
   server.tool(
     "files",
     "Generic file I/O on disk for arbitrary agent artifacts (a generated PNG, a backup ROM, a notes file, a work-in-progress source). `op:'read'|'write'|'list'`. " +
-    "`write` takes `text` (utf-8) OR `base64` (binary) and creates parent dirs. `read` returns `text` or `base64` per `as`, with a default 64 KB cap so a bare read can't dump a huge file into your context — if larger, it returns a note telling you to raise `maxBytes` (up to 10 MB) deliberately. `list` enumerates a directory with an optional case-insensitive `pattern` substring filter.",
+    "`write` takes `text` (utf-8) OR `base64` (binary) and creates parent dirs. `read` returns `text` or `base64` per `as`, with a default 64 KB cap so a bare read can't dump a huge file into your context - if larger, it returns a note telling you to raise `maxBytes` (up to 10 MB) deliberately. `list` enumerates a directory with an optional case-insensitive `pattern` substring filter.",
     {
       op: z.enum(["read", "write", "list"]).describe("which file op to run."),
       path: z.string().describe("Absolute path: file to read/write, or directory to list."),

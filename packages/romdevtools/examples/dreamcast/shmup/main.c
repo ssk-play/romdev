@@ -1,8 +1,8 @@
-/* Dreamcast SHMUP demo — a vertical shooter scene rendered on the PowerVR2 via the
+/* Dreamcast SHMUP demo - a vertical shooter scene rendered on the PowerVR2 via the
  * framebuffer path. The ship weaves, bullets stream up, enemies descend + recycle.
- * Self-animating (no input) — proves program-controlled graphics render on the GPU.
+ * Self-animating (no input) - proves program-controlled graphics render on the GPU.
  * (DC input via dc_pad() reads the resting controller state; full press wiring is a
- * follow-up — see dc.h.) */
+ * follow-up - see dc.h.) */
 #include "dc.h"
 
 #define NB 12

@@ -158,13 +158,13 @@ export const RetroMemory = {
   LYNX_HW_REGS:       0x191,
 
   // sync32 (s32core). The console is monteslu's own, so the core exposes
-  // exactly what a game DEVELOPER needs to debug their own cart — there are no
+  // exactly what a game DEVELOPER needs to debug their own cart - there are no
   // commercial ROMs here to reverse-engineer.
   SYNC32_CPU_REGS:    0x1A0,   // Cortex-M33: r0-r15, APSR, s0-s31, ITSTATE
   SYNC32_PALETTE:     0x1A1,   // 256 entries, RGB565
   SYNC32_CANVAS:      0x1A2,   // the 320x240 8-bit indexed framebuffer
   // Sprite sheets 0..31 at 0x1B0+n: 8-bit indices into the palette. sync32 has
-  // no OAM — a game blits from these with api->sprite() — so the sheets ARE
+  // no OAM - a game blits from these with api->sprite() - so the sheets ARE
   // the sprite data. Only sheet0 is named here; the rest are reachable by id.
   SYNC32_SHEET0:      0x1B0,
   // PC Engine / TurboGrafx-16 (geargrafx): HuC6270 VDC VRAM + sprite attribute
@@ -371,7 +371,7 @@ export const MemoryRegionToRetro = {
  * @property {boolean} [select]
  * @property {{lx?: number, ly?: number, rx?: number, ry?: number,
  *   lt?: number, rt?: number}} [axes] raw analog state: sticks -1..1,
- *   triggers 0..1. Additive to the digital buttons — the mask stays the
+ *   triggers 0..1. Additive to the digital buttons - the mask stays the
  *   game-facing contract; axes feed the ANALOG device and bezel reads.
  */
 
@@ -409,7 +409,7 @@ export const MemoryRegionToRetro = {
 
 /**
  * Default mediaKind for a platform when caller doesn't specify. Consoles default
- * to cartridge; C64 depends on the file kind — a `.d64`/`.g64`/`.d71`/`.d81` is a
+ * to cartridge; C64 depends on the file kind - a `.d64`/`.g64`/`.d71`/`.d81` is a
  * disk, a `.tap` is a tape, a `.crt` is a cartridge, and a bare `.prg`/`.p00` is
  * a program injected directly. The extension is passed when known (loadMedia has
  * it) so disk/tape images report honestly in status() and the agent knows a

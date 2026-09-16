@@ -1,8 +1,8 @@
-// artifacts.js — content-addressed storage with a retention policy.
+// artifacts.js - content-addressed storage with a retention policy.
 //
 // This campaign is carrying roughly 2 GB split between research output and the
 // romdev workspace: compiler traces, duplicate candidate sources, objects, ROMs
-// and logs. Most of it is duplicates — 264 candidate files for one function are
+// and logs. Most of it is duplicates - 264 candidate files for one function are
 // overwhelmingly the same bytes under different names.
 //
 // THE ONE RULE THAT CANNOT BE BROKEN. Never prune the only source/object pair
@@ -26,7 +26,7 @@ export const RETENTION = Object.freeze({
   "accepted-proof": { keep: "always", why: "the source/object pair behind an accepted or integrated conclusion. Deleting this turns a settled result into an open question." },
   "pinned": { keep: "always", why: "explicitly pinned, usually as a handoff dependency" },
   "current-leader": { keep: "always", why: "the best candidate for a function that is still open" },
-  "unique-mechanism": { keep: "long", why: "the only example of a distinct mechanism outcome — rare evidence, cheap to keep" },
+  "unique-mechanism": { keep: "long", why: "the only example of a distinct mechanism outcome - rare evidence, cheap to keep" },
   "failure": { keep: "short", why: "a failed attempt: useful to avoid repeats, but one example per family is enough" },
   "duplicate": { keep: "none", why: "byte-identical to something already retained; the manifest keeps the reference" },
 });
@@ -117,7 +117,7 @@ export async function surveyArtifacts(project, { protectedPaths = [] } = {}) {
       .map((e) => ({ hash: e.hash.slice(0, 16), copies: e.paths.length, bytesEach: e.size, reclaimable: e.size * (e.paths.length - 1), paths: e.paths.slice(0, 4) })),
     protectedByAcceptedConclusion: accepted.size,
     retentionClasses: RETENTION,
-    note: "READ-ONLY survey. `reclaimableBytes` counts only byte-identical duplicates beyond the first copy — "
+    note: "READ-ONLY survey. `reclaimableBytes` counts only byte-identical duplicates beyond the first copy - "
       + "the first copy of everything is always kept, and files backing an accepted conclusion are never candidates for removal.",
   };
 }
@@ -178,11 +178,11 @@ export async function pruneArtifacts(project, { apply = false, protectedPaths = 
     dryRun: !apply,
     plannedRemovals: plan.length, wouldFreeBytes: wouldFree,
     ...(apply ? { removed, freedBytes: freed, trash: trashDir,
-      recoverable: "every removed file was MOVED to `trash`, not deleted — decomp({op:'artifacts', action:'restore'}) puts them back" } : {}),
+      recoverable: "every removed file was MOVED to `trash`, not deleted - decomp({op:'artifacts', action:'restore'}) puts them back" } : {}),
     plan: plan.slice(0, 40),
     protectedCount: accepted.size,
     policy: "DRY RUN unless apply:true. Only BYTE-IDENTICAL duplicates are ever proposed, one copy of each is always kept, and a file "
-      + "backing an ACCEPTED conclusion is skipped even when it is a duplicate — the proof behind a settled result is the one thing a "
+      + "backing an ACCEPTED conclusion is skipped even when it is a duplicate - the proof behind a settled result is the one thing a "
       + "cache must never collect.",
   };
 }
@@ -210,7 +210,7 @@ export async function listPins(project) {
  *
  * `prune` moves files to a timestamped trash directory rather than deleting
  * them, so this is a real undo. Without it, `restore` was not implemented at
- * all and the op quietly returned a SURVEY instead — a success-shaped response
+ * all and the op quietly returned a SURVEY instead - a success-shaped response
  * to a request that did nothing, which is the failure class this whole domain
  * keeps tripping over.
  */
@@ -252,7 +252,7 @@ export async function restoreArtifacts(project, { batch } = {}) {
   return {
     schema: ARTIFACT_SCHEMA, project: project.id,
     batch: pick, restored, skipped,
-    ...(conflicts.length ? { conflicts, conflictNote: "these already exist in the workspace and were left alone — a file that came back on its own is newer than the trashed copy" } : {}),
+    ...(conflicts.length ? { conflicts, conflictNote: "these already exist in the workspace and were left alone - a file that came back on its own is newer than the trashed copy" } : {}),
     availableBatches: batches,
     note: restored ? `restored ${restored} file(s) from prune batch ${pick}` : "nothing restored",
   };

@@ -1,4 +1,4 @@
-/* MSX music_sfx — AY-3-8910 PSG melody + trigger-fired sound effect.
+/* MSX music_sfx - AY-3-8910 PSG melody + trigger-fired sound effect.
  *
  * WHAT IT DOES
  *   - Channel A plays a short looping 8-note melody (~0.2 s per note).
@@ -112,7 +112,7 @@ void main(void) {
 
     /* Lay out the eight beat markers in a row near the bottom. With 16x16
      * sprites the small BLOB8 (pattern 0) draws as a 16x16 magnified-ish block;
-     * that's fine — we want them chunky and visible. Pattern numbers for a
+     * that's fine - we want them chunky and visible. Pattern numbers for a
      * 16x16 sprite must be multiples of 4, so BLOB8 (pattern 0) is valid and
      * the ring starts at pattern 4... but we uploaded the ring at pattern 1.
      * To keep both valid in 16x16 mode we give the beat markers pattern 0 and

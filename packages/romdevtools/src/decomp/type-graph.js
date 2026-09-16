@@ -1,4 +1,4 @@
-// type-graph.js — project-wide type evidence, not per-function guesses.
+// type-graph.js - project-wide type evidence, not per-function guesses.
 //
 // `types.js` records what ONE function's asm proves about ONE base register:
 // this offset was loaded with lw, that one with lhu. That is real evidence and
@@ -6,7 +6,7 @@
 // another, stored in a global, and walked with a stride in a loop; every one of
 // those is evidence about the SAME type, and none of it was being combined.
 //
-// Real campaign progress comes from exactly that combination — entity node
+// Real campaign progress comes from exactly that combination - entity node
 // banks, controller records, component links, camera state, splines, particle
 // arrays. Recovering a layout once should improve every dependent function
 // instead of being rediscovered per function.
@@ -47,7 +47,7 @@ function widthsConflict(a, b) {
   // really just offsets some run had not measured, which buries the handful of
   // REAL contradictions that a human needs to look at.
   if (a.width == null || b.width == null) return false;
-  // "32-bit" is what a store-only access yields — it is the same claim as s32/
+  // "32-bit" is what a store-only access yields - it is the same claim as s32/
   // u32/ptr at the same width, not a competing one.
   const generic = (t) => !t || /^\d+-bit$/.test(t);
   if (a.width !== b.width) return true;
@@ -161,7 +161,7 @@ export async function buildTypeGraph(project, { callGraph: g } = {}) {
     out.push({
       base: b.base, fieldCount: fields.length, fields,
       functions: [...b.functions].slice(0, 20), functionCount: b.functions.size,
-      ...(stride ? { stride, strideNote: `fields are evenly spaced ${stride} bytes apart — consistent with an array of a ${stride}-byte element` } : {}),
+      ...(stride ? { stride, strideNote: `fields are evenly spaced ${stride} bytes apart - consistent with an array of a ${stride}-byte element` } : {}),
       ...(b.conflicts.length ? { conflicts: b.conflicts } : {}),
       // A base seen by many functions is worth typing FIRST: the fix lands once
       // and improves every one of them.
@@ -180,7 +180,7 @@ export async function buildTypeGraph(project, { callGraph: g } = {}) {
     confidenceLevels: CONFIDENCE,
     policy: "an EVIDENCE graph, not an inferencer: every fact carries its source and confidence, a disagreement is recorded as a "
       + "conflict with a union view rather than resolved by last-writer-wins, and nothing here is applied to the project's headers. "
-      + "Bases are ordered by LEVERAGE — how many functions share them — because typing one of those lands the fix everywhere at once.",
+      + "Bases are ordered by LEVERAGE - how many functions share them - because typing one of those lands the fix everywhere at once.",
   };
   await mkdir(graphDir(project), { recursive: true });
   await writeFile(graphFile(project), JSON.stringify(graph, null, 2));
@@ -200,7 +200,7 @@ export async function loadTypeGraph(project, { rebuild = false, callGraph } = {}
  * Propose a C struct for one base, from the evidence only.
  *
  * Gaps are emitted as explicit padding with a comment saying they are UNKNOWN
- * rather than being filled with a plausible guess — a fabricated field is worse
+ * rather than being filled with a plausible guess - a fabricated field is worse
  * than a hole, because it reads as knowledge.
  */
 
@@ -210,7 +210,7 @@ export async function loadTypeGraph(project, { rebuild = false, callGraph } = {}
  * Evidence notation is not C: a 4-byte load proves "s32/u32/ptr", which is a
  * set of possibilities. This picks one that parses and records the rest in a
  * comment at the call site. Unsigned is the safe default for an ambiguous
- * integer width — it makes no claim about sign that the evidence did not.
+ * integer width - it makes no claim about sign that the evidence did not.
  */
 function cTypeFor(f) {
   const CT = { 1: "u8", 2: "u16", 4: "u32", 8: "u64" };
@@ -229,13 +229,13 @@ export function proposeStruct(base, { name } = {}) {
   lines.push(` * This is a PROPOSAL: every field below is backed by an observed access width.`);
   lines.push(` * Holes are left as explicit padding, never invented fields.`);
   lines.push(` * An offset accessed at two INCOMPATIBLE types is emitted as a real C union,`);
-  lines.push(` * not as one arbitrary winner — the evidence says both, so the type says both. */`);
+  lines.push(` * not as one arbitrary winner - the evidence says both, so the type says both. */`);
   lines.push(`typedef struct ${structName} {`);
 
   // Walk in offset order, but group fields that OVERLAP in memory: a field
   // whose extent crosses the next field's offset is not a sibling, it is an
   // alternative view of the same bytes. Emitting those sequentially (as this
-  // did) produces a struct whose layout does not match the evidence at all —
+  // did) produces a struct whose layout does not match the evidence at all -
   // every following offset is pushed along by bytes that were never there.
   const fields = [...base.fields].sort((a, b) => a.offset - b.offset);
   const groups = [];
@@ -276,7 +276,7 @@ export function proposeStruct(base, { name } = {}) {
     if (alts.length <= 1) {
       const only = alts[0];
       if (!only) {
-        lines.push(`    /* 0x${hex} */ /* UNKNOWN width at this offset — evidence recorded but not conclusive */`);
+        lines.push(`    /* 0x${hex} */ /* UNKNOWN width at this offset - evidence recorded but not conclusive */`);
         cursor = at;
         continue;
       }
@@ -303,7 +303,7 @@ export function proposeStruct(base, { name } = {}) {
     base: base.base, structName, code: lines.join("\n"),
     fieldCount: base.fieldCount, conflicts: base.conflicts?.length ?? 0,
     unions: unionCount,
-    note: "a PROPOSAL derived from observed accesses. The size is a LOWER BOUND — no access past the last field was observed, "
+    note: "a PROPOSAL derived from observed accesses. The size is a LOWER BOUND - no access past the last field was observed, "
       + "which is not evidence that the struct ends there. An offset with two incompatible observed types is a real C union, "
       + "because the evidence supports both and picking one would be a guess. Apply it to a context experiment before touching "
       + "the project's headers.",

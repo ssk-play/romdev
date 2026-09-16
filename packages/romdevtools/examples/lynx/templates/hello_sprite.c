@@ -1,4 +1,4 @@
-// ── hello_sprite.c — Atari Lynx hello + joystick movement ────────────
+// ── hello_sprite.c - Atari Lynx hello + joystick movement ────────────
 //
 // Uses cc65's TGI (Tiny Graphics Interface) which handles Suzy's
 // blitter for us. A single colored square moves under joystick control.
@@ -22,7 +22,7 @@ void main(void) {
   sfx_tone(0, 80, 12);  /* boot chime */
 
   for (;;) {
-    /* CANONICAL LYNX FRAME LOOP — full redraw every frame:
+    /* CANONICAL LYNX FRAME LOOP - full redraw every frame:
      *   1. WAIT for Suzy's blitter to finish the previous frame. Drawing
      *      while it's mid-flight loses the frame → black screen. This is
      *      the #1 "Lynx stays blank" trap (tgi_clear alone leaves the back

@@ -1,4 +1,4 @@
-// Human co-drive detection — the "they get confused when I try to play while
+// Human co-drive detection - the "they get confused when I try to play while
 // they're coding" fix.
 //
 // A human playing in the playtest window shares the session's ONE LibretroHost
@@ -6,13 +6,13 @@
 // setInput, and its real-time stepping races the agent's frame-stepping. The
 // agent previously had NO signal a human was co-driving. Now:
 //   1. the window tracks "last tick the human actually pressed something"
-//      (createHumanInputTracker — pure, tested here),
+//      (createHumanInputTracker - pure, tested here),
 //   2. catalog({op:'status'}) / playtest({op:'status'}) expose
 //      playtestWindowOpen + humanInputActive,
 //   3. frame({op:'step'}) and input(set/press/...) responses carry
 //      humanCoDriveWarning while the human pressed within the active window.
 // Also: the window now writes setInput ONLY while the human is pressing (plus
-// one release write) instead of clobbering with all-zeros every tick — that
+// one release write) instead of clobbering with all-zeros every tick - that
 // contract lives in the tick loop; the tracker + surfacing are covered here.
 
 import { test } from "node:test";

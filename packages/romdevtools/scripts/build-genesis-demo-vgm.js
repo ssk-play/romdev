@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// build-genesis-demo-vgm.js — Generate a tiny CC0 chiptune in VGM format.
+// build-genesis-demo-vgm.js - Generate a tiny CC0 chiptune in VGM format.
 //
-// Emits a short looping PSG arpeggio (no copyrighted material — just three
+// Emits a short looping PSG arpeggio (no copyrighted material - just three
 // SN76489 tones running over a fixed pattern). The resulting .vgm is fed to
 // SGDK's xgm2tool to produce the .xgm asset shipped under
 // packages/romdev-toolchain-m68k-gcc/share/genesis/lib/sgdk/music/demo.xgm.
 //
 // VGM 1.50 spec reference: https://vgmrips.net/wiki/VGM_Specification
-// (We use only PSG writes — opcode 0x50 + 1 byte — and frame waits 0x62 NTSC).
+// (We use only PSG writes - opcode 0x50 + 1 byte - and frame waits 0x62 NTSC).
 //
-// Author: romdev project (CC0 — Public Domain).
+// Author: romdev project (CC0 - Public Domain).
 //
 // Usage:
 //   node scripts/build-genesis-demo-vgm.js <out.vgm>
@@ -19,7 +19,7 @@ import { writeFile } from "node:fs/promises";
 // SN76489 channel registers: tone1/2/3 and noise.
 // PSG write byte format:
 //   latch byte:    1 <chan:2> <type:1> <data:4>   (0x80-0xFF)
-//   data byte:     0 <_:2>   <data:6>            (0x00-0x7F) — high bits of tone period
+//   data byte:     0 <_:2>   <data:6>            (0x00-0x7F) - high bits of tone period
 // Volume: lower = louder. 0x0 = max, 0xF = off.
 
 const CH_TONE = [0, 1, 2];     // channels 0,1,2 are square tones

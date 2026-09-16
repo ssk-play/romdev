@@ -1,7 +1,7 @@
 // The observer ring is bounded in EVENTS (50) but used to be unbounded in
 // BYTES: `result` went through summarizeForLog, `images` did not. A ring full
 // of frames made the single `replay` emit on connect ~20MB against socket.io's
-// 1MB default — the server closed the connection, the client reconnected, and
+// 1MB default - the server closed the connection, the client reconnected, and
 // got the same payload again. Symptom: "the livestream page sometimes takes a
 // very long time to render", intermittent because a ring of cheap text calls
 // replays in a few KB.
@@ -12,7 +12,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-/** Fresh module instance — the bus is a singleton, so cache-bust per test. */
+/** Fresh module instance - the bus is a singleton, so cache-bust per test. */
 let _n = 0;
 async function freshBus(env = {}) {
   const prev = {};
@@ -44,7 +44,7 @@ const MB = 1024 * 1024;
 
 test("a ring full of large frames replays far under the socket.io limit", async () => {
   const { observer } = await freshBus();
-  // 50 slots x 400KB base64 — the shape that produced the ~20MB replay.
+  // 50 slots x 400KB base64 - the shape that produced the ~20MB replay.
   for (let i = 0; i < 50; i++) observer.push(frameEvent(400, i));
 
   const payload = JSON.stringify({ events: observer.replay(), activeSessions: [] });
@@ -87,7 +87,7 @@ test("the byte budget evicts oldest even when every entry is a retained payload"
     observer.ringBytes() <= MB,
     `ring should hold at or under its 1MB budget, got ${observer.ringBytes()}`,
   );
-  // The newest event survives eviction — replay must never come back empty.
+  // The newest event survives eviction - replay must never come back empty.
   const ring = observer.replay();
   assert.ok(ring.length >= 1);
   assert.equal(ring[ring.length - 1].ts, 1019, "newest event is the one kept");
@@ -101,7 +101,7 @@ test("a single event larger than the whole budget is stripped, not retained", as
   assert.equal(observer.replay()[0].images[0].omitted, true);
 });
 
-test("live subscribers still get FULL images — only what is RETAINED is stripped", async () => {
+test("live subscribers still get FULL images - only what is RETAINED is stripped", async () => {
   const { observer } = await freshBus({ ROMDEV_OBSERVER_RING_IMAGES: 0 });
   const seen = [];
   observer.on("event", (ev) => seen.push(ev));

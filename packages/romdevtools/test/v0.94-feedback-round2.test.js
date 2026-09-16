@@ -1,13 +1,13 @@
 // v0.94.0 feedback round 2 (ActRaiser annotation agent, 2026-07-16/17):
 //   A1 SNES WRAM mirror aliasing: exact watchpoints armed on $0218 missed
-//      `sta f:$7E0218` — the snes9x hook canonicalizes LIVE accesses to $7E
+//      `sta f:$7E0218` - the snes9x hook canonicalizes LIVE accesses to $7E
 //      form, so the host now canonicalizes the ARMED address too (write, read,
 //      and range watches), and results echo armedAddress for transparency.
 //   A2 disasm({target:'rom'}) outputPath creates its parent dir (no raw ENOENT).
-//   B1 reassemble failures populate issues[] — ANSI stripped, the internal
+//   B1 reassemble failures populate issues[] - ANSI stripped, the internal
 //      main.s remapped to the region's real file, prepended-line shift applied.
-//   B3 disasm({target:'rom'}) widths:{a,i} — explicit entry-width override.
-//   B2 memory({op:'readCart', findHex}) — cart byte-pattern scan with mapped
+//   B3 disasm({target:'rom'}) widths:{a,i} - explicit entry-width override.
+//   B2 memory({op:'readCart', findHex}) - cart byte-pattern scan with mapped
 //      CPU addresses.
 //   A3.1 frame screenshot crop:{x,y,w,h}.
 
@@ -42,10 +42,10 @@ test("A1 _canonWatchAddress maps SNES low-mirror forms to the $7E form (and noth
   assert.equal(canon("snes", 0x0218), 0x7E0218, "bank0 low RAM → $7E form");
   assert.equal(canon("snes", 0x3F0218), 0x7E0218, "bank $3F mirror → $7E form");
   assert.equal(canon("snes", 0x810218), 0x7E0218, "bank $81 mirror → $7E form");
-  assert.equal(canon("snes", 0x7E0218), 0x7E0218, "already canonical — unchanged");
-  assert.equal(canon("snes", 0x7F1000), 0x7F1000, "bank $7F WRAM high — unchanged");
-  assert.equal(canon("snes", 0x002100), 0x002100, "$2100 (PPU reg, not WRAM mirror) — unchanged");
-  assert.equal(canon("snes", 0x408000), 0x408000, "bank $40 (no mirror) — unchanged");
+  assert.equal(canon("snes", 0x7E0218), 0x7E0218, "already canonical - unchanged");
+  assert.equal(canon("snes", 0x7F1000), 0x7F1000, "bank $7F WRAM high - unchanged");
+  assert.equal(canon("snes", 0x002100), 0x002100, "$2100 (PPU reg, not WRAM mirror) - unchanged");
+  assert.equal(canon("snes", 0x408000), 0x408000, "bank $40 (no mirror) - unchanged");
   assert.equal(canon("nes", 0x0218), 0x0218, "non-SNES platforms untouched");
 });
 
@@ -62,7 +62,7 @@ test("A2/B3 disasm rom: outputPath parent dir auto-created; widths:{a:16,i:16} f
     await writeFile(romPath, rom);
     const disasm = toolHandler(registerDisasmTools, "disasm", "r2d");
 
-    // outputPath in a directory that does NOT exist yet — must not ENOENT.
+    // outputPath in a directory that does NOT exist yet - must not ENOENT.
     const outPath = path.join(dir, "not", "yet", "made", "win.asm");
     const r = parse(await disasm({
       target: "rom", path: romPath, startAddress: 0x8000, length: code.length,
@@ -71,7 +71,7 @@ test("A2/B3 disasm rom: outputPath parent dir auto-created; widths:{a:16,i:16} f
     assert.equal(r.ok, true);
     await access(outPath); // exists
     const asm = await readFile(outPath, "utf8");
-    assert.match(asm, /#\$1234/i, "forced 16-bit entry — lda #$1234 decodes full-width");
+    assert.match(asm, /#\$1234/i, "forced 16-bit entry - lda #$1234 decodes full-width");
     assert.match(asm, /#\$0002/i, "forced 16-bit index width");
 
     // Force the WRONG width to prove the override is honored (not re-inferred):
@@ -79,7 +79,7 @@ test("A2/B3 disasm rom: outputPath parent dir auto-created; widths:{a:16,i:16} f
       target: "rom", path: romPath, startAddress: 0x8000, length: code.length,
       widths: { a: 8, i: 8 }, inline: true,
     }));
-    assert.doesNotMatch(wrong.asm ?? "", /#\$1234/i, "8-bit override obeyed verbatim — no silent inference");
+    assert.doesNotMatch(wrong.asm ?? "", /#\$1234/i, "8-bit override obeyed verbatim - no silent inference");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -93,7 +93,7 @@ test("B1 reassemble failure populates issues[] with the region's real file, ANSI
     const romLen = 64;
     const original = new Uint8Array(romLen).fill(0xEA);
     await writeFile(path.join(dir, "original.rom"), original);
-    // Region asm with an undefined symbol — the exact failure from the field
+    // Region asm with an undefined symbol - the exact failure from the field
     // report (renamed a label, missed one reference).
     const asm = `\t.setcpu "6502"\n\t.org $8000\n\tjmp L9999\n`;
     await writeFile(path.join(dir, "bank0.asm"), asm);

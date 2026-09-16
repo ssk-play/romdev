@@ -1,4 +1,4 @@
-// decomp-runtime-rodata.test.js — synthetic checks for basic-block derivation,
+// decomp-runtime-rodata.test.js - synthetic checks for basic-block derivation,
 // the rodata word view (jump-table entries as function-relative offsets),
 // pointer-aware type proposals, and the decompiler's split VMA adjust.
 import { test } from "node:test";

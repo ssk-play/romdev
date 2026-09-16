@@ -1,4 +1,4 @@
-/* PC Engine music_sfx — HuC6280 PSG music + sound-effect demo.
+/* PC Engine music_sfx - HuC6280 PSG music + sound-effect demo.
  *
  * A looping melody plays on two of the six PSG wavetable channels:
  *   - channel 0 = lead voice (the tune)
@@ -7,7 +7,7 @@
  * frees itself after a few frames so the music keeps going.
  *
  * The on-screen indicator is drawn with cc65's conio text layer (same reliable
- * path hello_pce.c uses — conio sets up the VDC/VCE and uploads a font, so we
+ * path hello_pce.c uses - conio sets up the VDC/VCE and uploads a font, so we
  * never hand-roll BAT/tile rendering):
  *   - an 8-step bar of dots with a moving block that steps in time with the
  *     melody, so you can SEE the music advancing.
@@ -18,7 +18,7 @@
  * and enables the channel; psg_off(chan) silences it. The PCE frequency reg is
  * a DIVIDER, so a SMALLER value = HIGHER pitch (~3.58MHz / (32 * freq)).
  *
- * cc65 is C89 — declare locals at the top of a block.
+ * cc65 is C89 - declare locals at the top of a block.
  *
  * Build: link main.c + pce_sound.c + pce_input.c, with pce_hw.h in includes.
  * (conio gives us the display + font; no pce_video.c / bg_enable needed.)

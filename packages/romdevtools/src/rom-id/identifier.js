@@ -22,7 +22,7 @@ import yauzl from "yauzl";
  * @property {string | number} [mapper]
  * @property {Object} [sizes]         { prg, chr, rom, ram, ... }
  * @property {string[]} [notes]       freeform observations
- * @property {number} confidence      0..1 — how sure we are
+ * @property {number} confidence      0..1 - how sure we are
  * @property {string} [source]        source file path or zip entry name
  */
 
@@ -67,7 +67,7 @@ export async function identifyFile(filePath) {
  * @returns {IdentifyResult}
  */
 export function identifyBytes(bytes, hint = "") {
-  // 1. Try magic-byte signatures first — these are unambiguous.
+  // 1. Try magic-byte signatures first - these are unambiguous.
   if (isINes(bytes)) return parseINes(bytes);
   if (isGenesis(bytes)) return parseGenesis(bytes);
   if (isLynx(bytes)) return parseLynx(bytes);
@@ -77,7 +77,7 @@ export function identifyBytes(bytes, hint = "") {
   if (isSms(bytes)) return parseSms(bytes, hint);
   if (isNsf(bytes)) return { platform: "nes", format: ".nsf", confidence: 1, notes: ["NSF music file"] };
 
-  // 2. No signature — fall back to extension + size heuristics.
+  // 2. No signature - fall back to extension + size heuristics.
   return guessByExtension(bytes, hint);
 }
 
@@ -365,7 +365,7 @@ function guessByExtension(bytes, ext) {
       if ([2048, 4096, 8192, 16384, 32768].includes(bytes.length)) {
         return { platform: "atari2600", format: ".a26", sizes: { total: bytes.length }, confidence: 0.7 };
       }
-      // .bin without 2600 sizing — could be Genesis if signature was missed
+      // .bin without 2600 sizing - could be Genesis if signature was missed
       // (we check signature first so this falls through to unknown).
       return { platform: "unknown", format: e, confidence: 0.2, notes: ["bin file but no recognized header"] };
     case ".a78":

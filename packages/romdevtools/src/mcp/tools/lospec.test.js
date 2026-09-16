@@ -1,4 +1,4 @@
-// lospec.test.js — R17 getLospecPalette tests.
+// lospec.test.js - R17 getLospecPalette tests.
 //
 // We mock fetch to avoid hitting the network in unit tests. The "snap
 // to NES master" path is the only platform-specific behavior and is
@@ -59,7 +59,7 @@ test("getLospecPalette with asPlatform:'nes' snaps to the NES master palette", a
     assert.equal(r.snappedToMaster, true);
     assert.equal(r.asPlatform, "nes");
     assert.equal(r.colors.length, 4);
-    // Sanity: the snapped colors should differ from raw — the master
+    // Sanity: the snapped colors should differ from raw - the master
     // doesn't contain pure 0xFF reds/greens/blues at full saturation.
     assert.notDeepEqual(r.colors[0], [0xFF, 0x00, 0x00]);
     // The source colors are preserved so the caller can compare.

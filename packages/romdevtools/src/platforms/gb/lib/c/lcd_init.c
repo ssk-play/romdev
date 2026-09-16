@@ -1,4 +1,4 @@
-/* ── lcd_init — turn the LCD on with sensible DMG defaults ─────────
+/* ── lcd_init - turn the LCD on with sensible DMG defaults ─────────
  * BG ON, OBJ ON, tile data $8000-$8FFF (unsigned), BG map $9800.
  * Default DMG grayscale palette (BGP=$E4 = 3-2-1-0).
  *
@@ -10,7 +10,7 @@ void lcd_init(void) {
   /* Wait for vblank before touching the LCD control reg. */
   while (LY < 144) { }
   LCDC = 0;                          /* turn off so we can safely write VRAM */
-  BGP  = 0xE4;                       /* 11 10 01 00 — darkest first */
+  BGP  = 0xE4;                       /* 11 10 01 00 - darkest first */
   OBP0 = 0xE0;
   OBP1 = 0xE0;
   SCY  = 0;

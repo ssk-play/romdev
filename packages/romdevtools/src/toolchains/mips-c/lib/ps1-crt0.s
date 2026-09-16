@@ -1,4 +1,4 @@
-/* Minimal PS1 (R3000) crt0 — sets the stack, clears .bss, calls main(), loops.
+/* Minimal PS1 (R3000) crt0 - sets the stack, clears .bss, calls main(), loops.
    The PS-EXE header (set by the JS wrapper) points the BIOS entry here. */
     .set noreorder
     .section .text.start, "ax"
@@ -16,5 +16,5 @@ _start:
     nop
 2:  jal     main
     nop
-3:  b       3b                      /* main returned — hang */
+3:  b       3b                      /* main returned - hang */
     nop

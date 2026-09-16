@@ -6,27 +6,27 @@
 // The map has two relevant line shapes, and we parse BOTH because each catches
 // symbols the other misses:
 //
-//   1. A symbol DEFINITION — leading whitespace, a 0x-address, more whitespace,
+//   1. A symbol DEFINITION - leading whitespace, a 0x-address, more whitespace,
 //      then a bare symbol name to EOL (no size, no object file):
 //          "                0xe0ff004a                score"
 //      Emitted for GLOBAL (non-static) symbols. C symbols on m68k-elf carry NO
 //      leading underscore (unlike SDCC's sdld map).
 //
-//   2. A per-symbol SECTION line — SGDK builds with -ffunction-sections /
+//   2. A per-symbol SECTION line - SGDK builds with -ffunction-sections /
 //      -fdata-sections, so every symbol gets its own section whose name IS the
 //      symbol name:
 //          " .bss.levelIdx  0xe0ff0048   0x1 /work/main.o"
 //          " .data.table    0x00012340   0x40 /work/main.o"
 //          " .text.update   0x00001a40   0x53c /work/main.o"
 //      This is the ONLY place a `static` file-local global appears (shape 1 is
-//      skipped for statics) — so without parsing shape 2 we'd miss exactly the
+//      skipped for statics) - so without parsing shape 2 we'd miss exactly the
 //      file-local variables the v0.6.0 feedback flagged. We extract the name
 //      from `.<seg>.<name>` for the standard segments.
 //
 // SGDK links 68k work-RAM through its $E0FF0000 mirror (hardware mirrors
 // $FF0000 across the high bus). The work-RAM region the emulator exposes as
 // `system_ram` (or `genesis_m68k`) is indexed by the LOW 16 BITS of the symbol
-// address — e.g. score@0xe0ff004a → memory({op:'read', region:'system_ram',
+// address - e.g. score@0xe0ff004a → memory({op:'read', region:'system_ram',
 // offset:0x4a}). Callers get the full address; the low-16 mapping is documented
 // on the `symbols`/`memory` tools.
 

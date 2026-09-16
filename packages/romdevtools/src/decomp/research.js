@@ -1,4 +1,4 @@
-// research.js — DISCOVERY/HISTORY, kept strictly apart from measurement.
+// research.js - DISCOVERY/HISTORY, kept strictly apart from measurement.
 //
 // The reporter's §6 failure mode, in their words: "Several queue entries with
 // no recorded attempts already had extensive local drafts and experiments.
@@ -121,7 +121,7 @@ export async function scanResearch(root, { maxFiles = 20000, maxDepth = 8 } = {}
   }
   await walk(root, 0);
   return { root, entries, scanned, skipped, truncated,
-    ...(truncated ? { truncatedNote: `the scan stopped at maxFiles=${maxFiles} and ${skipped} file(s) were not indexed. The index is INCOMPLETE — raise maxFiles, because the files it missed are exactly the older research this index exists to surface.` } : {}) };
+    ...(truncated ? { truncatedNote: `the scan stopped at maxFiles=${maxFiles} and ${skipped} file(s) were not indexed. The index is INCOMPLETE - raise maxFiles, because the files it missed are exactly the older research this index exists to surface.` } : {}) };
 }
 
 /** Function definitions a draft actually contains (not merely mentions). */
@@ -135,7 +135,7 @@ export function definedFunctions(src) {
 
 /**
  * Group an index by symbol, so a queue entry can be asked "what already exists
- * for this function?" — the question that was previously unanswerable.
+ * for this function?" - the question that was previously unanswerable.
  */
 export function bySymbol(index) {
   /** @type {Map<string, {drafts:Array, notes:Array}>} */

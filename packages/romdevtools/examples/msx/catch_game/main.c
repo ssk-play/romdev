@@ -1,25 +1,25 @@
 /*
- * catch_game — a tiny COMPLETE MSX game (SDCC z80, C89).
+ * catch_game - a tiny COMPLETE MSX game (SDCC z80, C89).
  *
  * Move the basket at the bottom of the screen left/right with the joystick (or
- * the keyboard cursor keys — stick 0) to catch the coin falling from the top.
+ * the keyboard cursor keys - stick 0) to catch the coin falling from the top.
  * Catch it: +1 score and the coin respawns at the top in a new column. Miss it
- * (it reaches the floor): the coin just respawns, no penalty — a friendly demo.
+ * (it reaches the floor): the coin just respawns, no penalty - a friendly demo.
  * The score is drawn as on-screen tiles ("SCORE 000") along the top row.
  *
  * Hardware path (all through the romdev MSX helper lib, no fragile inline asm):
  *   - msx_set_screen2()      screen 2 (GRAPHIC II), 256x192, display ON
  *   - msx_vram_write()       upload our tile font + sprite patterns to VRAM
  *   - msx_set_sprite()       position the basket + coin sprites each frame
- *   - msx_read_joystick()    BIOS GTSTCK — 0=center, 1-8 = direction clockwise
+ *   - msx_read_joystick()    BIOS GTSTCK - 0=center, 1-8 = direction clockwise
  *   - msx_psg_tone/off()     a short blip on a catch
  *   - msx_vblank_wait()      one game step per VDP frame (~60 Hz NTSC)
  *
  * Cartridge rule: INIT must never return, so main() ends in for(;;). C-BIOS
- * shows its logo ~150 frames before CALLing the cart — step >= 300 before you
+ * shows its logo ~150 frames before CALLing the cart - step >= 300 before you
  * expect to see the playfield.
  *
- * Build (multi-source — .c/.s in `sources`, .h in `includes`):
+ * Build (multi-source - .c/.s in `sources`, .h in `includes`):
  *   buildForPlatform({ platform:"msx",
  *     sources:  { "main.c":<this>, "msx_vdp.c":<lib>, "msx_crt0.s":<crt0> },
  *     includes: { "msx_hw.h":<hdr> },
@@ -31,7 +31,7 @@
  * The shared lib's msx_vblank_wait() spins on the BIOS JIFFY counter, which
  * only advances if the BIOS VBlank ISR is running (interrupts enabled). On a
  * bare cartridge we can't rely on that, so we poll the VDP itself: VDP status
- * register S#0 bit 7 is the frame (VBlank) flag — it sets at the start of
+ * register S#0 bit 7 is the frame (VBlank) flag - it sets at the start of
  * vertical blanking and the act of READING S#0 clears it. So we read once to
  * clear, then spin until it sets again = exactly one frame elapsed. This needs
  * no interrupts and works on any MSX. Port 0x99 returns the selected status
@@ -231,7 +231,7 @@ void main(void) {
             }
         }
 
-        /* missed (hit the floor)? just respawn — friendly demo, no game-over */
+        /* missed (hit the floor)? just respawn - friendly demo, no game-over */
         if (coin_y >= FLOOR_Y) {
             respawn_coin();
         }

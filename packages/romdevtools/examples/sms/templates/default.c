@@ -2,7 +2,7 @@
  * name table, enables display. Pressing P1-B1 scrolls the BG by one
  * pixel per frame.
  *
- * Single-file example — inlines the VDP helpers. For a more modular
+ * Single-file example - inlines the VDP helpers. For a more modular
  * multi-file project, see `hello_sprite` and `tile_engine` templates
  * (they pull in src/platforms/sms/lib/c/vdp_init.c, joypad_read.c,
  * load_tiles.c, load_palette.c).

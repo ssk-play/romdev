@@ -1,4 +1,4 @@
-// SNES song compiler — note/duration → apu_blob 3-byte-per-row table.
+// SNES song compiler - note/duration → apu_blob 3-byte-per-row table.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { compileSong, noteToSemitone, dspPitch } from "../src/platforms/snes/song.js";

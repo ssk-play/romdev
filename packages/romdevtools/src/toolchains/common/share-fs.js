@@ -1,8 +1,8 @@
-// share-fs.js — the "share tree" seam for the C build drivers (0.95.0).
+// share-fs.js - the "share tree" seam for the C build drivers (0.95.0).
 //
 // The GBA/Genesis drivers read their SDK library trees (headers, crt0, link
 // scripts, seeds, target archives) from their package's share/. In node
-// that's the filesystem; in a browser Web Worker there is no filesystem — the
+// that's the filesystem; in a browser Web Worker there is no filesystem - the
 // host fetches the tree as static assets and hands the driver a MANIFEST
 // (a plain {relPath: string|Uint8Array} object). Both are wrapped in the
 // same accessor so the drivers never touch fs/path directly:
@@ -20,7 +20,7 @@
 // manifest with the SAME walk, so a browser host that stages its manifest
 // with it gets byte-identical ROMs. Only this module may define that walk.
 //
-// No top-level node imports — dirShare/buildShareManifest lazy-import fs so
+// No top-level node imports - dirShare/buildShareManifest lazy-import fs so
 // a browser bundle importing this module (for mapShare) stays node-free.
 
 /** Wrap a {relPath: string|Uint8Array} manifest (browser hosts). */
@@ -92,7 +92,7 @@ export function dirShare(rootDir) {
 }
 
 /**
- * Materialize a share tree into a manifest object — the helper a browser
+ * Materialize a share tree into a manifest object - the helper a browser
  * host's build step uses to stage the tree as static assets. Uses the SAME
  * walk as dirShare so manifest key order (→ SDK compile order → ROM bytes)
  * matches node exactly. Text extensions load as strings, the rest as bytes.

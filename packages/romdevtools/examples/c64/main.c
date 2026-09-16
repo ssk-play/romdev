@@ -1,4 +1,4 @@
-// ── Hello, C64 — VIC-II direct hardware access demo ──────────────────
+// ── Hello, C64 - VIC-II direct hardware access demo ──────────────────
 //
 // Bypasses the KERNAL's printf path to show the platform's hardware
 // directly: writes screen codes into screen RAM, sets per-cell colors

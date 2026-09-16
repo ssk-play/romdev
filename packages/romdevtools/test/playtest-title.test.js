@@ -9,8 +9,8 @@ import { deriveTitle } from "../src/playtest/playtest.js";
 const h = (mediaPath, platform) => ({ status: { mediaPath, platform } });
 
 test("in-memory build (no project name) falls back to platform", () => {
-  assert.equal(deriveTitle(h("<memory.sfc>", "snes")), "romdev — snes");
-  assert.equal(deriveTitle(h("/rom.sfc", "gba")), "romdev — gba");
+  assert.equal(deriveTitle(h("<memory.sfc>", "snes")), "romdev - snes");
+  assert.equal(deriveTitle(h("/rom.sfc", "gba")), "romdev - gba");
 });
 
 test("projectName-derived virtualName becomes the title", () => {

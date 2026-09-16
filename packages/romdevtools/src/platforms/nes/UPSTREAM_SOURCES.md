@@ -1,9 +1,9 @@
-# NES — source you can read
+# NES - source you can read
 
 Trust hierarchy:
 
 1. **Bundled examples** (`examples/nes/templates/*.c`).
-2. **Bundled runtime** — `src/platforms/nes/lib/c/nes_runtime.c`,
+2. **Bundled runtime** - `src/platforms/nes/lib/c/nes_runtime.c`,
    asm helpers in `lib/*.s`, FamiTone2 source at `lib/asm/famitone2.s`.
 3. **Bundled cc65 NES libsrc** (R58) at `src/platforms/nes/lib/
    cc65-src/`. Full cc65 NES target source: joystick driver, conio,

@@ -1,8 +1,8 @@
-// GBA PC breakpoint / read watchpoint / single-step — end to end (mgba, ARM7TDMI).
+// GBA PC breakpoint / read watchpoint / single-step - end to end (mgba, ARM7TDMI).
 //
 // Exercises the romdev_pcbreak_* / romdev_readwatch_* mgba core patch (the
 // ARM7 execute hook in src/arm/arm.c + the read hook in src/gba/memory.c)
-// through the host surface — the same primitives the runUntilPC / runUntilRead /
+// through the host surface - the same primitives the runUntilPC / runUntilRead /
 // stepInstruction MCP tools drive. The breakpoint PC is discovered
 // self-referentially via the write watchpoint (findWriter), so the test needs
 // no symbol map and is deterministic.
@@ -56,14 +56,14 @@ test("GBA PC breakpoint + read watch + single-step (mgba ARM7TDMI)", { timeout: 
   // 2) Boot it under mgba via the host (mirrors what runSource does internally).
   const { LibretroHost } = await import("romdev-core-host/LibretroHost.js");
   const core = resolveCore("gba");
-  assert.ok(core, "resolveCore('gba') returned null — mgba_libretro.{js,wasm} missing?");
+  assert.ok(core, "resolveCore('gba') returned null - mgba_libretro.{js,wasm} missing?");
   const host = new LibretroHost();
   await host.loadCore(core.jsPath, core.wasmPath);
   await host.loadMedia({ platform: "gba", bytes: r.binary, virtualName: "bp.gba" });
 
-  // Feature detection — the whole point of this build.
-  assert.equal(host.pcBreakSupported(), true, "core does not expose romdev_pcbreak_* — rebuild needed");
-  assert.equal(host.readWatchSupported(), true, "core does not expose romdev_readwatch_* — rebuild needed");
+  // Feature detection - the whole point of this build.
+  assert.equal(host.pcBreakSupported(), true, "core does not expose romdev_pcbreak_* - rebuild needed");
+  assert.equal(host.readWatchSupported(), true, "core does not expose romdev_readwatch_* - rebuild needed");
 
   // Let it boot past the Tonc runtime init into the main loop.
   host.stepFrames(20);
@@ -80,11 +80,11 @@ test("GBA PC breakpoint + read watch + single-step (mgba ARM7TDMI)", { timeout: 
   host.setWatchpoint(0, false);
   assert.ok(writerPC != null && writerPC > 0, `findWriter didn't catch the 0x02000000 write (writerPC=${writerPC})`);
 
-  // 4) Arm the PC breakpoint on that exact PC and step frames until it hits —
+  // 4) Arm the PC breakpoint on that exact PC and step frames until it hits -
   //    the SAME poll-and-capture-live pattern the runUntilPC MCP tool uses
   //    (capture the hit state BEFORE disarming; the core's pcbreak_set resets
   //    lastPC on re-arm/disarm, so the value must be read at the moment of hit).
-  //    If TRAP 2 were wrong (frozen CPU, frame never completes) this HANGS — the
+  //    If TRAP 2 were wrong (frozen CPU, frame never completes) this HANGS - the
   //    outer `timeout 150` kills it. Each stepFrames(1) is one bounded retro_run.
   host.setPCBreak(writerPC, true, false);
   let bpHit = null;
@@ -104,7 +104,7 @@ test("GBA PC breakpoint + read watch + single-step (mgba ARM7TDMI)", { timeout: 
   //    the CPU at the clean, resumable boundary right BEFORE that instruction's
   //    prefetch advance, so the live gprs[15] is exactly ONE instruction-word
   //    behind the reported breakpoint PC (4 in ARM, 2 in THUMB). The CPU is
-  //    genuinely parked at the breakpoint — not free-running — which is what this
+  //    genuinely parked at the breakpoint - not free-running - which is what this
   //    asserts. (A user reads the executing-instruction address via
   //    getCPUState().execPc, which subtracts the pipeline offset.)
   const regs = host.readMemory("gba_cpu_regs", 0, 80);
@@ -115,19 +115,19 @@ test("GBA PC breakpoint + read watch + single-step (mgba ARM7TDMI)", { timeout: 
   const delta = (writerPC >>> 0) - livePC;
   assert.equal(delta, word,
     `frozen gprs[15] (0x${livePC.toString(16)}) is not one pipeline word behind the breakpoint PC ` +
-    `(0x${(writerPC >>> 0).toString(16)}); delta=${delta}, expected ${word} — CPU not frozen at the breakpoint`);
+    `(0x${(writerPC >>> 0).toString(16)}); delta=${delta}, expected ${word} - CPU not frozen at the breakpoint`);
 
   // Disarm before single-stepping.
   host.setPCBreak(0, false, false);
 
-  // 6) Single-step must ADVANCE the PC — not re-stop on the same un-executed
+  // 6) Single-step must ADVANCE the PC - not re-stop on the same un-executed
   //    instruction. (The countdown-arm fix; a before-dispatch fire returns the
   //    same PC.)
   const step = host.stepInstruction();
   assert.ok(step.pc != null, `single-step returned no pc: ${JSON.stringify(step)}`);
   assert.notEqual(step.pc >>> 0, writerPC >>> 0, `single-step did not advance PC: ${JSON.stringify(step)}`);
 
-  // 7) runUntilRead — POSITIVE: the program reads READBACK_ADDR (0x02000010)
+  // 7) runUntilRead - POSITIVE: the program reads READBACK_ADDR (0x02000010)
   //    every frame (`sink += READBACK`). The read watch must catch it and report
   //    the EXACT reading instruction's PC + the value read. Live-capture the hit
   //    (the host's getReadWatch(true) clears state on re-arm, mirroring the MCP
@@ -146,7 +146,7 @@ test("GBA PC breakpoint + read watch + single-step (mgba ARM7TDMI)", { timeout: 
   assert.equal(rdHit.lastValue, 0xCD, `read watch value mismatch: ${JSON.stringify(rdHit)}`);
 
   // 8) After all breakpoint activity, normal stepping must resume cleanly (the
-  //    core fully disarmed — no lingering frozen state / hang).
+  //    core fully disarmed - no lingering frozen state / hang).
   const before = host.status.frameCount;
   host.stepFrames(5);
   assert.equal(host.status.frameCount, before + 5, "normal stepping did not resume after breakpoints");

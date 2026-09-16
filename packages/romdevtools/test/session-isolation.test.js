@@ -1,7 +1,7 @@
 // Per-session host isolation test.
 //
 // Two MCP sessions (two registerTools() calls, each with its own sessionKey)
-// must NOT share host state — one session's loadMedia should not be visible
+// must NOT share host state - one session's loadMedia should not be visible
 // to the other. Pre-isolation this was a process-wide singleton; the failure
 // mode was silent cross-session data corruption.
 //
@@ -36,7 +36,7 @@ async function startSession() {
     { name: "romdev-test-iso", version: "0.0.1" },
     { capabilities: { tools: {} } },
   );
-  // registerTools with no sessionKey mints a fresh one — each call gets
+  // registerTools with no sessionKey mints a fresh one - each call gets
   // its own scope, which is exactly what we want to exercise.
   registerTools(server, z);
   const [clientT, serverT] = InMemoryTransport.createLinkedPair();
@@ -57,10 +57,10 @@ test("two MCP sessions own independent hosts; loadMedia in one is invisible to t
   });
   assert.equal(loadA.isError, undefined, "session A loadMedia failed");
 
-  // Session B has no host yet — getStatus should report loaded:false.
+  // Session B has no host yet - getStatus should report loaded:false.
   const statusB = await b.callTool({ name: "catalog", arguments: { op: "status" } });
   const parsedB = JSON.parse(statusB.content[0].text);
-  assert.equal(parsedB.loaded, false, "session B sees A's loaded media — leak: " + JSON.stringify(parsedB));
+  assert.equal(parsedB.loaded, false, "session B sees A's loaded media - leak: " + JSON.stringify(parsedB));
 
   // Session A's status confirms it DOES have media.
   const statusA = await a.callTool({ name: "catalog", arguments: { op: "status" } });
@@ -68,9 +68,9 @@ test("two MCP sessions own independent hosts; loadMedia in one is invisible to t
   assert.equal(parsedA.loaded, true, "session A lost its media");
   assert.equal(parsedA.platform, "nes");
 
-  // Session B trying to read memory should fail — no host. A SHOULD succeed.
+  // Session B trying to read memory should fail - no host. A SHOULD succeed.
   const memB = await b.callTool({ name: "memory", arguments: { op: "read", region: "system_ram", offset: 0, length: 16 } });
-  assert.equal(memB.isError, true, "session B's readMemory must error — no media loaded in B");
+  assert.equal(memB.isError, true, "session B's readMemory must error - no media loaded in B");
 
   const memA = await a.callTool({ name: "memory", arguments: { op: "read", region: "system_ram", offset: 0, length: 16 } });
   assert.equal(memA.isError, undefined, "session A's readMemory failed: " + JSON.stringify(memA));
@@ -87,7 +87,7 @@ test("two MCP sessions own independent hosts; loadMedia in one is invisible to t
   assert.equal(loadB.isError, undefined, "session B loadMedia failed");
   assert.equal(_liveHostCount(), before + 2, "host count after both loaded: " + _liveHostCount());
 
-  // Read RAM in both — they should be independent emulators. We can't
+  // Read RAM in both - they should be independent emulators. We can't
   // guarantee different RAM contents from a passive ROM at frame 0, but
   // we CAN confirm independent screenshot pipelines: step A 60 frames,
   // B 0 frames, then read each frame counter from getStatus.
@@ -95,5 +95,5 @@ test("two MCP sessions own independent hosts; loadMedia in one is invisible to t
   const sA = JSON.parse((await a.callTool({ name: "catalog", arguments: { op: "status" } })).content[0].text);
   const sB = JSON.parse((await b.callTool({ name: "catalog", arguments: { op: "status" } })).content[0].text);
   assert.equal(sA.frameCount, 60, "A frameCount: " + sA.frameCount);
-  assert.equal(sB.frameCount, 0,  "B frameCount: " + sB.frameCount + " — bleed-through from A");
+  assert.equal(sB.frameCount, 0,  "B frameCount: " + sB.frameCount + " - bleed-through from A");
 });

@@ -1,14 +1,14 @@
-// MSX (blueMSX / Z80) callSubroutine instruction WATCHDOG — end to end.
+// MSX (blueMSX / Z80) callSubroutine instruction WATCHDOG - end to end.
 //
 // Exercises the romdev_watchdog_set core hook (blueMSX R800/Z80) through the MCP
 // tool surface. callSubroutine arms the watchdog before driving a routine; a
 // routine that loops FOREVER (a `spin` function that is `for(;;){}`) must NOT
-// hang the WASM — it must force-stop at the instruction budget and return
+// hang the WASM - it must force-stop at the instruction budget and return
 // { returned:false, watchdog:true, finalPC } instead. This is the fix for the
 // black-box callSubroutine hang.
 //
 // The spin routine is a real ROM symbol (`_spin`) whose address we pull from the
-// SDCC .map, so callSubroutine jumps straight into a known forever-loop in ROM —
+// SDCC .map, so callSubroutine jumps straight into a known forever-loop in ROM -
 // no RAM-mapping / presetMemory guesswork.
 
 import { test } from "node:test";
@@ -39,7 +39,7 @@ const toJSON = (res) => {
 // separate `spin()` function is a forever-loop in ROM that callSubroutine targets
 // (referenced from main so it links).
 const MAIN = `
-void spin(void) { for (;;) { } }   // a forever loop in ROM — callSubroutine target
+void spin(void) { for (;;) { } }   // a forever loop in ROM - callSubroutine target
 volatile unsigned char keep;
 void main(void) {
     if (keep == 0xFF) spin();      // referenced so spin() links (never taken)
@@ -98,7 +98,7 @@ test("MSX callSubroutine watchdog: infinite loop returns watchdog:true, no hang 
   // past that so the cart (and its ROM) is live.
   toJSON(await client.callTool({ name: "frame", arguments: { op: "step",  frames: 260 } }));
 
-  // callSubroutine into the ROM spin loop. The watchdog MUST trip — no hang.
+  // callSubroutine into the ROM spin loop. The watchdog MUST trip - no hang.
   // sandbox:false because blueMSX's _retro_serialize traps in this headless build
   // (a pre-existing core quirk, unrelated to the watchdog). maxFrames is sized so
   // the 200k-instruction budget is reached (blueMSX runs ~4.5k Z80 insns/frame).
@@ -106,7 +106,7 @@ test("MSX callSubroutine watchdog: infinite loop returns watchdog:true, no hang 
     name: "cpu",
     arguments: { op: "call",  pc: spin, maxFrames: 60, maxInstructions: 200000, sandbox: false },
   }));
-  assert.equal(wd.notSupported, undefined, "callSubroutine notSupported — core patch missing?");
+  assert.equal(wd.notSupported, undefined, "callSubroutine notSupported - core patch missing?");
   assert.equal(wd.returned, false, "spin should not 'return': " + JSON.stringify(wd));
   assert.equal(wd.watchdog, true, "watchdog must trip on an infinite loop (no hang): " + JSON.stringify(wd));
   assert.ok(wd.finalPC, "watchdog must report finalPC (where it's stuck): " + JSON.stringify(wd));

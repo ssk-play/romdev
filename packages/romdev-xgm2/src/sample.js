@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.struct.Sample — signed 8-bit PCM sample with match/validity helpers.
+// Port of sgdk.xgm2tool.struct.Sample - signed 8-bit PCM sample with match/validity helpers.
 
 /**
  * Sample (signed 8 bits data)

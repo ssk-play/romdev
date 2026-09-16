@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// strip-wasm-debug.mjs — remove DWARF/name CUSTOM sections from a .wasm file.
+// strip-wasm-debug.mjs - remove DWARF/name CUSTOM sections from a .wasm file.
 //
 // emcc relinks at -O0 by default, which preserves the .debug_* and `name`
 // custom sections carried in the input bitcode. For big tools (cc1-arm) that

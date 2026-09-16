@@ -1,4 +1,4 @@
-/* ── wait_vblank — wait for the next vblank period ─────────────────
+/* ── wait_vblank - wait for the next vblank period ─────────────────
  * Spin on LY until it hits 144 (start of vblank). Cheap, busy-wait.
  * Per-frame sync point: pair with all your draw-state updates so they
  * land while the LCD isn't fetching.

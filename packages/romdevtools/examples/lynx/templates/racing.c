@@ -1,11 +1,11 @@
-/* ── racing.c — Atari Lynx 1P top-down road racer (complete example game) ─────
+/* ── racing.c - Atari Lynx 1P top-down road racer (complete example game) ─────
  *
- * A COMPLETE, working game — DEPTH DODGE, a top-down vertical road racer fit to
+ * A COMPLETE, working game - DEPTH DODGE, a top-down vertical road racer fit to
  * the Lynx's tiny 160x102 screen: title screen, a 1P endless run with speed
  * control and a steerable car, a best-distance record, MIKEY music + SFX, AND
  * the Lynx's signature party trick: HARDWARE SPRITE SCALING used for PSEUDO-3D
  * DEPTH. Obstacle cars are Suzy scalable sprites that ENTER tiny at the far
- * horizon and SWELL as they rush toward you — an OutRun-ish "coming at you"
+ * horizon and SWELL as they rush toward you - an OutRun-ish "coming at you"
  * read built from real hardware scaling, not Mode-7 (the Lynx has no affine
  * background; this is honest sprite scaling, see the HARDWARE IDIOM note).
  *
@@ -16,38 +16,38 @@
  * collision when one reaches you is a CRASH (3 crashes ends the run). The run's
  * DISTANCE is the score; your best DISTANCE this power-on is shown on the title.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented Lynx footgun;
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented Lynx footgun;
  *     reshape your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — road art, traffic patterns, speeds, scoring rules:
+ *   GAME LOGIC (clay) - road art, traffic patterns, speeds, scoring rules:
  *     reshape freely.
  *
  * What depends on what:
- *   lynx_sfx.{h,c} — MIKEY 4-voice audio (voice 0 = steer/crash SFX, voice 1 =
+ *   lynx_sfx.{h,c} - MIKEY 4-voice audio (voice 0 = steer/crash SFX, voice 1 =
  *     background melody, voice 2 = engine/checkpoint blips, voice 3 = noise).
- *   vendor/cc65/libsrc/lynx/ — the FULL cc65 Lynx driver source shipped into
+ *   vendor/cc65/libsrc/lynx/ - the FULL cc65 Lynx driver source shipped into
  *     your project. The TGI driver (tgi/lynx-160-102-16.s) is REQUIRED
  *     reading when graphics misbehave: every TGI call is itself a Suzy
  *     sprite, and our scaled obstacle cars ride the same engine via
  *     tgi_ioctl(0).
  *
- * NO HARDWARE TILEMAP (read this — it is the platform's biggest "where's the
+ * NO HARDWARE TILEMAP (read this - it is the platform's biggest "where's the
  *   road renderer?" surprise): the Lynx has NO background tilemap and NO
  *   hardware scroll. Suzy is a SPRITE BLITTER, not a tile engine. So the road
  *   is drawn the honest way: the full-redraw TGI loop repaints the WHOLE track
  *   every frame as a stack of tgi_bar fills + tgi_line markings, and the road
- *   "scrolls" by animating the lane-dash phase each frame — cheap on a 160x102
+ *   "scrolls" by animating the lane-dash phase each frame - cheap on a 160x102
  *   screen, and it falls out of the canonical full-redraw loop for free.
  *
- * PLAYERS: 1. This is a handheld — head-to-head on real hardware is ComLynx,
+ * PLAYERS: 1. This is a handheld - head-to-head on real hardware is ComLynx,
  *   a cable between TWO physical Lynx units. A single emulator instance has
  *   nobody on the other end of the cable, so this example is honestly a 1P
- *   endless racer (no fake "P2 VERSUS" that could never work here — contrast
+ *   endless racer (no fake "P2 VERSUS" that could never work here - contrast
  *   the NES racing donor, which has a real simultaneous-2P split-road mode).
  *
  * SCREEN: 160x102. The system font is 8x8, so a full row of text is 20
- *   characters — the road + HUD are kept compact to fit.
+ *   characters - the road + HUD are kept compact to fit.
  */
 
 #include <tgi.h>
@@ -56,11 +56,11 @@
 #include <stdint.h>
 #include "lynx_sfx.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it <=16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "DEPTH DODGE"
 
-/* ── GAME LOGIC (clay — reshape freely) — road geometry (fits 160x102) ───────
+/* ── GAME LOGIC (clay - reshape freely) - road geometry (fits 160x102) ───────
  * A vertical road down the centre with grass shoulders. ROAD_L/ROAD_R bound
  * the tarmac; three lane centres sit inside it. The player rides near the
  * bottom; obstacles travel the road from HORIZON_Y (top) downward. */
@@ -74,18 +74,18 @@
 #define MAX_OBS     4                /* obstacle pool size                    */
 static const int16_t lane_x[LANES] = { 51, 79, 108 };   /* lane centres       */
 
-/* Game states — the shell every example shares: title → play → over. */
+/* Game states - the shell every example shares: title → play → over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static uint8_t state;
 
-/* ── GAME LOGIC (clay) — run state ── */
+/* ── GAME LOGIC (clay) - run state ── */
 static uint8_t  player_lane;         /* 0..2                                  */
 static uint8_t  speed;               /* 1..5 road px/frame                    */
 static uint16_t dist;                /* run distance (the score)              */
 static uint8_t  dist_frac;
-static uint16_t best;                /* in-session best distance — see below  */
+static uint16_t best;                /* in-session best distance - see below  */
 static uint8_t  lives;
 static uint8_t  invuln;              /* post-crash blink/no-collide frames    */
 static uint8_t  spawn_timer;
@@ -103,7 +103,7 @@ static uint8_t  obs_alive[MAX_OBS];
 static uint8_t  obs_lane[MAX_OBS];
 static int16_t  obs_y[MAX_OBS];
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call).
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call).
  * Picks obstacle lanes; without a noise source the spawn pattern would be a
  * fixed loop. rand8() is also ticked once per play frame so identical game
  * states a few seconds apart still diverge. */
@@ -117,15 +117,15 @@ static uint8_t rand8(void) {
   return (uint8_t)r;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * SUZY HARDWARE SPRITE SCALING — the Lynx signature, used here for PSEUDO-3D
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * SUZY HARDWARE SPRITE SCALING - the Lynx signature, used here for PSEUDO-3D
  * DEPTH. Suzy renders every sprite through a Sprite Control Block (SCB) it
  * walks in cart/work RAM. Two SCB fields, HSIZE and VSIZE, are 8.8 fixed-point
  * scale factors ($0100 = 1.0): the SAME 8x8 source pixels render at any size,
  * every frame, for free. This game uses it to fake DEPTH:
  *   - each OBSTACLE car is a Suzy sprite whose 8.8 scale is computed from its
- *     screen Y — small at the far HORIZON, swelling toward 1.0x+ as it nears
- *     the player — recomputed every frame, zero CPU pixel cost (Suzy scales
+ *     screen Y - small at the far HORIZON, swelling toward 1.0x+ as it nears
+ *     the player - recomputed every frame, zero CPU pixel cost (Suzy scales
  *     while it blits). A car that "rushes at you" is the hardware doing the
  *     perspective, not a pre-scaled sprite sheet.
  *   - the player car and the RESULT POP (the glyph swells then eases back when
@@ -137,27 +137,27 @@ static uint8_t rand8(void) {
  * The SCB, field by field (this is cc65's SCB_REHV_PAL from <_suzy.h>):
  *   sprctl0  bits 7-6 = bits per pixel (11 = 4bpp), bits 2-0 = sprite TYPE.
  *            TYPE_NORMAL (4) draws pens 1-15 and treats pen 0 as
- *            TRANSPARENT — that's how the car shape sits over the road.
+ *            TRANSPARENT - that's how the car shape sits over the road.
  *   sprctl1  bit 7 LITERAL (raw nybbles, no RLE) + bits 5-4 reload depth:
  *            REHV means "this SCB carries HPOS, VPOS, HSIZE, VSIZE". The
- *            reload bits ARE the struct layout — mismatch them and Suzy reads
+ *            reload bits ARE the struct layout - mismatch them and Suzy reads
  *            palette bytes as size words.
  *   sprcoll  $20 = NO_COLLIDE. Car/obstacle collision is done in C on the road
  *            coordinates (the collision buffer knows nothing about gameplay).
  *   next     pointer to the next SCB, 0 = end of chain (one blit per call).
  *   data     sprite pixel data (LITERAL 4bpp format below).
  *   hpos/vpos signed SCREEN position of the sprite's top-left corner.
- *   hsize/vsize 8.8 scale — THE party trick, rewritten per draw.
+ *   hsize/vsize 8.8 scale - THE party trick, rewritten per draw.
  *   penpal[8] 16 nybbles mapping pixel values 0-15 → palette pens. We RECOLOUR
  *            the sprite per draw here (one 8x8 art block, any pen) by pointing
- *            the art's pixel value 1 at the wanted pen — no extra art.
+ *            the art's pixel value 1 at the wanted pen - no extra art.
  *
  * LITERAL 4bpp data format (hand-encodable): each sprite LINE is
  *   [offset byte][width/2 bytes of raw nybble pixels]
  * where offset = 1 + bytes of pixel data; a final offset of 0 ends the sprite.
  * 8 px @ 4bpp = 4 data bytes, so every line starts with 5.
  *
- * Drawing: tgi_sprite(&scb) → tgi_ioctl(0, &scb) — the TGI driver's
+ * Drawing: tgi_sprite(&scb) → tgi_ioctl(0, &scb) - the TGI driver's
  * documented escape hatch (see CONTROL in vendor/cc65/libsrc/lynx/tgi/
  * lynx-160-102-16.s). It points Suzy's SCBNEXT at your SCB, aims VIDBAS at
  * TGI's current DRAW page (so scaled sprites land in the same double-buffered
@@ -165,7 +165,7 @@ static uint8_t rand8(void) {
  * SPRSYS reports the blit done.
  *
  * Requires: the cc65 crt0 Suzy init (already done before main()), and calls
- *   only between the tgi_busy() wait and tgi_updatedisplay() — i.e. while
+ *   only between the tgi_busy() wait and tgi_updatedisplay() - i.e. while
  *   TGI's draw buffer is the blit target. Draw order = paint order: road fills
  *   first, scaled obstacle/player cars after, HUD text last.
  */
@@ -180,7 +180,7 @@ static SCB_REHV_PAL scb = {
   { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF }   /* identity pens */
 };
 
-/* ── GAME LOGIC (clay) — 8x8 4bpp literal sprite art ────────────────────────
+/* ── GAME LOGIC (clay) - 8x8 4bpp literal sprite art ────────────────────────
  * A nose-up car in pixel value 1 (plus value $F = white windshield glint).
  * draw_sprite() recolours value 1 → the wanted pen via the SCB penpal, so one
  * art block paints any colour (player = yellow, obstacles = red). Each line:
@@ -212,7 +212,7 @@ static unsigned char spr_cup[] = {
 /* Draw an 8x8 literal sprite CENTERED on (cx,cy) at the given 8.8 scale,
  * recoloured so art pixel value 1 paints `pen`. Centering matters: hpos/vpos
  * are the TOP-LEFT, so a sprite scaled around its corner would slide as it
- * grows — anchoring the centre keeps a growing obstacle reading as "coming at
+ * grows - anchoring the centre keeps a growing obstacle reading as "coming at
  * you" along its lane, and the result pop as a uniform swell. */
 static void draw_sprite(unsigned char *data, int cx, int cy, uint8_t pen, unsigned scale) {
   unsigned w = (8u * scale) >> 8;
@@ -226,10 +226,10 @@ static void draw_sprite(unsigned char *data, int cx, int cy, uint8_t pen, unsign
   tgi_sprite(&scb);
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — DEPTH→SCALE mapping ─────────────────────
+/* ── HARDWARE IDIOM (load-bearing) - DEPTH→SCALE mapping ─────────────────────
  * The pseudo-3D read lives here: an obstacle's 8.8 scale is a function of its
  * screen Y. At the HORIZON it is tiny (~0.5x); as it travels down to the
- * player it swells to ~1.5x — so a car genuinely LOOMS as it nears. The same
+ * player it swells to ~1.5x - so a car genuinely LOOMS as it nears. The same
  * function feeds the on-screen footprint AND the collision box (obs_px below),
  * so the hardware size and the hitbox never disagree. Tune the 0x0080 floor /
  * 0x0140 span to make traffic loom harder or gentler. */
@@ -260,7 +260,7 @@ static unsigned pop_scale(void) {
   return 0x0100u + ((unsigned)pop_timer * (POP_SCALE_PEAK - 0x0100u)) / POP_FRAMES;
 }
 
-/* ── GAME LOGIC (clay) — number text (no sprintf: it drags in ~6KB) ── */
+/* ── GAME LOGIC (clay) - number text (no sprintf: it drags in ~6KB) ── */
 static char numbuf[6];
 static char *fmt5(unsigned v) {
   uint8_t i;
@@ -269,7 +269,7 @@ static char *fmt5(unsigned v) {
   return numbuf;
 }
 
-/* ── GAME LOGIC (clay) — paint the road (full redraw, every frame) ──────────
+/* ── GAME LOGIC (clay) - paint the road (full redraw, every frame) ──────────
  * No hardware tilemap, so the road is bars + lines: grass fill, tarmac, solid
  * white edges, dashed lane dividers whose phase scrolls each frame (the road
  * "moves"), and a darker horizon band for depth. Layered tones keep any one
@@ -306,7 +306,7 @@ static void draw_road(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — HUD: distance + lives across the top band ── */
+/* ── GAME LOGIC (clay) - HUD: distance + lives across the top band ── */
 static void draw_hud(void) {
   tgi_setcolor(COLOR_YELLOW);
   tgi_outtextxy(2, 2, "D");
@@ -317,7 +317,7 @@ static void draw_hud(void) {
   tgi_outtextxy(148, 2, numbuf);
 }
 
-/* ── GAME LOGIC (clay) — obstacle pool ── */
+/* ── GAME LOGIC (clay) - obstacle pool ── */
 static void spawn_obstacle(void) {
   uint8_t i;
   for (i = 0; i < MAX_OBS; i++) {
@@ -330,7 +330,7 @@ static void spawn_obstacle(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_run(void) {
   uint8_t i;
   for (i = 0; i < MAX_OBS; i++) obs_alive[i] = 0;
@@ -347,15 +347,15 @@ static void start_run(void) {
   state = ST_PLAY;
 }
 
-/* ── GAME LOGIC (clay) — run over: result + record bookkeeping.
+/* ── GAME LOGIC (clay) - run over: result + record bookkeeping.
  * Persistence choice: best DISTANCE this power-on. ── */
 static void end_run(void) {
   if (dist > best) {
-    /* ── In-session record ONLY — and here's the honest why. Real Lynx
+    /* ── In-session record ONLY - and here's the honest why. Real Lynx
      * carts persist via a 93Cxx serial EEPROM on the cart PCB (cc65 even
      * ships lynx_eeprom_read/write for it; see vendor/cc65/libsrc/lynx/
      * eeprom.s). PROBED: the bundled handy core emulates CEEPROM internally
-     * but its libretro build exposes NO save path — retro_get_memory(
+     * but its libretro build exposes NO save path - retro_get_memory(
      * SAVE_RAM) returns NULL/size 0, so nothing survives host.hardReset()
      * and a bit-banged round-trip reads back garbage under the WASM build.
      * Wiring the EEPROM to SAVE_RAM is a future core round; until then a
@@ -372,7 +372,7 @@ static void end_run(void) {
   state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay) — a crash ── */
+/* ── GAME LOGIC (clay) - a crash ── */
 static void crash(void) {
   sfx_noise(12);
   invuln = 45;                   /* blink + no-collide grace */
@@ -381,14 +381,14 @@ static void crash(void) {
   if (lives == 0) end_run();
 }
 
-/* ── GAME LOGIC (clay) — per-state frames. Each runs INSIDE the canonical
+/* ── GAME LOGIC (clay) - per-state frames. Each runs INSIDE the canonical
  * loop below: road already painted, tgi_updatedisplay not yet called. ── */
 
 static unsigned attract_phase;
 
 static void frame_title(uint8_t joy) {
   /* attract: a lone obstacle car in the title's clear zone "approaches" via
-   * the SCALING idiom — the same swell traffic uses in play, shown off on the
+   * the SCALING idiom - the same swell traffic uses in play, shown off on the
    * menu by sweeping its scale small↔large. */
   unsigned t = attract_phase < 64 ? attract_phase : (127 - attract_phase);
   unsigned s = OBS_SCALE_MIN + (t * (0x0220u - OBS_SCALE_MIN)) / 63u;  /* small↔big */
@@ -436,7 +436,7 @@ static void frame_play(uint8_t joy) {
   /* ── draw: obstacle cars (SCALED by depth), the player car, HUD ──
    * Draw obstacles FAR-FIRST (smallest at the horizon) then the player on
    * top, so a near obstacle that overlaps the player paints over it correctly.
-   * Each obstacle's hardware scale is obs_scale(y) — the pseudo-3D loom. */
+   * Each obstacle's hardware scale is obs_scale(y) - the pseudo-3D loom. */
   for (i = 0; i < MAX_OBS; i++) {
     if (!obs_alive[i]) continue;
     draw_sprite(spr_car, (int)lane_x[obs_lane[i]], (int)obs_y[i],
@@ -524,25 +524,25 @@ void main(void) {
   road_phase = 0;
 
   for (;;) {
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-     * CANONICAL LYNX GAME LOOP — full-redraw every frame, in this order:
-     *   1. while (tgi_busy()) { }  — WAIT for the previous frame's page flip.
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+     * CANONICAL LYNX GAME LOOP - full-redraw every frame, in this order:
+     *   1. while (tgi_busy()) { }  - WAIT for the previous frame's page flip.
      *      Skipping this is the #1 "Lynx screen stays blank" trap: drawing
      *      while the swap is pending loses the frame.
-     *   2. Repaint the WHOLE scene with tgi_bar/tgi_line fills — NOT
+     *   2. Repaint the WHOLE scene with tgi_bar/tgi_line fills - NOT
      *      tgi_clear() (which can leave the framebuffer stale on this
      *      toolchain+emulator path). TGI double-buffers; the back buffer holds
      *      the frame from two flips ago, so partial redraws ghost. With no
      *      hardware tilemap, the ROAD is repainted every frame (and the
      *      lane-dash phase animation IS the scroll).
      *   3. Draw every object (every TGI call and every tgi_sprite() is a
-     *      synchronous Suzy blit into the SAME draw page) — obstacles SCALED
+     *      synchronous Suzy blit into the SAME draw page) - obstacles SCALED
      *      by depth, then the player car, then HUD text.
-     *   4. tgi_updatedisplay() — request the page flip at next VBL.
-     *   5. sfx_update() IMMEDIATELY after — MIKEY voice writes must land in
+     *   4. tgi_updatedisplay() - request the page flip at next VBL.
+     *   5. sfx_update() IMMEDIATELY after - MIKEY voice writes must land in
      *      vblank: handy reschedules its timer sweep on the spot when a voice
      *      CTL bit-3 write lands, and mid-frame that sweep can preempt an
-     *      in-flight Suzy blit and eat sprites (the R57 bug — history in
+     *      in-flight Suzy blit and eat sprites (the R57 bug - history in
      *      lynx_sfx.c). sfx_tone()/sfx_noise() only STAGE; sfx_update() is
      *      the hardware flush. */
     while (tgi_busy()) { }

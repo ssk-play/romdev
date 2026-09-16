@@ -1,4 +1,4 @@
-// SNES (snes9x / 65816) execution breakpoint + read watch + single-step — e2e.
+// SNES (snes9x / 65816) execution breakpoint + read watch + single-step - e2e.
 // Mirrors test/genesis-pc-break.test.js for the 65816 core.
 
 import { test } from "node:test";
@@ -68,7 +68,7 @@ test("SNES PC breakpoint + read watch + single-step (snes9x 65816)", { timeout: 
   const bp = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "pc",  address: writerPC, maxFrames: 300 },
   }));
-  assert.equal(bp.notSupported, undefined, "PC breakpoint notSupported — core patch missing?");
+  assert.equal(bp.notSupported, undefined, "PC breakpoint notSupported - core patch missing?");
   assert.equal(bp.hit, true, "runUntilPC did not hit: " + JSON.stringify(bp));
   assert.equal(bp.pcRaw, writerPC, "frozen PC != requested PC");
 
@@ -89,10 +89,10 @@ test("SNES PC breakpoint + read watch + single-step (snes9x 65816)", { timeout: 
   const rd = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "read",  address: 0x7E0010, maxFrames: 60 },
   }));
-  assert.equal(rd.notSupported, undefined, "runUntilRead notSupported — read-watch patch missing?");
+  assert.equal(rd.notSupported, undefined, "runUntilRead notSupported - read-watch patch missing?");
   assert.ok(typeof rd.hit === "boolean", "runUntilRead returned no hit field: " + JSON.stringify(rd));
 
-  // 6) On a MISS, breakpoint({on:'pc'}) reports mainThreadPc — the busiest PC over
+  // 6) On a MISS, breakpoint({on:'pc'}) reports mainThreadPc - the busiest PC over
   // ~a frame of single-stepping (the main loop), not the frame-boundary idle/NMI
   // snapshot. Arm on an address the CPU never reaches (a data byte, not an
   // instruction boundary) so it misses, then assert the diagnostic.

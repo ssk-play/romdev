@@ -1,9 +1,9 @@
-/* ── unroll.h — manual loop-unrolling macros for SDCC sm83 ──────────
+/* ── unroll.h - manual loop-unrolling macros for SDCC sm83 ──────────
  * Auto-staged into every gb/gbc C build.
  *
  * SDCC 4.4.0 sm83 crashes on a wide family of `for (i ...) { ... f(i,
  * ...); ... }` patterns (see SDCC_GOTCHAS.md #1-#9). The reliable
- * workaround is manual unrolling — write N explicit statements
+ * workaround is manual unrolling - write N explicit statements
  * instead of a loop. These macros automate that.
  *
  * Usage:
@@ -19,7 +19,7 @@
  *
  * No for-loop, so SDCC's register allocator can't crash. Each
  * statement is independent + the call returns before the next one
- * starts — register pressure is one call's worth at a time, never
+ * starts - register pressure is one call's worth at a time, never
  * accumulates across iterations.
  *
  * Common GB sizes covered: 2, 3, 4, 5, 6, 7, 8, 10, 12, 16, 18, 20,

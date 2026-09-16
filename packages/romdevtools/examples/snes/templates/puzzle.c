@@ -1,6 +1,6 @@
-/* ── puzzle.c — SNES falling-jewel versus puzzle (complete example game) ──────
+/* ── puzzle.c - SNES falling-jewel versus puzzle (complete example game) ──────
  *
- * A COMPLETE, working game — title screen, 1P marathon (levels speed the
+ * A COMPLETE, working game - title screen, 1P marathon (levels speed the
  * fall) and 2P SIMULTANEOUS split-board versus with garbage attacks,
  * score + persistent hi-score (battery SRAM, survives power cycles),
  * SPC music + SFX, and the board rendered the SNES way: a WRAM shadow
@@ -11,27 +11,27 @@
  * lands, any straight run of 3+ same-coloured jewels (horizontal, vertical,
  * or diagonal) clears; survivors fall and cascades chain for multiplied score.
  *
- * 2P VERSUS design (simultaneous, split board): two 6x12 wells side by side —
- * P1 left on controller 1, P2 right on controller 2 (padsCurrent(1) — that's
+ * 2P VERSUS design (simultaneous, split board): two 6x12 wells side by side -
+ * P1 left on controller 1, P2 right on controller 2 (padsCurrent(1) - that's
  * the entire 2P wiring), both falling at once. Clears ATTACK: every chain
  * step you score sends one garbage row (random jewels with one gap, capped
  * at 4 per attack) rising from the bottom of the opponent's well. First
  * player whose stack reaches the top loses.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented SNES footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented SNES footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — match rules, garbage, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - match rules, garbage, tuning, art: reshape freely.
  *
  * What depends on what:
- *   data.asm — console font, the 8-tile board/jewel tileset + palette
+ *   data.asm - console font, the 8-tile board/jewel tileset + palette
  *     (shared by BG2 and the OBJ sprites), and sram_read16/write16.
  *     Load-bearing.
- *   hdr.asm — THIS PROJECT OVERRIDES the stock header to declare battery
+ *   hdr.asm - THIS PROJECT OVERRIDES the stock header to declare battery
  *     SRAM (CARTRIDGETYPE $02 + SRAMSIZE $01). Delete that file and saves
- *     silently stop existing — the build still succeeds.
- *   snes_sfx.{h,c} + snes_sfx_data.asm + apu_blob.bin — the SPC700 sound
+ *     silently stop existing - the build still succeeds.
+ *   snes_sfx.{h,c} + snes_sfx_data.asm + apu_blob.bin - the SPC700 sound
  *     driver (music + 2 one-shot samples). #include'd, not separately built.
  *
  * ── SNES vs NES: THE SAME GAME, TWO RENDER BUDGETS (teaching note) ──────────
@@ -41,13 +41,13 @@
  * sweep takes 12 frames. On the SNES none of that machinery exists: the whole
  * 32x32 board tilemap lives in WRAM (board_map below) and general-purpose DMA
  * copies all 2 KB of it to VRAM EVERY frame inside vblank (~12 scanlines of
- * the ~38 available — bus speed makes the budget problem evaporate). Game
+ * the ~38 available - bus speed makes the budget problem evaporate). Game
  * logic just rewrites WRAM whenever it likes, with zero dirty-row tracking
  * toward the PPU; a 12-row double-cascade lands on screen in ONE frame.
  *
  * Frame budget: input + gravity for two trios is nothing; the spike is
  * resolve_board() at lock time (full 4-direction match scan over 72 cells in
- * tcc-compiled C). It can spill a frame past vblank — that shows as (at
+ * tcc-compiled C). It can spill a frame past vblank - that shows as (at
  * most) a one-frame hitch on the falling pieces, never corruption, because
  * the shadow map is only DMA'd after WaitForVBlank.
  *
@@ -60,7 +60,7 @@
 #include <snes.h>
 #include "snes_sfx.c"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "JEWEL JOUST"
 
@@ -71,13 +71,13 @@ extern char tilboard, palboard;        /* board/jewel tiles + palette           
  * No public prototype in console.h, so declare it; call once per frame. */
 extern void consoleVblank(void);
 
-/* data.asm exports — battery SRAM accessors ($70:0000 long addressing). */
+/* data.asm exports - battery SRAM accessors ($70:0000 long addressing). */
 extern u16 sram_read16(u16 offset);
 extern void sram_write16(u16 offset, u16 value);
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Board geometry. Tile coordinates are free on the SNES: unlike the NES there
- * is NO attribute table — every 4bpp map entry carries its own palette bits —
+ * is NO attribute table - every 4bpp map entry carries its own palette bits -
  * so wells can sit at ANY column (the NES version must keep them 2-aligned). */
 #define GRID_W   6
 #define GRID_H   12
@@ -89,7 +89,7 @@ extern void sram_write16(u16 offset, u16 value);
 
 #define EMPTY 0               /* cell colours 1..3 = ruby/emerald/amber */
 
-/* board tileset indices — MUST match the tile order in data.asm */
+/* board tileset indices - MUST match the tile order in data.asm */
 #define BG_BLANK    0
 #define BG_WALL     1
 #define BG_DITHER   2
@@ -106,7 +106,7 @@ extern void sram_write16(u16 offset, u16 value);
  * Magic is written LAST in hi_save so a torn write never validates. */
 #define SRAM_MAGIC 0x4A4Au
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
@@ -136,23 +136,23 @@ static u8 grid[2 * GRID_CELLS];
 static u8 matched[GRID_CELLS];
 #define GRIDOF(p) (grid + ((p) ? GRID_CELLS : 0))
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * The board's WRAM shadow tilemap. This 2 KB array IS the screen: game code
  * writes map entries here whenever it likes (any time, mid-frame, mid-logic),
  * and the main loop DMAs the whole thing to VRAM word $4000 right after
- * WaitForVBlank — full repaint, every frame, no queue, no dirty-row budget
+ * WaitForVBlank - full repaint, every frame, no queue, no dirty-row budget
  * (see the NES-contrast note in the header). The ONLY rule is the DMA's:
  * VRAM writes land correctly ONLY during vblank/forced blank, so the
  * dmaCopyVram call must stay where it is, between WaitForVBlank and the
  * frame's logic. Writing board_map itself is always safe. */
 static u16 board_map[32 * 32];
 
-/* headless-test telemetry — magic "JW"+0xBD; a test harness scans WRAM for
+/* headless-test telemetry - magic "JW"+0xBD; a test harness scans WRAM for
  * it and plays the game from real state instead of parsing pixels. Costs a
  * few byte-writes per frame; delete freely. */
 static u8 telem[24];
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call) ── */
 static u8 random8(void) {
   u16 r = rng;
   r ^= r << 7;
@@ -168,7 +168,7 @@ static u16 cell_entry(u8 col) {
   return (u16)(col ? (u8)(BG_GEM_BASE - 1 + col) : BG_INNER) | MAP_PAL1;
 }
 
-/* ── GAME LOGIC (clay) — shadow-map painters ─────────────────────────────────
+/* ── GAME LOGIC (clay) - shadow-map painters ─────────────────────────────────
  * All of these only touch board_map (WRAM); the per-frame DMA makes them
  * visible. paint_board is the per-change repaint: ~72 u16 stores, cheap
  * enough to run whole-board whenever anything locked/cleared/shifted. */
@@ -238,7 +238,7 @@ static void paint_play_map(void) {
   if (two_player) { paint_well_frame(1); paint_board(1); }
 }
 
-/* ── GAME LOGIC (clay) — text helpers (console BG1, queued via consoleVblank) */
+/* ── GAME LOGIC (clay) - text helpers (console BG1, queued via consoleVblank) */
 static void fmt5(u16 v) {
   s8 i;
   for (i = 4; i >= 0; i--) { tbuf[i] = (char)('0' + (v % 10)); v /= 10; }
@@ -264,7 +264,7 @@ static void draw_hi(u8 x, u8 y) {
   consoleDrawText(x, y, tbuf);
 }
 
-/* ── GAME LOGIC (clay) — hi-score in battery SRAM (see sram_* in data.asm) ── */
+/* ── GAME LOGIC (clay) - hi-score in battery SRAM (see sram_* in data.asm) ── */
 static u16 hi_load(void) {
   u16 v;
   if (sram_read16(0) != SRAM_MAGIC) return 0;
@@ -276,12 +276,12 @@ static u16 hi_load(void) {
 static void hi_save(u16 v) {
   sram_write16(2, v);
   sram_write16(4, (u16)(v ^ 0xA5C3u));
-  sram_write16(0, SRAM_MAGIC);      /* magic LAST — torn write = no record */
+  sram_write16(0, SRAM_MAGIC);      /* magic LAST - torn write = no record */
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Match scan: mark every straight run of 3+ same-coloured jewels in all 4
- * directions (a cell can belong to several runs — the mask de-dupes), and
+ * directions (a cell can belong to several runs - the mask de-dupes), and
  * return how many cells matched. This is the resolve-time spike the header's
  * frame-budget note talks about. */
 static const s8 DR4[4] = { 0, 1, 1,  1 };
@@ -333,13 +333,13 @@ static void apply_gravity(u8 p) {
   }
 }
 
-/* ── GAME LOGIC (clay) — end of game (top-out). `loser` topped out. ── */
+/* ── GAME LOGIC (clay) - end of game (top-out). `loser` topped out. ── */
 static void game_end(u8 loser) {
   u16 best = score[0];
   if (two_player && score[1] > best) best = score[1];
   if (best > hiscore) {
     hiscore = best;
-    hi_save(hiscore);               /* battery SRAM — survives power-off */
+    hi_save(hiscore);               /* battery SRAM - survives power-off */
     draw_hi(13, 2);
   }
   if (sound_ok) sfx_play(2);        /* game-over thud */
@@ -350,10 +350,10 @@ static void game_end(u8 loser) {
   state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay) — clear matches, drop survivors, chain cascades.
+/* ── GAME LOGIC (clay) - clear matches, drop survivors, chain cascades.
  * Returns the chain depth (0 = the lock matched nothing). The repaint is
  * just board_dirty=1: the whole well redraws into the shadow map this frame
- * and the next vblank's DMA shows it — chains land instantly on screen. */
+ * and the next vblank's DMA shows it - chains land instantly on screen. */
 static u8 resolve_board(u8 p) {
   u8 n, k, chain;
   u16 amt;
@@ -383,8 +383,8 @@ static u8 resolve_board(u8 p) {
   return chain;
 }
 
-/* ── GAME LOGIC (clay) — VERSUS attack: garbage rows rise from the bottom of
- * the victim's well (random jewels with one gap — matchable, so a skilled
+/* ── GAME LOGIC (clay) - VERSUS attack: garbage rows rise from the bottom of
+ * the victim's well (random jewels with one gap - matchable, so a skilled
  * victim digs out). The victim's stack rising means the falling trio shifts
  * up one to stay board-relative; if the top row is already occupied, the
  * victim tops out and loses. ── */
@@ -432,7 +432,7 @@ static void spawn_piece(u8 p) {
   if (!can_place(p, (s16)piece_x[p], (s16)piece_y[p])) game_end(p);
 }
 
-/* ── GAME LOGIC (clay) — land the trio, resolve, attack, respawn. ── */
+/* ── GAME LOGIC (clay) - land the trio, resolve, attack, respawn. ── */
 static void lock_piece(u8 p) {
   s16 i, y;
   u8 chain;
@@ -453,9 +453,9 @@ static void lock_piece(u8 p) {
   spawn_piece(p);
 }
 
-/* ── GAME LOGIC (clay) — per-player input + gravity. Edge-triggered moves
+/* ── GAME LOGIC (clay) - per-player input + gravity. Edge-triggered moves
  * (one cell per press), held DOWN soft-drops. A/B cycle the trio's colours
- * — the classic trio "rotate". P2's pad is just padsCurrent(1). ── */
+ * - the classic trio "rotate". P2's pad is just padsCurrent(1). ── */
 static void update_player(u8 p) {
   u16 pad, newp;
   u8 fd, t;
@@ -493,13 +493,13 @@ static void update_player(u8 p) {
   }
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * The falling trios are the ONLY sprites (board jewels are BG tiles — only
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * The falling trios are the ONLY sprites (board jewels are BG tiles - only
  * what moves every frame earns OAM slots). oamSet's first arg is a BYTE
  * OFFSET into OAM (slot*4), its gfxoffset is a tile INDEX into the OBJ page.
  * Hiding = parking at y=240 (no oamSetEx churn). oamUpdate() queues the
  * shadow table; PVSnesLib's VBlank ISR DMAs it to hardware on channel 7
- * every NMI — so stage sprites BEFORE WaitForVBlank, never after. */
+ * every NMI - so stage sprites BEFORE WaitForVBlank, never after. */
 static void stage_pieces(void) {
   u8 p, i, n;
   s8 y;
@@ -517,7 +517,7 @@ static void stage_pieces(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — state entries ─────────────────────────────────────── */
+/* ── GAME LOGIC (clay) - state entries ─────────────────────────────────────── */
 static void title_enter(void) {
   clear_rows(0, 27);
   consoleDrawText(10, 3, GAME_TITLE);
@@ -527,7 +527,7 @@ static void title_enter(void) {
   consoleDrawText(2, 26, "LR MOVE  A B SPIN  DOWN DROP");
   paint_title_map();
   paint_title_stripe(0);
-  prev_pad0 = 0xFFFF;   /* swallow the press that ENTERED this state — without
+  prev_pad0 = 0xFFFF;   /* swallow the press that ENTERED this state - without
                          * this, the START that left the game-over screen
                          * instantly starts a new 1P run (classic edge-detect
                          * reuse bug) */
@@ -568,7 +568,7 @@ static void start_game(u8 versus) {
   if (versus) spawn_piece(1);
 }
 
-/* Headless-test telemetry — see the static block's comment. */
+/* Headless-test telemetry - see the static block's comment. */
 static void telem_update(void) {
   telem[0] = 'J'; telem[1] = 'W'; telem[2] = 0xBD;
   telem[3] = state;
@@ -590,12 +590,12 @@ int main(void) {
   u16 pad, newp;
   u8 i;
 
-  /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
    * Init order: console text pointers FIRST, then mode, then VRAM uploads
    * while the screen is still off (forced blank = unrestricted VRAM access;
    * once the screen is on, only the vblank DMA path below may touch VRAM).
    * consoleInitText DMAs the font but does NOT set the PPU BG base registers
-   * — point BG1 at the same font/map yourself. */
+   * - point BG1 at the same font/map yourself. */
   consoleSetTextMapPtr(0x6800);
   consoleSetTextGfxPtr(0x3000);
   consoleSetTextOffset(0x0000);
@@ -624,19 +624,19 @@ int main(void) {
 
   setScreenOn();
 
-  /* ── HARDWARE IDIOM (load-bearing) — sfx_init AFTER setScreenOn, and CHECK
+  /* ── HARDWARE IDIOM (load-bearing) - sfx_init AFTER setScreenOn, and CHECK
    * the return: a wedged SPC700 must not take the video down with it. ── */
   sound_ok = (sfx_init() == 0);
-  /* ── HARDWARE IDIOM (load-bearing) — one frame between init and the first
+  /* ── HARDWARE IDIOM (load-bearing) - one frame between init and the first
    * command. sfx_init returns the instant the SPC echoes the jump command,
    * but the driver then spends ~50 port writes initialising the DSP BEFORE
    * it seeds its command edge-detector from $2140. Send a command in that
-   * window and the seed swallows it — music silently never starts. A
-   * WaitForVBlank is thousands of SPC cycles — deterministic cure. ── */
+   * window and the seed swallows it - music silently never starts. A
+   * WaitForVBlank is thousands of SPC cycles - deterministic cure. ── */
   WaitForVBlank();
   if (sound_ok) sfx_music_play();
 
-  hiscore = hi_load();              /* battery SRAM — 0 on first boot */
+  hiscore = hi_load();              /* battery SRAM - 0 on first boot */
   title_enter();
 
   while (1) {
@@ -645,18 +645,18 @@ int main(void) {
     prev_pad0 = pad;
 
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: A/START = 1P, B = 2P versus; the jewel
-       * stripe cycles its hues (board_map is live every frame — free juice) */
+      /* ── GAME LOGIC (clay) - title: A/START = 1P, B = 2P versus; the jewel
+       * stripe cycles its hues (board_map is live every frame - free juice) */
       if ((frames & 31) == 0) paint_title_stripe((u8)(frames >> 5));
       if (newp & (KEY_A | KEY_START)) start_game(0);
       else if (newp & KEY_B) start_game(1);
     } else if (state == ST_PLAY) {
-      /* ── GAME LOGIC (clay — reshape freely) ── */
+      /* ── GAME LOGIC (clay - reshape freely) ── */
       update_player(0);
       if (two_player && state == ST_PLAY) update_player(1);
       if (board_dirty[0]) { paint_board(0); board_dirty[0] = 0; }
       if (board_dirty[1]) { paint_board(1); board_dirty[1] = 0; }
-    } else { /* ST_OVER — boards stay frozen on screen */
+    } else { /* ST_OVER - boards stay frozen on screen */
       if (newp & (KEY_START | KEY_A)) title_enter();
     }
 
@@ -666,7 +666,7 @@ int main(void) {
     oamUpdate();
 
     WaitForVBlank();
-    /* vblank-only writes — FIRST after the wait: the full-board DMA (see the
+    /* vblank-only writes - FIRST after the wait: the full-board DMA (see the
      * shadow-map idiom above + the NES-contrast note in the header). */
     dmaCopyVram((u8 *)board_map, 0x4000, sizeof(board_map));
     consoleVblank();

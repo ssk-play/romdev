@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// romdev-cli — direct CLI for the romdev host.
+// romdev-cli - direct CLI for the romdev host.
 //
 // End users use `play` to fire up a ROM in a window. The other subcommands
 // are smoke-test harnesses that match what the MCP tools do, useful for
@@ -10,7 +10,7 @@
 //   romdev-cli identify <rom-or-zip>
 //   romdev-cli run --core <path> --rom <path> [--frames N] [--screenshot out.png]
 //
-// `play` accepts .zip files — the first ROM-shaped entry is extracted to a
+// `play` accepts .zip files - the first ROM-shaped entry is extracted to a
 // temp file and loaded into the matching libretro core. Platform is
 // inferred from the file extension if not given.
 
@@ -40,7 +40,7 @@ const EXT_TO_PLATFORM = {
   ".md":  "genesis",
   ".gen": "genesis",
   ".smd": "genesis",
-  ".bin": "genesis",  // ambiguous; could be Genesis or other — defaults to Genesis
+  ".bin": "genesis",  // ambiguous; could be Genesis or other - defaults to Genesis
   ".sms": "sms",
   ".gg":  "gg",
   ".a26": "atari2600",
@@ -138,7 +138,7 @@ async function playCommand(romPath, opts) {
   // Hand off to playtest
   const { playtest } = await import("../playtest/playtest.js");
   const scale = opts.scale ? parseInt(opts.scale, 10) : 3;
-  const title = opts.title ?? `romdev-cli — ${path.basename(romPath)}`;
+  const title = opts.title ?? `romdev-cli - ${path.basename(romPath)}`;
   const aspect = opts.aspect === "tv" ? "tv" : "fb";
   const session = await playtest({ host, scale, title, aspect });
   await session.closed;
@@ -179,7 +179,7 @@ async function runCommand(values) {
 }
 
 function usage(exitCode = 0) {
-  console.error(`romdev-cli — homebrew retro game tooling
+  console.error(`romdev-cli - homebrew retro game tooling
 
 Usage:
   romdev-cli play <rom-or-zip> [--platform PLAT] [--scale N] [--title T] [--aspect fb|tv]
@@ -209,7 +209,7 @@ Examples:
 
 async function playHelp() {
   const { KEYBOARD_BINDINGS_HELP } = await import("../playtest/playtest.js");
-  console.error(`romdev-cli play — open a ROM in a native window
+  console.error(`romdev-cli play - open a ROM in a native window
 
 Usage:
   romdev-cli play <rom-or-zip> [options]

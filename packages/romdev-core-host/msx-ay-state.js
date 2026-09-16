@@ -1,7 +1,7 @@
 // MSX AY-3-8910 (PSG) decoder.
 //
 // Data source: the `msx_psg_regs` region (id 0x1C5) exposed by our patched
-// blueMSX core — the chip's 16 registers, the standard AY-3-8910 layout:
+// blueMSX core - the chip's 16 registers, the standard AY-3-8910 layout:
 //   R0/R1   channel A tone period (12-bit: R0 = fine, R1 low nibble = coarse)
 //   R2/R3   channel B tone period
 //   R4/R5   channel C tone period
@@ -11,7 +11,7 @@
 //   R8/R9/R10  channel A/B/C amplitude (bit 4 = use-envelope, bits 0-3 = level)
 //   R11/R12 envelope period (16-bit)
 //   R13     envelope shape (CONT/ATT/ALT/HOLD)
-//   R14/R15 I/O ports A/B (joysticks/keyboard on MSX — not audio)
+//   R14/R15 I/O ports A/B (joysticks/keyboard on MSX - not audio)
 //
 // MSX PSG clock is 1.7897725 MHz; tone f = clock / (16 * period).
 

@@ -1,4 +1,4 @@
-/* gg_music.h — minimal Game Gear PSG music engine.
+/* gg_music.h - minimal Game Gear PSG music engine.
  *
  * Companion to gg_sfx (sfx wrapper). Where sfx_tone() plays a single
  * fire-and-forget tone with a countdown, music_play() runs an entire
@@ -6,13 +6,13 @@
  * per call to music_update() (call once per frame, 60 Hz).
  *
  * Same SN76489 PSG chip + same I/O port ($7F) as SMS, so the protocol
- * is identical — only difference vs the (parallel) SMS driver is the
+ * is identical - only difference vs the (parallel) SMS driver is the
  * file name. We intentionally keep gg_music/sms_music independent (no
  * shared common-z80 lib), matching the existing gg_sfx / sms_sfx /
  * genesis_sfx split. If somebody later wants to consolidate they can
  * lift the byte-identical bits into a common file.
  *
- * Song format — see gg_music.c for the full breakdown. TL;DR each row
+ * Song format - see gg_music.c for the full breakdown. TL;DR each row
  * is a (note, duration_frames) pair stored as 10-bit PSG freq divider
  * and an 8-bit frame count. Duration 0 = end-of-song sentinel; the
  * engine then either stops (one-shot) or restarts the song (loop).
@@ -59,7 +59,7 @@ extern const uint8_t music_song_count;
 
 /* ── SN76489 note table (10-bit freq dividers @ ~3.58 MHz) ────────
  * Formula: divider = 3579545 / (32 * Hz). Higher divider = lower pitch.
- * Octave indices roughly cover C3..C6 — comfortable handheld range.
+ * Octave indices roughly cover C3..C6 - comfortable handheld range.
  */
 #define NOTE_REST 0
 
@@ -70,7 +70,7 @@ extern const uint8_t music_song_count;
 #define NOTE_G3   571
 #define NOTE_A3   509
 #define NOTE_B3   453
-#define NOTE_C4   428  /* 261.63 Hz — middle C */
+#define NOTE_C4   428  /* 261.63 Hz - middle C */
 #define NOTE_D4   381
 #define NOTE_E4   339
 #define NOTE_F4   320

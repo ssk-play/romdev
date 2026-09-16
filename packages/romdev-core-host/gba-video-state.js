@@ -5,9 +5,9 @@
 // read DISPCNT/BGxCNT/OAM/palette directly instead of guessing. All three
 // source regions are confirmed working in the patched mgba core:
 //
-//   gba_io_regs  — 0x400 bytes, the IO page at $4000000 (DISPCNT @ $00, etc.)
-//   gba_palette  — 0x400 bytes, 512 × u16 BGR555 (256 BG @ [0..255], 256 OBJ)
-//   gba_oam      — 0x400 bytes, 128 sprites × 8 bytes (attr0/1/2 + affine)
+//   gba_io_regs  - 0x400 bytes, the IO page at $4000000 (DISPCNT @ $00, etc.)
+//   gba_palette  - 0x400 bytes, 512 × u16 BGR555 (256 BG @ [0..255], 256 OBJ)
+//   gba_oam      - 0x400 bytes, 128 sprites × 8 bytes (attr0/1/2 + affine)
 //
 // All multi-byte fields are little-endian (ARM is LE).
 
@@ -60,8 +60,8 @@ export function decodeGbaSprites(oam, opts = {}) {
     const attr2 = u16le(oam, o + 4);
 
     const y = attr0 & 0xff;
-    const affine = !!(attr0 & 0x100);       // bit8 — rotation/scaling enabled
-    const doubleOrDisable = !!(attr0 & 0x200); // bit9 — double-size OR disable
+    const affine = !!(attr0 & 0x100);       // bit8 - rotation/scaling enabled
+    const doubleOrDisable = !!(attr0 & 0x200); // bit9 - double-size OR disable
     const objMode = (attr0 >> 10) & 0x3;    // 0 normal, 1 semi-trans, 2 window
     const shape = (attr0 >> 14) & 0x3;      // 0 square, 1 wide, 2 tall
 
@@ -81,7 +81,7 @@ export function decodeGbaSprites(oam, opts = {}) {
     const dims = OBJ_DIMENSIONS[shape] ? OBJ_DIMENSIONS[shape][sizeField] : { w: 8, h: 8 };
 
     // Visibility: a non-affine sprite with bit9 set is the "disable" flag
-    // (hidden). For affine sprites bit9 is double-size, NOT a hide — so an
+    // (hidden). For affine sprites bit9 is double-size, NOT a hide - so an
     // affine sprite is never hidden via bit9. objMode 2 is the OBJ-window mode
     // (drawn into the window mask, not visible as a normal sprite).
     const disabled = !affine && doubleOrDisable;
@@ -157,7 +157,7 @@ export function decodeGbaPalette(palette, which = "all") {
 
 /**
  * Decode the GBA display/background control registers into a rendering-context
- * summary — the "is anything actually going to draw?" snapshot.
+ * summary - the "is anything actually going to draw?" snapshot.
  *
  * @param {Uint8Array} io the 0x400-byte `gba_io_regs` region (IO page @ $4000000)
  * @returns {{
@@ -209,7 +209,7 @@ export function decodeGbaRenderingContext(io) {
     note:
       "Decoded from gba_io_regs (IO page @ $4000000). bgMode 0-2 are tiled, 3-5 " +
       "are bitmap modes (BG2 only). forcedBlank (DISPCNT bit7) blanks the whole " +
-      "screen to white regardless of layer enables — check it first if the " +
+      "screen to white regardless of layer enables - check it first if the " +
       "screen is white. charBase is ×16KB, mapBase ×2KB into VRAM.",
   };
 }

@@ -13,7 +13,7 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-// (textFile/binaryFile live in the pure ./io.js — no worker import here, so
+// (textFile/binaryFile live in the pure ./io.js - no worker import here, so
 // importing this module never pulls the child-process pool.)
 
 /**
@@ -33,13 +33,13 @@ export function resolveGlueFile({ pkg, file, localDir, label }) {
     const u = import.meta.resolve(pkg);
     const p = path.join(path.dirname(fileURLToPath(u)), "wasm", file);
     if (existsSync(p)) return p;
-  } catch { /* package not resolvable — fall through to local */ }
+  } catch { /* package not resolvable - fall through to local */ }
   // localDir may be a file: URL (wrappers that must stay free of top-level
-  // node imports pass `new URL(".", import.meta.url).href`) — convert here.
+  // node imports pass `new URL(".", import.meta.url).href`) - convert here.
   if (localDir?.startsWith("file:")) localDir = fileURLToPath(localDir);
   const local = path.join(localDir, "wasm", file);
   if (existsSync(local)) return local;
-  throw new Error(`${label ?? file} WASM not found — install ${pkg}`);
+  throw new Error(`${label ?? file} WASM not found - install ${pkg}`);
 }
 
 /**
@@ -59,10 +59,10 @@ export function resolveToolBaseDir({ pkg, sentinel, localDir, label }) {
     const u = import.meta.resolve(pkg);
     const dir = path.dirname(fileURLToPath(u));
     if (existsSync(path.join(dir, sentinel))) return dir;
-  } catch { /* package not resolvable — fall through to local */ }
+  } catch { /* package not resolvable - fall through to local */ }
   if (localDir?.startsWith("file:")) localDir = fileURLToPath(localDir);
   if (existsSync(path.join(localDir, sentinel))) return localDir;
-  throw new Error(`${label ?? pkg} WASM not found — install ${pkg}`);
+  throw new Error(`${label ?? pkg} WASM not found - install ${pkg}`);
 }
 
 /**

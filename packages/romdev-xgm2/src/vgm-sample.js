@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.VGMSample — a VGM sample (time in 1/44100 s).
+// Port of sgdk.xgm2tool.format.VGMSample - a VGM sample (time in 1/44100 s).
 
 import { VGMSampleData } from "./vgm-sample-data.js";
 

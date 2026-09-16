@@ -67,10 +67,10 @@ L/R shoulders. ESC closes the window.
 The gamepad keeps working when the window is not focused (`initSdl()` sets
 SDL's joystick background-events hint, so you can watch a terminal while
 playing; export `SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS=0` to restore the
-focus-gated default). The keyboard fallback still requires focus — keys
+focus-gated default). The keyboard fallback still requires focus - keys
 route to the focused window.
 
-The title bar shows live fps (`<game> | 60 fps`, updated once a second) —
+The title bar shows live fps (`<game> | 60 fps`, updated once a second) -
 the rate the machine actually achieves, not the target.
 
 ## SDL availability
@@ -99,16 +99,16 @@ math without the stock window: `SDL_BUTTON_TO_LIBRETRO_BIT`,
 axis unit → −1..1), `makeTriggerState()` + `deriveTriggerState(axes, state)`
 (analog triggers → L2/R2 bits + 0..1 pressure, baseline-relative with
 hysteresis so an X360 trigger that idles mid-scale neither sticks nor
-chatters — use this instead of a raw threshold so every window agrees on
+chatters - use this instead of a raw threshold so every window agrees on
 "pressed"; `TRIGGER_PRESS`/`TRIGGER_RELEASE` are the constants),
 `bitToName(bit)`,
 `tvAspectFor(platform, displayAspect)`,
 `effectiveAspect(statusAspect, fbW, fbH)` (a usable ratio even when the
 host reports 0/NaN), `initialWindowSize({fbWidth, fbHeight, scale,
-aspectMode, platform, displayAspect})` (the tested open-size math — never
+aspectMode, platform, displayAspect})` (the tested open-size math - never
 produces a zero-size window), `letterbox(winW, winH, aspect)`,
 `framebufferToRgba(fb, out?)` (pass the previous return value as `out` to
-reuse the buffer across ticks — no per-frame allocation), and
+reuse the buffer across ticks - no per-frame allocation), and
 `drawFpsOverlay(rgba, width, height, fps)` (the corner fps counter, pure
 pixel writes), plus `initSdl()` (the hardened loader) and
 `sdlPackageRoot()`.

@@ -12,7 +12,7 @@ import { glStackAvailable } from "romdev-core-host/glOptionalDep.js";
 
 // A minimal pixel-writing program: bring up the PowerVR2 framebuffer via the bundled
 // dc.h helper and paint three solid bars + a white frame on a dark-blue field. No TA
-// list, no KallistiOS — Flycast's framebuffer-emulation path presents it.
+// list, no KallistiOS - Flycast's framebuffer-emulation path presents it.
 const SRC = `#include "dc.h"
 void main(void) {
   dc_video_init();
@@ -27,13 +27,13 @@ void main(void) {
 
 test("dreamcast: a C homebrew builds (sh-elf-gcc) + boots on Flycast reios + renders via native-gles",
   { timeout: 180000 }, async () => {
-    // build — sh-elf-gcc → an ELF Flycast boots directly (dc.h is auto-bundled).
+    // build - sh-elf-gcc → an ELF Flycast boots directly (dc.h is auto-bundled).
     const built = await buildForPlatform({ platform: "dreamcast", source: SRC });
     assert.ok(built.ok, `homebrew builds: ${built.stage} ${(built.log || "").slice(-300)}`);
     assert.ok(built.binary?.length > 0, "produced an ELF");
     assert.equal(built.binary[0], 0x7f, "ELF magic (0x7f 'E' 'L' 'F')");
 
-    // run — only if the GL stack (native-gles + webgl-node) is installed; flycast is a
+    // run - only if the GL stack (native-gles + webgl-node) is installed; flycast is a
     // HW-render core and can't present without it.
     if (!(await glStackAvailable())) { console.log("GL stack unavailable; skipping run"); return; }
     const core = resolveCore("dreamcast");
@@ -82,14 +82,14 @@ test("dreamcast: cpuState (SH-4 regs) + audioDebug (AICA) read from the rebuilt 
       await host.loadMedia({ platform: "dreamcast", bytes: built.binary, virtualName: "/built.elf" });
       for (let i = 0; i < 60; i++) host.stepFrames(1);
 
-      // cpuState — SH-4 PC + SP land in the KOS-linked RAM region (0x8C00_0000+).
+      // cpuState - SH-4 PC + SP land in the KOS-linked RAM region (0x8C00_0000+).
       const cs = getCPUState(host, "dreamcast");
       assert.ok(cs, "getCPUState returned a state");
       assert.equal(((cs.pc >>> 0) & 0xf0000000) >>> 0, 0x80000000, `PC in SH-4 space (got ${cs.pcHex})`);
       assert.ok(cs.flags && "T" in cs.flags, "SR flags decoded");
       assert.ok("r15" in cs.registers, "r15 present");
 
-      // audioDebug — the AICA decode gives 64 channels + a master volume.
+      // audioDebug - the AICA decode gives 64 channels + a master volume.
       assert.ok(host.aicaRegsSupported(), "AICA export present");
       const aica = decodeAica(host.getAicaRegs());
       assert.equal(aica.chip, "aica");

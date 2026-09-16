@@ -4,7 +4,7 @@
 //   3. MCP loadMedia loads the resulting ROM into the bundled stella core.
 //   4. MCP stepAndScreenshot captures a PNG.
 //
-// If this passes, the entire v1 promise — write code, build, run, see — works
+// If this passes, the entire v1 promise - write code, build, run, see - works
 // for at least one platform with zero external dependencies.
 
 import { test } from "node:test";

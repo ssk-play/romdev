@@ -1,4 +1,4 @@
-// dispatch.js — resource-aware parallel candidate production.
+// dispatch.js - resource-aware parallel candidate production.
 //
 // `runBatch` is a serial `for` loop: it generates and compares one function at
 // a time even when the functions live in independent translation units. On a
@@ -29,7 +29,7 @@
 import os from "node:os";
 
 /** Worker classes, with their starting memory estimates (MiB). Estimates are
- *  only a seed — measured peak RSS replaces them as soon as one completes. */
+ *  only a seed - measured peak RSS replaces them as soon as one completes. */
 export const WORKER_CLASSES = Object.freeze({
   generate: { label: "m2c generation", startMiB: 400 },
   compare: { label: "candidate compile + compare", startMiB: 600 },
@@ -146,7 +146,7 @@ export class Dispatcher {
       measuredPeakMiB: Object.fromEntries([...this.measured].map(([k, v]) => [k, { peakMiB: v.peakMiB, samples: v.samples }])),
       stats: this.stats,
       policy: "admission is by MEASURED memory, not a hardcoded worker count; per-TU locks keep two workers off the same owner; "
-        + "parallelism ends at candidate/evidence production — shared source edits and integration stay serialized behind the "
+        + "parallelism ends at candidate/evidence production - shared source edits and integration stay serialized behind the "
         + "function, TU-collateral and full-ROM gates.",
     };
   }
@@ -269,7 +269,7 @@ export async function triage(project, symbols, {
     counts, buckets,
     dispatcher: d.report(),
     note: "TRIAGE ONLY: nothing was integrated and the project tree was not modified. "
-      + "'exact-pending-semantic-review' means byte-exact, NOT accepted — a candidate can be exact and artificial, "
+      + "'exact-pending-semantic-review' means byte-exact, NOT accepted - a candidate can be exact and artificial, "
       + "so it still needs the semantic gate before integration.",
   };
 }

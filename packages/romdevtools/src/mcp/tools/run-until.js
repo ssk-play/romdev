@@ -1,4 +1,4 @@
-// `runUntil` — step frames until a predicate holds (or a max-frames cap is hit).
+// `runUntil` - step frames until a predicate holds (or a max-frames cap is hit).
 //
 // Predicate shapes the agent can use:
 //   { type: "memory", region, offset, equals|notEquals|mask }
@@ -14,9 +14,9 @@ import { attachObserverFrame } from "./watch-memory.js";
 
 export function registerRunUntilTools(server, z, sessionKey) {
   // Condition `region` is a runtime-validated string, not a schema enum. It was
-  // an inlined 8-value list — which both bloated the schema AND silently rejected
+  // an inlined 8-value list - which both bloated the schema AND silently rejected
   // valid non-NES regions (genesis_*, c64_*, *_apu_regs) that host.readMemory
-  // accepts. The readMemory(region,…) call in the handler validates and throws a
+  // accepts. The readMemory(region,...) call in the handler validates and throws a
   // clear message on an unknown region (full canonical set, same as `memory`).
   const regionStr = z.string().describe("memory region (full readMemory set, e.g. system_ram, nes_oam, genesis_vram, c64_color_ram; validated at runtime)");
   const memoryCondition = z.object({

@@ -14,7 +14,7 @@ import { decodeCode, encodeForDevice, nativeDevicesFor } from "romdev-core-host/
 test("nesFileOffsetToCpu: banked ROM byte maps to the in-bank CPU addr, not a +$8000 overflow", () => {
   // An NES action game: mapper 2, 8 × 16KB PRG = 128KB. The feedback's byte: prg offset
   // 0xDE03 (raw .nes offset 0xDE13) → bank 3, CPU $9E03. The OLD code gave
-  // $15E03 (0xDE03 + 0x8000) — a non-address > $FFFF.
+  // $15E03 (0xDE03 + 0x8000) - a non-address > $FFFF.
   const prgSize = 8 * 16384;
   const r = nesFileOffsetToCpu(0xDE03 + 16, prgSize);
   assert.ok(r, "should map an in-PRG offset");
@@ -46,7 +46,7 @@ test("nesFileOffsetToCpu: offset outside PRG returns null", () => {
 test("a raw ADDR:VAL:COMPARE on an NES ROM address re-encodes to the working Game Genie code", () => {
   // The exact feedback case: raw "C06C:0C:26" silently no-ops (treated as a RAM
   // poke), while the Game Genie "GATKGATX" of the SAME patch works. The
-  // re-encode now emits the canonical spelling GAVKGATX — same triple, with
+  // re-encode now emits the canonical spelling GAVKGATX - same triple, with
   // the 8-char length marker (bit 3 of letter 3) set the way Galoob and real
   // hardware set it; fceumm decodes both spellings identically.
   const raw = "C06C:0C:26";
@@ -84,5 +84,5 @@ test("findEncodedText cpuAddress generalizes: GB banks + Genesis flat (not NES-o
   assert.equal(gbBank, 1);
   assert.equal(gbCpu, 0x5123);
   // Genesis: flat ROM at $000000, file offset == CPU address.
-  assert.equal(0x1234, 0x1234); // identity — documents the contract
+  assert.equal(0x1234, 0x1234); // identity - documents the contract
 });

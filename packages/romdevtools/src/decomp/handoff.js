@@ -1,4 +1,4 @@
-// handoff.js — a handoff that is generated and audited, not narrated.
+// handoff.js - a handoff that is generated and audited, not narrated.
 //
 // The current handoff grew by PREPENDING hundreds of narrative entries. Every
 // fact in it was true when written, which is exactly the problem: current facts
@@ -9,7 +9,7 @@
 //
 // So this GENERATES the summary from the workspace and the checkout, and AUDITS
 // every path it references. A dependency that no longer exists is reported as
-// broken rather than carried forward as if it were still there — a handoff
+// broken rather than carried forward as if it were still there - a handoff
 // whose references have rotted is worse than a short one, because it sends the
 // next agent to files that are gone.
 //
@@ -103,13 +103,13 @@ export async function generateHandoff(project, { limit = 20 } = {}) {
 
   // ── the human-readable half, generated from the same facts ──
   const md = [
-    `# ${project.id} — generated handoff`,
+    `# ${project.id} - generated handoff`,
     ``,
     `Generated ${manifest.generatedAt}. Every fact below was read from the workspace and the checkout at that moment.`,
     ``,
     `## State`,
     `- commit: **${freshness.liveGit?.head ?? "?"}** (${freshness.liveGit?.dirtyFiles ?? "?"} modified/untracked)`,
-    `- manifest: **${freshness.manifestState}**${freshness.staleReasons.length ? ` — ${freshness.staleReasons.join("; ")}` : ""}`,
+    `- manifest: **${freshness.manifestState}**${freshness.staleReasons.length ? ` - ${freshness.staleReasons.join("; ")}` : ""}`,
     `- build freshness: **${freshness.buildFreshness}**; built ROM matches base: **${progress?.builtRomMatchesBase ?? "unknown"}**`,
     ``,
     `> A matching ROM proves the MIXED C/asm build is byte-exact. It does NOT mean the game is decompiled.`,
@@ -117,7 +117,7 @@ export async function generateHandoff(project, { limit = 20 } = {}) {
     `## Completion (separate dimensions, deliberately not one number)`,
     ledger ? `- game CPU code in C: **${ledger.dimensions["game-cpu-code"]?.percentInC ?? "?"}%**` : "- (ledger unavailable)",
     ledger ? `- library code in C: **${ledger.dimensions["library-code"]?.percentInC ?? "?"}%**` : "",
-    ledger ? `- opaque ROM bytes: **${ledger.dimensions["compressed-archives"]?.bytes ?? "?"}** of ${ledger.rom?.bytes ?? "?"} — assets and audio, NOT "undecompiled code"` : "",
+    ledger ? `- opaque ROM bytes: **${ledger.dimensions["compressed-archives"]?.bytes ?? "?"}** of ${ledger.rom?.bytes ?? "?"} - assets and audio, NOT "undecompiled code"` : "",
     ``,
     `## Queues`,
     ...(plan?.workClasses ? Object.entries(plan.workClasses.counts).filter(([, v]) => v.functions)
@@ -126,11 +126,11 @@ export async function generateHandoff(project, { limit = 20 } = {}) {
     `## Next falsifiable experiments`,
     ...(nextExperiments.length ? nextExperiments.map((n) => `- \`${n.symbol}\` (${n.sizeBytes}B): ${n.falsifiableNext}`) : ["- (queue empty)"]),
     ``,
-    ...(families.length ? [`## Dead source families — do NOT re-run these`,
+    ...(families.length ? [`## Dead source families - do NOT re-run these`,
       ...families.map((f) => `- \`${f.symbol}\`: ${f.dead.join(", ")}`), ``] : []),
     `## Dependency audit`,
     broken.length
-      ? `**${broken.length} of ${audited.length} referenced paths are MISSING** — this handoff's references have rotted:\n${broken.slice(0, 10).map((b) => `  - ${b.label}: \`${b.path}\``).join("\n")}`
+      ? `**${broken.length} of ${audited.length} referenced paths are MISSING** - this handoff's references have rotted:\n${broken.slice(0, 10).map((b) => `  - ${b.label}: \`${b.path}\``).join("\n")}`
       : `All ${audited.length} referenced paths exist.`,
     ``,
     `## Resume`,
@@ -146,7 +146,7 @@ export async function generateHandoff(project, { limit = 20 } = {}) {
     markdown: md,
     auditPassed: broken.length === 0,
     note: broken.length
-      ? "The dependency audit FAILED: this handoff references paths that no longer exist. Fix or re-generate before handing it on — a handoff whose references have rotted sends the next agent to files that are gone."
+      ? "The dependency audit FAILED: this handoff references paths that no longer exist. Fix or re-generate before handing it on - a handoff whose references have rotted sends the next agent to files that are gone."
       : "Dependency audit passed: every path referenced here exists right now.",
   };
 }

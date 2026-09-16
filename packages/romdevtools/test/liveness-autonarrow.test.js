@@ -29,9 +29,9 @@ function makeStateHost({ frozen }) {
       return n;
     },
     readMemory: () => new Uint8Array(4),
-    mod: {}, // getCPUState probes host.mod — give it something inert
+    mod: {}, // getCPUState probes host.mod - give it something inert
   };
-  // getCPUState(host) will throw on this fake (no real core) — the probe treats
+  // getCPUState(host) will throw on this fake (no real core) - the probe treats
   // that as pc:null and falls back to framebuffer change, which is what we test.
   return host;
 }
@@ -70,7 +70,7 @@ test("probeLiveness:false skips the probe entirely", async () => {
   _setHostForTest("liveness-test", host);
   const res = parseResult(await getStateHandler()({ op: "load", name: "slot", probeLiveness: false }));
   assert.equal(res.liveness, undefined);
-  assert.equal(stepped, 0); // render uses renderOneFrame, not stepFrames — no probe frames ran
+  assert.equal(stepped, 0); // render uses renderOneFrame, not stepFrames - no probe frames ran
 });
 
 // ── autoNarrow ─────────────────────────────────────────────────────────────

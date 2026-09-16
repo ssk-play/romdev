@@ -59,7 +59,7 @@ MAIN:
   LDA #0
   STA VSYNC
 
-  ; ── VBLANK (37 lines) — game logic here ───────────────────────
+  ; ── VBLANK (37 lines) - game logic here ───────────────────────
   LDA #2
   STA VBLANK
   LDX #37

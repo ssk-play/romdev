@@ -1,4 +1,4 @@
-// romdev_game_codes — the bundled game-code/cheat database for romdev, as its
+// romdev_game_codes - the bundled game-code/cheat database for romdev, as its
 // own package.
 //
 // Why a separate package: the pre-parsed cheat index is ~29MB of JSON. Keeping
@@ -6,7 +6,7 @@
 // its own cadence (more games, more platforms) without churning the main
 // package. romdev-mcp depends on this package and resolves it at runtime via
 // `import.meta.resolve("romdev_game_codes")`, then lazy-loads ONE platform's JSON
-// on demand — never the whole DB into memory.
+// on demand - never the whole DB into memory.
 //
 // Coverage: one `index/<platform>.json` per supported platform that the
 // RetroArch/RetroDECK community cheats tree actually carries. Source data is the

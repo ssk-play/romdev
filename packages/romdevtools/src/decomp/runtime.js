@@ -1,4 +1,4 @@
-// runtime.js — overlay-aware runtime inspection for a decomp project:
+// runtime.js - overlay-aware runtime inspection for a decomp project:
 //   overlays   which overlay is loaded at a shared VA, from the BYTES in RAM
 //              compared with each candidate segment's ROM bytes (evidence,
 //              not a guess)
@@ -142,7 +142,7 @@ export async function traceFunction(project, { sessionKey, symbol, va, segment, 
   const probe = await probeCore(sessionKey);
   if (!probe.pcBreak.supported) {
     return { function: { symbol: fn.symbol, segment: fn.segment, va: fn.vaHex }, captured: false, code: "PC_BREAK_UNSUPPORTED", coreProbe: probe,
-      recipe: project.m.platform === "n64" ? "N64 PC breaks need romdev-core-parallel-n64 >= 0.3.0 (the hook is in the default cached-interpreter CPU; no core option needed) — check catalog({op:'status'}) for the core version and update the package" : undefined,
+      recipe: project.m.platform === "n64" ? "N64 PC breaks need romdev-core-parallel-n64 >= 0.3.0 (the hook is in the default cached-interpreter CPU; no core option needed) - check catalog({op:'status'}) for the core version and update the package" : undefined,
       evidence: `the loaded core does not stop at a PC break (${probe.pcBreak.evidence}) and ${probe.singleStep.supported ? "single-steps" : "does not single-step (" + probe.singleStep.evidence + ")"}: argument/return capture is not available on this core. What IS available: overlays (bytes in RAM), symbolize (live VA), state, smoke (pixels + registers at frame boundaries), and the static call targets below.`,
       staticCallTargets: await staticCallTargets(project, fn), provenance: prov, ms: Date.now() - t0 };
   }
@@ -150,7 +150,7 @@ export async function traceFunction(project, { sessionKey, symbol, va, segment, 
   const sampledHere = (hit.pcHistogram ?? []).some((h) => parseInt(String(h.pc).replace("$", ""), 16) === fn.va);
   if (!hit.hit) {
     return { function: { symbol: fn.symbol, segment: fn.segment, va: fn.vaHex }, captured: false, code: sampledHere ? "PC_BREAK_UNSUPPORTED" : "NOT_REACHED",
-      evidence: sampledHere ? `the frame sampler saw PC=${fn.vaHex} (${hit.pcHistogram.find((h) => parseInt(String(h.pc).replace("$", ""), 16) === fn.va)?.hits} samples) but the core's PC break never fired: parallel_n64's recompiled CPU does not honour PC breaks reliably — argument/return capture is not available on this core` : `PC never reached ${fn.vaHex} within ${hit.framesRun ?? maxFrames} frames (drive the scenario with pressDuring)`,
+      evidence: sampledHere ? `the frame sampler saw PC=${fn.vaHex} (${hit.pcHistogram.find((h) => parseInt(String(h.pc).replace("$", ""), 16) === fn.va)?.hits} samples) but the core's PC break never fired: parallel_n64's recompiled CPU does not honour PC breaks reliably - argument/return capture is not available on this core` : `PC never reached ${fn.vaHex} within ${hit.framesRun ?? maxFrames} frames (drive the scenario with pressDuring)`,
       framesRun: hit.framesRun, pcHistogram: hit.pcHistogram, mainThreadPc: hit.mainThreadPc, provenance: prov, ms: Date.now() - t0 };
   }
   const cpu = await callTool(reg, "cpu", { op: "read" }, sessionKey);
@@ -256,7 +256,7 @@ export async function coverage(project, { sessionKey, frames = 600, inputs = [],
   const file = path.join(outDir, `${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
   const method = covBitmap
     ? covExact
-      ? `instruction-exact: the core's PC coverage BITMAP (one bit per ${covGranularity}-byte PC over [${hx(lo)}, ${hx(hi)}), uncapped) — every executed instruction in the scenario is recorded`
+      ? `instruction-exact: the core's PC coverage BITMAP (one bit per ${covGranularity}-byte PC over [${hx(lo)}, ${hx(hi)}), uncapped) - every executed instruction in the scenario is recorded`
       : `PC coverage BITMAP at ${covGranularity}-byte granularity, COARSER than this CPU's instruction alignment: adjacent instructions inside one ${covGranularity}-byte group share a PC`
     : probe.singleStep.supported
       ? `frame-boundary PC every frame + up to ${stepBudget} single-stepped instructions`
@@ -265,7 +265,7 @@ export async function coverage(project, { sessionKey, frames = 600, inputs = [],
     functions: { total: funcs.length, observed: observed.length, unobserved: unobserved.length, unreferenced: unreferenced.length },
     basicBlocks: covBitmap || probe.singleStep.supported ? { available: true, total: blocksTotal, observed: blocksObserved, perFunction: blocks.sort((a, b) => b.blocks - a.blocks).slice(0, 40) } : { available: false, reason: "no instruction-level PC source on this core" },
     observed: observed.slice(0, 60), unobservedTop: unobserved.slice(0, 40), unreferencedTop: unreferenced.slice(0, 40),
-    distinction: "unobserved = has a static caller (R_MIPS_26) and was never executed in this scenario; unreferenced = no static caller anywhere (jump-table/function-pointer target or dead code) — neither is proof of unreachability",
+    distinction: "unobserved = has a static caller (R_MIPS_26) and was never executed in this scenario; unreferenced = no static caller anywhere (jump-table/function-pointer target or dead code) - neither is proof of unreachability",
     honesty: samples > 0 && exceptionSamples === samples ? "every sample was the exception vector: this scenario observed NO game function" : undefined,
     provenance: prov, ms: Date.now() - t0, file };
   await writeFile(file, JSON.stringify(report, null, 2));
@@ -292,7 +292,7 @@ export function basicBlocks(stream, baseVa) {
   for (let i = 0; i < n; i++) {
     const w = stream[i].word >>> 0;
     const op = w >>> 26;
-    const isBranch = (op >= 1 && op <= 7) || (op >= 20 && op <= 23) || (op === 17 && ((w >>> 21) & 0x1f) === 8); // REGIMM/beq/bne/blez/bgtz/…l, bc1
+    const isBranch = (op >= 1 && op <= 7) || (op >= 20 && op <= 23) || (op === 17 && ((w >>> 21) & 0x1f) === 8); // REGIMM/beq/bne/blez/bgtz/...l, bc1
     const isJ = op === 2 || op === 3;
     const isJr = op === 0 && ((w & 0x3f) === 8 || (w & 0x3f) === 9);
     if (isBranch) { const off = (w << 16) >> 16; const t = i + 1 + off; if (t >= 0 && t < n) leaders.add(t); if (i + 2 < n) leaders.add(i + 2); }

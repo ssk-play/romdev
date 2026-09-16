@@ -1,13 +1,13 @@
-/* ── tonc_hello.c — Game Boy Advance libtonc starter (TTE) ──────────
+/* ── tonc_hello.c - Game Boy Advance libtonc starter (TTE) ──────────
  *
  * Idiomatic Tonc-tutorial-style hello world. Uses TTE (Tonc Text
- * Engine) to draw "Hello, Tonc!" on a Mode-0 tile background — the
+ * Engine) to draw "Hello, Tonc!" on a Mode-0 tile background - the
  * canonical "Hello GBA" pattern from gbadev.net/tonc.
  *
  * Build via romdev:
  *   build({ output: "rom", platform:"gba", language:"c", source: <this file>})
  *
- * (defaults to runtime:"libtonc" — pass {runtime:"libgba"} to use
+ * (defaults to runtime:"libtonc" - pass {runtime:"libgba"} to use
  *  devkitPro's libgba instead, or {runtime:"none"} for bare gcc.)
  *
  * The bundled libtonc runtime gives you the canonical Tonc-book API:
@@ -22,10 +22,10 @@
  *   - VBlankIntrWait()              frame heartbeat
  *
  * ⚠️  One omission: libtonc's `tte_iohook` (auto-routing of printf /
- *    iprintf through TTE via libsysbase) is NOT bundled — same
+ *    iprintf through TTE via libsysbase) is NOT bundled - same
  *    reason as libgba's console.c. Use `tte_write` / `tte_printf`
  *    directly (which is what every Tonc tutorial actually does
- *    anyway). The Tonc book never says `iprintf` — it says
+ *    anyway). The Tonc book never says `iprintf` - it says
  *    `tte_printf`. Following that pattern keeps your code portable.
  */
 
@@ -34,7 +34,7 @@
 /* ── Backdrop tiles (4bpp, 8 rows × 32 bits) ─────────────────────────
  * Two solid colour tiles so the whole BG0 map reads as a checkerboard,
  * not a flat blank backdrop. Every nibble of tile 1 = palette index 1,
- * every nibble of tile 2 = palette index 2 — so the tile is one solid
+ * every nibble of tile 2 = palette index 2 - so the tile is one solid
  * colour. (m3_fill's tiled-mode equivalent: paint the whole screen.) */
 static const u32 tile_solid1[8] = {
     0x11111111, 0x11111111, 0x11111111, 0x11111111,
@@ -48,7 +48,7 @@ static const u32 tile_solid2[8] = {
 int main(void) {
     /* ── Filled tiled backdrop on BG0 ────────────────────────────
      * Without this the screen is just the black backdrop colour and a
-     * few text glyphs — which reads as "blank". We lay a two-tone
+     * few text glyphs - which reads as "blank". We lay a two-tone
      * checkerboard across the entire 32x32 BG0 map so a clear majority
      * of the screen is coloured (the GBA tiled-mode analogue of
      * m3_fill-ing a Mode-3 framebuffer). Tile data → char-block 0,
@@ -67,13 +67,13 @@ int main(void) {
     }
 
     /* Initialise TTE in 4-bits-per-pixel chr-mode with the built-in
-     * sys8 font. Cleanest API in the entire GBA ecosystem — one call
+     * sys8 font. Cleanest API in the entire GBA ecosystem - one call
      * gets you a usable text terminal. We put it on BG1 (char-block 2,
      * screen-block 30) so it sits cleanly in front of the BG0 backdrop.
      *
-     * NOTE: we deliberately do NOT call tte_init_con() — that lives
+     * NOTE: we deliberately do NOT call tte_init_con() - that lives
      * in the excluded tte_iohook.c (the libsysbase bridge). Without
-     * it, printf/iprintf don't route through TTE — but `tte_write` /
+     * it, printf/iprintf don't route through TTE - but `tte_write` /
      * `tte_printf` work directly without any libsysbase plumbing,
      * which is what the Tonc tutorial uses everywhere anyway. */
     tte_init_chr4c_default(1, BG_CBB(2) | BG_SBB(30));
@@ -86,7 +86,7 @@ int main(void) {
     irq_init(NULL);
     irq_add(II_VBLANK, NULL);
 
-    /* Set DISPCNT — turn on BG0 (the filled backdrop) and BG1 (TTE
+    /* Set DISPCNT - turn on BG0 (the filled backdrop) and BG1 (TTE
      * text). DCNT_MODE0 is the tile-BG mode. */
     REG_DISPCNT = DCNT_MODE0 | DCNT_BG0 | DCNT_BG1;
 
@@ -96,12 +96,12 @@ int main(void) {
     tte_write("Built with romdev\n");
 
     /* NOTE: tte_printf with a %d/%05d conversion is broken in this libtonc
-     * build (it garbles output + can wedge the loop — GBA-1). For dynamic
+     * build (it garbles output + can wedge the loop - GBA-1). For dynamic
      * numbers, build the string yourself and tte_write it (see the genre
      * scaffolds' draw_score). For static text just tte_write a literal: */
     tte_write("#{P:32,80}Year: 2026\n");
 
-    /* Game loop. VBlankIntrWait() halts the CPU until next vblank —
+    /* Game loop. VBlankIntrWait() halts the CPU until next vblank -
      * saves battery on real hardware. */
     while (1) {
         VBlankIntrWait();

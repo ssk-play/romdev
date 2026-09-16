@@ -1,7 +1,7 @@
 /*
- * puzzle/main.c — DROP GRID 64: a 3D Nintendo 64 falling-block puzzle.
+ * puzzle/main.c - DROP GRID 64: a 3D Nintendo 64 falling-block puzzle.
  *
- * Unlike the PS1 puzzle (flat 2D), this is rendered in 3D — the N64 was a 3D-first
+ * Unlike the PS1 puzzle (flat 2D), this is rendered in 3D - the N64 was a 3D-first
  * machine, so the well is a perspective box and the blocks are shaded cubes you
  * watch fall in depth. Same falling-block logic (move, drop, clear full rows, ramp
  * speed, stack-out = game over) but presented through the 3D pipeline at an angle.

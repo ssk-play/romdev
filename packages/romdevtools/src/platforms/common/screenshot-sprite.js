@@ -1,4 +1,4 @@
-// extractSpriteFromScreenshot — crop a region of a PNG and isolate a sprite
+// extractSpriteFromScreenshot - crop a region of a PNG and isolate a sprite
 // from its background by flood-filling the background away. The LOSSY
 // fallback for when meta-sprite capture isn't possible (no clean SAT
 // composition, or the source is just a screenshot). Pure pixel work.
@@ -106,7 +106,7 @@ export function extractSpriteFromScreenshot(args) {
     }
     const seedI = sy * w + sx;
     if (bg[seedI]) {
-      throw new Error(`seed pixel is classified as background — pick a seed on the sprite, or raise tolerance/switch backgroundMode.`);
+      throw new Error(`seed pixel is classified as background - pick a seed on the sprite, or raise tolerance/switch backgroundMode.`);
     }
     const keep = new Uint8Array(w * h);
     const q = [seedI]; keep[seedI] = 1;

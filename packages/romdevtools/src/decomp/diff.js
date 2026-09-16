@@ -1,12 +1,12 @@
-// diff.js — compare a candidate function's instruction stream against the
+// diff.js - compare a candidate function's instruction stream against the
 // target's. Two layers, kept deliberately separate:
 //
-//   STRICT  — the acceptance test. Word-for-word equality of every encoded
+//   STRICT  - the acceptance test. Word-for-word equality of every encoded
 //             instruction AND equality of every relocation (type + symbol +
 //             addend). A same-shaped stream with a different call target fails
 //             here even though the words match (the word is 0 under a
 //             R_MIPS_26 reloc in both objects).
-//   SCORED  — the ranking signal. A documented edit distance over NORMALIZED
+//   SCORED  - the ranking signal. A documented edit distance over NORMALIZED
 //             instructions so a search can tell "closer" from "farther". It is
 //             never presented as proof; `strict.exact` is.
 //
@@ -69,7 +69,7 @@ export function scoreDistance(target, candidate) {
     prev.set(cur);
   }
   const value = Math.round(prev[m] * 100) / 100;
-  return { metric: "levenshtein-instructions-v1", value, note: "edit distance over normalized instructions: insert/delete=1, register-only substitution=0.35, same-op immediate/offset=0.7, other=1; branch targets compared relative to the instruction; relocation symbol+type part of the line. Lower is closer. 0 is NOT proof — strict.exact is." };
+  return { metric: "levenshtein-instructions-v1", value, note: "edit distance over normalized instructions: insert/delete=1, register-only substitution=0.35, same-op immediate/offset=0.7, other=1; branch targets compared relative to the instruction; relocation symbol+type part of the line. Lower is closer. 0 is NOT proof - strict.exact is." };
 }
 
 /**

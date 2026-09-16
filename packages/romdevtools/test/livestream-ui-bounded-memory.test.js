@@ -52,7 +52,7 @@ function makeElement(tag = "div") {
 function loadPage() {
   const html = readFileSync(HTML, "utf8");
   const m = html.match(/<script>\n(\(function\(\) \{[\s\S]*?)\n<\/script>/);
-  assert.ok(m, "could not extract the inline page script — did the file shape change?");
+  assert.ok(m, "could not extract the inline page script - did the file shape change?");
 
   const handlers = new Map();
   const elements = new Map();
@@ -108,7 +108,7 @@ test("event retention is capped: memory does not grow with run length", () => {
 
   // Measure the rendered row count at two very different run lengths. An
   // unbounded s.events makes the second strictly larger; a capped one makes
-  // them identical. This is the actual leak assertion — the DOM row count is
+  // them identical. This is the actual leak assertion - the DOM row count is
   // the only observable the page exposes, and it tracks s.events until the cap.
   pump(handlers, 400);
   const afterShort = logList.children.length;
@@ -118,7 +118,7 @@ test("event retention is capped: memory does not grow with run length", () => {
   assert.equal(
     afterLong, afterShort,
     `retention must not grow with run length: ${afterShort} rows at 400 events, ` +
-    `${afterLong} at 4400 — an unbounded list would keep climbing`,
+    `${afterLong} at 4400 - an unbounded list would keep climbing`,
   );
 });
 
@@ -145,7 +145,7 @@ test("image memory is bounded across many distinct tools", () => {
   const imageList = getEl("image-list");
   handlers.get("replay")({ events: [], activeSessions: ["s1"] });
 
-  // One image per distinct tool name — this is what pinned a full base64 PNG
+  // One image per distinct tool name - this is what pinned a full base64 PNG
   // per tool. 60 distinct tools is more than romdev has.
   pump(handlers, 60, { withImage: true, tool: (i) => `tool${i}` });
 
@@ -155,7 +155,7 @@ test("image memory is bounded across many distinct tools", () => {
   );
 });
 
-test("many sessions are FINE — what matters is each one staying bounded", () => {
+test("many sessions are FINE - what matters is each one staying bounded", () => {
   const { handlers, getEl } = loadPage();
   const tabs = getEl("tabs");
 
@@ -203,7 +203,7 @@ test("the ACTIVE session is never evicted out from under the viewer", () => {
     onEvent({ type: "session_disconnect", sessionKey: `other${i}`, ts: 3000 + i });
   }
 
-  // s1 must still render its log — if it had been evicted the pane would be empty.
+  // s1 must still render its log - if it had been evicted the pane would be empty.
   const logList = getEl("log-list");
   assert.ok(
     logList.children.length > 0,

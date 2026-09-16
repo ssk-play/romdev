@@ -5,7 +5,7 @@
  *              / / / / / / /_/ />  </ / / / / / /_/ / /_/ /                 *
  *             /_/ /_/ /_/\__,_/_/|_/_/ /_/ /_/\____/\__,_/                 *
  *                                                                          *
- *  romdev-maxmod — mas.js                                                   *
+ *  romdev-maxmod - mas.js                                                   *
  *                                                                          *
  *  Faithful pure-JS ESM port of devkitPro mmutil's SERIALIZER:             *
  *    - mas.c  : Write_MAS / Write_Instrument / Write_Instrument_Envelope /  *
@@ -18,12 +18,12 @@
  *                                                                          *
  *  Target system is GBA ONLY (SYSTEM_GBA). The NDS-specific branches of    *
  *  Write_SampleData are included for completeness/parity but never taken    *
- *  here. The GBA test-ROM template (gba.c Write_GBA) is NOT ported — it is  *
+ *  here. The GBA test-ROM template (gba.c Write_GBA) is NOT ported - it is  *
  *  irrelevant to producing a soundbank .bin.                               *
  *                                                                          *
  *  Endianness: LITTLE-ENDIAN throughout (matches files.c write8/16/32).     *
  *  align32() pads the write cursor to a 4-byte boundary with BYTESMASHER    *
- *  (0xBA) — NOT zero (verified against files.c align32; see util.js).       *
+ *  (0xBA) - NOT zero (verified against files.c align32; see util.js).       *
  *                                                                          *
  *  Consumes the in-memory module model from util.js makeModule()/etc.       *
  *  (produced by mod.js / xm.js / it.js / s3m.js). Emits, via               *
@@ -45,7 +45,7 @@ import {
   sample_dsreptype,
 } from './util.js';
 
-/** version.h: MAS_VERSION — the single version byte stamped into every record. */
+/** version.h: MAS_VERSION - the single version byte stamped into every record. */
 export const MAS_VERSION = 0x18;
 
 /**
@@ -61,7 +61,7 @@ function sampleHeaderSize(target) {
 }
 
 // ---------------------------------------------------------------------------
-// mas.c — envelope/instrument size calculators
+// mas.c - envelope/instrument size calculators
 // ---------------------------------------------------------------------------
 
 /**
@@ -88,14 +88,14 @@ function calcInstrumentSize(inst) {
 }
 
 // ---------------------------------------------------------------------------
-// mas.c — Write_Instrument_Envelope
+// mas.c - Write_Instrument_Envelope
 // ---------------------------------------------------------------------------
 
 /**
  * Faithful port of mas.c Write_Instrument_Envelope.
  *
  * Emits an 8-byte header (size/loop_start/loop_end/sus_start/sus_end/
- * node_count/env_filter/BA), then — ONLY if node_count > 1 — one 4-byte node
+ * node_count/env_filter/BA), then - ONLY if node_count > 1 - one 4-byte node
  * record per node (signed delta u16 + base|range<<7 u16).
  *
  * NOTE the faithful quirk: the `size` byte always says node_count*4+8, but for
@@ -124,7 +124,7 @@ function writeInstrumentEnvelope(w, env) {
         range = env.node_x[x + 1] - env.node_x[x];
         if (range > 511) range = 511;
         if (range < 1) range = 1;
-        // (((node_y[x+1]-base)*512) + (range/2)) / range  — C integer division.
+        // (((node_y[x+1]-base)*512) + (range/2)) / range  - C integer division.
         // range/2 is integer (range is a positive int here).
         const num = (env.node_y[x + 1] - base) * 512 + ((range / 2) | 0);
         delta = Math.trunc(num / range);
@@ -139,7 +139,7 @@ function writeInstrumentEnvelope(w, env) {
         range = 0;
         delta = 0;
       }
-      w.write16(delta & 0xffff); // (u16)delta — two's complement
+      w.write16(delta & 0xffff); // (u16)delta - two's complement
       w.write16((base | (range << 7)) & 0xffff);
     }
   }
@@ -159,7 +159,7 @@ function asr9(v) {
  *   while( base + ((delta*range)>>9) > 64 ) delta--;
  *   while( base + ((delta*range)>>9) <  0 ) delta++;
  * using a correct arithmetic-shift-by-9. (range*delta fits comfortably in 53
- * bits — range<=511, delta in [-32768,32767] — so plain JS multiply is exact.)
+ * bits - range<=511, delta in [-32768,32767] - so plain JS multiply is exact.)
  * @param {number} base
  * @param {number} delta
  * @param {number} range
@@ -172,7 +172,7 @@ function clampDeltaToRange(base, delta, range) {
 }
 
 // ---------------------------------------------------------------------------
-// mas.c — Write_Instrument
+// mas.c - Write_Instrument
 // ---------------------------------------------------------------------------
 
 /**
@@ -193,7 +193,7 @@ function writeInstrument(w, inst) {
 
   // LIVE order (mas.c, not the commented-out block):
   w.write8(inst.global_volume & 0xff);
-  w.write8(inst.fadeout & 0xff); // (u8)fadeout — low byte
+  w.write8(inst.fadeout & 0xff); // (u8)fadeout - low byte
   w.write8(inst.random_volume & 0xff);
   w.write8(inst.dct & 0xff);
   w.write8(inst.nna & 0xff);
@@ -236,7 +236,7 @@ function writeInstrument(w, inst) {
 }
 
 // ---------------------------------------------------------------------------
-// mas.c — Write_SampleData  (the GBA sample blob: header + PCM + 4-byte tail)
+// mas.c - Write_SampleData  (the GBA sample blob: header + PCM + 4-byte tail)
 // ---------------------------------------------------------------------------
 
 /**
@@ -337,7 +337,7 @@ function read16At(data, i) {
 }
 
 // ---------------------------------------------------------------------------
-// mas.c — Write_Sample  (per-module sample-reference record)
+// mas.c - Write_Sample  (per-module sample-reference record)
 // ---------------------------------------------------------------------------
 
 /**
@@ -374,7 +374,7 @@ function writeSample(w, samp, target) {
 }
 
 // ---------------------------------------------------------------------------
-// mas.c — Mark_Patterns / Mark_Pattern_Row  (compression-mark seeding)
+// mas.c - Mark_Patterns / Mark_Pattern_Row  (compression-mark seeding)
 // ---------------------------------------------------------------------------
 
 /**
@@ -428,7 +428,7 @@ function markPatterns(mod) {
 }
 
 // ---------------------------------------------------------------------------
-// mas.c — Write_Pattern  (IT-style row compression)
+// mas.c - Write_Pattern  (IT-style row compression)
 // ---------------------------------------------------------------------------
 
 /**
@@ -538,7 +538,7 @@ function writePattern(w, patt, xm_vol) {
 }
 
 // ---------------------------------------------------------------------------
-// mas.c — Write_MAS  (full MAS module body)
+// mas.c - Write_MAS  (full MAS module body)
 // ---------------------------------------------------------------------------
 
 /**
@@ -641,7 +641,7 @@ export function writeMAS(mod, msl_dep, target = SYSTEM_GBA) {
 }
 
 // ---------------------------------------------------------------------------
-// msl.c — sample blob builder + dedup pool + soundbank assembly
+// msl.c - sample blob builder + dedup pool + soundbank assembly
 // ---------------------------------------------------------------------------
 
 /**
@@ -728,7 +728,7 @@ function samplesEqual(a, b, target) {
 }
 
 // ---------------------------------------------------------------------------
-// msl.c — MSL_PrintDefinition  (.h #define name munging)
+// msl.c - MSL_PrintDefinition  (.h #define name munging)
 // ---------------------------------------------------------------------------
 
 /**
@@ -773,7 +773,7 @@ export function printDefinition(filename, id, prefix) {
 }
 
 // ---------------------------------------------------------------------------
-// msl.c — MSL_Export  (top-level soundbank assembly) + writeSoundbank()
+// msl.c - MSL_Export  (top-level soundbank assembly) + writeSoundbank()
 // ---------------------------------------------------------------------------
 
 /**
@@ -785,8 +785,8 @@ export function printDefinition(filename, id, prefix) {
  * (deduped exactly as MSL_AddSampleC does); each sample's msl_index is set to
  * its pool index before the module's MAS bytes are written. Standalone samples
  * (e.g. loaded WAVs) are passed in `samples`. As in msl.c (MSL_LoadFile → WAV →
- * MSL_AddSample, NOT MSL_AddSampleC), standalone samples are NOT deduplicated —
- * each gets its own pool slot — and each emits an SFX_ define.
+ * MSL_AddSample, NOT MSL_AddSampleC), standalone samples are NOT deduplicated -
+ * each gets its own pool slot - and each emits an SFX_ define.
  *
  * Ordering: mmutil pools samples in input/argv order. devkitPro projects
  * conventionally list SFX/WAV inputs first, so standalone `samples` are pooled

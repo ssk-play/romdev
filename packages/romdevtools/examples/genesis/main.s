@@ -1,8 +1,8 @@
-; Hello, Genesis — a real hello-world scaffold for vasm68k_mot.
+; Hello, Genesis - a real hello-world scaffold for vasm68k_mot.
 ;
 ; What this does:
 ;   1. Vector table (SP + reset, rest stubs).
-;   2. ROM header at $100 (256 bytes — gpgx auto-skips this if minimal).
+;   2. ROM header at $100 (256 bytes - gpgx auto-skips this if minimal).
 ;   3. Init: program VDP registers for 320x224 H40 mode, sane defaults.
 ;   4. Upload a 4-color palette to CRAM.
 ;   5. Write one 4bpp tile (a yellow 'H') into VRAM at tile $0001.
@@ -25,7 +25,7 @@
 ; and romdev-toolchain-m68k-gcc/share/genesis/lib/README.md for the full quickstart.
 
 ; -----------------------------------------------------------------------
-; Memory map — VDP ports.
+; Memory map - VDP ports.
 VDP_DATA    equ $C00000     ; word-write data port
 VDP_CTRL    equ $C00004     ; word-write control port (also reads status)
 
@@ -59,7 +59,7 @@ VDP_CTRL    equ $C00004     ; word-write control port (also reads status)
         dc.b    'JUE             '              ; region (16)
 
 ; -----------------------------------------------------------------------
-; Exception handler — minimal, just spin.
+; Exception handler - minimal, just spin.
         org     $000200
 Exception:
         bra     Exception
@@ -70,7 +70,7 @@ Start:
         move.w  #$2700,sr               ; disable interrupts (NO space after comma!)
 
         ; Wait a few cycles for the Z80 to settle.
-        ; (Real code grants Z80 bus and resets it — omitted here for brevity.)
+        ; (Real code grants Z80 bus and resets it - omitted here for brevity.)
 
         ; -----------------------------------------------------------
         ; Program VDP registers for 320x224 H40 mode. Register-write
@@ -109,7 +109,7 @@ Start:
         ; byte offsets $40 and $60 (VRAM cmd $40400000). Each is a teal
         ; (color 3) field sprinkled with white (color 1) dots, with the
         ; roles swapped between the two so that when we checkerboard them
-        ; across the plane no single colour dominates the screen — a
+        ; across the plane no single colour dominates the screen - a
         ; uniform fill still reads as "blank" to a human, so we vary it.
         ; 16 longwords total (8 rows × 2 tiles) written back-to-back.
         move.l  #$40400000,VDP_CTRL
@@ -173,10 +173,10 @@ VDPRegs:
         dc.w    $8F02    ; reg 15: auto-increment +2
         dc.w    $9001    ; reg 16: plane size = 64x32 (H64 V32)
         dc.w    $9100    ; reg 17: window x off
-        dc.w    $9200    ; (extra) window y off — included for safety
+        dc.w    $9200    ; (extra) window y off - included for safety
 
 ; -----------------------------------------------------------------------
-; 4bpp tile data for 'H' — color index 2 (yellow) where bit set.
+; 4bpp tile data for 'H' - color index 2 (yellow) where bit set.
 ; 8 rows × 4 bytes/row. High nybble of each byte = left pixel.
 TileH:
         dc.l    $20000020       ; row 0: 2.....2  → 0010 0000 0000 0000 0000 0000 0010 0000
@@ -193,7 +193,7 @@ TileH:
 ; TileBgA = teal (color 3) field with white (color 1) dots; TileBgB swaps
 ; the roles (white field, teal dots). Checkerboarding them across the
 ; plane keeps any single colour well under the "blank" threshold.
-TileBgA:                         ; tile #2 — teal field, white dots
+TileBgA:                         ; tile #2 - teal field, white dots
         dc.l    $33333333
         dc.l    $33133313
         dc.l    $33333333
@@ -202,7 +202,7 @@ TileBgA:                         ; tile #2 — teal field, white dots
         dc.l    $33133313
         dc.l    $33333333
         dc.l    $13333331
-TileBgB:                         ; tile #3 — white field, teal dots
+TileBgB:                         ; tile #3 - white field, teal dots
         dc.l    $11111111
         dc.l    $11311131
         dc.l    $11111111

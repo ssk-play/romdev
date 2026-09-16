@@ -1,11 +1,11 @@
-; ── hello_sprite-data.asm — symbols required by hello_sprite.c ────
+; ── hello_sprite-data.asm - symbols required by hello_sprite.c ────
 ;
 ; Provides:
-;   tilfont   — text-font tile data (stubbed; replace with real .pic)
-;   palfont   — text-font palette (stubbed)
-;   tilsprite — sprite tile data, one 8×8 4bpp tile (32 bytes), drawn
+;   tilfont   - text-font tile data (stubbed; replace with real .pic)
+;   palfont   - text-font palette (stubbed)
+;   tilsprite - sprite tile data, one 8×8 4bpp tile (32 bytes), drawn
 ;               here as a filled diamond using colour 1
-;   palsprite — sprite palette, 16 colours × 2 bytes BGR555
+;   palsprite - sprite palette, 16 colours × 2 bytes BGR555
 ;
 ; SNES 4bpp tile layout is bitplane-interleaved: rows 0-7 store
 ; planes 0+1 (16 bytes), then rows 0-7 store planes 2+3 (16 bytes).
@@ -320,10 +320,10 @@ palfont:
 .db $00, $00
 
 tilsprite:
-; Plane 0 — diamond shape (colour 1 where bits are set)
+; Plane 0 - diamond shape (colour 1 where bits are set)
 .db $18, $00, $3C, $00, $7E, $00, $FF, $00
 .db $FF, $00, $7E, $00, $3C, $00, $18, $00
-; Plane 1 — zero
+; Plane 1 - zero
 .db $00, $00, $00, $00, $00, $00, $00, $00
 .db $00, $00, $00, $00, $00, $00, $00, $00
 

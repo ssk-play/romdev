@@ -1,4 +1,4 @@
-// R61 — createGame consistency: every genre-capable platform must scaffold
+// R61 - createGame consistency: every genre-capable platform must scaffold
 // every canonical genre, with availability DERIVED from TEMPLATES (no parallel
 // hardcoded table to drift). This locks in the R61 fix for the bug where
 // createGame's hardcoded GENRE_MAP silently omitted c64/gba/lynx even though
@@ -18,13 +18,13 @@ import { z } from "zod";
 import { registerTools } from "../src/mcp/tools/index.js";
 
 // The set of platforms that ship genre scaffolds, and the genres each has.
-// Kept here as the EXPECTED contract — if a platform gains/loses genre
+// Kept here as the EXPECTED contract - if a platform gains/loses genre
 // templates, update this table intentionally (it's the spec).
 const CANONICAL_GENRES = ["shmup", "platformer", "puzzle", "sports", "racing"];
 // Per-platform expected genres. As of 2026-06-11 EVERY platform ships the full
-// 5 — the 14×5 grid is complete. The 2600 was the last holdout (the TIA has no
+// 5 - the 14×5 grid is complete. The 2600 was the last holdout (the TIA has no
 // tilemap, so it ships a MEMORY MATCH-PAIRS puzzle, TILE TWINS, drawn with
-// full-width COLUPF bands — a real puzzle, not a colored match-3 grid).
+// full-width COLUPF bands - a real puzzle, not a colored match-3 grid).
 const EXPECTED_GENRES = Object.fromEntries(
   ["nes","gb","gbc","snes","genesis","sms","gg","c64","gba","lynx","atari7800","pce","msx","atari2600"]
     .map((p) => [p, CANONICAL_GENRES]),
@@ -68,10 +68,10 @@ test("R61 createGame: every genre-capable platform scaffolds its genres", { time
   }
 });
 
-test("R61 createGame: the grid is complete — atari2600/puzzle (TILE TWINS) now forks", async () => {
+test("R61 createGame: the grid is complete - atari2600/puzzle (TILE TWINS) now forks", async () => {
   // Historically the 2600 lacked a puzzle game (no TIA tilemap → no match-3),
   // and this slot was the sentinel for the per-genre REJECTION path. As of
-  // 2026-06-11 the 2600 puzzle ships as TILE TWINS (a memory match-pairs game —
+  // 2026-06-11 the 2600 puzzle ships as TILE TWINS (a memory match-pairs game -
   // a real puzzle that fits the TIA: full-width COLUPF bands, not a colored
   // grid), completing the 14×5 grid. So this is now a POSITIVE test: the
   // previously-missing cell forks successfully. (The per-genre/unknown-genre

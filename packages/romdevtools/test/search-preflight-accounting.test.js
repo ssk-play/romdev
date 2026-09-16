@@ -81,5 +81,5 @@ test("a permuter score is never presented as exactness", async () => {
   const { readFile } = await import("node:fs/promises");
   const src = await readFile(new URL("../src/decomp/jobs.js", import.meta.url), "utf8");
   assert.match(src, /the permuter's score is not the strict test/i);
-  assert.match(src, /budget exhausted — best is the closest candidate, not a match/i);
+  assert.match(src, /budget exhausted - best is the closest candidate, not a match/i);
 });

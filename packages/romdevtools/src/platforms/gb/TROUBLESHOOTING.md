@@ -1,14 +1,14 @@
-# Game Boy / Game Boy Color — symptom → fix
+# Game Boy / Game Boy Color - symptom → fix
 
 > **A build failed? Read `issues[]` FIRST.** Every build/compile call returns
-> `issues: [{file, line, col, severity, message, stage}]` — the structured error
+> `issues: [{file, line, col, severity, message, stage}]` - the structured error
 > list. It almost always names the exact line to fix. Read that before matching a
 > symptom below or touching your source. Fall back to the raw `log` only if
 > `issues[]` is empty but `ok:false`.
 
 Stuck? Find your symptom below; each entry has the 1-line diagnosis and
 the MCP tool call that confirms it. **Run the diagnosis BEFORE you start
-bisecting the C source** — most "GB doesn't render" bugs are one of these
+bisecting the C source** - most "GB doesn't render" bugs are one of these
 five things.
 
 ## "Screen is blank / stays grey-white forever"
@@ -45,7 +45,7 @@ Check in this order:
 2. **Tile index points at unuploaded VRAM.** If your tile data is at
    $8010+ (slot 1+) but the OAM byte 2 (tile index) is 0, you're showing
    the blank slot 0.
-3. **LCDC.1 (OBJ enable) is off.** Same as above — `lcd_init_default()`
+3. **LCDC.1 (OBJ enable) is off.** Same as above - `lcd_init_default()`
    turns it on.
 4. **OAM DMA never ran.** You staged the sprite in `shadow_oam[]` but
    forgot to call `oam_dma_flush()` each vblank.
@@ -53,11 +53,11 @@ Check in this order:
    sprites({op:'inspect', platform:"gbc"})   // shows what the LCD sees right now
    ```
 
-## ⚠ "Sprites/tiles never show AND the CPU crashed (PC near $002B)" — the #1 SDCC footgun
+## ⚠ "Sprites/tiles never show AND the CPU crashed (PC near $002B)" - the #1 SDCC footgun
 
 **The single most common way a GB/GBC C game silently dies.** SDCC's sm83
 backend **miscompiles a byte-copy loop that writes through an `__xdata`
-pointer** — the canonical "copy my tiles into VRAM" pattern:
+pointer** - the canonical "copy my tiles into VRAM" pattern:
 
 ```c
 uint8_t *dst = (uint8_t *)0x8000;   // VRAM
@@ -67,19 +67,19 @@ for (uint8_t i = 0; i < 16; i++) dst[i] = src[i];   // ☠ MISCOMPILES
 SDCC emits code that writes to the **return address** instead of `dst`,
 corrupting the stack → the CPU jumps to garbage and crashes (you'll see
 `PC` stuck around `$002B`, `SP` corrupt). The build SUCCEEDS and the ROM
-boots, so it looks like a logic bug — but it's codegen. Symptom: sprites/
+boots, so it looks like a logic bug - but it's codegen. Symptom: sprites/
 tiles never appear, OAM stays zero, `cpu({op:'read'})` shows a wild PC.
 
-**Fix — use the bundled helper, never a raw `dst[i]=src[i]` loop to VRAM:**
+**Fix - use the bundled helper, never a raw `dst[i]=src[i]` loop to VRAM:**
 ```c
-memcpy_vram(dst, src, 16);   // ships in gb_runtime.c — does the copy safely
+memcpy_vram(dst, src, 16);   // ships in gb_runtime.c - does the copy safely
 ```
 `memcpy_vram()` is in every GB/GBC project's `gb_runtime.c`. Any time you copy
 bytes into VRAM ($8000-$9FFF) or another `__xdata` region, call it instead of
 hand-rolling a for-loop. (`build({output:'rom'})` with `lint:"strict"` will also flag the
 raw pattern as a preflight error.)
 
-## ⚠ "Loop never ends / all code after a loop is dead" — uint8 loop-bound trap
+## ⚠ "Loop never ends / all code after a loop is dead" - uint8 loop-bound trap
 
 ```c
 uint8_t i;
@@ -93,10 +93,10 @@ the cross-platform note: [[sdcc-uint8-loop-bound-trap]].
 ## "Wrong colors on GBC"
 
 1. **`$0143` is not $80.** This is the CGB-mode header byte.
-   `build({output:'rom'})` / `build({output:'run'})` set it automatically from the platform —
+   `build({output:'rom'})` / `build({output:'run'})` set it automatically from the platform -
    build with `platform:"gbc"` and it's $80/$C0; build with
    `platform:"gb"` and it stays $00 (DMG). So if colors are wrong, first
-   check you didn't build this as a `.gb` ROM — rebuild with
+   check you didn't build this as a `.gb` ROM - rebuild with
    `platform:"gbc"`. (To force a value on an existing ROM: set it in your
    `gb_crt0.s` header section, run `romPatch({op:'gbHeader', path:"out.gbc"})`, or
    run `node patch-header.js out.gbc`.) Verify:
@@ -105,7 +105,7 @@ the cross-platform note: [[sdcc-uint8-loop-bound-trap]].
    ```
 2. **You wrote to `BGP` / `OBP0` / `OBP1` instead of `BCPD` /
    `OCPD`.** DMG and CGB use different palette registers. On CGB,
-   `BGP` is ignored — you must drive the 64-byte BG palette RAM via
+   `BGP` is ignored - you must drive the 64-byte BG palette RAM via
    `BCPS` (bit 7 = auto-increment) + `BCPD` for writes.
 3. **Forgot to set BCPS/OCPS auto-increment bit.** `BCPS = 0x80`
    means "palette 0, color 0, low byte, auto-advance after every
@@ -125,7 +125,7 @@ the cross-platform note: [[sdcc-uint8-loop-bound-trap]].
 1. **PC is at $0040 (vblank IRQ vector) but no handler.** You enabled
    `IE` and `EI` but didn't `RETI` from the IRQ vector. Result: the
    CPU is permanently in the IRQ. The default `gb_crt0.s` puts
-   `RETI` at every IRQ vector — so this only happens if you've
+   `RETI` at every IRQ vector - so this only happens if you've
    replaced the crt0.
 2. **Stack overflow.** With a 32 KB ROM you have ~8 KB of WRAM
    ($C000-$DFFF). Default SP is $E000 (top). If you're recursing
@@ -169,44 +169,44 @@ at $0150. If you see code in that window, either:
 ## "BG map updates randomly don't stick" / a tile updates one frame late forever
 
 The core (like real hardware mid-frame) DROPS writes to VRAM ($8000-$9FFF)
-that land outside vblank while the LCD is on — silently. A game loop that
+that land outside vblank while the LCD is on - silently. A game loop that
 pokes the BG map "whenever the state changes" will have SOME of those pokes
 land mid-frame and vanish: stale cells, a piece that visually lags the
 logical grid, glitches that move around as code timing shifts.
 
 The robust pattern (used by the bundled puzzle example games):
 
-1. **COLLECT** — during the frame, don't touch VRAM. Append (addr, tile)
+1. **COLLECT** - during the frame, don't touch VRAM. Append (addr, tile)
    pairs to a small RAM queue whenever game state changes a cell.
-2. **FLUSH** — immediately after `wait_vblank()` (right after the OAM DMA),
-   drain the queue with pure writes. No scanning, no logic — vblank is only
+2. **FLUSH** - immediately after `wait_vblank()` (right after the OAM DMA),
+   drain the queue with pure writes. No scanning, no logic - vblank is only
    ~1140 cycles, so the flush must be writes only and bounded.
-3. **Scrub** — repaint one or two rows per frame round-robin as insurance,
+3. **Scrub** - repaint one or two rows per frame round-robin as insurance,
    so any cell that ever got dropped self-heals within a second.
 
 If you must write outside that structure, turn the LCD off first (only
-acceptable during init/load screens — mid-game it flashes white).
+acceptable during init/load screens - mid-game it flashes white).
 
 ## "BG map updates randomly don't stick" / a tile updates one frame late forever
 
 The core (like real hardware mid-frame) DROPS writes to VRAM ($8000-$9FFF)
-that land outside vblank while the LCD is on — silently. A game loop that
+that land outside vblank while the LCD is on - silently. A game loop that
 pokes the BG map "whenever the state changes" will have SOME of those pokes
 land mid-frame and vanish: stale cells, a piece that visually lags the
 logical grid, glitches that move around as code timing shifts.
 
 The robust pattern (used by the bundled puzzle example games):
 
-1. **COLLECT** — during the frame, don't touch VRAM. Append (addr, tile)
+1. **COLLECT** - during the frame, don't touch VRAM. Append (addr, tile)
    pairs to a small RAM queue whenever game state changes a cell.
-2. **FLUSH** — immediately after `wait_vblank()` (right after the OAM DMA),
-   drain the queue with pure writes. No scanning, no logic — vblank is only
+2. **FLUSH** - immediately after `wait_vblank()` (right after the OAM DMA),
+   drain the queue with pure writes. No scanning, no logic - vblank is only
    ~1140 cycles, so the flush must be writes only and bounded.
-3. **Scrub** — repaint one or two rows per frame round-robin as insurance,
+3. **Scrub** - repaint one or two rows per frame round-robin as insurance,
    so any cell that ever got dropped self-heals within a second.
 
 If you must write outside that structure, turn the LCD off first (only
-acceptable during init/load screens — mid-game it flashes white).
+acceptable during init/load screens - mid-game it flashes white).
 
 ## "My HUD scrolls with the background" / "the window ate the bottom of my screen"
 
@@ -221,9 +221,9 @@ on top of the BG. Three rules, all demonstrated in the shmup example
   it owns EVERY line to the bottom of the frame, full width from WX. That's
   why GB HUDs live at the BOTTOM of the screen (`WY = 128` → lines 128-143 =
   HUD, lines 0-127 = scrolling playfield). A top HUD needs a mid-frame
-  STAT/LYC interrupt to turn LCDC bit 5 back off — a different, fragile
+  STAT/LYC interrupt to turn LCDC bit 5 back off - a different, fragile
   idiom; don't fall into it by accident by setting WY=0.
-- **Sprites are NOT clipped by the window** — they draw on top of it. Despawn
+- **Sprites are NOT clipped by the window** - they draw on top of it. Despawn
   (or Y-clamp) everything before the HUD line, or your enemies fly across
   the score bar.
 
@@ -237,15 +237,15 @@ Battery saves need BOTH halves:
 1. **The header must declare a battery cart.** The bundled `gb_crt0.s` emits
    `$0147 = $03` (MBC1+RAM+BATTERY) and `$0149 = $02` (8 KB) as real bytes,
    and the build's post-link header fix passes them through. The emulator
-   sizes its SAVE_RAM region from those two bytes — type $00 (ROM-only)
+   sizes its SAVE_RAM region from those two bytes - type $00 (ROM-only)
    means no save_ram region at all, and writes to $A000 go nowhere.
 2. **Cart RAM is gated.** It boots DISABLED; writes are silently discarded
-   until you write `$0A` to $0000-$1FFF (any address there — it's a mapper
+   until you write `$0A` to $0000-$1FFF (any address there - it's a mapper
    register, not memory). Write `$00` to the same range after saving
    (battery hygiene: an enabled RAM bank can corrupt at power-off on real
    hardware).
 
-Working pattern with magic + checksum (a fresh cart is $FF garbage — never
+Working pattern with magic + checksum (a fresh cart is $FF garbage - never
 trust raw bytes): shmup example, "HARDWARE IDIOM: battery SRAM". Verify
 headlessly: play to a score, force game over, `memory({op:'read',
 region:"save_ram"})` shows the record, and the hi-score still shows on the
@@ -254,29 +254,29 @@ title after a hard reset (power cycle).
 ## "Boot takes seconds" / a screen repaint visibly stalls the game
 
 The sm83 has no divide instruction. SDCC's software `%` / `/` costs ~700
-cycles per call — one `(r*7+c*5) % 11` in a 32×32 map fill is 2048 calls
+cycles per call - one `(r*7+c*5) % 11` in a 32×32 map fill is 2048 calls
 ≈ 1.5 MILLION cycles ≈ a 1.5-second frozen boot (measured, not theoretical;
 the shmup example shipped exactly that for an hour). In any per-cell or
 per-frame loop, replace modulo patterns with running counters +
 subtract-on-overflow (see `paint_starfield` in the shmup example) and
 decimal score display with power-of-ten subtraction (`u16_to_tiles` there).
-A single `%` per event — e.g. per enemy spawn — is fine.
+A single `%` per event - e.g. per enemy spawn - is fine.
 
 ## Debug recipes
 
 A few high-leverage tools you might not know exist:
 
-- **`sprites({op:'inspect', platform:"gbc"})`** — pretty-prints all 40 OAM
+- **`sprites({op:'inspect', platform:"gbc"})`** - pretty-prints all 40 OAM
   slots showing which are on-screen + tile index + attributes.
-- **`background({view:'map', platform:"gbc", render:true})`** — renders
+- **`background({view:'map', platform:"gbc", render:true})`** - renders
   the BG map as a PNG so you can see what tiles the LCD is reading.
-- **`palette({source:'live', platform:"gbc"})`** — shows BG and OBJ palettes
+- **`palette({source:'live', platform:"gbc"})`** - shows BG and OBJ palettes
   as colors instead of raw BGR555 bytes.
-- **`cpu({op:'read'})`** — PC + registers, useful when you suspect a
+- **`cpu({op:'read'})`** - PC + registers, useful when you suspect a
   hang.
-- **`watch({on:'mem', region:"gb_oam", offset:0, length:4})`** — trace
+- **`watch({on:'mem', region:"gb_oam", offset:0, length:4})`** - trace
   every write to OAM slot 0, returns the PC that wrote it.
-- **`frame({op:'step', count:3600})`** — runs a full minute of game time
+- **`frame({op:'step', count:3600})`** - runs a full minute of game time
   in milliseconds. Don't be conservative with frame counts when
   hunting bugs.
 
@@ -285,7 +285,7 @@ A few high-leverage tools you might not know exist:
 Boot order that always works for GBC:
 
 ```
-1. LCDC = 0  (turn off LCD; safe even if already off — runtime checks)
+1. LCDC = 0  (turn off LCD; safe even if already off - runtime checks)
 2. Write tile data to $8000+ via VRAM bank 0
 3. Write CGB attribute map to $9800+ via VRAM bank 1 (set VBK=1 first)
 4. BCPS = 0x80 ; BCPD writes set up BG palette (64 bytes)
@@ -301,7 +301,7 @@ Boot order that always works for GBC:
    }
 ```
 
-Cribbed from `examples/gbc/templates/tile_engine.c` — fork that
+Cribbed from `examples/gbc/templates/tile_engine.c` - fork that
 example into a fresh game with:
 
 ```js

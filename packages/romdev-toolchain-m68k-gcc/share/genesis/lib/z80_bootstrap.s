@@ -1,4 +1,4 @@
-; Genesis Z80 — boot sequence + bus protocol.
+; Genesis Z80 - boot sequence + bus protocol.
 ;
 ; The Z80 sits next to the 68K with its own 8KB RAM at $A00000-$A01FFF
 ; (mirrored as $A02000-$A03FFF). Power-on state: Z80 is RESET and the
@@ -17,7 +17,7 @@
 ;
 ; ** Gotcha: Z80 ROM-bank access window. ** The Z80 can address only 16
 ; bits, so to reach the 68K's 24-bit ROM space it uses a $8000-$FFFF
-; banking window. Bits are written one at a time to $A06000 — see the
+; banking window. Bits are written one at a time to $A06000 - see the
 ; Z80-side code for the protocol. Most sound drivers don't need this;
 ; samples and code fit in 8KB Z80 RAM.
 
@@ -27,7 +27,7 @@ Z80_RESET   = $A11200
 
 ; ---- z80_init: full reset + bus-grant + bring-up ----------------------
 ;
-; Call once at game init. Doesn't load any driver — that's the job of
+; Call once at game init. Doesn't load any driver - that's the job of
 ; z80_load_driver below.
 z80_init:
   ; ---- 1. Assert reset and bus request ----
@@ -61,7 +61,7 @@ z80_start:
   moveq   #16,d0
 .wait:
   dbra    d0,.wait
-  move.w  #$0000,Z80_BUSREQ    ; release bus — Z80 starts running from $0000
+  move.w  #$0000,Z80_BUSREQ    ; release bus - Z80 starts running from $0000
   rts
 
 ; ---- z80_send_command: hand a byte to the running Z80 ------------------

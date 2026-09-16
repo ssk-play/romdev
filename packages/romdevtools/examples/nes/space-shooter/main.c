@@ -4,7 +4,7 @@
  * Player cannon at the bottom shoots a descending grid of aliens, with
  * destructible shields and a score/lives HUD. A 5-column formation keeps
  * each row under the NES 8-sprites-per-scanline limit; shields and HUD are
- * drawn as background tiles. (Generic genre example — not based on any
+ * drawn as background tiles. (Generic genre example - not based on any
  * specific commercial game.)
  */
 
@@ -262,7 +262,7 @@ static uint8_t point_hits_shield(uint8_t x, uint8_t y) {
     if (index < SHIELD_BLOCKS && shields[s].hp[index] > 0) {
       shields[s].hp[index]--;
       /* Return the shield INDEX so the caller repaints only that one.
-       * (SHIELD_COUNT means "no hit" — callers test `< SHIELD_COUNT`.) */
+       * (SHIELD_COUNT means "no hit" - callers test `< SHIELD_COUNT`.) */
       return s;
     }
   }

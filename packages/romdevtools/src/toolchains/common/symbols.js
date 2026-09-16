@@ -1,7 +1,7 @@
 // Generic symbol-file parsers and lookups.
 //
 // Different toolchains emit different formats:
-//   - cc65 → .dbg (line-oriented, see cc65/dbgparse.js — handled separately)
+//   - cc65 → .dbg (line-oriented, see cc65/dbgparse.js - handled separately)
 //   - asar/bass/wla-dx → .sym (WLA format: "<bank>:<addr> <name>" sections)
 //   - cc65 → .lbl (older list label format)
 //
@@ -13,7 +13,7 @@
  * @property {string} name
  * @property {number} address      24-bit linear address (bank << 16 | offset)
  * @property {number} [bank]       optional bank byte (asar/SNES)
- * @property {string} [kind]       "label" | "constant" — guessed per format
+ * @property {string} [kind]       "label" | "constant" - guessed per format
  */
 
 /**
@@ -120,7 +120,7 @@ export function parseSymbols(args) {
 }
 
 /**
- * Build a fast lookup map for "what's at this address?" — used to
+ * Build a fast lookup map for "what's at this address?" - used to
  * annotate disassembled instructions with labels.
  * @param {Symbol[]} symbols
  */

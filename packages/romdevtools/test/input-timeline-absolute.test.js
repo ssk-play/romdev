@@ -1,4 +1,4 @@
-// input({op:'timeline'}) — the FRAME-EXACT input schedule.
+// input({op:'timeline'}) - the FRAME-EXACT input schedule.
 //
 // The whole point of this op is that `frame: 600` means ROM frame 600, so two
 // runs of the same timeline hold the same buttons on the same frames and a

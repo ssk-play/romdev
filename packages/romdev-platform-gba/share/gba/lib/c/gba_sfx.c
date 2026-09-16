@@ -1,4 +1,4 @@
-/* ── gba_sfx.c — minimal GBA sound-effects wrapper ──────────────────
+/* ── gba_sfx.c - minimal GBA sound-effects wrapper ──────────────────
  *
  * GBA APU register summary (Tonc names):
  *   REG_SND1SWEEP   ch1 sweep (NR10 equivalent)
@@ -8,7 +8,7 @@
  *   REG_SND2FREQ    ch2 frequency (NR23/NR24)
  *   REG_SND4CNT     ch4 noise control (NR41/NR42)
  *   REG_SND4FREQ    ch4 noise freq + trigger (NR43/NR44)
- *   REG_SNDDMGCNT   master DMG routing (NR50/NR51 — volume + L/R)
+ *   REG_SNDDMGCNT   master DMG routing (NR50/NR51 - volume + L/R)
  *   REG_SNDDSCNT    Direct Sound + DMG-vs-DS master volume
  *   REG_SNDSTAT     power on/off (NR52); BIT 7 = master enable
  *
@@ -104,7 +104,7 @@ void sfx_music_tick(void) {
     if (music_timer == 0) {
         u16 code = music_code[music_step & 15];
         if (code) {
-            /* vol 0xA, 50% duty, length 40/64 steps (~156ms) — the
+            /* vol 0xA, 50% duty, length 40/64 steps (~156ms) - the
              * length-enable auto-silences before the next note so
              * rests actually rest. */
             REG_SND2CNT  = (u16)(0xA080 | (64 - 40));

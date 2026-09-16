@@ -1,7 +1,7 @@
-// analyze.js — MCP-facing RE analysis ops built on the Rizin WASM engine:
+// analyze.js - MCP-facing RE analysis ops built on the Rizin WASM engine:
 // control-flow graphs, deep cross-references, auto-detected functions, and a
 // one-shot structural map. Complements disasm.js (da65/native, rebuildable
-// output) — rizin gives the GRAPH structure da65 can't.
+// output) - rizin gives the GRAPH structure da65 can't.
 //
 // Address model: rizin's own bin-loader sets the load address for formats it
 // recognizes (iNES → 0x8000, GBA → 0x08000000, raw → 0). For platforms whose
@@ -9,7 +9,7 @@
 // IS the CPU address. We pass an explicit base only where it helps; the
 // reported addresses are rizin virtual addresses, which match the CPU view for
 // the common (unbanked / first-bank) case. Banked carts: a bank's window is
-// resolved by the existing disasm mappers — analysis here is whole-file.
+// resolved by the existing disasm mappers - analysis here is whole-file.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { runRizinJson, RIZIN_ARCH, RIZIN_ENDIAN } from "./rizin.js";
@@ -77,7 +77,7 @@ export function nameHardwareRegisters(code, platform) {
 const SIXTY_FIVE_OH_TWO = new Set(["nes", "atari2600", "atari7800", "c64", "lynx", "pce"]);
 
 /** B1: 6502 idiom-folding post-pass (deterministic half). The 6502's 8-bit ALU
- * lowers to literal noise in SLEIGH output — awkward width types (`uint1`,
+ * lowers to literal noise in SLEIGH output - awkward width types (`uint1`,
  * `xunknown1`), redundant nested width casts (`(uint2)(uint1)x`), and raw
  * zero-page byte refs (`cRAM00fd`). This pass folds the SAFE, mechanical ones
  * into readable C99 so the remaining logic is what an LLM (or human) reads:
@@ -87,10 +87,10 @@ const SIXTY_FIVE_OH_TWO = new Set(["nes", "atari2600", "atari7800", "c64", "lynx
  *   - redundant nested width casts `(uint16_t)(uint8_t)expr` → `(uint8_t)expr`
  *     (the inner cast already narrows; the outer widen is noise).
  *   - zero-page byte refs `cRAM00fd` / `uRAM0012` → `zp_FD` / `zp_12` (a stable
- *     name for the ZP slot — the 6502's "fast RAM / pseudo-registers"). Only the
+ *     name for the ZP slot - the 6502's "fast RAM / pseudo-registers"). Only the
  *     $00xx page; MMIO was already named by nameHardwareRegisters (run first).
  * It does NOT attempt the carry-flag 16-bit add/sub or BCD reconstruction the
- * plan also lists — Ghidra usually already folds those into `+`/`uint2`, and a
+ * plan also lists - Ghidra usually already folds those into `+`/`uint2`, and a
  * textual rewrite of what survives risks changing semantics. Those are left to
  * the LLM cleanup half (the decompile output is read by an agent). Emits a
  * leading "6502 fold:" legend comment noting what was applied. */
@@ -129,7 +129,7 @@ export function foldSixtyFiveOhTwoIdioms(code, platform) {
   if (castFolds) applied.push("redundant width casts collapsed");
 
   // 3) Zero-page byte refs → zp_XX. Only the $00 page (cRAM00fd etc.); the
-  // 2-hex-after-00 form. A bare 4-hex like RAM0312 is not ZP — leave it.
+  // 2-hex-after-00 form. A bare 4-hex like RAM0312 is not ZP - leave it.
   const zp = new Set();
   out = out.replace(/\b[a-z]{1,3}RAM00([0-9a-fA-F]{2})\b/g, (_m, hex) => {
     const name = "zp_" + hex.toUpperCase();
@@ -165,8 +165,8 @@ export function sniffPlatform(p) {
   if (/\.gba$/i.test(p)) return "gba";
   if (/\.pce$/i.test(p)) return "pce";
   if (/\.(z64|n64|v64)$/i.test(p)) return "n64";
-  if (/\.(psexe|psx)$/i.test(p)) return "ps1"; // .exe/.bin ambiguous — pass platform explicitly
-  if (/\.(cdi|gdi)$/i.test(p)) return "dreamcast"; // DC disc images; .elf is cross-platform — pass platform explicitly
+  if (/\.(psexe|psx)$/i.test(p)) return "ps1"; // .exe/.bin ambiguous - pass platform explicitly
+  if (/\.(cdi|gdi)$/i.test(p)) return "dreamcast"; // DC disc images; .elf is cross-platform - pass platform explicitly
   if (/\.(gen|md|bin)$/i.test(p)) return "genesis";
   return null;
 }
@@ -178,7 +178,7 @@ const BITS = { arm: 32, m68k: 32, snes: 16, mips: 32, sh: 32 };
 /**
  * The rizin analysis-SEED command for a context. For the 8/16-bit platforms
  * rizin's `aaa` recognizes the bin format / vectors and seeds itself. For a RAW
- * MIPS image (N64/PS1) there's no recognized entry, so `aaa` finds nothing —
+ * MIPS image (N64/PS1) there's no recognized entry, so `aaa` finds nothing -
  * instead define a function at the code start and recursively analyze its call
  * graph (`af` + `aac`), which surfaces the real function tree (verified: 251
  * functions on a real libdragon N64 ROM where `aaa` found 0).
@@ -187,7 +187,7 @@ const BITS = { arm: 32, m68k: 32, snes: 16, mips: 32, sh: 32 };
  */
 function analysisSeed({ arch, codeStart }) {
   // MIPS (N64/PS1) and SH-4 (Dreamcast) are raw code images with no rizin-recognized
-  // entry, so `aaa` finds nothing — seed a function at the code start + recursively
+  // entry, so `aaa` finds nothing - seed a function at the code start + recursively
   // analyze its call graph (`af` + `aac`). The 8/16-bit bin formats self-seed via aaa.
   if (arch === "mips" || arch === "sh") {
     const at = "0x" + (codeStart || 0).toString(16);
@@ -214,9 +214,9 @@ function mipsAnalysisBase({ platform, loadBase, codeStart }) {
 /**
  * Normalize an N64 ROM to BIG-ENDIAN (.z64) byte order. Dumps come in three
  * orders, distinguished by the first 4 bytes of the header:
- *   .z64 (big)    80 37 12 40   — native; no change
- *   .v64 (byteswap)37 80 40 12  — swap every 2 bytes
- *   .n64 (little) 40 12 37 80   — swap every 4 bytes
+ *   .z64 (big)    80 37 12 40   - native; no change
+ *   .v64 (byteswap)37 80 40 12  - swap every 2 bytes
+ *   .n64 (little) 40 12 37 80   - swap every 4 bytes
  * MIPS analysis wants the big-endian image so addresses + instruction words line up.
  * @param {Uint8Array} bytes
  * @returns {{ bytes: Uint8Array, reordered: string|null }}
@@ -225,27 +225,27 @@ function normalizeN64ByteOrder(bytes) {
   if (bytes.length < 4) return { bytes, reordered: null };
   const b = bytes;
   const is = (a, c, d, e) => b[0] === a && b[1] === c && b[2] === d && b[3] === e;
-  if (is(0x80, 0x37, 0x12, 0x40)) return { bytes, reordered: null }; // .z64 big — native
-  if (is(0x37, 0x80, 0x40, 0x12)) { // .v64 byteswapped — swap pairs
+  if (is(0x80, 0x37, 0x12, 0x40)) return { bytes, reordered: null }; // .z64 big - native
+  if (is(0x37, 0x80, 0x40, 0x12)) { // .v64 byteswapped - swap pairs
     const out = new Uint8Array(b.length & ~1);
     for (let i = 0; i + 1 < b.length; i += 2) { out[i] = b[i + 1]; out[i + 1] = b[i]; }
     return { bytes: out, reordered: "v64 (byteswapped) → z64" };
   }
-  if (is(0x40, 0x12, 0x37, 0x80)) { // .n64 little — swap dwords
+  if (is(0x40, 0x12, 0x37, 0x80)) { // .n64 little - swap dwords
     const out = new Uint8Array(b.length & ~3);
     for (let i = 0; i + 3 < b.length; i += 4) { out[i] = b[i + 3]; out[i + 1] = b[i + 2]; out[i + 2] = b[i + 1]; out[i + 3] = b[i]; }
     return { bytes: out, reordered: "n64 (little-endian dwords) → z64" };
   }
-  return { bytes, reordered: null }; // unknown header — leave as-is
+  return { bytes, reordered: null }; // unknown header - leave as-is
 }
 
 /** Build the common rizin invocation context for a ROM + platform. Returns
- * { romBytes, arch, bits, note } — arch null means let rizin sniff. */
+ * { romBytes, arch, bits, note } - arch null means let rizin sniff. */
 async function loadContext(romPath, platformOverride) {
   const platform = platformOverride ?? sniffPlatform(romPath);
   if (!platform) {
     throw new Error(
-      `analyze: could not determine platform from '${path.basename(romPath)}' — pass platform explicitly`
+      `analyze: could not determine platform from '${path.basename(romPath)}' - pass platform explicitly`
     );
   }
   if (!(platform in RIZIN_ARCH)) {
@@ -257,17 +257,17 @@ async function loadContext(romPath, platformOverride) {
   }
   let romBytes = new Uint8Array(await readFile(romPath));
   // PCE: rizin's 6502 plugin drives the loader + standard control flow for
-  // function detection, but mis-decodes HuC6280 custom opcodes — CFG/xrefs are
+  // function detection, but mis-decodes HuC6280 custom opcodes - CFG/xrefs are
   // approximate. Accurate HuC6280 decode is the decompiler's job (SLEIGH spec).
   const approx = platform === "pce";
 
   // Address-space prep (A2): some formats carry a header and load at a CPU base
   // that isn't 0. Strip the header and report `loadBase` so rizin's functions
   // (and the decompiler image) speak CPU addresses, not raw file offsets.
-  //   c64 .prg — 2-byte little-endian LOAD ADDRESS header, code at that address
+  //   c64 .prg - 2-byte little-endian LOAD ADDRESS header, code at that address
   //   (typically $0801 = BASIC start). Without this, rizin analyzes the header
   //   bytes as code at offset 0 and every address is a file offset, not a CPU
-  //   address — functions→decompile round-trip lands on garbage.
+  //   address - functions→decompile round-trip lands on garbage.
   let loadBase = 0;
   if (platform === "c64" && romBytes.length >= 2) {
     loadBase = romBytes[0] | (romBytes[1] << 8);
@@ -282,7 +282,7 @@ async function loadContext(romPath, platformOverride) {
   if (platform === "n64") {
     const norm = normalizeN64ByteOrder(romBytes);
     romBytes = norm.bytes;
-    if (norm.reordered) warningsEarly.push(`N64 ROM was ${norm.reordered} byte order — normalized to z64 (big-endian) for analysis.`);
+    if (norm.reordered) warningsEarly.push(`N64 ROM was ${norm.reordered} byte order - normalized to z64 (big-endian) for analysis.`);
     if (romBytes.length >= 0x0c) {
       // entry point: big-endian 32-bit at offset 0x08.
       loadBase = (romBytes[0x08] << 24) | (romBytes[0x09] << 16) | (romBytes[0x0a] << 8) | romBytes[0x0b];
@@ -300,7 +300,7 @@ async function loadContext(romPath, platformOverride) {
     loadBase = (romBytes[0x18] | (romBytes[0x19] << 8) | (romBytes[0x1a] << 16) | (romBytes[0x1b] << 24)) >>> 0;
     const text = romBytes.subarray(0x800);
     // rizin ignores -B on a raw malloc:// buffer, so it addresses flat from 0. PS1
-    // jal targets are ABSOLUTE VAs (e.g. jal 0x80010518) — to let rizin follow them,
+    // jal targets are ABSOLUTE VAs (e.g. jal 0x80010518) - to let rizin follow them,
     // left-pad the .text by the load address's low 20 bits so flat offset N == the
     // VA's low bits (jal masks to a 28-bit region). The high bits (0x80000000) are
     // added back as `rebase`. Without this, every cross-function call dangles and
@@ -357,7 +357,7 @@ async function loadContext(romPath, platformOverride) {
     const smd = deinterleaveSmd(romBytes);
     if (smd) {
       romBytes = smd;
-      warnings.push("Genesis ROM was SMD-INTERLEAVED (512-byte header + byte-swapped 16KB blocks) — " +
+      warnings.push("Genesis ROM was SMD-INTERLEAVED (512-byte header + byte-swapped 16KB blocks) - " +
         "auto-deinterleaved before analysis. A flat read of the original would scramble every instruction.");
     }
   }
@@ -418,13 +418,13 @@ export async function analyzeFunctions(romPath, platformOverride, opts = {}) {
     // of bytes per basic block; a "function" of thousands of bytes per block (or
     // a single huge block with no control flow) is a data table / graphics blob
     // mis-detected as a function. Flag it so agents don't waste a decompile on
-    // it. (A 16KB function with 35 blocks + cc 19 is a real big dispatcher — NOT
+    // it. (A 16KB function with 35 blocks + cc 19 is a real big dispatcher - NOT
     // flagged; size alone is the lie, the ratio isn't.)
     looksLikeData:
       (f.size ?? 0) > 0x400 &&
       ((f.nbbs ?? 0) <= 1 || (f.size ?? 0) / Math.max(1, f.nbbs ?? 1) > 1024),
   }));
-  // Real code first: highest nbbs/cc, then smaller size — so the actual routines
+  // Real code first: highest nbbs/cc, then smaller size - so the actual routines
   // surface above the data-fold noise without the agent having to learn the rule.
   functions.sort((a, b) =>
     (a.looksLikeData ? 1 : 0) - (b.looksLikeData ? 1 : 0) ||
@@ -463,7 +463,7 @@ export async function analyzeFunctions(romPath, platformOverride, opts = {}) {
   const truncated = shown.length < filtered.length;
   // `loadBase` is the CPU address that file offset 0 maps to (0 for flat carts
   // that map 1:1, the header-declared base for ROMs that don't). A function's
-  // FILE offset = its (rebased) address − loadBase — exposed so callers
+  // FILE offset = its (rebased) address − loadBase - exposed so callers
   // (extractCodeSpans) can turn addresses into file offsets on ANY platform,
   // not just SNES LoROM.
   return {
@@ -491,7 +491,7 @@ export async function analyzeFunctions(romPath, platformOverride, opts = {}) {
  * Copy a 16KB bank into its platform's paged window, returning a new image.
  *
  * Returns the image unchanged when the platform is not banked, no bank was
- * asked for, or the bank is out of range — a silent no-op is correct for the
+ * asked for, or the bank is out of range - a silent no-op is correct for the
  * first two and the third is reported by the caller's own bounds handling.
  */
 function pageBankIntoWindow(romBytes, platform, bank) {
@@ -511,7 +511,7 @@ export async function analyzeCfg(romPath, address, platformOverride, cfgOpts = {
   const ctx = await loadContext(romPath, platformOverride);
   const { platform, arch, bits, endian, loadBase, codeStart } = ctx;
   // BANK PAGING. rizin analyzes the FLAT image, so a paged address always lands
-  // on whatever the file holds at that offset — bank 2 on a Sega-mapper cart,
+  // on whatever the file holds at that offset - bank 2 on a Sega-mapper cart,
   // whatever the caller asked for. Paging the requested bank into the window
   // before analysis is what makes `bank` mean anything here; without it the
   // parameter is accepted and silently ignored, and the walk returns byte-
@@ -519,7 +519,7 @@ export async function analyzeCfg(romPath, address, platformOverride, cfgOpts = {
   const romBytes = pageBankIntoWindow(ctx.romBytes, platform, cfgOpts.bank);
   // afbj = basic blocks of the function as JSON: each block has addr/size/jump/
   // fail/ninstr. `jump` is the taken edge; `fail` (present only on conditional
-  // blocks) is the fall-through. This is the structured CFG source — `agf json`
+  // blocks) is the fall-through. This is the structured CFG source - `agf json`
   // only gives a text body blob with untyped out_nodes.
   // MIPS: seed the call graph first (the address is a vaddr from `functions`,
   // which rizin recovers during `aac`). PS1 rebases to loadBase so the vaddr lines up.
@@ -616,7 +616,7 @@ export async function analyzeCfg(romPath, address, platformOverride, cfgOpts = {
     // bytes decoded as data), not a one-block function. Saying so stops the
     // reader concluding the CFG is broken -- which has happened.
     ...(nodes.length === 1 && edges.length === 0
-      ? { note: "single block, no edges — if this was not meant to be a leaf, `address` is probably not a function entry (try an address from disasm({target:'functions'}))" }
+      ? { note: "single block, no edges - if this was not meant to be a leaf, `address` is probably not a function entry (try an address from disasm({target:'functions'}))" }
       : {}),
   };
 }
@@ -779,7 +779,7 @@ export async function analyzeReachable(romPath, entries, platformOverride, opts 
       cfg = await analyzeCfg(romPath, fnAddr, platformOverride, { bank });
     } catch (e) {
       // BOTH failure paths must carry `kind`. This one (analysis threw) is how
-      // an unused RST vector actually arrives — the other path below only fires
+      // an unused RST vector actually arrives - the other path below only fires
       // when analysis SUCCEEDS and returns no blocks. Tagging only that one
       // meant the field was absent from exactly the case a caller hits, and a
       // caller branching on `kind === 'no-code'` instead of string-matching
@@ -838,14 +838,14 @@ export async function analyzeReachable(romPath, entries, platformOverride, opts 
         ...(unbankedPaged ? {
           warning: `${unbankedPaged} block(s) in the paged window were walked with NO bank. On a banked cart an address in `
             + `${hx(banked.start)}-${hx(banked.end - 1)} means different code per bank, so this closure follows whichever bank the flat `
-            + `image holds and is NOT a reliable answer. Pass bank-keyed entries — entries:[[addr, bank], ...] or [{address, bank}] — `
+            + `image holds and is NOT a reliable answer. Pass bank-keyed entries - entries:[[addr, bank], ...] or [{address, bank}] - `
             + `or a top-level bank.`,
         } : {}),
       },
     } : {}),
     ...(unresolved.length ? { unresolved } : {}),
     ...(truncated ? { truncated: true, hint: `stopped at maxBlocks=${maxBlocks}; raise it or narrow entries` } : {}),
-    note: "static reachability: computed/indirect jumps are NOT followed — resolve those with breakpoint({on:'jumptable'}) and pass the recovered targets back as additional `entries`"
+    note: "static reachability: computed/indirect jumps are NOT followed - resolve those with breakpoint({on:'jumptable'}) and pass the recovered targets back as additional `entries`"
       + (banked ? ". Block identity inside the paged window is (bank, address): the same address in two banks is two different blocks." : ""),
   };
 }
@@ -872,7 +872,7 @@ function bankedWindow(platform) {
  * Make a failed-entry reason readable.
  *
  * rizin's stderr arrives with an ANSI erase sequence, an internal assertion
- * warning and a header dump that reports a wrong ROM size — all of which read
+ * warning and a header dump that reports a wrong ROM size - all of which read
  * as romdev being confused about the ROM. And semantically these are not
  * unresolved INDIRECT JUMPS, which is what `unresolved` is for; they are
  * entries with no code at all.
@@ -937,10 +937,10 @@ export async function analyzeXrefs(romPath, address, platformOverride) {
 /**
  * Structural map of a ROM (functions + strings + entrypoints) via Rizin.
  *
- * On a 1MB+ ROM the full function+string list is ~70K chars — it overflows the
+ * On a 1MB+ ROM the full function+string list is ~70K chars - it overflows the
  * MCP tool-result limit and spills to a file. `opts.summary` returns just the
  * counts + entrypoints + the top-N functions (by size, then callers) + a few
- * sample strings — the slice the disassemble-rom workflow actually extracts.
+ * sample strings - the slice the disassemble-rom workflow actually extracts.
  * `opts.topN` bounds the function list without the other summary trimming.
  *
  * @param {string} romPath
@@ -964,7 +964,7 @@ export async function analyzeStructure(romPath, platformOverride, opts = {}) {
   const mapStr = (s) => ({ address: rb(s.vaddr), addressHex: hx(rb(s.vaddr)), value: s.string });
 
   if (opts.summary) {
-    // Top functions by size, then by caller count — the ones worth disassembling
+    // Top functions by size, then by caller count - the ones worth disassembling
     // first. A handful of strings as a content sniff, not the whole table.
     const n = opts.topN ?? 25;
     const topFunctions = [...fnList]
@@ -990,7 +990,7 @@ export async function analyzeStructure(romPath, platformOverride, opts = {}) {
     entrypoints,
     functions: fnList.slice(0, fnCap).map(mapFn),
     strings: strList.slice(0, 256).map(mapStr),
-    ...(fnList.length > fnCap ? { note: `functions truncated to ${fnCap} of ${fnList.length} — pass a higher topN or summary:true.` } : {}),
+    ...(fnList.length > fnCap ? { note: `functions truncated to ${fnCap} of ${fnList.length} - pass a higher topN or summary:true.` } : {}),
   };
 }
 
@@ -1002,7 +1002,7 @@ export async function analyzeStructure(romPath, platformOverride, opts = {}) {
  * address, base 0). For these we DISTRUST Rizin's IO-map delta: some of Rizin's
  * loaders (notably the Mega Drive loader) split the image into vtable/header/
  * text SEGMENTS and report a non-zero delta on the code segment (e.g. 0x200 for
- * Genesis), but the raw file we hand the decompiler loads flat at VMA 0 — so the
+ * Genesis), but the raw file we hand the decompiler loads flat at VMA 0 - so the
  * vaddr IS the file offset and any delta is a lie for our purposes. Forcing
  * identity here fixes the "+0x200 shifted decompile" bug (a code vaddr would
  * otherwise resolve to vaddr-0x200, the WRONG function). */
@@ -1028,7 +1028,7 @@ export async function vaMapping(romBytes, arch, bits, vaddr, platform) {
  *
  * SNES is banked: the langid is `65816:LE:24:snes` (24-bit space). If we hand
  * the decompiler the flat file, a LoROM function at CPU $00:8000 lives at file
- * 0, but its in-bank `jsr $80xx` operands resolve to file 0x80xx — bank-1 code,
+ * 0, but its in-bank `jsr $80xx` operands resolve to file 0x80xx - bank-1 code,
  * a plausible-but-WRONG body. So we lay each ROM chunk at its CPU address
  * (sparse, zero-filled between), making BOTH the function address and every
  * in-bank/JSL operand resolve. ~2x ROM size; fine at SNES cart sizes.
@@ -1058,7 +1058,7 @@ export function buildSnesCpuImage(romBytes, mapperHint) {
     // MIRROR $00-$7F (the FastROM image), and code commonly runs there (a JML to
     // $F9xxxx is bank 0x79's ROM via the $80+ mirror). So we lay the full 16MB
     // 24-bit space and mirror each chunk into BOTH its $00-$7F home and its
-    // $80-$FF twin — otherwise a reference into the high half "can't load N
+    // $80-$FF twin - otherwise a reference into the high half "can't load N
     // bytes" and the decompiler bails.
     const fileBanks = Math.ceil(body.length / 0x8000); // ROM chunks (≤128)
     const image = new Uint8Array(0x1000000); // full 16MB CPU space
@@ -1090,15 +1090,15 @@ export function buildSnesCpuImage(romBytes, mapperHint) {
 /** Bank-aware NES image for the decompiler (A1).
  *
  * Rizin maps an iNES PRG as ONE flat $8000-based segment, so a `functions`
- * address is a FLAT-PRG VA ($8000 + flat offset) — bank 0 at $8000-$BFFF, bank 1
+ * address is a FLAT-PRG VA ($8000 + flat offset) - bank 0 at $8000-$BFFF, bank 1
  * at $C000-$FFFF, bank 2 at $10000+, etc. Decompiling that flat image is
  * bank-blind: an in-code `JSR $9123` (a real CPU address) resolves to flat
  * $9123 = bank 0, even when the calling code lives in bank 3 → halt_baddata /
  * garbage (11/12 top functions on a banked cart, empirically).
  *
  * Fix: from the flat VA, recover which 16KB PRG bank the function is in, then
- * build a real 32KB 6502 CPU image — that bank at $8000-$BFFF, the FIXED top
- * bank at $C000-$FFFF — and decompile at the function's REAL CPU address. Now
+ * build a real 32KB 6502 CPU image - that bank at $8000-$BFFF, the FIXED top
+ * bank at $C000-$FFFF - and decompile at the function's REAL CPU address. Now
  * in-bank calls AND fixed-bank ($C000+) calls both resolve.
  *
  * @returns {{ image: Uint8Array, cpuAddr: number, bank: number } | null} null if
@@ -1190,7 +1190,7 @@ export async function analyzeDecompile(romPath, address, platformOverride, bank 
   if (!SLEIGH_LANGID[platform]) throw new Error(`analyze decompile: unsupported platform '${platform}'`);
   let romBytes = new Uint8Array(await readFile(romPath));
   // A6: deinterleave SMD Genesis dumps here too (analyzeDecompile reads the file
-  // directly, not via loadContext) — a flat read of an interleaved ROM decodes
+  // directly, not via loadContext) - a flat read of an interleaved ROM decodes
   // to pure garbage.
   if (platform === "genesis") romBytes = deinterleaveSmd(romBytes) ?? romBytes;
 
@@ -1289,8 +1289,8 @@ export async function analyzeDecompile(romPath, address, platformOverride, bank 
   // SNES: banked 24-bit space. `address` is a LoROM/HiROM CPU address (what
   // target='functions'/'cfg' report). Lay the cart out by CPU address so BOTH
   // the function address AND its in-bank/JSL operands resolve, then decompile at
-  // the CPU address directly. (Flat-at-0 would decompile file[address] — the
-  // wrong bank — and mis-label every operand.)
+  // the CPU address directly. (Flat-at-0 would decompile file[address] - the
+  // wrong bank - and mis-label every operand.)
   if (platform === "snes") {
     const { image } = buildSnesCpuImage(romBytes);
     // The image is laid out by CPU address, so the file offset IS the address.
@@ -1331,7 +1331,7 @@ export async function analyzeDecompile(romPath, address, platformOverride, bank 
   // Use rizin's loader mapping to turn the VA (what the user sees from
   // target='functions') into the file offset the raw decompiler image needs.
   // PCE uses the 6502 plugin only for the map/loader (HuC6280 decode is the
-  // decompiler's job via SLEIGH) — its flat image bases at 0 either way.
+  // decompiler's job via SLEIGH) - its flat image bases at 0 either way.
   const arch = RIZIN_ARCH[platform] ?? "6502";
   const bits = { arm: 32, m68k: 32, snes: 16 }[arch];
 
@@ -1347,7 +1347,7 @@ export async function analyzeDecompile(romPath, address, platformOverride, bank 
   // analysis bases these at a known CPU address, so `address` IS a CPU address
   // and `functions` already reported it as such. Strip any header, left-pad the
   // body so file offset == CPU address, and decompile at `address` directly.
-  //   2600 → $F000; 7800 → size-dependent $8000-$C000 (+128B header if "AT…");
+  //   2600 → $F000; 7800 → size-dependent $8000-$C000 (+128B header if "AT...");
   //   c64 .prg → the 2-byte load-address header's value (e.g. $0801).
   let forcedBase = 0, bodyStart = 0;
   if (platform === "atari2600") {
@@ -1450,7 +1450,7 @@ async function splatSegmentMapping(address, { project, splatYaml, segment } = {}
   const r = map.resolveVa(address, { segment });
   if (!r.ok) { const e = new Error(r.error); e.code = r.code; e.candidates = r.candidates?.map((c) => c.segment); throw e; }
   const seg = map.segment(r.resolved.segment);
-  if (r.resolved.kind !== "rom") { const e = new Error(`VA ${hx(address)} is in ${seg.name}'s BSS — no ROM bytes to decompile`); e.code = "BSS_ADDRESS"; throw e; }
+  if (r.resolved.kind !== "rom") { const e = new Error(`VA ${hx(address)} is in ${seg.name}'s BSS - no ROM bytes to decompile`); e.code = "BSS_ADDRESS"; throw e; }
   // Symbolizer: Ghidra names things by the segment-relative offset (FUN_000xxxxx / DAT_000xxxxx) or by absolute VA for
   // out-of-image targets (func_0x80xxxxxx). Rebase both to VAs and swap in project symbol names where known.
   let nameFor = () => null;

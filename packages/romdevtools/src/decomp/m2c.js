@@ -1,4 +1,4 @@
-// m2c.js — compiler-aware candidate generation through m2c (mips-ido-c
+// m2c.js - compiler-aware candidate generation through m2c (mips-ido-c
 // target) with the TU's preprocessed context. Output is a CANDIDATE: stored
 // separately, never written into the project's source. The result separates
 // what the context vouched for from what m2c guessed.
@@ -91,7 +91,7 @@ export async function generateCandidate(project, fn, opts = {}) {
   const hypotheses = [];
   for (const m of parsed.body.matchAll(/M2C_FIELD\(([^,]+),\s*([^,]+),\s*(0x[0-9A-Fa-f]+|\d+)\)/g)) hypotheses.push({ base: m[1].trim(), type: m[2].trim(), offset: Number(m[3]), evidence: "m2c untyped field access" });
   for (const m of parsed.body.matchAll(/\b(\w+)(?:->|\.)unk_?([0-9A-Fa-f]+)\b/g)) {
-    // Used as a pointer base? `*(base->unkN + …)`, `base->unkN[…]`, `base->unkN->`
+    // Used as a pointer base? `*(base->unkN + ...)`, `base->unkN[...]`, `base->unkN->`
     const tail = parsed.body.slice(m.index + m[0].length, m.index + m[0].length + 6);
     const head = parsed.body.slice(Math.max(0, m.index - 3), m.index);
     const usedAsPointer = /^\s*(\[|->)/.test(tail) || (/\*\($/.test(head) && /^\s*\+/.test(tail));
@@ -132,11 +132,11 @@ export function splitM2cOutput(text) {
   return { declarations, body: lines.slice(i).join("\n") };
 }
 
-/** The prototype the context declares for the function (m2c honours it — a placeholder like `u8*` makes m2c emit `->unkN` on a non-struct pointer). */
+/** The prototype the context declares for the function (m2c honours it - a placeholder like `u8*` makes m2c emit `->unkN` on a non-struct pointer). */
 export function contextPrototype(ctxText, name) {
   const m = new RegExp(`^[^\\n;{}]*\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\([^;{}]*\\)\\s*;`, "m").exec(ctxText);
   if (!m) return { declared: false, note: "no prototype in the context: m2c inferred the signature from register use (an unmodified forwarded argument register is only weak evidence of an argument)" };
   const proto = m[0].trim();
   const placeholder = /\b(u8|s8|void)\s*\*/.test(proto);
-  return { declared: true, prototype: proto, placeholderPointerTypes: placeholder, note: placeholder ? "the TU declares byte/void pointer parameters; m2c cannot type field accesses through them — fix the prototype (a struct type) and regenerate" : undefined };
+  return { declared: true, prototype: proto, placeholderPointerTypes: placeholder, note: placeholder ? "the TU declares byte/void pointer parameters; m2c cannot type field accesses through them - fix the prototype (a struct type) and regenerate" : undefined };
 }

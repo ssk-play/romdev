@@ -34,7 +34,7 @@ test("getCartRom: Genesis file image == CPU ROM (un-banked), bytes match the loa
   assert.equal(rom.mapped, false, "Genesis ROM is un-banked: file offset == CPU address");
   // The served bytes are exactly the loaded image.
   assert.equal(rom.bytes.length, image.length);
-  // Genesis cart header has "SEGA" near 0x100 — confirm we're reading real ROM.
+  // Genesis cart header has "SEGA" near 0x100 - confirm we're reading real ROM.
   const tag = String.fromCharCode(...rom.bytes.subarray(0x100, 0x104));
   assert.ok(/SEGA|SeGa| SEG/.test(tag) || rom.bytes.subarray(0x100, 0x110).some((b) => b !== 0),
     `expected a populated Genesis header near 0x100, got ${JSON.stringify(tag)}`);
@@ -64,7 +64,7 @@ test("framebufferHash changes when the screen changes, stable when it doesn't", 
   // Advance enough that something on screen moves (the example animates/boots).
   for (let i = 0; i < 60; i++) host.stepFrames(1);
   const h2 = host.framebufferHash();
-  // Not a hard guarantee every ROM animates, but the genesis example does — and
+  // Not a hard guarantee every ROM animates, but the genesis example does - and
   // the hash must at least be a valid uint32.
   assert.equal(typeof h2, "number");
   assert.ok(h2 >= 0 && h2 <= 0xffffffff);

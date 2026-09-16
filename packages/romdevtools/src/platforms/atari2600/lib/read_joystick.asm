@@ -7,19 +7,19 @@
 ;
 ; ── How to use ─────────────────────────────────────────────────────
 ; Call READ_JOYSTICK once per frame (in vblank ideally), then test the
-; cached JOY_STATE byte — NEVER re-read SWCHA in the middle of your
+; cached JOY_STATE byte - NEVER re-read SWCHA in the middle of your
 ; bit-test chain. Reading SWCHA returns the *live* state, so if you
 ; chain `LDA SWCHA / ASL / BCS / ASL / BCS` you'll see different bits
 ; on each ASL because the value in A has changed since the last load.
 ;
 ; THE CLASSIC BUG (cost an agent 30 min): "left works once, right
-; never does" — caused by reading SWCHA twice without re-load, or by
+; never does" - caused by reading SWCHA twice without re-load, or by
 ; ASL-chaining without re-loading A between bit-tests. The cached
 ; JOY_STATE pattern below avoids it entirely.
 ;
 ;   JSR READ_JOYSTICK
 ;
-;   ; Pattern A — bit mask (clearest, no ASL chain to mis-count):
+;   ; Pattern A - bit mask (clearest, no ASL chain to mis-count):
 ;   LDA JOY_STATE
 ;   AND #P0_RIGHT_MASK
 ;   BEQ .not_right
@@ -35,18 +35,18 @@
 ;   BEQ .not_up
 ;   ; ...
 ;
-;   ; Pattern B — ASL chain (cheaper, but you MUST re-load JOY_STATE
+;   ; Pattern B - ASL chain (cheaper, but you MUST re-load JOY_STATE
 ;   ; before the chain and ensure no code path consumes A mid-chain):
 ;   LDA JOY_STATE
 ;   ASL                    ; carry = bit 7 = RIGHT
 ;   BCC .not_right
-;   ; right pressed — do NOT touch A's bits, OR re-load below
+;   ; right pressed - do NOT touch A's bits, OR re-load below
 ; .not_right:
 ;   LDA JOY_STATE          ; ← RE-LOAD if branch body clobbered A
-;   ASL                    ; bit 7 shifted out previously? no — fresh load.
+;   ASL                    ; bit 7 shifted out previously? no - fresh load.
 ;   ASL                    ; consume bit 7
 ;   ASL                    ; carry = bit 6 = LEFT (counting from MSB-first
-;                          ; after one ASL would be bit 6, etc. — easy to
+;                          ; after one ASL would be bit 6, etc. - easy to
 ;                          ; off-by-one. Pattern A above is safer.)
 ;
 ; Prefer Pattern A unless you're cycle-counting.
@@ -60,7 +60,7 @@ FIRE_MASK     equ $80    ; bit 7 of FIRE_STATE = pressed
 JOY_STATE  equ $90   ; ZP byte holding inverted joystick bits
 FIRE_STATE equ $91   ; ZP byte: bit 7 set if fire pressed
 
-; READ_JOYSTICK — call once per frame. Caches state in JOY_STATE +
+; READ_JOYSTICK - call once per frame. Caches state in JOY_STATE +
 ; FIRE_STATE; from then on read those, NOT SWCHA/INPT4 directly.
 READ_JOYSTICK:
   LDA SWCHA

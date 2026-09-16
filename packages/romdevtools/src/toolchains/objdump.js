@@ -1,9 +1,9 @@
-// objdump.js — run a native GNU binutils objdump (compiled to WASM) over a raw
+// objdump.js - run a native GNU binutils objdump (compiled to WASM) over a raw
 // binary blob and normalize its output into romdev's annotated-asm shape.
 //
 // WHY native objdump: the hand-rolled per-CPU JS decoders (m68kdasm/z80dasm/
 // sm83dasm) drop real instructions to `.dc.w` and desync the byte stream. The
-// binutils disassembler is the authoritative, complete decoder for each ISA —
+// binutils disassembler is the authoritative, complete decoder for each ISA -
 // and we ALREADY compile binutils to WASM for the m68k and ARM toolchains, so
 // `<target>-objdump` ships inside the matching toolchain package alongside
 // as/ld/objcopy.
@@ -11,7 +11,7 @@
 // Output shape: each instruction line becomes
 //     <mnemonic> <operands>            ; <ADDR> <hexbytes>
 // with absolute operands rewritten to `$XXXX` and intra-blob targets to
-// `L______` labels — matching what scanAsmForReferences/disassembleProject
+// `L______` labels - matching what scanAsmForReferences/disassembleProject
 // already parse for the da65 (6502) path.
 
 import { fileURLToPath } from "node:url";
@@ -29,7 +29,7 @@ function resolveGlue(pkg, file, localSubdir) {
     const u = import.meta.resolve(pkg);
     const p = path.join(path.dirname(fileURLToPath(u)), "wasm", file);
     if (existsSync(p)) return p;
-  } catch { /* package not resolvable — fall through to local */ }
+  } catch { /* package not resolvable - fall through to local */ }
   const local = path.join(__dirname, localSubdir ?? "", "wasm", file);
   if (existsSync(local)) return local;
   return null;
@@ -43,7 +43,7 @@ const ARCHES = {
   }),
   arm: () => ({
     // ARM/Thumb binutils ships in romdev-platform-gba (the GBA platform bundles
-    // the arm-none-eabi toolchain — same place as/ld/objcopy live).
+    // the arm-none-eabi toolchain - same place as/ld/objcopy live).
     glue: resolveGlue("romdev-platform-gba", "arm-none-eabi-objdump.mjs", "arm-none-eabi-gcc"),
     machine: "arm",
   }),
@@ -54,13 +54,13 @@ const ARCHES = {
     extraArgs: ["-M", "force-thumb"],
   }),
   z80: () => ({
-    // SMS / Game Gear / MSX — plain Z80. binutils' z80 objdump (ships in the
+    // SMS / Game Gear / MSX - plain Z80. binutils' z80 objdump (ships in the
     // sdcc toolchain package, which already serves Z80 builds).
     glue: resolveGlue("romdev-toolchain-sdcc", "z80-elf-objdump.mjs", "z80"),
     machine: "z80",
   }),
   gbz80: () => ({
-    // Game Boy / Color — SM83 / LR35902. The SAME z80 binutils objdump handles
+    // Game Boy / Color - SM83 / LR35902. The SAME z80 binutils objdump handles
     // it via the gbz80 machine (binutils z80-dis.c has full INSS_GBZ80 support).
     glue: resolveGlue("romdev-toolchain-sdcc", "z80-elf-objdump.mjs", "z80"),
     machine: "gbz80",
@@ -127,7 +127,7 @@ const LINE_RE = /^\s*([0-9a-fA-F]+):\t([0-9a-fA-F ]+?)\s*\t(.*)$/;
  *
  * @param {string} raw objdump stdout
  * @param {number} startAddress VMA of the first byte
- * @param {string} [arch] the objdump arch — needed for byte order (see below)
+ * @param {string} [arch] the objdump arch - needed for byte order (see below)
  * @returns {string}
  */
 export function parseObjdumpRows(raw, arch = "") {
@@ -137,7 +137,7 @@ export function parseObjdumpRows(raw, arch = "") {
   // `; ADDR bytes` comment MUST carry the true ROM byte order (the reassembly
   // heal compares a pinned `.byte` against the original bytes). So for ARM,
   // reverse the bytes WITHIN each objdump word-group. m68k displays big-endian
-  // = ROM order, and z80 bytes are sequential — both pass through unchanged.
+  // = ROM order, and z80 bytes are sequential - both pass through unchanged.
   const leWord = arch === "arm" || arch === "thumb";
   /** @type {{addr:number, bytes:string, mnem:string, ops:string}[]} */
   const rows = [];
@@ -168,7 +168,7 @@ export function parseObjdumpRows(raw, arch = "") {
 
 export function normalizeObjdump(raw, startAddress = 0, arch = "") {
   const rows = parseObjdumpRows(raw, arch);
-  if (!rows.length) return raw; // nothing parsed — return objdump output verbatim
+  if (!rows.length) return raw; // nothing parsed - return objdump output verbatim
 
   // Which addresses are branch/call targets that land inside the blob? Those get
   // a label so the reference scanner can resolve operands to them.

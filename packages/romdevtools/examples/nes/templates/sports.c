@@ -1,36 +1,36 @@
-/* ── sports.c — NES versus sports game (complete example game) ───────────────
+/* ── sports.c - NES versus sports game (complete example game) ───────────────
  *
- * A COMPLETE, working game — COURT CLASH, a head-to-head court game (Pong
+ * A COMPLETE, working game - COURT CLASH, a head-to-head court game (Pong
  * lineage): title screen, 1P vs CPU and 2P simultaneous versus, first-to-5
  * match flow with a result screen, queued-text HUD, music + SFX, and a
  * battery-backed record (longest win streak vs the CPU).
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented NES footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented NES footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — court art, ball physics, CPU skill, scoring rules:
+ *   GAME LOGIC (clay) - court art, ball physics, CPU skill, scoring rules:
  *     reshape freely.
  *
  * What depends on what:
- *   nes_runtime.{h,c} — rendering/input/sound/text/hi-score library.
- *   chr-ram-runtime.crt0.s — boot + NMI + iNES header (BATTERY bit feeds
+ *   nes_runtime.{h,c} - rendering/input/sound/text/hi-score library.
+ *   chr-ram-runtime.crt0.s - boot + NMI + iNES header (BATTERY bit feeds
  *     hiscore_load/save). Load-bearing; edit with TROUBLESHOOTING open.
  *
  * Frame budget (NTSC, 60fps): 2 paddles + 1 ball + 2 paddle collision tests
- * + a handful of queued HUD writes — a fraction of one frame even on the
+ * + a handful of queued HUD writes - a fraction of one frame even on the
  * 1.79MHz 6502. Plenty of headroom for fancier ball physics.
  */
 
 #include "nes_runtime.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "COURT CLASH"
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Tile art. Each 8x8 tile = 16 bytes: 8 plane-0 rows then 8 plane-1 rows
- * (2bpp — plane0-only pixels use colour 1, both planes = colour 3). */
+ * (2bpp - plane0-only pixels use colour 1, both planes = colour 3). */
 static const uint8_t tile_blank[16]  = { 0 };
 /* Paddle = solid 4px-wide column; players stack 3 of these (24px tall). */
 static const uint8_t tile_paddle[16] = {
@@ -41,11 +41,11 @@ static const uint8_t tile_ball[16] = {
   0x00, 0x3C, 0x7E, 0x7E, 0x7E, 0x7E, 0x3C, 0x00,
   0,    0,    0,    0,    0,    0,    0,    0,
 };
-/* Court BG tiles (BACKGROUND pattern table $1000 — separate from the sprite
+/* Court BG tiles (BACKGROUND pattern table $1000 - separate from the sprite
  * table at $0000; the runtime's PPUCTRL setup makes that split):
- *   BG_WALL  — solid rail (colour 1): the top/bottom court boundaries.
- *   BG_NET   — dashed vertical bar (colour 1): the centre net.
- *   BG_FLOOR — faint hatch (colour 2): the court surface, so the arena
+ *   BG_WALL  - solid rail (colour 1): the top/bottom court boundaries.
+ *   BG_NET   - dashed vertical bar (colour 1): the centre net.
+ *   BG_FLOOR - faint hatch (colour 2): the court surface, so the arena
  *              reads as a court instead of sprites on flat black. */
 static const uint8_t tile_wall[16] = {
   0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -63,7 +63,7 @@ static const uint8_t tile_floor[16] = {
 #define BG_NET   2   /* BG slot 2 → CHR $1020 */
 #define BG_FLOOR 3   /* BG slot 3 → CHR $1030 */
 
-/* Sprite pattern-table slots ($0000). The font lives at BG $40+ — uploaded
+/* Sprite pattern-table slots ($0000). The font lives at BG $40+ - uploaded
  * by font_upload(), used by all the text_draw* calls. */
 #define T_PADDLE 1
 #define T_BALL   2
@@ -82,12 +82,12 @@ static const uint8_t palette[32] = {
   0x0F, 0x30, 0x10, 0x00,
 };
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Court geometry + match rules. The court is framed by BG rails on
  * nametable rows 2 and 27; COURT_TOP/BOT keep the ball between them. */
 #define PADDLE_H   24            /* 3 stacked 8px sprites */
-#define PADDLE_X1  16            /* P1 — left side */
-#define PADDLE_X2  232           /* P2/CPU — right side */
+#define PADDLE_X1  16            /* P1 - left side */
+#define PADDLE_X2  232           /* P2/CPU - right side */
 #define COURT_TOP  24            /* first pixel row below the top rail */
 #define COURT_BOT  216           /* first pixel row of the bottom rail */
 #define BALL_W     8
@@ -104,16 +104,16 @@ static uint8_t score_p1, score_p2;
 static uint8_t serve_timer;      /* freeze frames between points */
 static uint8_t two_player;       /* title pick: 0 = vs CPU, 1 = 2P versus */
 static uint8_t streak;           /* current 1P-vs-CPU win streak (RAM) */
-static uint16_t best_streak;     /* battery-backed record — see end_match */
+static uint16_t best_streak;     /* battery-backed record - see end_match */
 static uint8_t new_record;       /* result screen shows NEW RECORD */
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static uint8_t state;
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call).
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call).
  * A versus game NEEDS this: the NES is fully deterministic, so without a
  * noise source two fixed strategies lock into an infinite rally loop (the
  * exact same 600-frame cycle, forever). random8() is ticked once per play
@@ -128,7 +128,7 @@ static uint8_t random8(void) {
   return (uint8_t)r;
 }
 
-/* ── GAME LOGIC (clay) — serve: ball to centre, toward the chosen side ── */
+/* ── GAME LOGIC (clay) - serve: ball to centre, toward the chosen side ── */
 static void serve_ball(uint8_t to_left) {
   bx = 124;
   by = 116;
@@ -137,9 +137,9 @@ static void serve_ball(uint8_t to_left) {
   serve_timer = 30;                            /* half-second breather */
 }
 
-/* ── GAME LOGIC (clay) — HUD (queued writes; the NMI commits ≤16/vblank) ──
+/* ── GAME LOGIC (clay) - HUD (queued writes; the NMI commits ≤16/vblank) ──
  * OVERSCAN RULE: most NTSC displays/cores crop the top 8 scanlines, so
- * nametable row 0 is invisible — HUD text lives on row 1, never row 0. */
+ * nametable row 0 is invisible - HUD text lives on row 1, never row 0. */
 static void draw_hud(void) {
   text_draw_u16(0, 4, 1, score_p1);
   text_draw_u16(0, 23, 1, score_p2);
@@ -150,9 +150,9 @@ static void draw_hud_labels(void) {
   text_draw(0, 29, 1, two_player ? "P2" : "CPU");
 }
 
-/* ── GAME LOGIC (clay) — the title screen ──────────────────────────────────
+/* ── GAME LOGIC (clay) - the title screen ──────────────────────────────────
  * Painted with the PPU OFF (text_draw_unsafe = raw VRAM writes; the queued
- * variant would deadlock with rendering disabled — see TROUBLESHOOTING). */
+ * variant would deadlock with rendering disabled - see TROUBLESHOOTING). */
 static void paint_title(void) {
   uint8_t r, c;
   ppu_off();
@@ -164,7 +164,7 @@ static void paint_title(void) {
   text_draw_unsafe(0x2000 + 8 * 32 + ((32 - sizeof(GAME_TITLE) + 1) / 2), GAME_TITLE);
   text_draw_unsafe(0x2000 + 13 * 32 + 9, "1P VS CPU - A");
   text_draw_unsafe(0x2000 + 15 * 32 + 9, "2P VERSUS - B");
-  /* Persistent record line — the battery-backed best CPU-mode win streak. */
+  /* Persistent record line - the battery-backed best CPU-mode win streak. */
   text_draw_unsafe(0x2000 + 20 * 32 + 7, "BEST STREAK");
   {
     uint16_t v = best_streak;
@@ -177,9 +177,9 @@ static void paint_title(void) {
   ppu_on_all();
 }
 
-/* ── GAME LOGIC (clay) — paint the court, PPU off (match start only).
+/* ── GAME LOGIC (clay) - paint the court, PPU off (match start only).
  * Once rendering is back on, ALL background changes must go through the
- * QUEUED path (tile_set / text_draw / text_draw_u16) — a raw $2007 write
+ * QUEUED path (tile_set / text_draw / text_draw_u16) - a raw $2007 write
  * mid-frame corrupts the PPU address latch and shears the screen. */
 static void paint_court(void) {
   uint8_t r, c;
@@ -204,7 +204,7 @@ static void paint_court(void) {
   draw_hud();
 }
 
-/* ── GAME LOGIC (clay) — start a match ── */
+/* ── GAME LOGIC (clay) - start a match ── */
 static void start_match(uint8_t players) {
   two_player = players;
   p1y = 100; p2y = 100;
@@ -215,10 +215,10 @@ static void start_match(uint8_t players) {
   state = ST_PLAY;
 }
 
-/* ── GAME LOGIC (clay) — match over: result + record bookkeeping.
+/* ── GAME LOGIC (clay) - match over: result + record bookkeeping.
  * Persistence choice: for a VERSUS sports game a raw hi-score is
  * meaningless (every match ends 5-x), so we persist the longest 1P win
- * streak against the CPU — the stat a returning player actually chases.
+ * streak against the CPU - the stat a returning player actually chases.
  * 2P matches never touch it (humans beating each other isn't a record). */
 static void end_match(void) {
   if (score_p1 >= WIN_SCORE) {
@@ -228,7 +228,7 @@ static void end_match(void) {
       if (streak > best_streak) {
         best_streak = streak;
         new_record = 1;
-        /* ── HARDWARE IDIOM (load-bearing) — persists via battery PRG-RAM
+        /* ── HARDWARE IDIOM (load-bearing) - persists via battery PRG-RAM
          * at $6000; works because the crt0's iNES header sets the BATTERY
          * bit. See nes_runtime.c for the magic+checksum layout. ── */
         hiscore_save(best_streak);
@@ -248,17 +248,17 @@ static void end_match(void) {
   state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay) — one point scored ── */
+/* ── GAME LOGIC (clay) - one point scored ── */
 static void score_point(uint8_t for_p1) {
   if (for_p1) ++score_p1; else ++score_p2;
   sound_play_noise(5, 8, 8);
-  draw_hud();                    /* queued — safe while rendering */
+  draw_hud();                    /* queued - safe while rendering */
   if (score_p1 >= WIN_SCORE || score_p2 >= WIN_SCORE) end_match();
   else serve_ball(for_p1);       /* winner of the point receives */
 }
 
-/* ── GAME LOGIC (clay) — paddle hit: deflect by where the ball struck.
- * Centre = flat-ish, edges = steep. Max |bdy| is 2 — the CPU moves at 1,
+/* ── GAME LOGIC (clay) - paddle hit: deflect by where the ball struck.
+ * Centre = flat-ish, edges = steep. Max |bdy| is 2 - the CPU moves at 1,
  * so an edge hit is exactly how a human beats it. A ±1 random "spin" on
  * every return keeps rallies from repeating (see the PRNG note above). */
 static void deflect(int16_t paddle_y) {
@@ -274,12 +274,12 @@ static void deflect(int16_t paddle_y) {
 void main(void) {
   uint8_t pad, prev_pad = 0;
 
-  /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
    * Init order: PPU off → CHR upload → palette → nametable (raw writes) →
    * OAM clear → rendering on. CHR/palette/nametable writes REQUIRE the PPU
    * off (raw $2007 traffic during rendering corrupts the address latch
    * mid-frame). The runtime's ppu_off/ppu_on_all pair owns the PPUCTRL/
-   * PPUMASK bits — don't poke those registers directly alongside it. */
+   * PPUMASK bits - don't poke those registers directly alongside it. */
   ppu_off();
   chr_ram_upload(T_PADDLE * 16, tile_paddle, 16);
   chr_ram_upload(T_BALL * 16, tile_ball, 16);
@@ -290,14 +290,14 @@ void main(void) {
   palette_load(palette);
   sound_init();
 
-  best_streak = hiscore_load();  /* battery SRAM — 0 on first boot */
+  best_streak = hiscore_load();  /* battery SRAM - 0 on first boot */
   streak = 0;
   state = ST_TITLE;
   paint_title();
 
   for (;;) {
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: A/START = 1P vs CPU, B = 2P versus ── */
+      /* ── GAME LOGIC (clay) - title: A/START = 1P vs CPU, B = 2P versus ── */
       oam_clear();
       ppu_wait_nmi();
       sound_music_tick();
@@ -311,7 +311,7 @@ void main(void) {
 
     if (state == ST_OVER) {
       /* Freeze the final scene; START or A returns to the title. Sprites
-       * still need restaging every frame — oam_clear + the same draws —
+       * still need restaging every frame - oam_clear + the same draws -
        * because the NMI DMAs shadow OAM whether you updated it or not. */
       {
         uint8_t i;
@@ -332,12 +332,12 @@ void main(void) {
 
     /* ── ST_PLAY ─────────────────────────────────────────────────────── */
 
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
      * Stage ALL sprites BEFORE ppu_wait_nmi(). The NMI DMAs shadow OAM →
      * real OAM at the START of vblank, copying whatever shadow OAM holds AT
      * THAT MOMENT. Stage-then-wait; flipping it shows stale/empty sprites.
      * OAM slot = oam_spr call order: P1 paddle fills slots 0-2, P2 paddle
-     * 3-5, ball 6 — every frame, deterministically. */
+     * 3-5, ball 6 - every frame, deterministically. */
     {
       uint8_t i;
       oam_clear();
@@ -354,7 +354,7 @@ void main(void) {
     /* ── GAME LOGIC (clay) from here down ── */
     random8();                   /* tick the noise source every play frame */
 
-    /* P1 — port 0, up/down, 2px/frame. (prev_pad tracks through play so
+    /* P1 - port 0, up/down, 2px/frame. (prev_pad tracks through play so
      * the result screen's edge-detect doesn't eat a held button.) */
     pad = pad_poll(0);
     prev_pad = pad;
@@ -362,12 +362,12 @@ void main(void) {
     if ((pad & PAD_DOWN) && p1y < COURT_BOT - PADDLE_H) p1y += 2;
 
     if (two_player) {
-      /* P2 — port 1, same speed: a fair simultaneous-versus match. */
+      /* P2 - port 1, same speed: a fair simultaneous-versus match. */
       uint8_t pad2 = pad_poll(1);
       if ((pad2 & PAD_UP)   && p2y > COURT_TOP)            p2y -= 2;
       if ((pad2 & PAD_DOWN) && p2y < COURT_BOT - PADDLE_H) p2y += 2;
     } else {
-      /* CPU — chases the ball centre at 1px/frame (half player speed) with
+      /* CPU - chases the ball centre at 1px/frame (half player speed) with
        * a small dead zone. Beatable by design: steep deflections outrun it. */
       int16_t target = by + BALL_H / 2 - PADDLE_H / 2;
       if (p2y + 2 < target && p2y < COURT_BOT - PADDLE_H) p2y += 1;

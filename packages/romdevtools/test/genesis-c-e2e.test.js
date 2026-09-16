@@ -1,7 +1,7 @@
 // Genesis C end-to-end through MCP buildSource + loadMedia.
 //
 // Confirms the language:"c" Genesis dispatch produces a ROM that
-// actually loads in genesis_plus_gx via the MCP tool surface — the
+// actually loads in genesis_plus_gx via the MCP tool surface - the
 // full agent-facing flow for "I want C on Genesis."
 
 import { test } from "node:test";
@@ -37,10 +37,10 @@ test("buildSource({platform:'genesis', language:'c'}) → loadable Genesis ROM",
       language: "c",
       source: "int counter = 7; int main(void) { counter += 1; return counter; }",
     },
-    // SGDK now compiles from source — the FIRST genesis build per process is
+    // SGDK now compiles from source - the FIRST genesis build per process is
     // ~18s, and under parallel worker contention during the full suite it can
     // exceed the SDK's default 60s request timeout. Give it room. (callTool
-    // signature: (params, resultSchema, requestOptions) — schema undefined.)
+    // signature: (params, resultSchema, requestOptions) - schema undefined.)
   }, undefined, { timeout: 180000 }));
   assert.equal(build.ok, true, "genesis C build failed:\n" + build.log);
   assert.equal(build.toolchain, "m68k-elf-gcc");

@@ -1,4 +1,4 @@
-/* ── nes_runtime.c — runtime impl auto-linked into NES C builds ──
+/* ── nes_runtime.c - runtime impl auto-linked into NES C builds ──
  *
  * See nes_runtime.h for the API. The crt0 (chr-ram.crt0.s) wires in
  * the NMI handler that calls vram_queue_flush + commits scroll_x /
@@ -8,7 +8,7 @@
 
 #include "nes_runtime.h"
 
-/* ── PPU register addresses — define here rather than depend on cc65's
+/* ── PPU register addresses - define here rather than depend on cc65's
  * nes.h, since the chr-ram preset's reduced lib set doesn't pull it. */
 #define PPUCTRL   (*(volatile uint8_t *)0x2000)
 #define PPUMASK   (*(volatile uint8_t *)0x2001)
@@ -56,38 +56,38 @@ volatile uint8_t nmi_counter = 0;
  * (so OAM segment placement at $0200 is linker-enforced). oam_index
  * tracks the next free slot for oam_spr(). */
 static uint8_t oam_index = 0;
-static void oam_hide_unused(void);  /* fwd decl — used by ppu_wait_nmi (NES-1) */
+static void oam_hide_unused(void);  /* fwd decl - used by ppu_wait_nmi (NES-1) */
 
 /* ── VRAM write queue ─────────────────────────────────────────────
  * A ring buffer of { hi, lo, byte } entries. The NMI drains it with
- * PPUADDR(hi); PPUADDR(lo); PPUDATA(byte) per entry — but only up to
+ * PPUADDR(hi); PPUADDR(lo); PPUDATA(byte) per entry - but only up to
  * FLUSH_BUDGET entries per vblank (see the idiom note below). Game code
  * that outruns the drain just blocks in vram_queue_push until a slot
  * frees up; a big batch appears over 2-3 frames, invisible to a human.
  *
- * ── HARDWARE IDIOM (load-bearing) — the VBLANK BUDGET ──
+ * ── HARDWARE IDIOM (load-bearing) - the VBLANK BUDGET ──
  * Vblank is ~2273 CPU cycles and OAM DMA already spends 513 of them.
  * A flush that keeps writing past the end of vblank writes PPUDATA
- * while RENDERING IS ACTIVE — the PPU's internal address register is
+ * while RENDERING IS ACTIVE - the PPU's internal address register is
  * busy fetching tiles, so those writes land at corrupted addresses.
  * Symptom: a long batch of queued tiles where MOST land correctly but
  * the tail is shifted or missing, identically every run. The budget
  * caps the per-vblank drain so the flush always finishes inside vblank.
  * The drain itself lives in the crt0's NMI handler IN ASSEMBLY (~40
  * cycles/entry); compiled C spends 200+ cycles per entry, which blows
- * the budget even for small batches — measured, not theoretical.
+ * the budget even for small batches - measured, not theoretical.
  *
- * ── HARDWARE IDIOM (load-bearing) — the NMI/main-thread race ──
+ * ── HARDWARE IDIOM (load-bearing) - the NMI/main-thread race ──
  * The NMI fires asynchronously; if it drained the queue WHILE
  * vram_queue_push was mid-update, the in-flight entry would be lost
  * and a stale slot replayed. The lock byte makes the flush skip any
  * vblank that catches a push in progress (the queue drains a frame
  * later). Symptom without it: HUD text with characters missing or
  * shifted, coming and going with timing. */
-#define QUEUE_MAX     32            /* power of two — indices wrap via & */
+#define QUEUE_MAX     32            /* power of two - indices wrap via & */
 #define QUEUE_MASK    (QUEUE_MAX - 1)
 #define FLUSH_BUDGET  16            /* keep in sync with the crt0 asm */
-/* NOT static — the crt0's NMI drains the ring in assembly (see the
+/* NOT static - the crt0's NMI drains the ring in assembly (see the
  * vblank-budget idiom above; symbol names are part of the crt0 contract). */
 uint8_t vram_q_hi[QUEUE_MAX];
 uint8_t vram_q_lo[QUEUE_MAX];
@@ -97,7 +97,7 @@ volatile uint8_t vram_queue_len = 0;
 volatile uint8_t vram_queue_lock = 0;
 
 /* Queue one byte. If full, wait for the NMI to drain a slot (lock
- * RELEASED while waiting — holding it would deadlock), then enqueue
+ * RELEASED while waiting - holding it would deadlock), then enqueue
  * under the lock. */
 static void vram_queue_push(uint16_t ppu_addr, uint8_t v) {
   uint8_t slot;
@@ -142,7 +142,7 @@ void ppu_on_spr(void) {
 }
 
 void ppu_wait_vblank(void) {
-  /* Setup-time wait — polls $2002 directly. Safe when NMI is disabled. */
+  /* Setup-time wait - polls $2002 directly. Safe when NMI is disabled. */
   while ((PPUSTATUS & 0x80) == 0) { /* spin */ }
 }
 
@@ -150,14 +150,14 @@ void ppu_wait_nmi(void) {
   uint8_t target;
   /* Hide last frame's now-unused sprite slots BEFORE waiting, so the buffer
    * the NMI's OAM-DMA copies is fully staged (live slots written by oam_spr,
-   * stale slots parked off-screen) — never a half-cleared buffer (NES-1). */
+   * stale slots parked off-screen) - never a half-cleared buffer (NES-1). */
   oam_hide_unused();
   target = (uint8_t)(nmi_counter + 1);
   while (nmi_counter != target) { /* spin */ }
 }
 
 uint8_t ppu_system(void) {
-  /* Cheap heuristic: count vblanks per CPU loop. Punt for v1 — return
+  /* Cheap heuristic: count vblanks per CPU loop. Punt for v1 - return
    * NTSC. Real PAL detection is a frame-rate measurement we don't
    * need until anyone asks for PAL builds. */
   return 0;
@@ -217,7 +217,7 @@ void oam_spr(uint8_t x, uint8_t y, uint8_t tile, uint8_t attr) {
   shadow_oam[oam_index + 2] = attr;
   shadow_oam[oam_index + 3] = x;
   oam_index += 4;
-  /* Wraps at 256 back to 0 — game code calling oam_spr more than 64
+  /* Wraps at 256 back to 0 - game code calling oam_spr more than 64
    * times will overwrite earlier slots. That's fine; hardware caps
    * at 64 anyway. */
 }
@@ -227,7 +227,7 @@ void oam_spr(uint8_t x, uint8_t y, uint8_t tile, uint8_t attr) {
 uint8_t pad_poll(uint8_t which) {
   uint8_t i, bit;
   uint8_t out = 0;
-  /* Strobe — write 1 then 0 to $4016. */
+  /* Strobe - write 1 then 0 to $4016. */
   JOY1 = 1;
   JOY1 = 0;
   if (which == 0) {
@@ -247,7 +247,7 @@ uint8_t pad_poll(uint8_t which) {
 /* ── CHR-RAM upload ────────────────────────────────────────────── */
 
 void chr_ram_upload(uint16_t ppu_addr, const uint8_t *src, uint16_t n) {
-  /* Caller must call with PPU off. Writes are sequential — PPUADDR
+  /* Caller must call with PPU off. Writes are sequential - PPUADDR
    * auto-increments by 1 per write (since PPUCTRL bit 2 = 0). */
   uint16_t i;
   (void)PPUSTATUS;
@@ -322,7 +322,7 @@ void ppu_scroll(uint16_t x, uint16_t y) {
   ppuctrl_value = nt;
   scroll_x = (uint8_t)(x & 0xFF);
   scroll_y = (uint8_t)(y & 0xFF);
-  /* Take effect at next NMI — the crt0 NMI writes scroll_x, scroll_y,
+  /* Take effect at next NMI - the crt0 NMI writes scroll_x, scroll_y,
    * and ppuctrl_value to PPUSCROLL/PPUCTRL. */
 }
 
@@ -350,7 +350,7 @@ void sound_init(void) {
  * The pulse channels + noise stay free for sound_play_tone/noise SFX.
  * Call sound_music_tick() once per frame (after ppu_wait_nmi); the
  * scaffolds wire it in. sound_music(0) silences it. ("No sound" was
- * the dominant NES playtest complaint — a rare 6-frame blip isn't
+ * the dominant NES playtest complaint - a rare 6-frame blip isn't
  * enough; continuous triangle gives every scaffold a musical floor.)
  * NTSC triangle period for note f ≈ 1789773/(32*f) - 1. */
 static const uint16_t music_period_tbl[16] = {
@@ -406,7 +406,7 @@ void sound_play_tone(uint8_t channel, uint16_t period, uint8_t vol_4bit, uint8_t
     PULSE2_LO    = lo;
     PULSE2_HI    = hi;
   } else {
-    /* triangle — no volume control, no envelope */
+    /* triangle - no volume control, no envelope */
     TRI_LINEAR   = 0xFF;                  /* linear counter max */
     TRI_LO       = lo;
     TRI_HI       = hi;
@@ -430,9 +430,9 @@ void sound_off(void) {
  * Text + font (0.29.0 examples contract)
  * ════════════════════════════════════════════════════════════════════ */
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Font glyphs are 1bpp (plane 0 only → colour index 1 of the BG palette).
- * They upload into the BACKGROUND pattern table at $1400+ — tile ids $40+ —
+ * They upload into the BACKGROUND pattern table at $1400+ - tile ids $40+ -
  * NOT the sprite table at $0000 (the runtime maps BG to $1000, sprites to
  * $0000 via PPUCTRL). Requires: PPU rendering OFF during font_upload (raw
  * $2007 writes), 37*16 = 592 bytes of CHR-RAM free at $1400-$164F. */
@@ -500,13 +500,13 @@ void text_draw_u16(uint8_t nt, uint8_t x, uint8_t y, uint16_t v) {
  * Hi-score persistence (battery PRG-RAM at $6000)
  * ════════════════════════════════════════════════════════════════════ */
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * Requires: the iNES BATTERY flag in the crt0 header (flags6 bit 1 — the
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * Requires: the iNES BATTERY flag in the crt0 header (flags6 bit 1 - the
  * bundled chr-ram-runtime crt0 sets it). Without it, NROM leaves
  * $6000-$7FFF UNMAPPED: reads return open bus (looks like data, isn't),
  * writes vanish, and nothing persists. With it the emulator maps 8KB
  * persistent PRG-RAM there (the save_ram region) like a real battery cart.
- * First boot is GARBAGE, not zeros — that's why the magic + checksum. */
+ * First boot is GARBAGE, not zeros - that's why the magic + checksum. */
 #define SRAM ((volatile uint8_t *)0x6000)
 
 uint16_t hiscore_load(void) {

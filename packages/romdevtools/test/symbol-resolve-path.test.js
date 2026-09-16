@@ -1,11 +1,11 @@
-// P2 — cheap symbol→address resolution. The feedback: to read a C variable in
+// P2 - cheap symbol→address resolution. The feedback: to read a C variable in
 // WRAM the agent needed its address, but the only path was to pull the whole
 // 30-60KB .map/.dbg back through context and pass it to symbols({op:'resolve'}).
 //
 // Two new paths, proven here cross-format:
-//   (a) symbols({op:'resolve', name, dbgPath|mapPath}) — the SERVER reads the
+//   (a) symbols({op:'resolve', name, dbgPath|mapPath}) - the SERVER reads the
 //       debug file off disk; the agent gets back JUST {address,hex,region?,...}.
-//   (b) build({output:'romWithDebug', resolveSymbols:[...]}) — resolve names off
+//   (b) build({output:'romWithDebug', resolveSymbols:[...]}) - resolve names off
 //       the freshly-produced map in the build result, no map dumped.
 //
 // Covers cc65 .dbg (NES), sdld .map (GBC), GNU ld .map (Genesis).
@@ -29,10 +29,10 @@ const toJSON = (res) => {
 };
 const tmpOut = async (name) => path.join(await mkdtemp(path.join(tmpdir(), "romdev-sym-")), name);
 
-// ── GBC (sdld .map) — a known WRAM global. SDCC puts C globals in _DATA at
+// ── GBC (sdld .map) - a known WRAM global. SDCC puts C globals in _DATA at
 // $C0xx; resolving `grid` must give a $C0xx-ish address WITHOUT the map.
 // (Non-static file-scope globals: SDCC only emits THOSE as `_name` symbols in
-// the sdld map — a `static` would be area-relative-only, never resolvable.) ──
+// the sdld map - a `static` would be area-relative-only, never resolvable.) ──
 const GBC_SRC = `#include <stdint.h>
 uint8_t grid[78];
 uint16_t score;
@@ -46,11 +46,11 @@ test("GBC: build romWithDebug writes a .map; resolve 'grid' via mapPath → $C0x
   }));
   assert.equal(build.ok, true, "gbc romWithDebug build failed: " + JSON.stringify(build).slice(0, 400));
   assert.ok(build.mapPath, "expected a mapPath on disk");
-  // The map is on disk and is large — the whole point is we never read it here.
+  // The map is on disk and is large - the whole point is we never read it here.
   const mapBytes = (await readFile(build.mapPath)).length;
   assert.ok(mapBytes > 2000, "sanity: the sdld .map is large (" + mapBytes + "B)");
 
-  // (a) resolve via mapPath — server reads the file.
+  // (a) resolve via mapPath - server reads the file.
   const loaded = await loadDebugSource({ mapPath: build.mapPath });
   const res = await resolveSymbolCore({ ...loaded, name: "grid", platform: "gbc" });
   assert.equal((res.address & 0xf000), 0xc000, "grid should land in $C0xx WRAM, got " + res.hex);
@@ -65,7 +65,7 @@ test("GBC: build({resolveSymbols:['grid','score','nope']}) folds addresses into 
     resolveSymbols: ["grid", "score", "nope"],
   }));
   assert.equal(build.ok, true);
-  // The response carries the addresses we asked for — and NOT the map text.
+  // The response carries the addresses we asked for - and NOT the map text.
   assert.ok(build.resolvedSymbols.grid, "grid resolved");
   assert.ok(build.resolvedSymbols.score, "score resolved");
   assert.equal((build.resolvedSymbols.grid.address & 0xf000), 0xc000);
@@ -74,9 +74,9 @@ test("GBC: build({resolveSymbols:['grid','score','nope']}) folds addresses into 
   assert.equal(build.mapText, undefined, "raw map text must NOT be inline in the result");
 });
 
-// ── NES (cc65 .dbg) — a known global. cc65 names it '_grid' in the .dbg;
+// ── NES (cc65 .dbg) - a known global. cc65 names it '_grid' in the .dbg;
 // resolve must find it under the plain name and land in BSS RAM. Uses the stock
-// cc65 nes.cfg (no preset name — the romWithDebug raw path takes .cfg CONTENTS
+// cc65 nes.cfg (no preset name - the romWithDebug raw path takes .cfg CONTENTS
 // only), with a HEADER + tiny crt0 supplied as sources so it links. ──
 const NES_HEADER_S = `.segment "HEADER"
 .byte "NES", $1A
@@ -115,7 +115,7 @@ test("NES: resolve 'grid' via dbgPath → RAM address (cc65 .dbg, no .dbg in con
   const loaded = await loadDebugSource({ dbgPath: build.dbgPath });
   const res = await resolveSymbolCore({ ...loaded, name: "grid", platform: "nes" });
   // The stock cc65 nes.cfg links C BSS into the $6000 PRG-RAM window (the
-  // NES "BSS must be in real RAM" placement) — still below the ROM window and
+  // NES "BSS must be in real RAM" placement) - still below the ROM window and
   // correctly region-tagged. The point: we got the ADDRESS, not the .dbg.
   assert.ok(res.address < 0x8000, "grid should be in RAM (< $8000), got " + res.hex);
   assert.ok(["zeropage", "stack", "system_ram", "sram"].includes(res.region),
@@ -134,7 +134,7 @@ test("NES: build({resolveSymbols}) resolves the cc65 '_grid' C alias by plain na
   assert.ok(build.resolvedSymbols.score, "score resolved");
 });
 
-// ── Genesis (GNU ld .map) — a work-RAM global gets a ramOffset for the
+// ── Genesis (GNU ld .map) - a work-RAM global gets a ramOffset for the
 // system_ram read. Proves the third map format flows through the same path. ──
 const GEN_SRC = `#include <genesis.h>
 volatile unsigned short score;

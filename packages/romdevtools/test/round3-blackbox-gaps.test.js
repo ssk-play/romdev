@@ -40,12 +40,12 @@ test("the decomp `action` enum covers every op that has actions", async () => {
 // ── per-op validation must reach every tool, and only real scopes ──────────
 
 test("per-op scope is read from FOUR description spellings, not two", async () => {
-  // `op=step/stepAndShot:` and `target=rom:` were matched; `op:'readCart' —`
-  // and `target:'decompile' —` were not. That is why the check fired on
+  // `op=step/stepAndShot:` and `target=rom:` were matched; `op:'readCart' -`
+  // and `target:'decompile' -` were not. That is why the check fired on
   // disasm/frame and silently did nothing on memory/playtest.
   const shape = {
     op: z.enum(["read", "readCart"]).describe("what to do"),
-    findHex: z.string().optional().describe("op:'readCart' — byte-pattern SCAN over the loaded cart image."),
+    findHex: z.string().optional().describe("op:'readCart' - byte-pattern SCAN over the loaded cart image."),
     offsets: z.array(z.number()).optional().describe("op=read: batch offsets."),
   };
   const check = makeScopeChecker(shape, "memory");
@@ -57,7 +57,7 @@ test("per-op scope is read from FOUR description spellings, not two", async () =
 
 test("a scope marker that is an ASIDE in prose is not treated as a whitelist", async () => {
   // `project` reads "Required by every op except list. op:'import' picks it."
-  // — the marker names one special case, and reading it as the complete scope
+  // - the marker names one special case, and reading it as the complete scope
   // rejected `project` on every decomp op.
   const shape = {
     op: z.enum(["import", "compare"]).describe("what to do"),
@@ -80,7 +80,7 @@ test("the shared-parameter exemption is PER TOOL, not global", async () => {
 
   const pt = makeScopeChecker({
     op: z.enum(["open", "framebuffer"]).describe("what"),
-    path: z.string().optional().describe("op:framebuffer — absolute path to write the PNG to."),
+    path: z.string().optional().describe("op:framebuffer - absolute path to write the PNG to."),
   }, "playtest");
   assert.match(pt({ op: "open", path: "/tmp/x.png" }), /'path' does not apply to op:'open'/);
   assert.equal(pt({ op: "framebuffer", path: "/tmp/x.png" }), null);
@@ -92,7 +92,7 @@ test("a libultra object built from an asm/ tree is LIBRARY, not handwritten", as
   // Real projects build libultra as `build/asm/us/rev1/libultra/exceptasm.o`.
   // Testing the asm/ prefix FIRST swallowed all 27 SDK functions into
   // handwritten-asm-retain and emptied the known-source lane the policy text
-  // says to search first — while the ledger counted them as library, so the
+  // says to search first - while the ledger counted them as library, so the
   // two disagreed.
   const splat = { segments: [{ name: "m", subsegments: [{ name: "entrypoint", type: "hasm" }] }] };
   const classify = makeWorkClassifier(splat, { splat: { buildPath: "build", srcPath: "src" } });
@@ -124,7 +124,7 @@ test("MIO0 re-encode of our own container is BYTE-IDENTICAL", () => {
   // The encoder matches the reference's choices: first byte literal, lazy
   // lookahead (longest+1 < lookahead), oldest-match-wins tie-breaking, and a
   // 4-byte-aligned layout section. Any of those wrong and the container
-  // differs while still decoding correctly — which is why the round trip, not
+  // differs while still decoding correctly - which is why the round trip, not
   // the decode, is the acceptance test.
   const payload = Buffer.concat([
     Buffer.alloc(48), Buffer.from("hello world ".repeat(20)),
@@ -163,7 +163,7 @@ test("no tool schema declares a parameter twice", async () => {
   // full one, making five operations unreachable through the public schema),
   // how `apply` lost its artifacts scope, and how `maxFunctions` had its
   // dispatch ceiling narrowed from 512 to 64. The bug is invisible in review
-  // and invisible at runtime — the only reliable catch is reading the source.
+  // and invisible at runtime - the only reliable catch is reading the source.
   const { readFile, readdir } = await import("node:fs/promises");
   const path = await import("node:path");
   const { fileURLToPath } = await import("node:url");
@@ -188,7 +188,7 @@ test("no tool schema declares a parameter twice", async () => {
     if (dupes.size) offenders.push(`${f}: ${[...dupes].join(", ")}`);
   }
   assert.deepEqual(offenders, [],
-    `a single-tool file declared a parameter more than once — the later declaration silently wins:\n${offenders.join("\n")}`);
+    `a single-tool file declared a parameter more than once - the later declaration silently wins:\n${offenders.join("\n")}`);
 });
 
 // ── overlapping observations become a REAL union ───────────────────────────
@@ -227,7 +227,7 @@ test("a field whose extent CROSSES the next offset is a union, not a sibling", a
   const { code, unions } = proposeStruct(base);
   assert.equal(unions, 1, "overlapping extents are one location, not two fields");
   assert.match(code, /at \+0x2/, "the sub-offset must be recorded");
-  // The next honest offset is 4, not 6 — the overlap must not shift the layout.
+  // The next honest offset is 4, not 6 - the overlap must not shift the layout.
   assert.match(code, /size >= 0x4/);
 });
 

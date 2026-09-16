@@ -1,9 +1,9 @@
-/* ── hUGEDriver.h — Game Boy music driver header ────────────────────
+/* ── hUGEDriver.h - Game Boy music driver header ────────────────────
  *
  * Public interface compatible with the upstream hUGEDriver function names
- * (https://github.com/SuperDisk/hUGEDriver — public domain). The driver
+ * (https://github.com/SuperDisk/hUGEDriver - public domain). The driver
  * implementation we ship under this header is a *compact, SDCC-native*
- * rewrite — it understands a simplified subset of the hUGETracker song
+ * rewrite - it understands a simplified subset of the hUGETracker song
  * format (notes only, no instruments / effects / subpatterns / waves)
  * and plays the melody on channels 1 and 2 via the standard 4-channel
  * APU. Good enough to put real music in a homebrew ROM today.
@@ -36,7 +36,7 @@
  *   - Driver advances 1 row every `ticks_per_row` calls to hUGE_dosound.
  *
  * This is intentionally NOT the full upstream byte layout (see the
- * upstream `dn` macro for that 3-byte format) — it's a smaller format
+ * upstream `dn` macro for that 3-byte format) - it's a smaller format
  * that an agent can hand-author easily and that the in-tree song
  * data files (song_data.c) use directly.
  */
@@ -77,7 +77,7 @@ typedef struct huge_song_t {
 /* ── API ──────────────────────────────────────────────────────────── */
 
 /* Load a song. Caller is responsible for having called sound_init() first
- * to power on the APU. Does not start playback by itself — playback
+ * to power on the APU. Does not start playback by itself - playback
  * advances each time you call hUGE_dosound(). */
 void hUGE_init(const huge_song_t * song);
 

@@ -1,11 +1,11 @@
-/* ── sports.c — sync32 2P paddle versus (complete example game) ──────────────
+/* ── sports.c - sync32 2P paddle versus (complete example game) ──────────────
  *
- * A COMPLETE, working game — title screen, scoring, persistent hi-score
- * (save slot 0) — on monteslu's RP2350 console.
+ * A COMPLETE, working game - title screen, scoring, persistent hi-score
+ * (save slot 0) - on monteslu's RP2350 console.
  *
  * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game. Markers:
- *   HARDWARE IDIOM (load-bearing) — how the sync32 ABI actually works.
- *   GAME LOGIC (clay) — tuning, art, rules: reshape freely.
+ *   HARDWARE IDIOM (load-bearing) - how the sync32 ABI actually works.
+ *   GAME LOGIC (clay) - tuning, art, rules: reshape freely.
  *
  * WHAT MAKES sync32 DIFFERENT: there is NO PPU. No tilemap, no OAM, no VRAM,
  * no banking, no scanline timing. A game is `game_main(api)` handed a struct
@@ -13,14 +13,14 @@
  *
  * TWO TRAPS worth knowing before you edit:
  *   1. `api->rect()` takes an RGB565 COLOUR; sheet pixels are palette INDICES.
- *      Passing 0 to rect() draws black — and index 0 is the transparent key.
+ *      Passing 0 to rect() draws black - and index 0 is the transparent key.
  *   2. Sheet art must sit inside the cell the blit reads. `sprite(sh, sx, ...,
  *      w, ...)` reads columns sx..sx+w-1; anything drawn outside is silently
  *      clipped and the sprite just does not appear.
  *
  * Frame budget (60Hz, 2 500 000 cycles at a 150MHz-equivalent clock): this
  * game does not come close. sync32 gives far more headroom than any 8-bit
- * target here — spend it on gameplay.
+ * target here - spend it on gameplay.
  */
 
 #include "sync32.h"
@@ -30,13 +30,13 @@
 
 /* ── HARDWARE IDIOM (load-bearing): rect()/clear() SNAP TO THE PALETTE ───────
  * `api->clear(rgb565)` and `api->rect(..., rgb565)` take a colour, but the
- * canvas is 8-bit INDEXED — so the console maps your colour to the NEAREST
+ * canvas is 8-bit INDEXED - so the console maps your colour to the NEAREST
  * entry in the 256-slot palette and stores that index. A colour you never put
  * in the palette does not render as itself; it snaps to whatever is closest,
  * which is why a "grey road" can come out blue.
  *
  * So: every colour a game DRAWS WITH must also live in the palette. The
- * entries below are registered in build_palette() for exactly that reason —
+ * entries below are registered in build_palette() for exactly that reason -
  * add yours there too, or accept the nearest match.
  */
 
@@ -88,7 +88,7 @@ static void draw_text(const sync32_api_t *api, const char *t, int x, int y, int 
 
 /* ── HARDWARE IDIOM: persistence ─────────────────────────────────────────────
  * `save_read`/`save_write` take a SLOT index, not a filename. A short read
- * means "nothing saved yet" — not an error. */
+ * means "nothing saved yet" - not an error. */
 static void hiscore_load(const sync32_api_t *api, uint32_t *hi) {
     uint32_t v = 0;
     *hi = (api->save_read(0, &v, sizeof(v)) == (int)sizeof(v)) ? v : 0;
@@ -112,7 +112,7 @@ static void hiscore_save(const sync32_api_t *api, uint32_t score, uint32_t *hi) 
 
 /* ── GAME LOGIC (clay) ─────────────────────────────────────────────────────
  * Two-paddle versus. sync32 exposes `api->pad(player, ...)` for a real second
- * controller — SO THIS SHIPS 2P, and falls back to an AI opponent when port 1
+ * controller - SO THIS SHIPS 2P, and falls back to an AI opponent when port 1
  * reports `connected == 0`. That check is the honest way to do it: never
  * assume a second pad, never refuse to run without one. */
 #define PAD_W 6
@@ -149,7 +149,7 @@ static void build_palette(const sync32_api_t *api) {
     pal[IDX_P2]   = RGB(0xF0, 0x7A, 0x4A);
     pal[IDX_BALL] = RGB(0xF8, 0xF8, 0xF8);
     pal[IDX_TRIM] = RGB(0xC8, 0xE8, 0xFF);
-    /* Colours the game DRAWS WITH must be IN the palette — rect()/clear()
+    /* Colours the game DRAWS WITH must be IN the palette - rect()/clear()
      * snap to the nearest entry, so an unregistered colour renders as
      * something else entirely. */
     pal[8] = COL_COURT;
@@ -173,7 +173,7 @@ static void reset_match(const sync32_api_t *api) {
 }
 
 static void bounce_paddle(float py, int dir) {
-    /* Where the ball hit the paddle sets the outgoing angle — the one bit of
+    /* Where the ball hit the paddle sets the outgoing angle - the one bit of
      * feel that makes a paddle game playable rather than mechanical. */
     float rel = (g.by + BALL / 2.0f) - (py + PAD_H / 2.0f);
     g.bvy = rel * 0.13f;

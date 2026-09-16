@@ -1,4 +1,4 @@
-// arm-none-eabi-gcc — WASM toolchain wrappers for GBA C builds.
+// arm-none-eabi-gcc - WASM toolchain wrappers for GBA C builds.
 //
 // The full pipeline:
 //   runCc1arm({source, headers, options}) → ARM assembly text (.s)
@@ -11,7 +11,7 @@
 // so existing call sites keep their runArm*/runCc1arm names.
 //
 // 0.95.0: `makeArmGccTools(env)` lets a host inject `env.runTool` (the browser
-// Web Worker seam — see gcc-toolchain.js). The default exports are the no-env
+// Web Worker seam - see gcc-toolchain.js). The default exports are the no-env
 // node tools, exactly as before. NO top-level node imports here: the localDir
 // dev fallback is passed as a file: URL (wasm-tool converts on the node side),
 // so a browser bundle can load this module untouched.

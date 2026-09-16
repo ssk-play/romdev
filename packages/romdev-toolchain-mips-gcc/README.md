@@ -5,4 +5,4 @@ to WASM, for romdev's **N64** (R4300, big-endian) and **PS1** (R3000, little-end
 C builds and disassembly. One toolchain emits both endiannesses via `-EB`/`-EL`.
 
 Built by `scripts/build-mips-toolchain.sh` (STAGE 1, native) + `build-mips-wasm-tools.sh`
-(STAGE 2, WASM). Not vendored — fetched + built from pinned upstream (versions.json).
+(STAGE 2, WASM). Not vendored - fetched + built from pinned upstream (versions.json).

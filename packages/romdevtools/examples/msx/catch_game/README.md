@@ -1,29 +1,29 @@
-# MSX — catch_game
+# MSX - catch_game
 
 A complete, playable MSX cartridge game (SDCC z80, C89). Move the basket at the
 bottom left/right with the joystick (or keyboard cursor keys) to catch the coin
 falling from the top. Catch it: **+1 score** and the coin respawns in a new
-column; miss it (it reaches the floor): it just respawns — a friendly, no-fail
+column; miss it (it reaches the floor): it just respawns - a friendly, no-fail
 demo. The score is drawn as on-screen tiles (`SCORE 000`) along the top row.
 
 What it demonstrates, end to end:
 
 - **screen 2 (GRAPHIC II)** setup via `msx_set_screen2()` (BIOS INIGRP).
-- **Tile font** — a 16-glyph mini font (`SCORE` + the 10 digits) uploaded to the
+- **Tile font** - a 16-glyph mini font (`SCORE` + the 10 digits) uploaded to the
   pattern generator + color table, then placed via the name table. This is how
   you draw HUD text without the BIOS text mode.
-- **Two hardware sprites** — basket (plane 0) + coin (plane 1), repositioned
+- **Two hardware sprites** - basket (plane 0) + coin (plane 1), repositioned
   every frame with `msx_set_sprite()`.
-- **Input** — `msx_read_joystick()` (BIOS GTSTCK) read on BOTH stick 0 (keyboard
+- **Input** - `msx_read_joystick()` (BIOS GTSTCK) read on BOTH stick 0 (keyboard
   cursor) and stick 1 (port), so keys or a pad both work.
 - **AABB collision + scoring**, with a short PSG catch blip (`msx_psg_tone`).
-- **Vblank-synced game loop** — one step per VDP frame.
+- **Vblank-synced game loop** - one step per VDP frame.
 
 ## Vblank without the BIOS ISR (the load-bearing gotcha)
 
 The shared lib's `msx_vblank_wait()` spins on the BIOS **JIFFY** counter, which
 only advances while the BIOS VBlank **interrupt handler** runs. On a bare
-cartridge under C-BIOS, JIFFY does **not** advance (it stays frozen) — so
+cartridge under C-BIOS, JIFFY does **not** advance (it stays frozen) - so
 `msx_vblank_wait()` hangs forever and the game loop never runs (you'd see the
 static HUD but no moving sprites). This example instead polls the VDP directly:
 

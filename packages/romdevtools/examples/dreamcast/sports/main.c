@@ -1,4 +1,4 @@
-/* Dreamcast SPORTS demo — a top-down pong/air-hockey rally: two paddles track a
+/* Dreamcast SPORTS demo - a top-down pong/air-hockey rally: two paddles track a
  * bouncing ball with a scoreboard. Self-animating (the CPU "AI" plays both sides).
  * Renders on the PowerVR2 framebuffer. */
 #include "dc.h"

@@ -1,38 +1,38 @@
-/* ── platformer.c — Game Boy side-scrolling platformer (complete example game)
+/* ── platformer.c - Game Boy side-scrolling platformer (complete example game)
  *
- * GULLY GALLOP — a COMPLETE, working game: title screen, gravity + jump
+ * GULLY GALLOP - a COMPLETE, working game: title screen, gravity + jump
  * physics with sub-pixel precision, one-way platforms, pits and spikes,
  * coins + distance scoring, persistent hi-score (battery cart RAM), music
  * + SFX, and the Game Boy's signature WINDOW-LAYER HUD: a fixed score/
  * lives strip that the SCX-scrolling level slides beneath, with zero
  * mid-frame raster tricks.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented GB footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented GB footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — level layout, physics tuning, scoring, art: reshape
+ *   GAME LOGIC (clay) - level layout, physics tuning, scoring, art: reshape
  *     freely.
  *
  * SINGLE-PLAYER BY DESIGN (the honest handheld story): the Game Boy has ONE
  * controller. Multiplayer on real hardware means the link cable, and a
  * single emulator instance cannot emulate a second Game Boy on the other
- * end of that cable — so this game ships 1P only instead of faking a 2P
+ * end of that cable - so this game ships 1P only instead of faking a 2P
  * mode the platform can't deliver. (Consoles' examples have real 2P.)
  *
  * What depends on what:
- *   gb_hardware.h — register names (LCDC/WX/WY/NRxx/...) + LCDC bit masks.
- *   gb_runtime.{h,c} — vblank wait (HALT-driven), joypad, shadow OAM +
+ *   gb_hardware.h - register names (LCDC/WX/WY/NRxx/...) + LCDC bit masks.
+ *   gb_runtime.{h,c} - vblank wait (HALT-driven), joypad, shadow OAM +
  *     the OAM-DMA-from-HRAM routine, VRAM-safe memcpy, APU helpers.
- *   gb_crt0.s — boot + interrupt vectors + the cartridge header window.
- *     It DECLARES the cart as MBC1+RAM+BATTERY ($0147=$03, $0149=$02) —
+ *   gb_crt0.s - boot + interrupt vectors + the cartridge header window.
+ *     It DECLARES the cart as MBC1+RAM+BATTERY ($0147=$03, $0149=$02) -
  *     that declaration is what makes hiscore_save() below persist (the
  *     emulator sizes battery SAVE_RAM from those two header bytes).
  *     Load-bearing; edit with TROUBLESHOOTING open.
  *
  * The level: a 256-px-wide COLUMN MAP (ground height + one-way platforms +
  * pits) painted once into the wrapping 32-wide BG map, so the uint8 SCX
- * scroll wraps PERFECTLY seamless — an endless looping run of pits,
+ * scroll wraps PERFECTLY seamless - an endless looping run of pits,
  * platforms, coins and spikes. Coins/spikes are sprites that drift with
  * the scroll (world-anchored while on screen, respawning at the right
  * edge). The camera is one-way (the classic runner camera): past the
@@ -49,11 +49,11 @@
 #include "gb_hardware.h"
 #include "gb_runtime.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "GULLY GALLOP"
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Tile inventory. GB tiles are 16 bytes: 8 rows × [low-plane byte,
  * high-plane byte]. Pixel colour index = (hi_bit << 1) | lo_bit.
  *   lo only  = colour 1     hi only = colour 2     both = colour 3
@@ -104,7 +104,7 @@ static const uint8_t tile_hudbar[16] = {         /* solid colour 2    */
     0x00,0xFF, 0x00,0xFF, 0x00,0xFF, 0x00,0xFF,
 };
 
-/* Tile indices ($8000 unsigned addressing — LCDC bit 4 set below). Sprites
+/* Tile indices ($8000 unsigned addressing - LCDC bit 4 set below). Sprites
  * and BG share the $8000 table in this layout, so one upload serves both. */
 #define T_PLAYER  1
 #define T_JUMP    2
@@ -121,7 +121,7 @@ static const uint8_t tile_hudbar[16] = {         /* solid colour 2    */
 #define T_ALPHA   26
 #define T_DASH    52
 
-/* 1bpp font (same glyph set as the NES/SMS examples — 0-9, A-Z, '-').
+/* 1bpp font (same glyph set as the NES/SMS examples - 0-9, A-Z, '-').
  * Stored 8 bytes/glyph and expanded to 2bpp colour 3 at upload time, so
  * the ROM carries 296 bytes of font instead of 592. */
 static const uint8_t font8[37][8] = {
@@ -149,57 +149,57 @@ static const uint8_t font8[37][8] = {
   {0x00,0x00,0x00,0x7E,0x00,0x00,0x00,0x00},
 };
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * THE WINDOW-LAYER HUD — the Game Boy's signature "fixed HUD over a
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * THE WINDOW-LAYER HUD - the Game Boy's signature "fixed HUD over a
  * scrolling world" technique. The window is a second BG plane with its own
  * 32×32 tile map and NO scroll registers: it always draws its map from
  * (0,0), pinned to the screen, on top of the BG. So the HUD lives in the
- * window and the playfield lives in the BG — SCY/SCX scroll the world all
+ * window and the playfield lives in the BG - SCY/SCX scroll the world all
  * they like and the HUD never moves. No raster splits, no IRQ timing (the
  * NES needs a sprite-0 polling dance for this exact effect; on GB it's
  * three register writes). This game scrolls SCX (horizontal runner); the
- * shmup example scrolls SCY — same idiom, either axis.
+ * shmup example scrolls SCY - same idiom, either axis.
  *
  * The three registers, and their two famous footguns:
- *   WY ($FF4A) — first screen LINE the window covers. We use 128: lines
+ *   WY ($FF4A) - first screen LINE the window covers. We use 128: lines
  *     0-127 are playfield, 128-143 (two tile rows) are HUD.
- *   WX ($FF4B) — screen column PLUS SEVEN. WX=7 means "left edge". The
+ *   WX ($FF4B) - screen column PLUS SEVEN. WX=7 means "left edge". The
  *     -7 offset is hardware fact, not a library quirk: WX=0..6 glitches
  *     (real DMG pixel pipeline artifacts), WX≥167 pushes it off-screen.
- *   LCDC bit 5 — window enable; bit 6 — which map it reads ($9800/$9C00).
+ *   LCDC bit 5 - window enable; bit 6 - which map it reads ($9800/$9C00).
  *
- * FOOTGUN 1 — "the window ate the bottom of my screen": once the window
+ * FOOTGUN 1 - "the window ate the bottom of my screen": once the window
  * starts on a line it covers EVERY line from there DOWN, full width from
  * WX to the right edge. There is no window height register. That is why
  * GB HUDs sit at the BOTTOM of the screen (this game, and most of the
- * classic library). A TOP HUD needs a mid-frame trick — STAT-interrupt on
- * LYC, flip LCDC bit 5 off after the HUD rows — which is a different,
+ * classic library). A TOP HUD needs a mid-frame trick - STAT-interrupt on
+ * LYC, flip LCDC bit 5 off after the HUD rows - which is a different,
  * fragile idiom; don't drift into it by accident by setting WY=0.
  *
- * FOOTGUN 2 — sprites are NOT clipped by the window. OBJs draw on top of
+ * FOOTGUN 2 - sprites are NOT clipped by the window. OBJs draw on top of
  * it (priority bits notwithstanding), so a sprite that wanders below
  * line 128 sits ON the HUD. Gameplay keeps every object above PLAY_H
  * (spikes stand on the ground, coins float, and a player falling into a
- * pit dies at PLAY_H-8 — the frame before the sprite would touch the HUD).
+ * pit dies at PLAY_H-8 - the frame before the sprite would touch the HUD).
  *
- * Requires: window map at $9C00 (LCDC bit 6 set — keeps it separate from
+ * Requires: window map at $9C00 (LCDC bit 6 set - keeps it separate from
  * the BG's $9800 map), tile data at $8000 (LCDC bit 4), WX=7, WY=PLAY_H,
- * LCDC bit 5 set during play (title turns the window off — LCDC bit
+ * LCDC bit 5 set during play (title turns the window off - LCDC bit
  * discipline lives in the two LCDC_* values below, poke those, not LCDC). */
 #define PLAY_H   128                       /* first HUD line = window top */
 #define WIN_MAP  ((uint8_t *)0x9C00)       /* window's 32×32 tile map */
 #define LCDC_TITLE (LCDC_LCD_ON | LCDC_BG_ON | LCDC_OBJ_ON | LCDC_TILE_DATA_LO)
 #define LCDC_PLAY  (LCDC_TITLE | LCDC_WINDOW_ON | LCDC_WINDOW_MAP_HI)
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * BATTERY SRAM — persistent hi-score. MBC1 cart RAM is 8KB at $A000-$BFFF,
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * BATTERY SRAM - persistent hi-score. MBC1 cart RAM is 8KB at $A000-$BFFF,
  * but it boots DISABLED and writes to a disabled bank are silently
  * discarded (reads float). The gate is the MBC's RAM-enable register: any
  * WRITE to ROM space $0000-$1FFF with $0A in the low nibble enables the
  * RAM; writing $00 disables it again. (Writing "into ROM" feels wrong the
- * first time — ROM-area writes never touch ROM, they're how you talk to
+ * first time - ROM-area writes never touch ROM, they're how you talk to
  * the mapper chip.) Leaving RAM enabled all the time "works" in emulators
- * but on real hardware risks corruption at power-off — battery carts since
+ * but on real hardware risks corruption at power-off - battery carts since
  * forever do enable → touch → disable, so we do too.
  *
  * The record is magic 'H','S' + score lo,hi + a checksum byte, so a
@@ -207,7 +207,7 @@ static const uint8_t font8[37][8] = {
  * 65535 hi-score.
  *
  * Requires: gb_crt0.s declaring $0147=$03 (MBC1+RAM+BATTERY) + $0149=$02
- * (8KB) — those header bytes are how the emulator knows to allocate and
+ * (8KB) - those header bytes are how the emulator knows to allocate and
  * persist SAVE_RAM. Verify headlessly: play, game over, then
  * memory({op:'read', region:'save_ram'}) shows the block, and the
  * hi-score survives host.hardReset(). */
@@ -234,14 +234,14 @@ static void hiscore_save(uint16_t v) {
   MBC_RAM_ENABLE = 0x00;
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * The level — a 32-column map; world x = (screen x + scroll_x) mod 256.
- *   ground_row[c] — BG-map row of the ground's grass top, 0xFF = pit.
- *   plat_row[c]   — row of a one-way floating platform, 0 = none.
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * The level - a 32-column map; world x = (screen x + scroll_x) mod 256.
+ *   ground_row[c] - BG-map row of the ground's grass top, 0xFF = pit.
+ *   plat_row[c]   - row of a one-way floating platform, 0 = none.
  * Rows are BG-map rows (y = row*8). The playfield is rows 0..15 (128 px,
  * everything below is under the window HUD). Pits are 4+ columns wide on
  * purpose: at this gravity a 2 px/frame run skims anything narrower (the
- * landing probe's +4 px catch window forgives small sink — see land_top). */
+ * landing probe's +4 px catch window forgives small sink - see land_top). */
 #define NO_GROUND 0xFF
 #define GROUND 13                           /* grass-top row, y = 104     */
 static const uint8_t ground_row[32] = {
@@ -258,10 +258,10 @@ static const uint8_t plat_row[32] = {
   0, 0, 10, 10, 10, 0, 0, 0,                /* slab before the loop seam   */
 };
 
-/* ── GAME LOGIC (clay) — physics + tuning (Q4.4 fixed point) ── */
+/* ── GAME LOGIC (clay) - physics + tuning (Q4.4 fixed point) ── */
 #define GRAVITY_Q44    2    /* +1/8 px per frame per frame                 */
 #define JUMP_VEL_Q44 (-52)  /* launch vy → ~42 px apex (~5 tile rows)      */
-#define MAX_VY_Q44    80    /* terminal velocity, 5 px/frame — MUST stay   *
+#define MAX_VY_Q44    80    /* terminal velocity, 5 px/frame - MUST stay   *
                              * under 6: the landing probe's 6-px window    *
                              * can't catch a faster fall (tunnelling)      */
 #define MOVE_SPEED     2    /* px/frame walk + scroll speed                */
@@ -273,12 +273,12 @@ static const uint8_t plat_row[32] = {
 #define START_LIVES    3
 
 static uint8_t  px;                 /* player screen x                     */
-static uint16_t py_q44;             /* player y, Q4.4 fixed point — gravity
+static uint16_t py_q44;             /* player y, Q4.4 fixed point - gravity
                                      * adds <1 px/frame near the jump apex,
                                      * so we need sub-pixel precision      */
 static int8_t   vy_q44;
 static uint8_t  on_ground;
-static uint8_t  scroll_x;           /* level scroll — uint8 wraps at 256 = *
+static uint8_t  scroll_x;           /* level scroll - uint8 wraps at 256 = *
                                      * exactly one level loop (seamless)   */
 static uint8_t  dist_sub;           /* sub-counter: 64 px scrolled = +1 pt */
 static uint8_t  coin_x[NUM_COINS], coin_y[NUM_COINS];
@@ -293,14 +293,14 @@ static uint8_t  hud_dirty;        /* queue VRAM writes; vblank commits them */
 static uint8_t  msg_stage;        /* game-over text: 2 = line 1 pending, 1 = line 2 */
 static uint8_t  msg_col;          /* BG map col for GAME OVER (scroll-aware) */
 
-/* Game states — the shell every example shares: title → play → game over.
+/* Game states - the shell every example shares: title → play → game over.
  * (Handheld adaptation: title is press-start; consoles add a 1P/2P pick.) */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static uint8_t state;
 
-/* ── GAME LOGIC (clay) — Galois LFSR (taps $B8), period 255 ── */
+/* ── GAME LOGIC (clay) - Galois LFSR (taps $B8), period 255 ── */
 static uint8_t rng_state = 0xA5;
 static uint8_t rand8(void) {
   uint8_t lsb = (uint8_t)(rng_state & 1);
@@ -313,10 +313,10 @@ static uint8_t dist8(uint8_t a, uint8_t b) {
   return (a > b) ? (uint8_t)(a - b) : (uint8_t)(b - a);
 }
 
-/* ── GAME LOGIC (clay) — VRAM upload + text helpers ──────────────────────────
+/* ── GAME LOGIC (clay) - VRAM upload + text helpers ──────────────────────────
  * All of these write VRAM, so they run with the LCD OFF (boot/repaints) or
  * inside vblank (the HUD digit commits). Note every loop walks a pointer
- * (*dst++ = v) instead of indexing dst[i] — SDCC's sm83 port miscompiles
+ * (*dst++ = v) instead of indexing dst[i] - SDCC's sm83 port miscompiles
  * indexed stores through VRAM-pointing pointers (the documented
  * memcpy_vram footgun; see gb_runtime.c). */
 static void upload_tile(uint8_t slot, const uint8_t *src) {
@@ -348,7 +348,7 @@ static void draw_text(uint8_t *map, uint8_t row, uint8_t col, const char *s) {
   while (*s) *p++ = char_tile(*s++);
 }
 
-/* Decimal digits WITHOUT divide/modulo (the sm83 has neither — SDCC's
+/* Decimal digits WITHOUT divide/modulo (the sm83 has neither - SDCC's
  * software % costs ~700 cycles a call). Repeated power-of-ten subtraction
  * caps at 36 SUBs for any u16. */
 static void u16_to_tiles(uint16_t v, uint8_t *out5) {
@@ -371,19 +371,19 @@ static void draw_u16(uint8_t *map, uint8_t row, uint8_t col, uint16_t v) {
 
 /* Pre-convert a string to tile indices (full-frame time) so the vblank
  * commit is a dumb byte copy. char_tile's compare chain per character is
- * exactly the kind of work that blows the ~1140-cycle vblank budget —
+ * exactly the kind of work that blows the ~1140-cycle vblank budget -
  * the shmup example's first cut called draw_text from the vblank slice and
  * gambatte faithfully dropped the writes that slid into mode 3 (half the
- * GAME OVER text simply missing — see the commit_vram budget note). */
+ * GAME OVER text simply missing - see the commit_vram budget note). */
 static uint8_t msg_q[20];                /* 9 "GAME OVER" + 11 "PRESS START" */
 static void stage_text(const char *s, uint8_t *out) {
   while (*s) *out++ = char_tile(*s++);
 }
 
-/* ── GAME LOGIC (clay) — screen painters (LCD off = free VRAM access) ────────
+/* ── GAME LOGIC (clay) - screen painters (LCD off = free VRAM access) ────────
  * Paints the level scene from the column map into BG rows 0..17 (the SCY=0
  * screen window; this game never scrolls vertically, so rows 18-31 stay
- * untouched). Clouds use a running divide-free pattern counter — the sm83
+ * untouched). Clouds use a running divide-free pattern counter - the sm83
  * has no divide instruction; treat every / and % in a loop as a red flag
  * (SDCC's software modulo is ~700 cycles a call). */
 static void paint_scene(uint8_t with_plats) {
@@ -412,7 +412,7 @@ static void paint_scene(uint8_t with_plats) {
 }
 
 static void paint_title(void) {
-  paint_scene(0);                        /* plain scene — text owns the sky */
+  paint_scene(0);                        /* plain scene - text owns the sky */
   draw_text(BG_MAP_0, 3, (uint8_t)((20 - (sizeof(GAME_TITLE) - 1)) / 2), GAME_TITLE);
   draw_text(BG_MAP_0, 6, 4, "PRESS START");
   draw_text(BG_MAP_0, 8, 6, "HI");
@@ -436,9 +436,9 @@ static void paint_hud(void) {
   *(WIN_MAP + 32 + 19) = (uint8_t)(T_DIGIT0 + lives);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * LCD-off repaints. Bulk VRAM rewrites (full title/level repaints) happen
- * with the LCD OFF — free access, no per-byte timing worries. The rule:
+ * with the LCD OFF - free access, no per-byte timing worries. The rule:
  * only flip LCDC bit 7 to 0 DURING VBLANK. Killing the LCD mid-scanline
  * is the classic "damages real DMG hardware" move; emulators shrug, real
  * units can be permanently marked. wait_vblank() first, always.
@@ -456,11 +456,11 @@ static void repaint_with_lcd_off(uint8_t to_title) {
   } else {
     paint_scene(1);
     paint_hud();
-    LCDC = LCDC_PLAY;           /* window ON below WY — the HUD appears */
+    LCDC = LCDC_PLAY;           /* window ON below WY - the HUD appears */
   }
 }
 
-/* ── GAME LOGIC (clay) — sound: frame-ticked tune + jump/coin/death SFX ──────
+/* ── GAME LOGIC (clay) - sound: frame-ticked tune + jump/coin/death SFX ──────
  * Channel plan keeps SFX from cutting the music: ch2 = music (one
  * sound_play_tone trigger per note, the APU sustains it), ch1 = jump and
  * coin blips, ch4 = noise for deaths. music_tick() runs once per frame
@@ -480,7 +480,7 @@ static void music_tick(void) {
   if (n) sound_play_tone(2, n, 12);
 }
 
-/* ── GAME LOGIC (clay) — coins + spikes (sprite objects in the world) ────────
+/* ── GAME LOGIC (clay) - coins + spikes (sprite objects in the world) ────────
  * Both live in SCREEN coords and drift left with the scroll delta (world-
  * anchored while visible). Coins respawn at the right edge at a random
  * height; spikes only spawn when the level column entering at the right
@@ -499,9 +499,9 @@ static void try_spawn_spike(uint8_t i) {
   spike_active[i] = 1;
 }
 
-/* ── GAME LOGIC (clay) — landing probe against the column map ────────────────
+/* ── GAME LOGIC (clay) - landing probe against the column map ────────────────
  * One-way platforms, classic style: only catch the player while FALLING
- * through a narrow window at the surface. The window is 6 px tall —
+ * through a narrow window at the surface. The window is 6 px tall -
  * top-1 (the standing snap parks feet at top, and gravity's sub-pixel
  * trickle doesn't move the integer Y every frame; without the -1 slack the
  * player "stands" with on_ground=0 most frames, so jumps only register on
@@ -522,7 +522,7 @@ static uint8_t land_top(uint8_t c, uint8_t feet) {
   return 0;
 }
 
-/* ── GAME LOGIC (clay) — state transitions ── */
+/* ── GAME LOGIC (clay) - state transitions ── */
 static void begin_life(void) {
   uint8_t i;
   px = 24;
@@ -535,14 +535,14 @@ static void begin_life(void) {
   coin_x[1] = 120; coin_y[1] = 64;
   coin_x[2] = 144; coin_y[2] = 48;
   for (i = 0; i < NUM_SPIKES; i++) spike_active[i] = 0;
-  respawn_pause = 48;            /* ready breather — player blinks */
+  respawn_pause = 48;            /* ready breather - player blinks */
   prev_pad = 0xFF;               /* swallow held buttons across the reset */
 }
 
 static void start_game(void) {
   lives = START_LIVES;
   score = 0;
-  hud_dirty = 1;          /* restage hud_q — a stale game-over stage queued
+  hud_dirty = 1;          /* restage hud_q - a stale game-over stage queued
                            * before the repaint would overwrite the fresh
                            * zeros next vblank otherwise */
   begin_life();
@@ -552,20 +552,20 @@ static void start_game(void) {
 }
 
 static void game_over(void) {
-  /* Compare against the SAVED record, not the live `hiscore` readout —
+  /* Compare against the SAVED record, not the live `hiscore` readout -
    * the scoring path already raised `hiscore` to track the run, so
    * testing `score > hiscore` here would never fire (a bug the shmup
    * example shipped with for an hour; verified-by-harness is the cure). */
   if (score > record) {
     record = score;
-    hiscore_save(record);       /* battery write — survives power-off */
+    hiscore_save(record);       /* battery write - survives power-off */
   }
   state = ST_OVER;
   /* The BG has scrolled: map col 0 is no longer screen col 0. Anchor the
    * text relative to the CURRENT scroll so it lands mid-screen
    * ((SCX/8 + screen_col) & 31 = the map col under that screen col; the
    * commit handles the map's 32-col wrap). Convert the strings to tile
-   * indices HERE (full-frame time) and queue them — commit_vram() copies
+   * indices HERE (full-frame time) and queue them - commit_vram() copies
    * one line per vblank. */
   msg_col = (uint8_t)(((scroll_x >> 3) + 5) & 31);
   stage_text("GAME OVER", msg_q);
@@ -581,7 +581,7 @@ static void kill_player(void) {
   begin_life();                  /* back to the runway, scroll rewinds */
 }
 
-/* ── GAME LOGIC (clay) — per-state update (runs OUTSIDE vblank) ── */
+/* ── GAME LOGIC (clay) - per-state update (runs OUTSIDE vblank) ── */
 static void update_play(uint8_t pad) {
   uint8_t i, delta, y8, feet, c0, c1, top;
 
@@ -626,14 +626,14 @@ static void update_play(uint8_t pad) {
   py_q44 += vy_q44;
   y8 = (uint8_t)(py_q44 >> 4);
 
-  /* Fell into a pit — die at PLAY_H-8, the frame BEFORE the sprite would
+  /* Fell into a pit - die at PLAY_H-8, the frame BEFORE the sprite would
    * overlap the window HUD (footgun 2 above: OBJs draw over the window). */
   if (y8 >= PLAY_H - 8) {
     kill_player();
     return;
   }
 
-  /* Landing — probe the two level columns under the player's feet.
+  /* Landing - probe the two level columns under the player's feet.
    * uint8 px+scroll_x wraps at 256 exactly like the level does. */
   if (vy_q44 >= 0) {
     feet = (uint8_t)(y8 + 8);
@@ -670,18 +670,18 @@ static void update_play(uint8_t pad) {
   }
 }
 
-/* ── GAME LOGIC (clay) — stage the shadow OAM for THIS frame ─────────────────
- * Pure WRAM writes (shadow_oam at $C100) — safe any time; only the DMA
+/* ── GAME LOGIC (clay) - stage the shadow OAM for THIS frame ─────────────────
+ * Pure WRAM writes (shadow_oam at $C100) - safe any time; only the DMA
  * flush is vblank-sensitive. OAM coords are hardware coords: +16 on Y,
  * +8 on X (Y=0/X=0 park a sprite off-screen, which is what oam_clear's
  * zero-fill does for every unused slot). Slot plan (40 hardware slots, we
- * use 6): 0 = player, 1-3 coins, 4-5 spikes — well under the 10-OBJ/line
+ * use 6): 0 = player, 1-3 coins, 4-5 spikes - well under the 10-OBJ/line
  * hardware drop. */
 static void stage_sprites(void) {
   uint8_t i, y8;
   oam_clear();
   if (state == ST_TITLE) {
-    /* Guaranteed-visible sprite from the first title frame — proof the
+    /* Guaranteed-visible sprite from the first title frame - proof the
      * whole OAM pipeline (shadow → HRAM DMA stub → OAM) is alive before
      * any gameplay complicates the picture. */
     oam_set(0, 96 + 16, 76 + 8, T_PLAYER, 0);
@@ -700,15 +700,15 @@ static void stage_sprites(void) {
               (uint8_t)(spike_x[i] + 8), T_SPIKE, 0x10);
 }
 
-/* ── GAME LOGIC (clay) — queued VRAM commits ─────────────────────────────────
+/* ── GAME LOGIC (clay) - queued VRAM commits ─────────────────────────────────
  * Two-phase update, mirroring the shadow-OAM discipline: game logic only
  * sets hud_dirty / msg_stage. stage_hud() (full-frame time) does the digit
- * math into hud_q; commit_vram() (vblank time) copies bytes — and commits
+ * math into hud_q; commit_vram() (vblank time) copies bytes - and commits
  * AT MOST ONE queued item per vblank. The budget after the OAM DMA
  * (~165 cycles of the ~1140) fits one item comfortably; committing
  * everything at once on a busy frame (game over = lives digit + two text
  * lines) overruns into mode 3, where the PPU locks VRAM and the writes
- * are silently discarded — the shmup harness caught exactly that as
+ * are silently discarded - the shmup harness caught exactly that as
  * half-missing GAME OVER text. One item per frame = zero dropped bytes,
  * and a frame of HUD latency nobody can see. */
 static uint8_t hud_q[11];       /* 5 score digits, 5 hi digits, lives tile */
@@ -725,7 +725,7 @@ static void stage_hud(void) {
 
 /* Copy `len` tiles into BG-map `row` starting at `col`, wrapping at the
  * map's 32-column seam (the game-over text is scroll-anchored, so it can
- * straddle the wrap). Two straight pointer-walk runs — no dst[i] indexing
+ * straddle the wrap). Two straight pointer-walk runs - no dst[i] indexing
  * through a VRAM pointer (the SDCC footgun, see the VRAM helpers note). */
 static void commit_row_wrapped(uint8_t row, uint8_t col, const uint8_t *q, uint8_t len) {
   uint8_t *base = BG_MAP_0 + (uint16_t)row * 32;
@@ -763,26 +763,26 @@ static void commit_vram(void) {
 void main(void) {
   uint8_t pad;
 
-  /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
    * Boot order. Three load-bearing calls, in this order:
-   *   1. lcd_init_default() — sane LCD state AND it installs the OAM-DMA
+   *   1. lcd_init_default() - sane LCD state AND it installs the OAM-DMA
    *      stub into HRAM ($FF80). During OAM DMA the CPU can only fetch
    *      from HRAM; the broken alternative (spinning in ROM) fetches $FF
-   *      = rst $38 and corrupts the stack — the classic "sprites never
+   *      = rst $38 and corrupts the stack - the classic "sprites never
    *      show / game dies after a while" GB death. Every oam_dma_flush()
    *      below depends on this stub existing.
-   *   2. enable_vblank_irq() — flips wait_vblank() from LY-polling to
+   *   2. enable_vblank_irq() - flips wait_vblank() from LY-polling to
    *      HALT-until-vblank-IRQ. The polling fallback runs at ~1/30 speed
    *      on the WASM emulator; the HALT path is full speed everywhere.
-   *   3. LCD off (inside vblank) for the bulk VRAM uploads — tiles, font,
-   *      first screen — then back on. VRAM is only freely writable with
+   *   3. LCD off (inside vblank) for the bulk VRAM uploads - tiles, font,
+   *      first screen - then back on. VRAM is only freely writable with
    *      the LCD off or during vblank/hblank windows. */
   lcd_init_default();
   enable_vblank_irq();
   sound_init();
 
   wait_vblank();
-  LCDC = 0;                     /* LCD off — free VRAM access from here */
+  LCDC = 0;                     /* LCD off - free VRAM access from here */
 
   upload_tile(0, tile_blank);
   upload_tile(T_PLAYER, tile_player);
@@ -805,11 +805,11 @@ void main(void) {
   OBP0 = 0x1C;
   OBP1 = 0xC4;
 
-  /* Window position — set once; LCDC bit 5 decides if it shows. */
+  /* Window position - set once; LCDC bit 5 decides if it shows. */
   WX = 7;                       /* the +7 quirk: 7 = screen left edge */
   WY = PLAY_H;                  /* HUD owns lines 128-143 */
 
-  record = hiscore_load();      /* battery SRAM — 0 on first boot */
+  record = hiscore_load();      /* battery SRAM - 0 on first boot */
   hiscore = record;
   state = ST_TITLE;
   paint_title();
@@ -832,7 +832,7 @@ void main(void) {
         update_play(pad);
         prev_pad = pad;
       }
-    } else { /* ST_OVER — freeze the field; START/A returns to title */
+    } else { /* ST_OVER - freeze the field; START/A returns to title */
       if ((pad & (PAD_START | PAD_A)) && !(prev_pad & (PAD_START | PAD_A))) {
         state = ST_TITLE;
         repaint_with_lcd_off(1);
@@ -842,19 +842,19 @@ void main(void) {
     stage_sprites();
     stage_hud();                /* digit math out here, not in vblank */
 
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
      * The vblank slice. wait_vblank() wakes at the START of vblank
      * (~1140 cycles of safe OAM/VRAM access). Order is everything:
-     *   oam_dma_flush() FIRST — the DMA takes ~165 cycles and MUST finish
+     *   oam_dma_flush() FIRST - the DMA takes ~165 cycles and MUST finish
      *     inside vblank; pushing it later (after VRAM writes that grow
      *     over time) slides it into active display, where the PPU is
      *     reading OAM = one frame of torn/invisible sprites, intermittent
      *     and miserable to debug.
-     *   commit_vram() second — the few queued HUD/map bytes.
-     *   SCX last — scroll latches per-scanline, so writing it during
+     *   commit_vram() second - the few queued HUD/map bytes.
+     *   SCX last - scroll latches per-scanline, so writing it during
      *     vblank (before line 0 renders) moves the WHOLE next frame
      *     consistently; the window ignores it by design (the HUD idiom).
-     * Game logic above NEVER touches VRAM directly — it sets the dirty
+     * Game logic above NEVER touches VRAM directly - it sets the dirty
      * flags and shadow OAM, and this slice commits them. Keep that split
      * when you reshape the game. */
     wait_vblank();

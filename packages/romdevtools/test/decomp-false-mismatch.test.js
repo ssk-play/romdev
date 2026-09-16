@@ -58,7 +58,7 @@ test("parseSplatAsm: a function with no padding is unchanged", async () => {
 });
 
 test("parseSplatAsm: a .section after the end label starts a new region", async () => {
-  // rodata following the function must still be collected — the end label ends
+  // rodata following the function must still be collected - the end label ends
   // the TEXT, it does not end the file.
   const asm = [
     "glabel func_with_rodata",
@@ -99,7 +99,7 @@ test("loadLinkerMap: `NAME = 0xADDR` absolute assignments resolve", async () => 
 
   for (const n of ["D_802C8E90", "D_802C8E94", "D_802C8E98"]) {
     const s = ld.symbols.get(n);
-    assert.ok(s, `${n} must resolve — it is a real address in the map`);
+    assert.ok(s, `${n} must resolve - it is a real address in the map`);
     assert.equal(s.absolute, true);
     assert.equal(s.size, 0, "an absolute assignment is an address, not a sized object");
   }
@@ -162,7 +162,7 @@ test("applyRelocations: an unhandled relocation TYPE is marked the same way", ()
 
 test("loadCandidateEvidence: a better score from an OLD dependency hash cannot rank the queue", async () => {
   // compile.js keys every result file `<dependencyHash>-<candidateSha>-v<verifier>`,
-  // so the identity is already recorded — the planner simply ignored it, took
+  // so the identity is already recorded - the planner simply ignored it, took
   // the global minimum distance across every result ever written, and set
   // `lastCompile` by directory iteration order. On a real campaign workspace
   // that spanned 258 dependency hashes over 2609 result files, and ranked

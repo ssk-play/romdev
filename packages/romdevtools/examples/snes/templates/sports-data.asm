@@ -1,8 +1,8 @@
-; ── sports-data.asm — NET SURGE's assembly half ──────────────────────────────
+; ── sports-data.asm - NET SURGE's assembly half ──────────────────────────────
 ;
 ; What lives here (and why it can't live in sports.c):
-;   1. sram_read16/sram_write16 — battery SRAM accessors. SRAM sits at
-;      $70:0000 (declared in hdr.asm — see sports-hdr.asm), reachable only
+;   1. sram_read16/sram_write16 - battery SRAM accessors. SRAM sits at
+;      $70:0000 (declared in hdr.asm - see sports-hdr.asm), reachable only
 ;      with long (24-bit) addressing, which tcc C pointers don't emit.
 ;   2. Font + sprite + wallpaper tiles (rodata). One sprite tile: a solid
 ;      8×8 white block reused for paddles + ball.
@@ -12,9 +12,9 @@
 
 .SECTION ".sports_asm" SUPERFREE
 
-; ── HARDWARE IDIOM (load-bearing) — battery SRAM accessors ──────────────────
+; ── HARDWARE IDIOM (load-bearing) - battery SRAM accessors ──────────────────
 ; SRAM is mapped at $70:0000 (LoROM, SRAMSIZE $01 in sports-hdr.asm = 2 KB).
-; Long addressing only — there is no SRAM mirror in the program banks, which
+; Long addressing only - there is no SRAM mirror in the program banks, which
 ; is why these are asm and not C. tcc calling convention: u16 arg at 5,s
 ; (after the 4-byte rtl frame), second arg at 7,s; u16 return in tcc__r0.
 
@@ -355,7 +355,7 @@ palfont:
 .db $00, $00
 
 tilsprite:
-; Tile 0 — solid 8×8 block, colour 1
+; Tile 0 - solid 8×8 block, colour 1
 .db $FF, $00, $FF, $00, $FF, $00, $FF, $00
 .db $FF, $00, $FF, $00, $FF, $00, $FF, $00
 .db $00, $00, $00, $00, $00, $00, $00, $00

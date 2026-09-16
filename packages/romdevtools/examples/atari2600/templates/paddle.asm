@@ -1,4 +1,4 @@
-; ── paddle.asm — Atari 2600 Pong-style paddle scaffold ────────────────
+; ── paddle.asm - Atari 2600 Pong-style paddle scaffold ────────────────
 ;
 ; Two paddles (player 0 = left, player 1 = right), one ball (BL),
 ; symmetric playfield with top + bottom walls. Joystick port A up/down
@@ -78,7 +78,7 @@ START:
   STA BALL_DX
   STA BALL_DY
 
-  ; Boot chime — confirms TIA audio is wired.
+  ; Boot chime - confirms TIA audio is wired.
   LDA #$04
   STA AUDC0
   LDA #$0C
@@ -110,7 +110,7 @@ MAIN:
   LDA #0
   STA VSYNC
 
-  ; ── VBLANK (37 lines) — game logic ────────────────────────────────
+  ; ── VBLANK (37 lines) - game logic ────────────────────────────────
   ; 34 here + the 3 STA WSYNC in the P0/P1 positioning block below = 37 VBLANK
   ; lines total. (Bug fix: this loop used to be 37 AND the positioning added 3
   ; more → 265 scanlines/frame → the TV/emulator can't lock vsync → rolling /
@@ -153,7 +153,7 @@ MAIN:
 .nopaddmax:
 .skip_pad:
 
-  ; Right-paddle AI — chase the ball's Y
+  ; Right-paddle AI - chase the ball's Y
   LDA BALL_Y
   CMP P1_Y
   BCC .ai_up
@@ -173,7 +173,7 @@ MAIN:
   ADC BALL_Y
   STA BALL_Y
 
-  ; Bounce off top/bottom — short blip on each bounce.
+  ; Bounce off top/bottom - short blip on each bounce.
   LDA BALL_Y
   CMP #20
   BCS .nb_top
@@ -188,7 +188,7 @@ MAIN:
   STA BALL_DY
   JSR sfx_wall
 .nb_bot:
-  ; Bounce off left/right (and respawn near centre on miss) — pew on miss.
+  ; Bounce off left/right (and respawn near centre on miss) - pew on miss.
   LDA BALL_X
   CMP #4
   BCS .nb_l
@@ -217,7 +217,7 @@ MAIN:
   STA AUDV0
 .sfx_done:
 
-  ; ── Position P0 / P1 / HMOVE — exactly 3 WSYNC-bounded lines ───────
+  ; ── Position P0 / P1 / HMOVE - exactly 3 WSYNC-bounded lines ───────
   ; CRITICAL: every RESPx write AND the STA HMOVE must complete inside
   ; the 76-cycle scanline that began with its STA WSYNC. A DEX/BNE delay
   ; loop costs 5 cycles/iteration, so the loop count must be small enough
@@ -248,13 +248,13 @@ MAIN:
   LDA #0
   STA VBLANK
 
-  ; ── Visible (192 lines) — TWO-LINE KERNEL ─────────────────────────
+  ; ── Visible (192 lines) - TWO-LINE KERNEL ─────────────────────────
   ; CRITICAL: a single scanline is only 76 CPU cycles. The full per-line
   ; render here (playfield walls + P0 + P1 + ball, each a SEC/SBC/CMP +
-  ; conditional store) is ~88 cycles — it does NOT fit in one line. In a
+  ; conditional store) is ~88 cycles - it does NOT fit in one line. In a
   ; 1-line kernel each WSYNC iteration then spills past the line boundary,
   ; so 192 iterations stretch to ~232 emitted lines → ~250-line frame →
-  ; vsync never locks (rolling magenta band — THE bug).
+  ; vsync never locks (rolling magenta band - THE bug).
   ;
   ; The fix is the standard 2600 "2-line kernel": each loop pass renders
   ; TWO scanlines and splits the work across two WSYNCs, doubling the
@@ -326,7 +326,7 @@ MAIN:
   JMP MAIN
 
   ; ── TIA sfx helpers (R41) ─────────────────────────────────────────
-  ; sfx_wall — short blip on wall bounce (4-frame ringing tone)
+  ; sfx_wall - short blip on wall bounce (4-frame ringing tone)
 sfx_wall:
   LDA #$04
   STA AUDC0
@@ -338,7 +338,7 @@ sfx_wall:
   STA SFX_LEFT
   RTS
 
-  ; sfx_score — longer chime when a player scores (16 frames)
+  ; sfx_score - longer chime when a player scores (16 frames)
 sfx_score:
   LDA #$04
   STA AUDC0

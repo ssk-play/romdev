@@ -1,8 +1,8 @@
-// NES→SNES recompile — end-to-end gate. Builds the NES default scaffold,
+// NES→SNES recompile - end-to-end gate. Builds the NES default scaffold,
 // disassembles its reset routine (real da65 6502 output), translates it to
 // 65816, and assembles the result with asar into a valid LoROM image. Then
 // boots the image in snes9x and asserts the CPU progressed PAST the boot
-// wait-loop — proving the recompiled 6502 logic runs in 65816 emulation mode
+// wait-loop - proving the recompiled 6502 logic runs in 65816 emulation mode
 // and the $2002-returns-$80 seam detail lets vblank-wait loops terminate.
 //
 // This is the standing acceptance gate (MCP-server-side path, per convention).
@@ -41,7 +41,7 @@ test("NES reset routine recompiles to a booting SNES LoROM image", { timeout: 30
     const da = await runDa65({ bytes: prg, cpu: "6502", startAddress: 0x8000, options: ["--comments", "4"] });
     const da65Full = da.asm ?? da.output ?? "";
     assert.ok(/sei/i.test(da65Full), "da65 produced 6502 asm");
-    // Slice the first routine (the reset path) — a flat full-PRG disasm renders
+    // Slice the first routine (the reset path) - a flat full-PRG disasm renders
     // the data tables after it as bogus code (M0 audit). M1 = one clean routine.
     const da65Asm = sliceFirstRoutine(da65Full);
 

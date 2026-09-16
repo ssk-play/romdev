@@ -1,4 +1,4 @@
-// decomp.js — the matching-decompilation domain: one tool, keyed by `op`, that
+// decomp.js - the matching-decompilation domain: one tool, keyed by `op`, that
 // runs the function-level generate → compile → compare → refine loop against a
 // registered project's OWN compiler and build system, with the project's splat
 // segment map as the single address resolver.
@@ -64,10 +64,10 @@ export function registerDecompTools(server, z, sessionKey) {
         "overlays=which overlay is resident at each shared VA in the live session (`session`), by comparing RAM with each candidate's ROM bytes; symbolize=live `va` → symbol/segment using the resident overlay; state=is `session`'s emulator alive, else a machine-readable loss reason + recovery; " +
         "trace=stop at a function's entry on the live session and read a0-a3/f12/f14/stack args, then v0/v1/f0 at return (N64: load the session with coreOptions {'parallel-n64-cpucore':'pure_interpreter'}; the result carries the core probe and says PC_BREAK_UNSUPPORTED with evidence otherwise); coverage=instruction-exact function + basic-block observed/unobserved/unreferenced over `frames` with `inputs` from the core's PC log (interpreter), else frame-boundary samples with the method stated."),
       project: z.string().optional().describe("Project id (required by every op except list). op:'import' picks it."),
-      // op:'workbench' — the n64-decomp-workbench bridge.
+      // op:'workbench' - the n64-decomp-workbench bridge.
       // op:'experiment' / op:'gate'
       // ONE `action` FOR EVERY OP THAT HAS ONE. This was declared twice and the
-      // second declaration — the job-only set — overwrote the first, so every
+      // second declaration - the job-only set - overwrote the first, so every
       // other op's action vocabulary was rejected by the validator BEFORE its
       // handler ran: scenario save/run, experiment create/control/conclude,
       // skill preview/write and artifact prune/restore were all unreachable
@@ -90,79 +90,79 @@ export function registerDecompTools(server, z, sessionKey) {
         // op:'research'
         "import",
       ]).optional().describe(
-        "op:'job' — status (default), best, cancel, report. "
-        + "op:'experiment' — create, control, candidate, conclude, list, families. "
-        + "op:'scenario' — save, run, list. "
-        + "op:'assets' — unpack (decode one container to a file), repack (compress an edited payload back, verified by decoding it again). "
-        + "op:'skill' — preview (default), write. "
-        + "op:'artifacts' — status (default), prune, restore, pin. "
-        + "op:'research' — list (default), import, status."),
-      experimentId: z.string().optional().describe("op:'experiment' — the record to act on (from action:'create' or action:'list')."),
-      hypothesis: z.string().optional().describe("op:'experiment' action:'create' — ONE falsifiable causal claim. Required: an experiment without one is a sweep, and a sweep is what produced 264 undifferentiated candidates for a single function."),
-      lever: z.string().optional().describe("op:'experiment' action:'create' — the SINGLE source change being varied. Required: varying two things at once cannot attribute the result."),
-      family: z.string().optional().describe("op:'experiment' action:'create' — the source family this belongs to (e.g. 'stack-homes', 'global-coloring'), so exhausted families are queryable."),
-      controlKind: z.enum(["positive", "negative", "determinism"]).optional().describe("op:'experiment' action:'control' — positive MUST move the metric, negative MUST NOT, determinism runs the same input twice."),
-      moved: z.boolean().optional().describe("op:'experiment' action:'control' — did the metric actually move?"),
+        "op:'job' - status (default), best, cancel, report. "
+        + "op:'experiment' - create, control, candidate, conclude, list, families. "
+        + "op:'scenario' - save, run, list. "
+        + "op:'assets' - unpack (decode one container to a file), repack (compress an edited payload back, verified by decoding it again). "
+        + "op:'skill' - preview (default), write. "
+        + "op:'artifacts' - status (default), prune, restore, pin. "
+        + "op:'research' - list (default), import, status."),
+      experimentId: z.string().optional().describe("op:'experiment' - the record to act on (from action:'create' or action:'list')."),
+      hypothesis: z.string().optional().describe("op:'experiment' action:'create' - ONE falsifiable causal claim. Required: an experiment without one is a sweep, and a sweep is what produced 264 undifferentiated candidates for a single function."),
+      lever: z.string().optional().describe("op:'experiment' action:'create' - the SINGLE source change being varied. Required: varying two things at once cannot attribute the result."),
+      family: z.string().optional().describe("op:'experiment' action:'create' - the source family this belongs to (e.g. 'stack-homes', 'global-coloring'), so exhausted families are queryable."),
+      controlKind: z.enum(["positive", "negative", "determinism"]).optional().describe("op:'experiment' action:'control' - positive MUST move the metric, negative MUST NOT, determinism runs the same input twice."),
+      moved: z.boolean().optional().describe("op:'experiment' action:'control' - did the metric actually move?"),
       verdict: z.enum(["accepted", "rejected", "exhausted"]).optional().describe("op:'experiment' action:'conclude'."),
-      scope: z.string().optional().describe("op:'experiment' action:'conclude' — what the conclusion covers."),
-      rationale: z.string().optional().describe("op:'experiment' action:'conclude' — why."),
-      exactFunctionMatch: z.boolean().default(false).describe("op:'gate'/'experiment' — did the compare report a byte-exact function match? The gate classifies source QUALITY and never overwrites this."),
-      functionLocal: z.string().optional().describe("op:'gate'/'experiment' — the compare's function-local verdict ('exact', 'mismatch', ...)."),
-      distance: z.number().optional().describe("op:'experiment' action:'candidate' — the candidate's distance metric."),
-      notes: z.string().optional().describe("op:'experiment' — free-text detail for a control or the record."),
-      baseline: z.record(z.any()).optional().describe("op:'experiment' action:'create' — baseline identities (source/object/target/toolchain) this experiment varies from."),
-      parentId: z.string().optional().describe("op:'experiment' action:'create' — the experiment this one descends from."),
-      workClass: z.union([z.string(), z.array(z.string())]).optional().describe("op:'plan' — restrict the queue to these work classes (game-matching-c, libultra-known-source, handwritten-asm-retain, rsp-source, asset-data). Default: game-matching-c. op:'knownSource' — hint the class so the response can say whether published SDK source should be searched first."),
-      includeAllClasses: z.boolean().default(false).describe("op:'plan' — include EVERY work class in the queue, not just game targets."),
-      forceGraph: z.boolean().default(false).describe("op:'plan' — rebuild the call graph instead of using the content-addressed cache."),
+      scope: z.string().optional().describe("op:'experiment' action:'conclude' - what the conclusion covers."),
+      rationale: z.string().optional().describe("op:'experiment' action:'conclude' - why."),
+      exactFunctionMatch: z.boolean().default(false).describe("op:'gate'/'experiment' - did the compare report a byte-exact function match? The gate classifies source QUALITY and never overwrites this."),
+      functionLocal: z.string().optional().describe("op:'gate'/'experiment' - the compare's function-local verdict ('exact', 'mismatch', ...)."),
+      distance: z.number().optional().describe("op:'experiment' action:'candidate' - the candidate's distance metric."),
+      notes: z.string().optional().describe("op:'experiment' - free-text detail for a control or the record."),
+      baseline: z.record(z.any()).optional().describe("op:'experiment' action:'create' - baseline identities (source/object/target/toolchain) this experiment varies from."),
+      parentId: z.string().optional().describe("op:'experiment' action:'create' - the experiment this one descends from."),
+      workClass: z.union([z.string(), z.array(z.string())]).optional().describe("op:'plan' - restrict the queue to these work classes (game-matching-c, libultra-known-source, handwritten-asm-retain, rsp-source, asset-data). Default: game-matching-c. op:'knownSource' - hint the class so the response can say whether published SDK source should be searched first."),
+      includeAllClasses: z.boolean().default(false).describe("op:'plan' - include EVERY work class in the queue, not just game targets."),
+      forceGraph: z.boolean().default(false).describe("op:'plan' - rebuild the call graph instead of using the content-addressed cache."),
 
-      inputPath: z.string().optional().describe("op:'assets' action:'repack' — the edited payload to compress back into a container."),
-      outputPath: z.string().optional().describe("op:'assets' — unpack/repack destination. op:'workbench' — complete JSON report destination; oversized reports otherwise go to the workspace automatically, with a compact response."),
-      batch: z.string().optional().describe("op:'artifacts' action:'restore' — which prune batch to put back (default: the most recent). A batch id comes from a prune's `trash` path."),
-      romOffset: z.number().int().optional().describe("op:'assets' — ROM offset of a range to identify/round-trip. Omit to scan every bin range."),
-      length: z.number().int().optional().describe("op:'assets' — byte length of the range at `romOffset`."),
-      scenarioName: z.string().optional().describe("op:'scenario' — the scenario to run or save."),
-      scenarioDef: z.record(z.any()).optional().describe("op:'scenario' action:'save' — {name, frames, inputs:[{frame,buttons,until}], checkpoints:[{frame,regions}], expectedOverlays}."),
-      rebuild: z.boolean().default(false).describe("op:'typeGraph' — rebuild from every stored per-function record instead of using the cached graph."),
-      base: z.string().optional().describe("op:'typeGraph' — propose a C struct for this base (from `bases[].base`)."),
-      preferTemporaryPrefix: z.boolean().default(false).describe("op:'rank' — request temporary-prefix ranking. It is applied ONLY when its precondition holds (a single gap state); otherwise the safe fallback runs and the response says why."),
-      candidates: z.array(z.record(z.any())).optional().describe("op:'rank' — candidate records to rank (workbench comparison blocks or romdev compare results)."),
-      baselineText: z.string().optional().describe("op:'gate' — the source the candidate was derived from; enables the behaviour-delta checks (volatile, removed calls, short-circuit, signedness)."),
-      // op:'dispatch' — parallel, memory-bounded triage.
-      budgetMiB: z.number().int().min(512).optional().describe("op:'dispatch' — memory ceiling for the worker pool. Default: total RAM minus a reserve for the server and the build. Admission is by MEASURED peak RSS per worker class, not by a thread count."),
-      maxWorkers: z.number().int().min(1).max(64).optional().describe("op:'dispatch' — hard cap on concurrent workers (default: cpus-2, max 12). The per-TU lock usually binds first."),
-      wbGroup: z.string().optional().describe("op:'workbench' — command group (object, campaign, experiment, probe, trace, permute, sweep, oracle, pass, instrument, ...). Omit wbCommand to list the discovered catalog."),
-      wbCommand: z.string().optional().describe("op:'workbench' — the command inside the group (e.g. 'diagnose', 'compare', 'collateral', 'staleness', 'linked-compare', 'reloc-proof'). Omit to get the catalog instead of running anything."),
-      wbArgs: z.array(z.string()).optional().describe("op:'workbench' — positional args and flags passed through verbatim (e.g. [targetObj, candidateObj]). The project's --objdump is appended automatically when you do not pass one."),
+      inputPath: z.string().optional().describe("op:'assets' action:'repack' - the edited payload to compress back into a container."),
+      outputPath: z.string().optional().describe("op:'assets' - unpack/repack destination. op:'workbench' - complete JSON report destination; oversized reports otherwise go to the workspace automatically, with a compact response."),
+      batch: z.string().optional().describe("op:'artifacts' action:'restore' - which prune batch to put back (default: the most recent). A batch id comes from a prune's `trash` path."),
+      romOffset: z.number().int().optional().describe("op:'assets' - ROM offset of a range to identify/round-trip. Omit to scan every bin range."),
+      length: z.number().int().optional().describe("op:'assets' - byte length of the range at `romOffset`."),
+      scenarioName: z.string().optional().describe("op:'scenario' - the scenario to run or save."),
+      scenarioDef: z.record(z.any()).optional().describe("op:'scenario' action:'save' - {name, frames, inputs:[{frame,buttons,until}], checkpoints:[{frame,regions}], expectedOverlays}."),
+      rebuild: z.boolean().default(false).describe("op:'typeGraph' - rebuild from every stored per-function record instead of using the cached graph."),
+      base: z.string().optional().describe("op:'typeGraph' - propose a C struct for this base (from `bases[].base`)."),
+      preferTemporaryPrefix: z.boolean().default(false).describe("op:'rank' - request temporary-prefix ranking. It is applied ONLY when its precondition holds (a single gap state); otherwise the safe fallback runs and the response says why."),
+      candidates: z.array(z.record(z.any())).optional().describe("op:'rank' - candidate records to rank (workbench comparison blocks or romdev compare results)."),
+      baselineText: z.string().optional().describe("op:'gate' - the source the candidate was derived from; enables the behaviour-delta checks (volatile, removed calls, short-circuit, signedness)."),
+      // op:'dispatch' - parallel, memory-bounded triage.
+      budgetMiB: z.number().int().min(512).optional().describe("op:'dispatch' - memory ceiling for the worker pool. Default: total RAM minus a reserve for the server and the build. Admission is by MEASURED peak RSS per worker class, not by a thread count."),
+      maxWorkers: z.number().int().min(1).max(64).optional().describe("op:'dispatch' - hard cap on concurrent workers (default: cpus-2, max 12). The per-TU lock usually binds first."),
+      wbGroup: z.string().optional().describe("op:'workbench' - command group (object, campaign, experiment, probe, trace, permute, sweep, oracle, pass, instrument, ...). Omit wbCommand to list the discovered catalog."),
+      wbCommand: z.string().optional().describe("op:'workbench' - the command inside the group (e.g. 'diagnose', 'compare', 'collateral', 'staleness', 'linked-compare', 'reloc-proof'). Omit to get the catalog instead of running anything."),
+      wbArgs: z.array(z.string()).optional().describe("op:'workbench' - positional args and flags passed through verbatim (e.g. [targetObj, candidateObj]). The project's --objdump is appended automatically when you do not pass one."),
       traceMode: z.enum(["scheduler", "globalcolor"]).optional().describe("op:'workbench' with artifactId: scheduler captures native IDO -Wa,-R; globalcolor explicitly opts into building a workspace-only diagnostic IDO 5.3 uopt with the existing workbench's pinned profile. No project compiler is replaced. Both tracing-disabled and tracing-enabled diagnostic objects must equal the compared object before allocator attribution. Baseline optimization flags stay unchanged."),
-      allowDestructive: z.boolean().default(false).describe("op:'workbench' — required to run a command the workbench's OWN catalog marks destructive."),
-      allowNetwork: z.boolean().default(false).describe("op:'workbench' — required to run a command the workbench's OWN catalog marks as reaching the network."),
-      timeoutMs: z.number().int().min(1000).max(3_600_000).optional().describe("op:'workbench' — per-command timeout (default 600000)."),
-      force: z.boolean().default(false).describe("op:'workbench' — re-read the command catalog instead of using the cached one."),
-      root: z.string().optional().describe("op:'import' — absolute path of the decompilation checkout (the dir with the splat yaml + Makefile). op:'research' action:'import' — a directory of prior research (drafts and notes) to INDEX. op:'replay' — the research root holding the replay fixtures (default: <project>/docs/research). Indexing records what exists; it never turns a note into a verified result."),
-      splatYaml: z.string().optional().describe("op:'import' — splat yaml (relative to root) when auto-detection finds more than one."),
-      rom: z.string().optional().describe("op:'import' — base ROM path when it differs from the yaml's target_path."),
-      expectedSha1: z.string().optional().describe("op:'import' — expected base-ROM sha1 (default: the yaml's)."),
-      buildCommand: z.array(z.string()).optional().describe("op:'import' — argv of the full-build command run from root (default: tools/matching-build.sh if present, else make)."),
+      allowDestructive: z.boolean().default(false).describe("op:'workbench' - required to run a command the workbench's OWN catalog marks destructive."),
+      allowNetwork: z.boolean().default(false).describe("op:'workbench' - required to run a command the workbench's OWN catalog marks as reaching the network."),
+      timeoutMs: z.number().int().min(1000).max(3_600_000).optional().describe("op:'workbench' - per-command timeout (default 600000)."),
+      force: z.boolean().default(false).describe("op:'workbench' - re-read the command catalog instead of using the cached one."),
+      root: z.string().optional().describe("op:'import' - absolute path of the decompilation checkout (the dir with the splat yaml + Makefile). op:'research' action:'import' - a directory of prior research (drafts and notes) to INDEX. op:'replay' - the research root holding the replay fixtures (default: <project>/docs/research). Indexing records what exists; it never turns a note into a verified result."),
+      splatYaml: z.string().optional().describe("op:'import' - splat yaml (relative to root) when auto-detection finds more than one."),
+      rom: z.string().optional().describe("op:'import' - base ROM path when it differs from the yaml's target_path."),
+      expectedSha1: z.string().optional().describe("op:'import' - expected base-ROM sha1 (default: the yaml's)."),
+      buildCommand: z.array(z.string()).optional().describe("op:'import' - argv of the full-build command run from root (default: tools/matching-build.sh if present, else make)."),
       symbol: z.string().optional().describe("Function symbol name (func_801DEB08). Alternative to `va`."),
-      symbols: z.array(z.union([z.string(), z.object({ symbol: z.string(), segment: z.string().optional(), va: z.union([z.string(), z.number()]).optional(), targetId: z.string().optional() }).passthrough()])).optional().describe("op:'batch' — the functions to run (a batch from op:'plan'). op:'dispatch' — explicit symbols to triage; omit to take the top of the plan queue. op:'replay' — restrict the run to these case ids or symbols. Each entry is either a bare symbol name OR a target record {symbol, segment} — required when a VA is mapped by several overlays, since a bare name cannot say which overlay it belongs to. op:'plan' returns records in this shape, so a plan batch can be passed straight back."),
+      symbols: z.array(z.union([z.string(), z.object({ symbol: z.string(), segment: z.string().optional(), va: z.union([z.string(), z.number()]).optional(), targetId: z.string().optional() }).passthrough()])).optional().describe("op:'batch' - the functions to run (a batch from op:'plan'). op:'dispatch' - explicit symbols to triage; omit to take the top of the plan queue. op:'replay' - restrict the run to these case ids or symbols. Each entry is either a bare symbol name OR a target record {symbol, segment} - required when a VA is mapped by several overlays, since a bare name cannot say which overlay it belongs to. op:'plan' returns records in this shape, so a plan batch can be passed straight back."),
       va: z.union([z.number().int(), z.string()]).optional().describe("Virtual address (number, or hex string '0x801DEB08')."),
       segment: z.string().optional().describe("Segment name to disambiguate an overlay VA (the resolver lists candidates when ambiguous)."),
-      tu: z.string().optional().describe("op:'plan'/'map' — restrict to one translation unit (relative path)."),
-      limit: z.number().int().min(1).max(500).default(40).describe("op:'plan' — page size. The full ranked set is paged, so a small limit never silently excludes the rest: the response reports `page.hasMore` and `page.nextOffset`."),
-      offset: z.number().int().min(0).default(0).describe("op:'plan' — start of the page into the ranked queue."),
+      tu: z.string().optional().describe("op:'plan'/'map' - restrict to one translation unit (relative path)."),
+      limit: z.number().int().min(1).max(500).default(40).describe("op:'plan' - page size. The full ranked set is paged, so a small limit never silently excludes the rest: the response reports `page.hasMore` and `page.nextOffset`."),
+      offset: z.number().int().min(0).default(0).describe("op:'plan' - start of the page into the ranked queue."),
       ignoreCooldown: z.boolean().default(false).describe("op:'plan': deliberately rank hard targets without the temporary no-progress penalty; recorded reasons remain visible."),
       cooldownBatches: z.number().int().min(1).max(100).default(3).describe("op:'plan': independent current-baseline no-progress batches before a temporary rank penalty."),
       cooldownMinutes: z.number().int().min(1).max(10080).default(60).describe("op:'plan': duration of the no-progress rank penalty; no target is excluded."),
       proposedLever: z.string().optional().describe("op:'plan': a genuinely new diagnosis lever bypasses cooldown; existing lever outcomes remain historical evidence, not family-wide exhaustion."),
-      objective: z.enum(["byte-coverage", "function-count", "shared-type", "diagnostic-research"]).default("byte-coverage").describe("op:'plan' — what to optimise the queue FOR. byte-coverage ranks large routines first (default); function-count ranks small well-constrained targets first, which is the right queue for 'another N verified functions'; shared-type ranks functions whose typed neighbours already pin their structs; diagnostic-research ranks measured near-misses. Each row reports the factors behind its rank; no completion-time estimates are invented."),
+      objective: z.enum(["byte-coverage", "function-count", "shared-type", "diagnostic-research"]).default("byte-coverage").describe("op:'plan' - what to optimise the queue FOR. byte-coverage ranks large routines first (default); function-count ranks small well-constrained targets first, which is the right queue for 'another N verified functions'; shared-type ranks functions whose typed neighbours already pin their structs; diagnostic-research ranks measured near-misses. Each row reports the factors behind its rank; no completion-time estimates are invented."),
       // DECLARED TWICE before: the op:'batch' version silently replaced the
       // op:'dispatch' one and narrowed its ceiling from 512 to 64. Same
       // duplicate-key bug that made five `action` vocabularies unreachable.
       maxFunctions: z.number().int().min(1).max(512).default(12).describe("op:'batch'/'dispatch': cap on functions. op:'variants': cap on variants. op:'job' action:'report': cap on saved search outputs recompiled for residual/output-identity verification (default 12). Truncation remains explicit."),
-      timeBudgetS: z.number().int().min(10).max(86400).default(600).describe("op:'batch' — wall-clock budget (default 600). op:'dispatch' — wall-clock budget; remaining functions come back as `skipped`."),
-      candidatePath: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate'/'variants'/'experiment' — path to a C file holding the function definition (+ any local declarations it needs). op:'artifacts' action:'pin' — the candidate to pin."),
-      candidateText: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate'/'variants'/'experiment' — the candidate C inline (alternative to candidatePath)."),
+      timeBudgetS: z.number().int().min(10).max(86400).default(600).describe("op:'batch' - wall-clock budget (default 600). op:'dispatch' - wall-clock budget; remaining functions come back as `skipped`."),
+      candidatePath: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate'/'variants'/'experiment' - path to a C file holding the function definition (+ any local declarations it needs). op:'artifacts' action:'pin' - the candidate to pin."),
+      candidateText: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate'/'variants'/'experiment' - the candidate C inline (alternative to candidatePath)."),
       variants: z.array(z.object({
         id: z.string().describe("stable id for this variant, used in the results table"),
         hypothesis: z.string().optional().describe("the ONE thing this variant tests"),
@@ -170,45 +170,45 @@ export function registerDecompTools(server, z, sessionKey) {
         find: z.string().optional().describe("literal text in the baseline to replace; must occur EXACTLY once"),
         replace: z.string().optional().describe("what to replace it with (omit to delete)"),
         candidateText: z.string().optional().describe("full replacement source, instead of find/replace"),
-      })).optional().describe("op:'variants' — a bounded list of named source variants measured against one baseline under ONE dependency snapshot. Duplicate sources and byte-identical outputs are reported rather than silently dropped."),
-      prefer: z.enum(["best", "newest"]).default("best").describe("op:'diagnose'/'layout' — which stored comparison a SYMBOL-ONLY call analyses. 'best' (default) = fewest ROM-linked mismatches, ties by recency; 'newest' = most recently compared. The chosen artifact, the policy and the alternatives are always reported, because a symbol-only call does not automatically describe your latest candidate."),
-      artifactId: z.string().optional().describe("op:'diagnose'/'layout'/'workbench' — stored compare `.diff.json` path or cache key. Diagnose/layout reuse streams. Workbench object diagnose resolves and verifies retained objects; trace scheduler captures a verified native trace from the retained TU."),
-      tracePath: z.string().optional().describe("op:'diagnose' — as1 trace with its .manifest.json bundle from workbench trace capture. Source attribution requires verified invocation and emitted-object equality; loose logs remain explicitly unverified."),
-      ownerPath: z.string().optional().describe("op:'compare' — REPLAY FIXTURE: compile the candidate into this saved owner TU instead of the one in the current tree. Use the pre-integration backup to re-verify a function that has since been integrated; without it the accepted definition is already present and the compile fails with 'redeclaration'."),
-      contextHash: z.string().optional().describe("op:'compare' — the context hash the candidate was generated against; the result flags contextStale when the TU/headers/flags changed since."),
-      declarations: z.string().optional().describe("op:'compare'/'integrate'/'variants'/'generate' — extra declarations (proposed structs/prototypes) placed before the function in the TU copy; pair with the same text passed to generate as extraContext."),
-      extraContext: z.string().optional().describe("op:'generate' — C declarations (proposed structs/prototypes, e.g. decomp({op:'types', propose:true}).text) appended to the TU's context so the draft is generated with those types WITHOUT editing a header."),
-      propose: z.boolean().default(false).describe("op:'types' — also propose struct typedefs + a prototype from the evidence (a proposal, not confirmed types)."),
-      chunkFrames: z.number().int().min(1).max(600).default(10).describe("op:'coverage' — frames per bitmap read between input events (input events split chunks anyway); the union is the same, smaller chunks only cost more reads."),
-      cpuCore: z.enum(["pure_interpreter", "cached_interpreter", "dynamic_recompiler"]).optional().describe("op:'smoke' — N64 CPU core option for both sessions (pure_interpreter enables PC breaks, single-step and the PC coverage log; default is the core's dynarec)."),
+      })).optional().describe("op:'variants' - a bounded list of named source variants measured against one baseline under ONE dependency snapshot. Duplicate sources and byte-identical outputs are reported rather than silently dropped."),
+      prefer: z.enum(["best", "newest"]).default("best").describe("op:'diagnose'/'layout' - which stored comparison a SYMBOL-ONLY call analyses. 'best' (default) = fewest ROM-linked mismatches, ties by recency; 'newest' = most recently compared. The chosen artifact, the policy and the alternatives are always reported, because a symbol-only call does not automatically describe your latest candidate."),
+      artifactId: z.string().optional().describe("op:'diagnose'/'layout'/'workbench' - stored compare `.diff.json` path or cache key. Diagnose/layout reuse streams. Workbench object diagnose resolves and verifies retained objects; trace scheduler captures a verified native trace from the retained TU."),
+      tracePath: z.string().optional().describe("op:'diagnose' - as1 trace with its .manifest.json bundle from workbench trace capture. Source attribution requires verified invocation and emitted-object equality; loose logs remain explicitly unverified."),
+      ownerPath: z.string().optional().describe("op:'compare' - REPLAY FIXTURE: compile the candidate into this saved owner TU instead of the one in the current tree. Use the pre-integration backup to re-verify a function that has since been integrated; without it the accepted definition is already present and the compile fails with 'redeclaration'."),
+      contextHash: z.string().optional().describe("op:'compare' - the context hash the candidate was generated against; the result flags contextStale when the TU/headers/flags changed since."),
+      declarations: z.string().optional().describe("op:'compare'/'integrate'/'variants'/'generate' - extra declarations (proposed structs/prototypes) placed before the function in the TU copy; pair with the same text passed to generate as extraContext."),
+      extraContext: z.string().optional().describe("op:'generate' - C declarations (proposed structs/prototypes, e.g. decomp({op:'types', propose:true}).text) appended to the TU's context so the draft is generated with those types WITHOUT editing a header."),
+      propose: z.boolean().default(false).describe("op:'types' - also propose struct typedefs + a prototype from the evidence (a proposal, not confirmed types)."),
+      chunkFrames: z.number().int().min(1).max(600).default(10).describe("op:'coverage' - frames per bitmap read between input events (input events split chunks anyway); the union is the same, smaller chunks only cost more reads."),
+      cpuCore: z.enum(["pure_interpreter", "cached_interpreter", "dynamic_recompiler"]).optional().describe("op:'smoke' - N64 CPU core option for both sessions (pure_interpreter enables PC breaks, single-step and the PC coverage log; default is the core's dynarec)."),
       label: z.string().optional().describe("Free label stored with the candidate/job."),
-      maxDiffInstructions: z.number().int().min(4).max(400).default(40).describe("op:'compare' — lines in the inline diff preview (full diff always on disk)."),
-      noCache: z.boolean().default(false).describe("op:'compare'/'variants' — recompile even if this candidate was compared under the same dependency hash. op:'context' — rebuild the context cache."),
-      verifyTu: z.boolean().default(true).describe("op:'compare'/'variants' — also check every OTHER function in the TU's object is unchanged."),
-      timeLimitS: z.number().int().min(10).max(86400).default(300).describe("op:'search' — wall-clock budget."),
+      maxDiffInstructions: z.number().int().min(4).max(400).default(40).describe("op:'compare' - lines in the inline diff preview (full diff always on disk)."),
+      noCache: z.boolean().default(false).describe("op:'compare'/'variants' - recompile even if this candidate was compared under the same dependency hash. op:'context' - rebuild the context cache."),
+      verifyTu: z.boolean().default(true).describe("op:'compare'/'variants' - also check every OTHER function in the TU's object is unchanged."),
+      timeLimitS: z.number().int().min(10).max(86400).default(300).describe("op:'search' - wall-clock budget."),
       purpose: z.string().min(1).optional().describe("op:'search': required statement of which residual/hypothesis justifies spending this budget."),
       mutationPasses: z.array(z.string()).min(1).optional().describe("op:'search': backend pass names to enable exclusively, e.g. perm_reorder_decls or perm_sameline. Validated against the installed backend; other randomization weights become zero."),
       noImprovementS: z.number().int().min(1).max(86400).default(30).describe("op:'search': stop after this many seconds without a better backend score. Process-local watchdog; total budget remains enforced across server restart."),
       repeatSearch: z.boolean().default(false).describe("op:'search': explicitly repeat an identical baseline/family/seed scope previously measured without improvement; previous jobs remain visible."),
-      threads: z.number().int().min(1).max(32).optional().describe("op:'search' — permuter workers (default 2). op:'variants' — bounded compile workers, 1 or 2 only (default 1); baseline always runs first. Same option, no separate batch tool."),
-      detail: z.boolean().default(false).describe("op:'compare' — return full evidence instead of the compact verdict/residuals. op:'workbench' — explicitly inline the full report even when large; default oversized reports are saved on disk with a bounded projection."),
-      preflight: z.boolean().default(true).describe("op:'search' — compile and identify the base before spending search budget. A non-compiling, invalid or already-exact base is refused. Legacy false is rejected because an unidentified baseline cannot support measured search conclusions."),
-      seed: z.string().optional().describe("op:'search' — permuter seed. The backend accepts ONLY integers: 'rngSeed' (e.g. '297') or 'permuterIndex,rngSeed' (e.g. '0,297'). A descriptive label ([A-Za-z0-9][A-Za-z0-9._-]*) is accepted too and mapped DETERMINISTICALLY onto that space; the response returns the mapping so the run can be reproduced. An unusable seed is refused synchronously, before any job directory or process exists. Seed identity fixes the mutation stream, NOT thread scheduling: with threads>1 the ORDER results arrive still varies."),
-      jobId: z.string().optional().describe("op:'job' — the job to inspect/cancel/report."),
-      resumeFrom: z.string().optional().describe("op:'search' — a previous jobId whose best candidate becomes the base."),
+      threads: z.number().int().min(1).max(32).optional().describe("op:'search' - permuter workers (default 2). op:'variants' - bounded compile workers, 1 or 2 only (default 1); baseline always runs first. Same option, no separate batch tool."),
+      detail: z.boolean().default(false).describe("op:'compare' - return full evidence instead of the compact verdict/residuals. op:'workbench' - explicitly inline the full report even when large; default oversized reports are saved on disk with a bounded projection."),
+      preflight: z.boolean().default(true).describe("op:'search' - compile and identify the base before spending search budget. A non-compiling, invalid or already-exact base is refused. Legacy false is rejected because an unidentified baseline cannot support measured search conclusions."),
+      seed: z.string().optional().describe("op:'search' - permuter seed. The backend accepts ONLY integers: 'rngSeed' (e.g. '297') or 'permuterIndex,rngSeed' (e.g. '0,297'). A descriptive label ([A-Za-z0-9][A-Za-z0-9._-]*) is accepted too and mapped DETERMINISTICALLY onto that space; the response returns the mapping so the run can be reproduced. An unusable seed is refused synchronously, before any job directory or process exists. Seed identity fixes the mutation stream, NOT thread scheduling: with threads>1 the ORDER results arrive still varies."),
+      jobId: z.string().optional().describe("op:'job' - the job to inspect/cancel/report."),
+      resumeFrom: z.string().optional().describe("op:'search' - a previous jobId whose best candidate becomes the base."),
 
       // ONE declaration covering BOTH ops. Declared twice, the second silently
       // replaced the first and the per-op validator then refused `apply` on
-      // artifacts — the same duplicate-key bug that made five `action`
+      // artifacts - the same duplicate-key bug that made five `action`
       // vocabularies unreachable.
-      apply: z.boolean().default(false).describe("op:'integrate' — apply the patch to the TU (else only write it). op:'artifacts' action:'prune' — actually move the duplicates to trash. Default is a DRY RUN; only byte-identical duplicates are ever proposed, files backing an accepted conclusion are always skipped, and a prune is recoverable with action:'restore'."),
-      verify: z.boolean().default(true).describe("op:'integrate' — after apply, run the full build and compare the ROM (revert on mismatch)."),
-      jobs: z.number().int().min(1).max(64).default(8).describe("op:'integrate'/'verify' — make -j."),
-      frames: z.number().int().min(1).max(100000).default(720).describe("op:'smoke'/'coverage' — frames to run."),
-      inputs: z.array(z.object({ frame: z.number().int().min(0), buttons: z.record(z.string(), z.boolean()) })).optional().describe("op:'smoke'/'coverage' — input script applied identically (persisted with the smoke report)."),
-      scriptPath: z.string().optional().describe("op:'smoke' — replay a persisted inputs.json instead of `inputs`/`frames`."),
-      maxFrames: z.number().int().min(1).max(100000).default(600).describe("op:'trace' — frames to wait for the function's entry."),
-      pressDuring: z.any().optional().describe("op:'trace' — a breakpoint({on:'pc'}) pressDuring schedule to drive the scenario."),
+      apply: z.boolean().default(false).describe("op:'integrate' - apply the patch to the TU (else only write it). op:'artifacts' action:'prune' - actually move the duplicates to trash. Default is a DRY RUN; only byte-identical duplicates are ever proposed, files backing an accepted conclusion are always skipped, and a prune is recoverable with action:'restore'."),
+      verify: z.boolean().default(true).describe("op:'integrate' - after apply, run the full build and compare the ROM (revert on mismatch)."),
+      jobs: z.number().int().min(1).max(64).default(8).describe("op:'integrate'/'verify' - make -j."),
+      frames: z.number().int().min(1).max(100000).default(720).describe("op:'smoke'/'coverage' - frames to run."),
+      inputs: z.array(z.object({ frame: z.number().int().min(0), buttons: z.record(z.string(), z.boolean()) })).optional().describe("op:'smoke'/'coverage' - input script applied identically (persisted with the smoke report)."),
+      scriptPath: z.string().optional().describe("op:'smoke' - replay a persisted inputs.json instead of `inputs`/`frames`."),
+      maxFrames: z.number().int().min(1).max(100000).default(600).describe("op:'trace' - frames to wait for the function's entry."),
+      pressDuring: z.any().optional().describe("op:'trace' - a breakpoint({on:'pc'}) pressDuring schedule to drive the scenario."),
       session: z.string().optional().describe("The session handle. op:'smoke' derives '<session>:orig' and '<session>:rebuilt'; overlays/symbolize/state/trace/coverage act on the session that loaded the ROM (default: this call's session)."),
     },
     safeTool(typed(async (args) => {
@@ -225,7 +225,7 @@ export function registerDecompTools(server, z, sessionKey) {
           const map = await p.map();
           return jsonContent({
             registered: true, project: m.id, root: m.root, platform: m.platform, workspace: p.ws,
-            rom: m.rom, toolchain: m.toolchain, compilerMissing: m.toolchain?.compiler ? undefined : { code: "MISSING_COMPILER", note: "no IDO binary found under tools/ido-static-recomp/build/*/out/cc — compare/search will refuse until it is built" },
+            rom: m.rom, toolchain: m.toolchain, compilerMissing: m.toolchain?.compiler ? undefined : { code: "MISSING_COMPILER", note: "no IDO binary found under tools/ido-static-recomp/build/*/out/cc - compare/search will refuse until it is built" },
             build: m.build, built: m.built, git: m.git, segments: map.table(), backends: await backendStatus(),
             nextStep: `decomp({op:'plan', project:'${m.id}'}) for the payoff-ordered queue, then resolve/generate/compare. Nothing in ${m.root} was modified.`,
           });
@@ -317,7 +317,7 @@ export function registerDecompTools(server, z, sessionKey) {
           try { await fingerprintToolchain(project.m); refreshed.push("toolchain"); } catch {}
 
           // Derived caches: drop so they rebuild from the current tree. These
-          // are CACHES, not evidence — the candidates/ tree is untouched.
+          // are CACHES, not evidence - the candidates/ tree is untouched.
           const dropped = [];
           for (const f of ["callgraph.json"]) {
             const fp = path.join(project.ws, f);
@@ -333,7 +333,7 @@ export function registerDecompTools(server, z, sessionKey) {
           return jsonContent({
             project: project.id, refreshed, cachesDropped: dropped,
             before, ...after,
-            evidencePreserved: "candidates/, jobs/ and every stored result file are untouched — refresh re-reads the world, it never discards campaign history.",
+            evidencePreserved: "candidates/, jobs/ and every stored result file are untouched - refresh re-reads the world, it never discards campaign history.",
           });
         }
         case "workbench": {
@@ -341,7 +341,7 @@ export function registerDecompTools(server, z, sessionKey) {
           // first-pass triage and cannot diagnose allocator webs, uopt global
           // coloring, ugen temporary provenance, stack homes or as1 scheduling.
           // The workbench does, and it is the tool this campaign already uses
-          // by hand — so romdev calls it rather than growing a second, shallower
+          // by hand - so romdev calls it rather than growing a second, shallower
           // copy that would disagree with it.
           const { workbenchCatalog, invokeWorkbench } = await import("../../decomp/workbench.js");
           const catalog = await workbenchCatalog({ force: !!args.force });
@@ -351,7 +351,7 @@ export function registerDecompTools(server, z, sessionKey) {
             return jsonContent({ workbench: catalog,
               usage: "decomp({op:'workbench', wbGroup:'object', wbCommand:'diagnose', wbArgs:[targetObj, candidateObj]}). "
                 + "Objects are resolved against the project root; the project's objdump and LD_LIBRARY_PATH are supplied automatically. "
-                + "Exit 1 means gate/no-result — a real answer, not an error.",
+                + "Exit 1 means gate/no-result - a real answer, not an error.",
               note: catalog.available
                 ? `${catalog.commandCount} commands in ${catalog.groupCount} groups, read from the workbench itself.`
                 : "workbench not installed; see `setup`." });
@@ -424,7 +424,7 @@ export function registerDecompTools(server, z, sessionKey) {
           // PARALLEL CANDIDATE PRODUCTION. Independent translation units run
           // concurrently under a measured memory ceiling; a per-TU lock keeps
           // two workers off the same owner. It NEVER integrates and never edits
-          // the checkout — parallelism ends at evidence, and shared source
+          // the checkout - parallelism ends at evidence, and shared source
           // edits stay serialized behind the real gates.
           const { triage } = await import("../../decomp/dispatch.js");
           let symbols = args.symbols;
@@ -433,7 +433,7 @@ export function registerDecompTools(server, z, sessionKey) {
             const plan = await planWork(project, { limit: args.maxFunctions ?? 64 });
             symbols = plan.queue.map((q) => q.symbol);
           }
-          if (!symbols.length) throw Object.assign(new Error("decomp({op:'dispatch'}): nothing to do — no symbols given and the plan queue is empty."), { code: "BAD_ARGS" });
+          if (!symbols.length) throw Object.assign(new Error("decomp({op:'dispatch'}): nothing to do - no symbols given and the plan queue is empty."), { code: "BAD_ARGS" });
           const out = await triage(project, symbols, {
             maxFunctions: args.maxFunctions ?? 64, budgetMiB: args.budgetMiB,
             maxWorkers: args.maxWorkers, timeBudgetS: args.timeBudgetS ?? 3600,
@@ -442,7 +442,7 @@ export function registerDecompTools(server, z, sessionKey) {
         }
         case "replay": {
           // §12: a public-API replay suite over preserved candidates. Runs the
-          // SAME endpoints a caller uses — no internal shortcuts — and never
+          // SAME endpoints a caller uses - no internal shortcuts - and never
           // mutates the production checkout.
           const RP = await import("../../decomp/replay.js");
           const researchRoot = args.root ?? path.join(project.root, "docs/research");
@@ -482,13 +482,13 @@ export function registerDecompTools(server, z, sessionKey) {
         }
         case "layout": {
           // Stack map + data ownership. Reads a stored comparison, like
-          // op:'diagnose' — the streams are already there and recompiling to
+          // op:'diagnose' - the streams are already there and recompiling to
           // answer a layout question would risk describing a different build.
           const L = await import("../../decomp/layout.js");
           // `va` asks the OWNERSHIP question: what does this address already
           // belong to? That is a question about data, not about the function
           // being worked on, so it must not be resolved against the
-          // function's segment — doing so rejected a global with
+          // function's segment - doing so rejected a global with
           // SEGMENT_MISMATCH for not living inside the overlay asking about it.
           if (args.va != null) {
             const ld = await project.linkerMap();
@@ -649,7 +649,7 @@ export function registerDecompTools(server, z, sessionKey) {
                 symbol: args.symbol, hypothesis: args.hypothesis, lever: args.lever, family: args.family,
                 baseline: args.baseline ?? null, parentId: args.parentId ?? null, notes: args.notes });
               return jsonContent({ ...rec, controlsRequired: X.CONTROL_KINDS,
-                nextStep: "run all three controls with action:'control' BEFORE concluding — a conclusion without them is refused, because a negative control that moves means the metric is responding to noise." });
+                nextStep: "run all three controls with action:'control' BEFORE concluding - a conclusion without them is refused, because a negative control that moves means the metric is responding to noise." });
             }
             case "control": {
               if (!args.experimentId || !args.controlKind) throw Object.assign(new Error("decomp({op:'experiment', action:'control'}): `experimentId` and `controlKind` are required."), { code: "BAD_ARGS" });
@@ -744,14 +744,14 @@ export function registerDecompTools(server, z, sessionKey) {
           // NO ensureTarget HERE. A structural fingerprint needs the .s TEXT and
           // nothing else; assembling the target was both unnecessary work and a
           // hard failure on library functions whose object cannot be built in
-          // isolation. `resolve` already reports the path — and it is RELATIVE
+          // isolation. `resolve` already reports the path - and it is RELATIVE
           // to the project root, which is the ENOENT that made this lane
           // non-operational on every real function.
           const asmRel = fn.targetAsm?.path ?? fn.source?.asmPath ?? null;
           if (!asmRel) throw Object.assign(new Error(`'${fn.symbol}' has no extracted asm to fingerprint.`), { code: "NO_TARGET_ASM" });
           const asmText = await readFile(project.abs(asmRel), "utf8");
           // A fingerprint over ZERO instructions matches nothing and reports
-          // `siblingHits: []` — indistinguishable from an honest "no match
+          // `siblingHits: []` - indistinguishable from an honest "no match
           // found". Refuse instead: an empty search that LOOKS like a completed
           // search is the worst of the three outcomes.
           if (!/^\s*\/\*\s*[0-9A-Fa-f]+\s+[0-9A-Fa-f]{8}\s+[0-9A-Fa-f]{8}\s*\*\//m.test(asmText)) {
@@ -782,7 +782,7 @@ export function registerDecompTools(server, z, sessionKey) {
           const rom = await readFile(project.abs(project.m.rom.path));
 
           // UNPACK / EDIT / REPACK, not just "identify". The audit's wording was
-          // "the public schema exposes no repack action" — and it was right in a
+          // "the public schema exposes no repack action" - and it was right in a
           // way the encoder alone did not fix: a caller could see a sha of the
           // decoded payload but never obtain the BYTES, so there was nothing to
           // edit and nothing to feed back. These three actions are the loop.
@@ -799,7 +799,7 @@ export function registerDecompTools(server, z, sessionKey) {
               await writeFile(out, Buffer.from(decoded));
               return jsonContent({ project: project.id, action: "unpack", romOffset: args.romOffset,
                 decodedBytes: decoded.length, path: out,
-                nextStep: `edit ${out}, then decomp({op:'assets', action:'repack', romOffset:${args.romOffset}, inputPath:'${out}'}) — repack VERIFIES by decoding its own output before returning.` });
+                nextStep: `edit ${out}, then decomp({op:'assets', action:'repack', romOffset:${args.romOffset}, inputPath:'${out}'}) - repack VERIFIES by decoding its own output before returning.` });
             }
 
             const src = args.inputPath ?? args.outputPath;
@@ -847,14 +847,14 @@ export function registerDecompTools(server, z, sessionKey) {
         }
         case "handoff": {
           // GENERATED from the workspace and the checkout, with every path it
-          // references audited — a handoff whose references have rotted sends
+          // references audited - a handoff whose references have rotted sends
           // the next agent to files that are gone.
           const { generateHandoff } = await import("../../decomp/handoff.js");
           return jsonContent(await generateHandoff(project, { limit: args.limit ?? 20 }));
         }
         case "map": {
           const ld = await project.linkerMap();
-          if (!ld) throw Object.assign(new Error("no linker map — build the project first"), { code: "NO_BUILD" });
+          if (!ld) throw Object.assign(new Error("no linker map - build the project first"), { code: "NO_BUILD" });
           const map = await project.map();
           const b = project.m.splat.buildPath + "/";
           const rows = [];
@@ -904,7 +904,7 @@ export function registerDecompTools(server, z, sessionKey) {
           let types = null;
           try { const asmText = g.targetAsm ? await readFile(project.abs(g.targetAsm), "utf8") : null; const rec = await recordTypeEvidence(project, fn, { hypotheses: g.typeHypotheses, asmText }); types = { file: path.join(project.ws, "types", `${fn.symbol}.json`), bases: Object.keys(rec.bases).length }; } catch (e) { types = { error: e.message.slice(0, 120) }; }
           const { code, ...rest } = g;
-          return jsonContent({ project: project.id, function: { symbol: fn.symbol, segment: fn.segment, va: fn.vaHex, tu: fn.source?.tu, state: fn.source?.state }, ...rest, typeEvidence: types, code: code.length > 6000 ? code.slice(0, 6000) + `\n/* … ${code.length - 6000} more chars in ${g.candidatePath} */\n` : code,
+          return jsonContent({ project: project.id, function: { symbol: fn.symbol, segment: fn.segment, va: fn.vaHex, tu: fn.source?.tu, state: fn.source?.state }, ...rest, typeEvidence: types, code: code.length > 6000 ? code.slice(0, 6000) + `\n/* ... ${code.length - 6000} more chars in ${g.candidatePath} */\n` : code,
             nextStep: `decomp({op:'compare', project:'${project.id}', symbol:'${fn.symbol}', candidatePath:'${g.candidatePath}', contextHash:'${g.context.hash}'})` });
         }
         case "types": {
@@ -923,7 +923,7 @@ export function registerDecompTools(server, z, sessionKey) {
           // diff preview for every variant creates substantial context
           // overhead. Keep all raw details available by reference."
           //
-          // Nothing is discarded — every field below is on disk in the stored
+          // Nothing is discarded - every field below is on disk in the stored
           // result and diff artifacts, whose paths are in `artifacts`. `detail`
           // returns the full object for the one call that needs it.
           if (args.detail !== true) {
@@ -937,7 +937,7 @@ export function registerDecompTools(server, z, sessionKey) {
               rodata: rodata ? { compared: rodata.compared ?? null, equal: rodata.equal ?? null, applicable: rodata.applicable ?? null, ...(rodata.limitation ? { limitation: rodata.limitation } : {}) } : null,
               translationUnit: translationUnitCheck?.status ?? rest.verification?.translationUnit ?? null,
               compiler: { fingerprint: compiler?.fingerprint ?? null, dependencyHash: compiler?.dependencyHash ?? null },
-              detail: "compact by default. `detail:true` returns the full compiler invocation, per-word evidence, changed ranges and diff preview — all of which are also on disk at the paths in `artifacts`.",
+              detail: "compact by default. `detail:true` returns the full compiler invocation, per-word evidence, changed ranges and diff preview - all of which are also on disk at the paths in `artifacts`.",
               nextStep: r.verdict?.functionLocal === "exact" ? `decomp({op:'integrate', project:'${project.id}', symbol:'${fn.symbol}', candidatePath:'${r.candidate.storedAt}', apply:true})` : r.code === "CANDIDATE_REJECTED" ? "remove the retained assembly / copied bytes: that is not a translation" : r.compileSucceeded ? `decomp({op:'diagnose', project:'${project.id}', symbol:'${fn.symbol}'}) to group these residuals by mechanism, or decomp({op:'search', ...})` : "fix the diagnostics (declarations/types) and compare again",
             });
           }
@@ -957,7 +957,7 @@ export function registerDecompTools(server, z, sessionKey) {
           if (lint.rejected) throw Object.assign(new Error(`base candidate rejected: ${lint.reasons.join("; ")}`), { code: "CANDIDATE_REJECTED" });
           // PREFLIGHT: one compile before committing minutes of CPU. A base
           // that does not compile cannot be permuted, and one that is already
-          // exact needs no search — both were previously discovered only after
+          // exact needs no search - both were previously discovered only after
           // the budget ran out.
           let pre = null;
           if (args.preflight !== false) {
@@ -974,7 +974,7 @@ export function registerDecompTools(server, z, sessionKey) {
           return jsonContent({ started: true, jobId: j.jobId, project: project.id, function: j.function, timeLimitS: j.timeLimitS, threads: j.threads, permuterDir: j.permuterDir, log: j.log, backend: j.backend,
             ...(j.seed ? { seed: j.seed, ...(j.seedFrom === "label" ? { seedRequested: j.seedRequested, seedMapping: j.seedMapping } : {}) } : {}),
             ...(pre ? { preflight: { compileSucceeded: pre.compileSucceeded, strictMismatches: pre.strictMismatches, linkedMismatches: pre.linkedMismatches, note: "the base was compiled and compared BEFORE the search launched, so a non-compiling or already-exact base costs one compile instead of the whole budget" } } : {}),
-            nextStep: `decomp({op:'job', project:'${project.id}', jobId:'${j.jobId}'}) — poll; 'budget exhausted' is not 'decompiled': confirm any zero-score best with op:'compare'.` });
+            nextStep: `decomp({op:'job', project:'${project.id}', jobId:'${j.jobId}'}) - poll; 'budget exhausted' is not 'decompiled': confirm any zero-score best with op:'compare'.` });
         }
         case "job": {
           if (!args.jobId) throw Object.assign(new Error("decomp({op:'job'}): jobId is required."), { code: "BAD_ARGS" });

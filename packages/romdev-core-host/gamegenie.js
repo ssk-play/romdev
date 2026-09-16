@@ -1,16 +1,16 @@
 // Game Genie / raw cheat-code decoders.
 //
 // RetroArch .cht `cheatK_code` values come in two broad shapes:
-//   1. `ADDR:VAL`  — a raw address:value write (hex). The address is in the
+//   1. `ADDR:VAL`  - a raw address:value write (hex). The address is in the
 //      core's cheat address space (for NES that's CPU space; a value with no
 //      compare). Trivial to parse.
-//   2. Game Genie codes — a compact, PER-PLATFORM letter encoding that packs
+//   2. Game Genie codes - a compact, PER-PLATFORM letter encoding that packs
 //      an address + value (+ optional compare byte). NES, Genesis, and GB each
 //      use a DIFFERENT encoding; the decoders below implement each.
 //
 // A decoded cheat is { address, value, compare? } where `compare` (when
 // present) is the byte the location must currently hold for the patch to
-// apply — its presence is the signal that the cheat targets ROM/code rather
+// apply - its presence is the signal that the cheat targets ROM/code rather
 // than a free RAM variable, which is exactly the distinction romhacking cares
 // about (RAM var vs code site).
 
@@ -110,16 +110,16 @@ export function encodeNesGameGenie({ address, value, compare }) {
      * Bit 3 of the THIRD letter is the 8-character LENGTH MARKER: Galoob's
      * encoder sets it on every 8-letter code and leaves it clear on 6-letter
      * ones. Measured across romdev's own bundled NES cheat DB, 30,531 of
-     * 30,532 published 8-letter codes have it SET — the one outlier
+     * 30,532 published 8-letter codes have it SET - the one outlier
      * (GATKGATX-style spellings) is a mis-published code, not a convention.
      * An earlier version left it clear on the strength of that outlier,
      * which made every emitted 8-letter code differ from its canonical
      * published spelling by exactly this bit (SLZPLOVS for Contra's
      * SLXPLOVS, and so on).
      *
-     * Decoders are forgiving — fceumm branches on length and masks the bit
+     * Decoders are forgiving - fceumm branches on length and masks the bit
      * (`A |= (t & 0x07) << 4`, its bit-3 rejection commented out), as does
-     * ours — so codes spelled either way still APPLY. But emitted text is
+     * ours - so codes spelled either way still APPLY. But emitted text is
      * published text: it gets pasted into notes, compared against cheat
      * sites, and fed to real hardware, and real hardware sets the marker.
      * Emit the canonical spelling. */
@@ -204,7 +204,7 @@ export function encodeGenesisGameGenie({ address, value }) {
 // "ABC-DEF-GHI" (9 hex digits) or "ABC-DEF" (6 hex digits).
 //
 // Transcribed VERBATIM from `Cartridge::applyGameGenie` in gambatte
-// (src/mem/cartridge.cpp) — the exact core romdev ships for gb/gbc — so this
+// (src/mem/cartridge.cpp) - the exact core romdev ships for gb/gbc - so this
 // is bit-identical to how the emulator itself applies the code. Letting the
 // two disagree is worse than useless: romdev would report an address the
 // emulator never patches.
@@ -306,12 +306,12 @@ export function decodeSnesGameGenie(code) {
 }
 
 // ── GameTank Game Genie ─────────────────────────────────────────────────
-// A NEW format for Clyde Shaffer's open GameTank console — no prior art exists
+// A NEW format for Clyde Shaffer's open GameTank console - no prior art exists
 // (nobody has made GameTank cheat codes before). The GameTank CPU (W65C02S) sees a
 // flat 16-bit address space, so a code encodes a 16-bit READ address + an 8-bit
 // substitute value, plus an optional 8-bit compare byte (the compare form survives
 // the cart's flash bank switching, exactly like NES/GB compare codes). The device
-// intercepts the CPU's bus read and substitutes the value — identical behaviour to
+// intercepts the CPU's bus read and substitutes the value - identical behaviour to
 // a hardware Game Genie you could build for the console's open cart bus.
 //
 // Encoding: a distinct 16-letter wheel (so codes read as GameTank, not NES). The
@@ -413,17 +413,17 @@ export function decodeGbGameShark(code) {
 // ── Pro Action Replay / GameShark (raw hex address+value) ───────────────
 // SNES PAR: AAAAAAVV (6-hex 24-bit address + 2-hex value). SNES/SMS/GG ROM
 // cheats also appear as XXXX-XXXX hex (a 16-bit address-ish + 16-bit value).
-// These devices DON'T scramble — the hex IS the address and value — so "decode"
+// These devices DON'T scramble - the hex IS the address and value - so "decode"
 // is just slicing. We label the device so the agent knows what it's looking at.
 export function decodeProActionReplay(code, platform) {
   const clean = code.replace(/[-\s]/g, "").toUpperCase();
   if (!/^[0-9A-F]+$/.test(clean)) return null;
   if (platform === "snes" && clean.length === 8) {
-    // AAAAAA VV — 24-bit address, 8-bit value (most SNES PAR codes; 7E/7Fxxxx = WRAM).
+    // AAAAAA VV - 24-bit address, 8-bit value (most SNES PAR codes; 7E/7Fxxxx = WRAM).
     return { address: parseInt(clean.slice(0, 6), 16), value: parseInt(clean.slice(6), 16) };
   }
   if (clean.length === 8) {
-    // XXXX VVVV — 16-bit address, 16-bit value (SMS/GG/Genesis AR-style).
+    // XXXX VVVV - 16-bit address, 16-bit value (SMS/GG/Genesis AR-style).
     return { address: parseInt(clean.slice(0, 4), 16), value: parseInt(clean.slice(4), 16) };
   }
   return null;
@@ -518,7 +518,7 @@ export function encodeGbGameShark({ address, value, type = 0x01 }) {
 }
 
 // Forward address scramble (the exact snes9x permutation, factored out so the
-// inverse can be DERIVED from it rather than hand-transcribed — derivation is
+// inverse can be DERIVED from it rather than hand-transcribed - derivation is
 // provably correct; hand-inverting this bit-soup is not).
 function snesScrambleAddr(a24) {
   const a = a24 & 0xFFFFFF;
@@ -562,7 +562,7 @@ export function encodeSnesGameGenie({ address, value }) {
 }
 
 /** Decode + label the device in one call. Returns { address, value, compare?,
- *  device } or null. THE preferred entry point for the index/tools — it makes
+ *  device } or null. THE preferred entry point for the index/tools - it makes
  *  the device type explicit (your "be clear what device" requirement). */
 export function decodeWithDevice(code, platform) {
   const device = detectDevice(code, platform);
@@ -574,7 +574,7 @@ export function decodeWithDevice(code, platform) {
 /** Format a raw ADDR:VAL[:COMPARE] code from decoded parts (hex, no 0x).
  *  The ADDRESS is padded to a minimum of 4 hex digits. This is NOT cosmetic:
  *  libretro cheat parsers (verified on fceumm) treat a short `AA:VV` RAM code as
- *  inert — it parses but never binds (`apply` then falsely reports success). A
+ *  inert - it parses but never binds (`apply` then falsely reports success). A
  *  zero-page address like $32 must be emitted as `0032:09` to actually poke; the
  *  2-digit `32:09` is silently dropped. ROM addresses ($8000+) are already 4+
  *  digits, so padding only fixes the low-RAM case and never changes a working
@@ -593,7 +593,7 @@ export function encodeRaw({ address, value, compare }) {
 }
 
 // Which physical cheat DEVICE each platform's "native" code is for. This is the
-// honesty layer: we don't call everything "Game Genie" — SNES native is Pro
+// honesty layer: we don't call everything "Game Genie" - SNES native is Pro
 // Action Replay, SMS/GG is Action Replay, GB has both GG (ROM) and GameShark
 // (RAM). `nativeDevicesFor` lists them best-first.
 export function nativeDevicesFor(platform) {

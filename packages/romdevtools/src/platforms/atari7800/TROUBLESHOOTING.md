@@ -1,14 +1,14 @@
-# Atari 7800 — troubleshooting
+# Atari 7800 - troubleshooting
 
 > **A build failed? Read `issues[]` FIRST.** Every build/compile call returns
-> `issues: [{file, line, col, severity, message, stage}]` — the structured error
+> `issues: [{file, line, col, severity, message, stage}]` - the structured error
 > list. It almost always names the exact line to fix. Read that before matching a
 > symptom below or touching your source. Fall back to the raw `log` only if
 > `issues[]` is empty but `ok:false`.
 
 When something's broken. Read MENTAL_MODEL.md first
 (via `platform({op:'doc', platform:"atari7800", name:"mental_model"})`)
-for the "what's going on" version — the 7800 is the architectural outlier
+for the "what's going on" version - the 7800 is the architectural outlier
 of the bundled platforms and most "wait, why?" moments come from
 expecting it to behave like a NES.
 
@@ -18,8 +18,8 @@ Two common modes:
 
 1. **`CTRL` doesn't have DMA enabled.** Write `CTRL = 0x40` AFTER
    you've set up DPPH/DPPL. The high bit (`0x80`) is "color burst
-   off" (monochrome) — leave it off. Bit 6 (`0x40`) is "DMA enable
-   AND no border" — that's what you want for a normal display.
+   off" (monochrome) - leave it off. Bit 6 (`0x40`) is "DMA enable
+   AND no border" - that's what you want for a normal display.
 2. **DPPL/DPPH point at a stale DLL.** If you set them before
    you've filled in DLL bytes 1+2 with the actual DL pointer, MARIA
    walks garbage and draws nothing. Order:
@@ -58,7 +58,7 @@ you have to:
 
 Our example games use a single-zone DLL for simplicity. Vertical
 movement is faked by stamping the sprite at different row offsets
-within the canvas data — only works if the canvas is tall enough.
+within the canvas data - only works if the canvas is tall enough.
 
 ## "Memory overflow during link (RAM1 by N bytes)"
 
@@ -78,7 +78,7 @@ Fixes:
   RAM globals.
 - Replace canvas-buffer rendering with per-object DLs (see
   `shmup.c` example for the canonical pattern).
-- Avoid per-frame `memset(canvas, 0, ...)` — instead, only stamp
+- Avoid per-frame `memset(canvas, 0, ...)` - instead, only stamp
   changed cells.
 
 ## "Colours look wrong / washed out"
@@ -107,7 +107,7 @@ The 7800's TIA audio uses identical registers to the 2600:
 ordering is consistent across systems.
 
 If audio is silent: check that **VOLUME** (`AUDV0/1`) is non-zero
-— it defaults to 0 on reset. Many sample drivers forget the
+- it defaults to 0 on reset. Many sample drivers forget the
 volume write.
 
 ## "cc65 compile warning: 'Integer constant implies signed long'"
@@ -124,7 +124,7 @@ DL during active rendering; safe modification windows:
 - During vblank (`MSTAT & 0x80` true)
 
 Build a "next-frame" DL during the game-state update phase and
-swap pointers (DPPL/DPPH) at vblank — double-buffered.
+swap pointers (DPPL/DPPH) at vblank - double-buffered.
 
 Our example games rebuild the DL during vblank, which works for small
 DLs (< ~100 bytes). Large DLs that take ~1 ms to rebuild may
@@ -135,7 +135,7 @@ Build the DLL + DL structure ONCE at init, then each frame overwrite
 only the bytes that changed (an object's X / graphics-pointer / palette,
 or set width=0 / a blank tile to hide it). A full per-frame DLL+DL
 rebuild is the most common cause of "stable for one frame, then tears /
-hangs once motion starts." See MENTAL_MODEL.md § "Dynamic display lists —
+hangs once motion starts." See MENTAL_MODEL.md § "Dynamic display lists -
 what to rebuild per frame" for the per-field rebuild-cadence table.
 
 ## "ROM > 32 KB doesn't run"
@@ -155,7 +155,7 @@ Steady-state builds are sub-second thanks to the worker pool (R12).
 
 Almost always one of THREE bugs in your DL/DLL setup:
 
-1. **DLL too short.** MARIA has NO DLL terminator — it walks one
+1. **DLL too short.** MARIA has NO DLL terminator - it walks one
    entry per scanline for ALL 243 display lines (NTSC). If your DLL
    only covers a few zones, MARIA reads past the end into random
    RAM and renders garbage zones.
@@ -165,7 +165,7 @@ Almost always one of THREE bugs in your DL/DLL setup:
 2. **DL header in too-small array.** A 5-byte extended DL entry
    takes 5 bytes, but MARIA reads the NEXT entry's mode byte at
    `dp + 6` after advancing. If your DL is `uint8_t dl[6]`, MARIA
-   reads `dl[6]` — out of bounds, almost guaranteed non-zero, loop
+   reads `dl[6]` - out of bounds, almost guaranteed non-zero, loop
    keeps going into garbage.
    Fix: allocate `uint8_t dl[7]` with byte 5 unused + byte 6 = 0
    (the terminator). See the `MK_DL` macro in `default.c`.
@@ -174,7 +174,7 @@ Almost always one of THREE bugs in your DL/DLL setup:
    is only 4 bits (bits 0-3), so max value 15 → zone height max
    16 scanlines. Writing `0x80 | 183` (intending "183 scanlines
    in this zone") sets DLI (bit 7) and offset to `183 & 15 = 7`
-   — you get an 8-scanline zone AND fire NMIs you don't have a
+   - you get an 8-scanline zone AND fire NMIs you don't have a
    handler for.
    Fix: use multiple smaller zones, or the 1-scanline-per-zone
    pattern in `default.c` (offset = 0 everywhere).
@@ -194,7 +194,7 @@ Fix options (in order of how much they shrink BSS):
 - Reduce `PLAY_LINES` (per-scanline DL pool size scales linearly).
 - Reduce `MAX_OBJS_PER_LINE` (each removes 5 bytes per scanline).
 - Use the simpler per-row-DL pattern (`MK_DL(dl_row0)..dl_row7`)
-  if you only need one sprite at a time — see `default.c` and
+  if you only need one sprite at a time - see `default.c` and
   `hello_sprite.c`. No per-scanline pool needed.
 
 The bundled example games size their pools to fit; if you scale up

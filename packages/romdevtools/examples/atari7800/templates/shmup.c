@@ -1,43 +1,43 @@
-/* ── shmup.c — Atari 7800 dense-field shooter (complete example game) ────────
+/* ── shmup.c - Atari 7800 dense-field shooter (complete example game) ────────
  *
- * A COMPLETE, working game — title screen, 1P and 2P co-op modes, lives,
+ * A COMPLETE, working game - title screen, 1P and 2P co-op modes, lives,
  * score + session hi-score, music + SFX, and the 7800's signature feature:
  * MARIA SPRITE QUANTITY. 24 meteors + 2 ships + 4 shots = 30 independent
- * moving objects on screen at once — a field no 2600 (5 hardware objects)
+ * moving objects on screen at once - a field no 2600 (5 hardware objects)
  * and no stock NES (8-sprites-per-scanline flicker) draws this comfortably.
  * On the 7800 every object is just a 4-byte display-list entry that MARIA
  * DMAs each scanline; quantity is the whole point of the chip.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented 7800/MARIA footgun;
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented 7800/MARIA footgun;
  *     reshape your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — meteor patterns, scoring, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - meteor patterns, scoring, tuning, art: reshape freely.
  *
  * What depends on what:
- *   atari7800_sfx.{h,c} — TIA one-shot effects (we give it voice 1; the
- *     inline music player below owns voice 0 — TIA only HAS two voices).
- *   cc65's atari7800 target crt0 + atari7800.cfg — boot, BSS in RAM1
+ *   atari7800_sfx.{h,c} - TIA one-shot effects (we give it voice 1; the
+ *     inline music player below owns voice 0 - TIA only HAS two voices).
+ *   cc65's atari7800 target crt0 + atari7800.cfg - boot, BSS in RAM1
  *     ($1800-$203F), C parameter stack at the TOP of RAM3 growing DOWN
  *     ($2800 →). This game claims the BOTTOM of RAM3 ($2200-$25FD) for its
- *     display-list pool — see the RAM MAP below before moving anything.
+ *     display-list pool - see the RAM MAP below before moving anything.
  *
- * PERSISTENCE — honest note: the canonical 7800 save path is the High Score
+ * PERSISTENCE - honest note: the canonical 7800 save path is the High Score
  * Cart (HSC): a pass-through cartridge with 2KB battery RAM at $1000-$17FF
  * plus a directory ROM. The bundled prosystem core does NOT implement HSC
  * (probed 2026-06: retro_get_memory(SAVE_RAM) size = 0, and the core binary
  * has no HSC code at all), so this game keeps the hi-score IN-SESSION ONLY
  * (it survives play → title → play, dies on power-off). Do not fake
- * persistence the hardware path can't back — if a future core round adds
+ * persistence the hardware path can't back - if a future core round adds
  * HSC, wire hiscore into $1000-$17FF and it becomes real.
  *
  * Frame budget (NTSC): with ~125 emitted object-rows the per-tick update
  * fits in one 60Hz frame, stretching to two on heavy frames (collision
- * sweep + HUD redraw) — vblank_wait() paces the sim at 60Hz, dipping to
- * 30 under load: the classic 8-bit pattern. MARIA does not care — it
+ * sweep + HUD redraw) - vblank_wait() paces the sim at 60Hz, dipping to
+ * 30 under load: the classic 8-bit pattern. MARIA does not care - it
  * re-walks the same DLs every frame, so a slow CPU loop never blanks or
  * tears the whole screen. That budget only holds because of the
- * #pragma optimize(on) right below — read its comment before deleting it.
+ * #pragma optimize(on) right below - read its comment before deleting it.
  * The trade (object quantity vs sim rate) is THE 7800 design dial; see
  * the DMA-budget comment at the display-list pool.
  */
@@ -46,26 +46,26 @@
 #include <string.h>
 #include "atari7800_sfx.h"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * cc65 SHIPS WITH ITS OPTIMIZER OFF, and this toolchain does not pass -O —
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * cc65 SHIPS WITH ITS OPTIMIZER OFF, and this toolchain does not pass -O -
  * each translation unit must opt in. Without this pragma the unoptimized
  * emit pass made the main loop take ~9 frames per sim tick instead of 1-2
  * (measured: 8.8 → 1.7 frames/tick on prosystem), and every TICK-DENOMINATED
  * timer silently stretched 4-5x in wall-clock terms: the 60-tick spawn
  * shield lasted ~9 seconds, and its 4-ticks-hidden blink kept BOTH ships
  * (inv[] starts equal, so they blink in sync) off screen for ~600ms at a
- * time. That presents as "ships missing / display corruption" — but the
+ * time. That presents as "ships missing / display corruption" - but the
  * DLL, the zone pointers, and every pool slot were byte-perfect when read
  * back from RAM. The footgun generalizes: on a 1.79MHz 6502 the C
  * optimizer is not a nicety, it IS the frame budget, and a too-slow loop
  * shows up as broken GAME RULES (stretched timers, missed 1-frame input
- * edges), not as a slow-looking screen — MARIA keeps repainting the same
+ * edges), not as a slow-looking screen - MARIA keeps repainting the same
  * display lists at a rock-steady 60Hz no matter how far behind the CPU
  * falls. If your fork feels like molasses or "ignores" short button taps,
  * check this pragma is still here before debugging the display lists. */
 #pragma optimize(on)
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "COMET FLURRY"
 
@@ -96,7 +96,7 @@
 #define P7C1      (*(volatile uint8_t*)0x3D)
 
 /* TIA audio (shared with the music player below; atari7800_sfx.c has the
- * same defines — the chip is tiny enough that duplicating 6 lines beats a
+ * same defines - the chip is tiny enough that duplicating 6 lines beats a
  * header dependency the fork machinery would have to carry). */
 #define AUDC0  (*(volatile uint8_t*)0x15)
 #define AUDC1  (*(volatile uint8_t*)0x16)
@@ -109,13 +109,13 @@
 #define INPT4  (*(volatile uint8_t*)0x0C)   /* P1 fire, active low (bit 7) */
 #define INPT5  (*(volatile uint8_t*)0x0D)   /* P2 fire, active low (bit 7) */
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * SWCHA joystick bit order — the #1 7800 input footgun. After the ~SWCHA
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * SWCHA joystick bit order - the #1 7800 input footgun. After the ~SWCHA
  * invert, port 0 (left jack) lives in the HIGH nibble as
  * Right($80) Left($40) Down($20) Up($10), and port 1 (right jack) in the
  * LOW nibble as Right($08) Left($04) Down($02) Up($01). Writing the masks
- * in "natural reading order" (UP=0x80…) is exactly REVERSED and makes the
- * stick's vertical axis steer horizontally — a bug weird enough to
+ * in "natural reading order" (UP=0x80...) is exactly REVERSED and makes the
+ * stick's vertical axis steer horizontally - a bug weird enough to
  * misdiagnose as a core problem. Verified bit-by-bit against prosystem. */
 #define J1_RIGHT 0x80
 #define J1_LEFT  0x40
@@ -127,15 +127,15 @@
 #define J2_UP    0x01
 
 /* ════════════════════════════════════════════════════════════════════════
- * RAM MAP — the 7800 gives you 4KB ($1800-$27FF) and the stock cc65 config
+ * RAM MAP - the 7800 gives you 4KB ($1800-$27FF) and the stock cc65 config
  * only hands the linker the first 2112 bytes of it:
  *
- *   $1800-$203F  RAM1  — cc65 DATA + BSS (everything `static` below)
- *   $2040-$20FF  (gap the cc65 cfg skips — unused here)
- *   $2100-$213F  RAM2  — unused here
- *   $2200-$25FD  RAM3 bottom — OUR display-list pool/canvas arena (POOLB):
+ *   $1800-$203F  RAM1  - cc65 DATA + BSS (everything `static` below)
+ *   $2040-$20FF  (gap the cc65 cfg skips - unused here)
+ *   $2100-$213F  RAM2  - unused here
+ *   $2200-$25FD  RAM3 bottom - OUR display-list pool/canvas arena (POOLB):
  *                  raw pointer, invisible to the linker, 1022 bytes
- *   $25FE-$27FF  RAM3 top — cc65 C parameter stack (crt0 starts it at $2800
+ *   $25FE-$27FF  RAM3 top - cc65 C parameter stack (crt0 starts it at $2800
  *                  growing DOWN; ~510 bytes is plenty for these call depths,
  *                  but if you add deep recursion, shrink POOLB_LINES first)
  * ════════════════════════════════════════════════════════════════════════ */
@@ -145,19 +145,19 @@
  *   lines   0- 15  blank (top overscan)            1 DLL entry, 16 tall
  *   lines  16- 23  HUD text row (RAM canvas)       8 entries, 1 tall each
  *   lines  24- 25  divider band                    1 entry, 2 tall
- *   lines  26-145  THE FIELD — 120 one-line zones  120 entries (the pool)
+ *   lines  26-145  THE FIELD - 120 one-line zones  120 entries (the pool)
  *   lines 146-147  divider band                    1 entry, 2 tall
  *   lines 148-242  decor stripes (planet glow)     12 entries, 8/7 tall
- * Total: 143 DLL entries = 429 bytes (vs 729 for the naive all-1-line DLL —
+ * Total: 143 DLL entries = 429 bytes (vs 729 for the naive all-1-line DLL -
  * mixed zone heights are how real 7800 games keep the DLL small).          */
 #define FIELD_LINES   120
 #define FIELD_DLL_OFF 30          /* byte offset of field entry 0 in dll[] */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Object art. 160A mode: 1 byte = 4 pixels of 2 bits each; pixel value
  * 1/2/3 = colour 1/2/3 of the palette the DL entry names, 0 = transparent.
  * Rows are stored top-down, consecutive (the 1-scanline-zone pattern below
- * means NO page-alignment dance — see "offset addressing quirk" in
+ * means NO page-alignment dance - see "offset addressing quirk" in
  * MENTAL_MODEL.md for what multi-line zones would demand instead). */
 
 /* Player ship, 12px wide (3 bytes) x 8 rows. Colours: 1 hull, 2 canopy,
@@ -181,18 +181,18 @@ static const uint8_t GFX_METEOR[4 * 2] = {
   0x29, 0xA0,          /*  2 1 22   */
 };
 
-/* Shot, 4px wide (1 byte) x 3 rows — a thin colour-1 streak. */
+/* Shot, 4px wide (1 byte) x 3 rows - a thin colour-1 streak. */
 static const uint8_t GFX_SHOT[3] = { 0x14, 0x14, 0x14 };
 
 /* DL mode bytes for the 4-byte (direct) entry form: palette in bits 5-7,
- * width as (32 - width_bytes) in bits 0-4 (must be non-zero — a zero low
+ * width as (32 - width_bytes) in bits 0-4 (must be non-zero - a zero low
  * 5 bits would make MARIA parse a 5-byte entry instead). */
 #define MODE_SHIP1  ((1u << 5) | (32 - 3))   /* palette 1, 3 bytes wide */
 #define MODE_SHIP2  ((2u << 5) | (32 - 3))   /* palette 2 */
 #define MODE_METEOR ((3u << 5) | (32 - 2))   /* palette 3, 2 bytes wide */
 #define MODE_SHOT   ((4u << 5) | (32 - 1))   /* palette 4, 1 byte wide  */
 
-/* ── GAME LOGIC (clay) — 8x8 text font, 1 bit per pixel, 7px glyphs.
+/* ── GAME LOGIC (clay) - 8x8 text font, 1 bit per pixel, 7px glyphs.
  * The 7800 has NO text mode and no tilemap; text is just more objects.
  * The text path here: expand glyphs into a 32-byte-wide RAM canvas
  * (= 128px, 16 characters), then show the canvas with ONE wide DL entry
@@ -244,14 +244,14 @@ static const uint8_t NIB2[16] = {
   0x40,0x41,0x44,0x45,0x50,0x51,0x54,0x55,
 };
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Solid band drawable for multi-line zones. Inside a zone of height H,
- * MARIA fetches scanline l's pixels from ADDR + (H-1-l)*256 — the "offset
+ * MARIA fetches scanline l's pixels from ADDR + (H-1-l)*256 - the "offset
  * addressing quirk". A multi-line drawable therefore needs valid data at
  * the SAME low-byte offset across H consecutive 256-byte pages. For solid
  * colour bands we sidestep alignment entirely: a 2KB ROM run of 0x55 means
  * ANY address inside the first page works for zones up to 8 tall (8 pages
- * x 256). Costs 2KB of a 32KB cart — ROM is the cheap resource here.
+ * x 256). Costs 2KB of a 32KB cart - ROM is the cheap resource here.
  * (Real games use this page layout for big multi-line sprites too; our
  * moving objects instead live in 1-line zones where the quirk vanishes.) */
 #define S16 0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55
@@ -261,7 +261,7 @@ static const uint8_t SOLID8[2048] = { S256,S256,S256,S256,S256,S256,S256,S256 };
 /* Full-width band DL: a DL drawable is at most 32 bytes (128px), so a
  * 160px line takes TWO 5-byte entries + terminator = 11 bytes. 5-byte
  * form: lo, $40 (extended, write-mode 0 = 160A), hi, palette|width, X.
- * Width 32 encodes as 0 in the low 5 bits — legal ONLY in 5-byte form. */
+ * Width 32 encodes as 0 in the low 5 bits - legal ONLY in 5-byte form. */
 #define MK_BAND(name, pal) static uint8_t name[11] = { \
   0, 0x40, 0, ((pal) << 5) | 0,  0,    /* 128px @ x=0   */ \
   0, 0x40, 0, ((pal) << 5) | 24, 128,  /* 32px  @ x=128 */ \
@@ -271,8 +271,8 @@ MK_BAND(dl_band_b, 7);
 static uint8_t dl_empty[2] = { 0, 0 };
 
 /* ════════════════════════════════════════════════════════════════════════
- * ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * THE DISPLAY-LIST POOL — how 30 objects get drawn (the 7800's signature).
+ * ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * THE DISPLAY-LIST POOL - how 30 objects get drawn (the 7800's signature).
  *
  * MARIA hierarchy refresher: DPP → DLL (one entry per ZONE: height + DL
  * pointer) → DL (one 4/5-byte entry per OBJECT crossing that zone) → pixel
@@ -280,22 +280,22 @@ static uint8_t dl_empty[2] = { 0, 0 };
  *
  * The field is 120 one-scanline zones. Each has a fixed 14-byte DL slot:
  * room for THREE 4-byte object entries + the terminator byte (MARIA reads
- * the NEXT entry's mode byte after each entry; a 0 there ends the line —
+ * the NEXT entry's mode byte after each entry; a 0 there ends the line -
  * forget the terminator and MARIA walks into garbage and the screen dies).
  *
- * Every frame, object-major (NOT line-major — a 120-line x 30-object scan
+ * Every frame, object-major (NOT line-major - a 120-line x 30-object scan
  * would be ~3600 checks; emitting 30 objects' ~125 rows is 30x cheaper):
  *   1. line_used[] = 0 for all 120 lines
  *   2. each object writes one 4-byte entry per row it covers into the
- *      lines it crosses (emit_object) — full lines just drop the row
+ *      lines it crosses (emit_object) - full lines just drop the row
  *   3. every line gets its terminator written after its last entry
  *
- * WHY 3 PER LINE — the MARIA DMA budget, the dial this whole game turns:
+ * WHY 3 PER LINE - the MARIA DMA budget, the dial this whole game turns:
  * MARIA steals the bus from the CPU to fetch each line's DL + pixels
  * (~113 DMA cycles per scanline before the line visibly runs out). A
  * 4-byte header costs ~8 cycles + 3/pixel-byte, so three 2-byte-wide
- * objects ≈ 40 of 113 — comfortable. Eight would not be. When a 4th
- * object-row lands on one line we DROP it for that frame — a one-line
+ * objects ≈ 40 of 113 - comfortable. Eight would not be. When a 4th
+ * object-row lands on one line we DROP it for that frame - a one-line
  * flicker on that object, exactly the artifact real dense 7800 games
  * show. More objects per line ⇒ bigger slots ⇒ more RAM ⇒ fewer lines;
  * quantity, width, and field height all trade against the same budget.
@@ -309,7 +309,7 @@ static uint8_t dl_empty[2] = { 0, 0 };
  * Rebuild-vs-patch doctrine (MENTAL_MODEL.md): the DLL is built ONCE and
  * only its 3-byte field entries are repointed at state changes (with DMA
  * off); per-frame work only rewrites bytes INSIDE existing 14-byte slots.
- * Tearing down the DLL itself mid-game races MARIA's walker — the classic
+ * Tearing down the DLL itself mid-game races MARIA's walker - the classic
  * "works one frame then the screen falls apart" 7800 bug.
  * ════════════════════════════════════════════════════════════════════════ */
 #define LINE_BYTES   14
@@ -325,7 +325,7 @@ static uint8_t hud_dls[8 * 7];          /* one 5-byte DL + term per row   */
 
 /* Emit one object: a 4-byte direct DL entry into every field line one of
  * its rows crosses. gfx rows are consecutive (stride = width in bytes).
- * Callers keep y in [0, FIELD_LINES - h] so no clipping is needed — keep
+ * Callers keep y in [0, FIELD_LINES - h] so no clipping is needed - keep
  * that invariant if you change movement code, or add clipping here. */
 static void emit_object(uint8_t y, uint8_t h, const uint8_t* gfx,
                         uint8_t stride, uint8_t mode, uint8_t x) {
@@ -356,9 +356,9 @@ static void field_close(void) {         /* step 3: terminate every line */
     line_dl[i][line_used[i] + 1] = 0;   /* next entry's MODE byte = 0    */
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — DLL construction + zone repointing.
+/* ── HARDWARE IDIOM (load-bearing) - DLL construction + zone repointing.
  * Built once at boot; dll_zone appends one 3-byte entry (offset byte =
- * height-1; DLI/holey bits stay 0 — no NMI handler, no holey DMA here). */
+ * height-1; DLI/holey bits stay 0 - no NMI handler, no holey DMA here). */
 static uint8_t* dllp;
 static void dll_zone(uint8_t height, uint16_t dl) {
   dllp[0] = height - 1;
@@ -376,7 +376,7 @@ static void point_field_zone(uint8_t fline, uint16_t dl) {
   e[2] = (uint8_t)(dl & 0xFF);
 }
 
-/* ── GAME LOGIC (clay) — text rendering into a 32-byte-wide RAM canvas ── */
+/* ── GAME LOGIC (clay) - text rendering into a 32-byte-wide RAM canvas ── */
 static uint8_t glyph_index(char c) {
   if (c >= '0' && c <= '9') return (uint8_t)(c - '0');
   if (c >= 'A' && c <= 'Z') return (uint8_t)(10 + c - 'A');
@@ -425,13 +425,13 @@ static void canvas_dls(uint8_t* dls, const uint8_t* canvas, uint8_t pal) {
   }
 }
 
-/* ── GAME LOGIC (clay) — the music. Two-voice TIA tune loop. ─────────────────
- * The TIA's frequency divider is 5 bits — ~32 pitches TOTAL, none of them
+/* ── GAME LOGIC (clay) - the music. Two-voice TIA tune loop. ─────────────────
+ * The TIA's frequency divider is 5 bits - ~32 pitches TOTAL, none of them
  * in tune with each other. Don't fight it: write the melody IN the TIA's
  * crooked scale and it reads as "gritty 7800", fight it and it reads as
- * "wrong". The note tables ARE the song — edit them to recompose.
+ * "wrong". The note tables ARE the song - edit them to recompose.
  * Voice 0 = melody (AUDC 4, square-ish). Voice 1 = bass (AUDC 6, deep
- * buzz) — and voice 1 is SHARED with sound effects (TIA has only two
+ * buzz) - and voice 1 is SHARED with sound effects (TIA has only two
  * voices): when the game fires an effect, sfx_hold mutes the bass for the
  * effect's length, then the bass re-enters on its next note. That
  * steal-and-return is the standard 2-voice arbitration trick. */
@@ -470,8 +470,8 @@ static void fx_boom(void)  { sfx_noise(8);        sfx_hold = 9;  }
 static void fx_crash(void) { sfx_noise(22);       sfx_hold = 23; }
 static void fx_start(void) { sfx_tone(1, 8, 6);   sfx_hold = 7;  }
 
-/* ── GAME LOGIC (clay — reshape freely) — game state ─────────────────────────
- * Fixed object pools, no allocation (1.79MHz CPU, 4KB RAM — a heap is a
+/* ── GAME LOGIC (clay - reshape freely) - game state ─────────────────────────
+ * Fixed object pools, no allocation (1.79MHz CPU, 4KB RAM - a heap is a
  * cost with no payer). 24 meteors are ALWAYS active; "destroyed" just
  * respawns one at the top, so the field never thins out. */
 #define METEORS 24
@@ -489,7 +489,7 @@ static uint16_t rng = 0xACE1;
 #define ST_OVER  2
 static uint8_t state;
 
-static uint8_t random8(void) {            /* xorshift16 — cheap + fine    */
+static uint8_t random8(void) {            /* xorshift16 - cheap + fine    */
   uint16_t r = rng;
   r ^= r << 7;
   r ^= r >> 9;
@@ -507,12 +507,12 @@ static void spawn_meteor(uint8_t i, uint8_t ytop) {
   /* speed = quarter-pixels per sim tick (1..2 base, +1/+2 as the score
    * climbs). Tuned for the real ~45Hz tick rate the optimized loop hits:
    * a meteor crosses the field in ~5-11s, which keeps 24 of them dense
-   * but survivable. (At 4x these speeds an IDLE ship died every ~3s —
+   * but survivable. (At 4x these speeds an IDLE ship died every ~3s -
    * fine for a bullet hell, wrong for a teaching example.) */
   mspd[i] = (uint8_t)(1 + (random8() & 1) + (score >= 200 ? 2 : score >= 80 ? 1 : 0));
 }
 
-/* ── GAME LOGIC (clay) — HUD: "S00000 H00000 L3" composed into the canvas ── */
+/* ── GAME LOGIC (clay) - HUD: "S00000 H00000 L3" composed into the canvas ── */
 static void draw_hud(void) {
   static char buf[17] = "S00000 H00000 L0";
   digits5(buf + 1, score);
@@ -530,18 +530,18 @@ static void draw_hud_title(void) {
   draw_text(hud_canvas, 4, buf);
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — paint functions bracket structural
+/* ── HARDWARE IDIOM (load-bearing) - paint functions bracket structural
  * display-list changes with MARIA DMA OFF ($7F) / ON ($40), the 7800's
  * version of the NES "rendering off before nametable writes" rule: MARIA
  * may be mid-walk through the very lists being rewritten, and repointing
  * dozens of zones under it glitches (or with bad luck hangs) the frame.
- * CTRL $40 = DMA on, 160A read mode, colour burst on — forget to restore
+ * CTRL $40 = DMA on, 160A read mode, colour burst on - forget to restore
  * it and the screen stays the flat BACKGRND colour forever. ── */
 
 /* Title screen: borrow field zones for three text overlays composed in
- * POOLB (the pool isn't drawing meteors on the title, so its RAM is free —
+ * POOLB (the pool isn't drawing meteors on the title, so its RAM is free -
  * 4KB machines make you reuse like this). Title is double-height by
- * pointing TWO consecutive 1-line zones at each canvas row — zero extra
+ * pointing TWO consecutive 1-line zones at each canvas row - zero extra
  * RAM, pure DLL trickery. */
 static void paint_title(void) {
   uint8_t i;
@@ -571,7 +571,7 @@ static void paint_title(void) {
   CTRL = 0x40;                            /* DMA back on                  */
 }
 
-/* Game over: freeze nothing — the pool RAM becomes the message overlay
+/* Game over: freeze nothing - the pool RAM becomes the message overlay
  * (same reuse trick as the title), the rest of the field goes blank. */
 static void paint_gameover(void) {
   uint8_t i;
@@ -597,7 +597,7 @@ static void paint_gameover(void) {
   CTRL = 0x40;
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_game(uint8_t players) {
   uint8_t i;
   CTRL = 0x7F;
@@ -606,9 +606,9 @@ static void start_game(uint8_t players) {
     point_field_zone(i, (uint16_t)(uintptr_t)line_dl[i]);
   field_open();
   field_close();                          /* all lines empty + terminated */
-  score = 0;                              /* before seeding — spawn speed */
+  score = 0;                              /* before seeding - spawn speed */
                                           /* scales with score            */
-  for (i = 0; i < METEORS; ++i)           /* seed the swarm SPREAD OUT —  */
+  for (i = 0; i < METEORS; ++i)           /* seed the swarm SPREAD OUT -  */
     spawn_meteor(i, (uint8_t)(i * 4));    /* all-at-top would pile 24     */
                                           /* rows on the same scanlines   */
   for (i = 0; i < SHOTS; ++i) sact[i] = 0;
@@ -637,7 +637,7 @@ static void game_over(void) {
   paint_gameover();
 }
 
-/* ── GAME LOGIC (clay) — per-player update. p=0 reads SWCHA's high nibble
+/* ── GAME LOGIC (clay) - per-player update. p=0 reads SWCHA's high nibble
  * + INPT4, p=1 the low nibble + INPT5 (see the bit-order idiom up top). */
 static void update_ship(uint8_t p, uint8_t pad, uint8_t fire) {
   uint8_t lf, rt, up, dn;
@@ -674,7 +674,7 @@ void main(void) {
   uint8_t i, fires, f1, f2;
   uint16_t a;
 
-  /* ── HARDWARE IDIOM (load-bearing) — boot order: build EVERYTHING the
+  /* ── HARDWARE IDIOM (load-bearing) - boot order: build EVERYTHING the
    * DLL will reference, then point DPP at it, THEN enable DMA. Enabling
    * DMA over a half-built DLL is the 7800 black-screen classic. ── */
 
@@ -693,7 +693,7 @@ void main(void) {
 
   canvas_dls(hud_dls, hud_canvas, 5);
 
-  /* The DLL — the screen layout, built once (see the layout table above).
+  /* The DLL - the screen layout, built once (see the layout table above).
    * 143 entries, mixed zone heights; only the 120 field entries are ever
    * repointed after this. */
   dllp = dll;
@@ -704,7 +704,7 @@ void main(void) {
   for (i = 0; i < FIELD_LINES; ++i)                       /* field 26-145 */
     dll_zone(1, (uint16_t)(uintptr_t)line_dl[i]);
   dll_zone(2, (uint16_t)(uintptr_t)dl_band_a);            /* divider      */
-  /* Decor stripes (planet glow) — also our anti-blank-screen ballast:
+  /* Decor stripes (planet glow) - also our anti-blank-screen ballast:
    * with DMA fetching only objects, everything else is the single flat
    * BACKGRND colour, and a mostly-one-colour frame reads as "dead". */
   dll_zone(8, (uint16_t)(uintptr_t)dl_band_a);
@@ -717,7 +717,7 @@ void main(void) {
   dll_zone(8, (uint16_t)(uintptr_t)dl_empty);
   dll_zone(8, (uint16_t)(uintptr_t)dl_band_a);
   dll_zone(8, (uint16_t)(uintptr_t)dl_empty);
-  dll_zone(8, (uint16_t)(uintptr_t)dl_band_b);            /* …through 235 */
+  dll_zone(8, (uint16_t)(uintptr_t)dl_band_b);            /* ...through 235 */
   dll_zone(7, (uint16_t)(uintptr_t)dl_empty);             /* 236-242      */
 
   /* Palettes (Atari colour byte = hue<<4 | luminance). */
@@ -738,8 +738,8 @@ void main(void) {
   DPPH = (uint8_t)(a >> 8);
 
   sfx_init();
-  hiscore = 0;                            /* in-session only — see header */
-  paint_title();                          /* …turns DMA on                */
+  hiscore = 0;                            /* in-session only - see header */
+  paint_title();                          /* ...turns DMA on                */
 
   for (;;) {
     uint8_t pad;
@@ -753,7 +753,7 @@ void main(void) {
     fires = (uint8_t)(f1 | (f2 << 1));
 
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: P1 fire = 1P, P2 fire = 2P co-op ── */
+      /* ── GAME LOGIC (clay) - title: P1 fire = 1P, P2 fire = 2P co-op ── */
       if ((fires & 1) && !(prev_fire & 1)) start_game(0);
       else if ((fires & 2) && !(prev_fire & 2)) start_game(1);
       prev_fire = fires;
@@ -771,7 +771,7 @@ void main(void) {
     update_ship(0, pad, f1);
     if (two_p) update_ship(1, pad, f2);
 
-    /* ── GAME LOGIC (clay) — the swarm. Sub-pixel fall: macc accumulates
+    /* ── GAME LOGIC (clay) - the swarm. Sub-pixel fall: macc accumulates
      * quarter-pixels so speeds 1..6 span 0.25-1.5 px per sim tick. */
     for (i = 0; i < METEORS; ++i) {
       macc[i] += mspd[i];
@@ -779,7 +779,7 @@ void main(void) {
         my[i] = (uint8_t)(my[i] + (macc[i] >> 2));
         macc[i] &= 3;
         /* recycle at FIELD_LINES-6: the fastest meteor steps 2px/tick, so
-         * post-check y ≤ 113 and its 4 rows stay inside the field — the
+         * post-check y ≤ 113 and its 4 rows stay inside the field - the
          * emit invariant (no clipping) depends on this bound. */
         if (my[i] > FIELD_LINES - 6) spawn_meteor(i, 0);
       }
@@ -811,7 +811,7 @@ void main(void) {
       }
     }
 
-    /* Meteors × ships (shared life pool — arcade co-op). */
+    /* Meteors × ships (shared life pool - arcade co-op). */
     {
       uint8_t m, p;
       for (m = 0; m < METEORS; ++m) {
@@ -833,15 +833,15 @@ void main(void) {
     }
     if (state != ST_PLAY) { prev_fire = fires; continue; }
 
-    /* ── HARDWARE IDIOM (load-bearing) — the per-frame draw pass:
+    /* ── HARDWARE IDIOM (load-bearing) - the per-frame draw pass:
      * open (clear counts) → emit every object → close (terminators).
      * Emission order = draw order on shared scanlines, and when a line
-     * is full the LAST emitters get dropped — so ships go first (the
+     * is full the LAST emitters get dropped - so ships go first (the
      * player's own object must never be the one that flickers out). ── */
     field_open();
     /* Shield blink = SHIMMER, never vanish: on blink ticks draw only the
      * ship's bottom half instead of skipping it. A skipped ship is gone
-     * from the display list for 4 ticks straight — and both inv[] timers
+     * from the display list for 4 ticks straight - and both inv[] timers
      * start equal in co-op, so BOTH ships vanish on the same ticks; any
      * single-frame look at the screen (a screenshot, a human glancing
      * back at their seat after a hit) reads that as "the ships are gone",

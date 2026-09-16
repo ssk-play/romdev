@@ -1,4 +1,4 @@
-// HTTP tool surface — POST /tool/:name + /openapi.json + /romdev/SKILL.md +
+// HTTP tool surface - POST /tool/:name + /openapi.json + /romdev/SKILL.md +
 // /tool/:name/schema, all generated from the one tool registry. Tests the
 // generators + the runTool validate-then-run path directly (no live server
 // needed); a couple assert the registry/handler wiring end to end.
@@ -34,7 +34,7 @@ test("runTool emits observer `call` events so /livestream updates for HTTP/skill
   assert.equal(typeof mine[0].durationMs, "number");
   assert.equal(mine[1].ok, false, "error call emits ok:false");
   assert.match(mine[1].error, /must be one of/);
-  // platform field is present (null here — no ROM loaded in this session). The
+  // platform field is present (null here - no ROM loaded in this session). The
   // KEY is the field exists so the livestream can show the system; a loaded-ROM
   // session carries the platform string (covered by the build test below).
   assert.ok("platform" in mine[0], "call event carries a platform field (null until a ROM loads)");
@@ -64,7 +64,7 @@ test("observer `call` event carries the loaded platform/system (livestream shows
 
 test("registry harvests the full consolidated tool surface with handler + schema", () => {
   const reg = buildToolRegistry(randomUUID());
-  // Don't hardcode the count (it shifts as tools consolidate — e.g. dmaTrace→
+  // Don't hardcode the count (it shifts as tools consolidate - e.g. dmaTrace→
   // watch({on:'dma'}), patchGbHeader→romPatch({op:'gbHeader'}); 0.136.0 added
   // `feedback` and hit the old 35 ceiling). Just guard the
   // budget ceiling the manifest test owns, and a sane floor.
@@ -146,10 +146,10 @@ test("skill doc: frontmatter + skill preamble + body + tool reference; no MCP me
 test("sanitizer scrubs MCP-connection FRAMING from the body (not just the literal 'MCP')", () => {
   // The real AGENTS.md uses some MCP-channel framing ("this server", "connect
   // your agent", "MCP", reconnect). None of that should reach the skill surface.
-  // (The opening line is channel-neutral now, so it's NOT scrubbed — it's fine on
-  // both channels — but any remaining MCP-only framing in the body must be.)
+  // (The opening line is channel-neutral now, so it's NOT scrubbed - it's fine on
+  // both channels - but any remaining MCP-only framing in the body must be.)
   const agentsLike = [
-    "# romdev — Agent guide",
+    "# romdev - Agent guide",
     "",
     "This is romdev's generic orientation. Read it once.",
     "",

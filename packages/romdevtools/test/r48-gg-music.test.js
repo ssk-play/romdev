@@ -1,4 +1,4 @@
-// R48 — Game Gear music driver + music_demo template.
+// R48 - Game Gear music driver + music_demo template.
 //
 // gg_music.{h,c} is a per-frame PSG music engine sitting on PSG channel 2
 // (leaves 0/1 free for gg_sfx tones and 3 for noise). Three hand-authored

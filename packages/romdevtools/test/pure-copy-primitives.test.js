@@ -1,9 +1,9 @@
 // The remaining two RE primitives from the all-platforms proposal:
-//   #2 pure CPU calls everywhere — interrupt DELIVERY is suppressed during a
+//   #2 pure CPU calls everywhere - interrupt DELIVERY is suppressed during a
 //      callSubroutine (romdev_irqblock_set), so the game's own NMI/IRQ
 //      handlers cannot run and stomp the routine's output. gpgx keeps the
 //      stronger cpu-only run; the 2600 has no interrupts (inherently pure).
-//   #3 the generic copy trace — watch({on:'copy'}): every write landing in a
+//   #3 the generic copy trace - watch({on:'copy'}): every write landing in a
 //      VRAM window logged with the EXECUTING instruction's PC (core hooks on
 //      port-based video memory; the CPU-address range log on mapped VRAM).
 
@@ -32,7 +32,7 @@ async function liveHost(platform, buildArgs, bootFrames = 30) {
 }
 
 test("irq block: every non-gpgx core exposes it (gpgx has the stronger cpu-only run)", { timeout: 240000 }, async () => {
-  // Feature matrix — the wasm itself is the contract.
+  // Feature matrix - the wasm itself is the contract.
   const expectIrqBlock = ["nes", "snes", "gb", "gba", "lynx", "c64", "atari7800", "pce", "msx"];
   for (const platform of expectIrqBlock) {
     const core = resolveCore(platform);
@@ -51,7 +51,7 @@ test("irq block: every non-gpgx core exposes it (gpgx has the stronger cpu-only 
 
 test("NES irq block + pure call: NMI delivery stops, the called routine still lands", { timeout: 240000 }, async () => {
   // A ROM that ENABLES NMI (PPUCTRL bit 7) and idles. The chr-ram preset's
-  // crt0 has an rti NMI stub — the NMI VECTOR address read from the built
+  // crt0 has an rti NMI stub - the NMI VECTOR address read from the built
   // binary is the delivery probe: a pc-break there fires every frame
   // normally, and must go silent under the interrupt block.
   const SRC = `
@@ -87,7 +87,7 @@ void main(void) {
   host.setIrqBlock(false);
   assert.equal(hitBlocked, false, "no NMI may be DELIVERED while blocked");
 
-  // End-to-end pure call: plant INC $0312 / RTS at $0300 — it must run to the
+  // End-to-end pure call: plant INC $0312 / RTS at $0300 - it must run to the
   // sentinel and land its write, with pureMode reported.
   host.writeMemory("system_ram", 0x0300, Uint8Array.from([0xEE, 0x12, 0x03, 0x60]));
   host.writeMemory("system_ram", 0x0312, Uint8Array.from([0x00]));
@@ -140,7 +140,7 @@ void main(void) {
   for (;;) vram[0] = ++v;
 }`;
   const host = await liveHost("gb", { source: SRC, sourceName: "main.c" });
-  assert.equal(host.vramWatchSupported(), false, "GB VRAM is CPU-mapped — no port hook needed");
+  assert.equal(host.vramWatchSupported(), false, "GB VRAM is CPU-mapped - no port hook needed");
   const r = host.watchRange(0x8000, 0x80FF, "write", 5);
   assert.ok(r.total > 0, "VRAM writes must be logged via the range path");
   const e = r.events[0];
@@ -150,7 +150,7 @@ void main(void) {
 
 test("SNES copy trace: port hook sees CPU/DMA uploads to VRAM", { timeout: 240000 }, async () => {
   const src = await readFile(path.join(EXAMPLES, "snes", "main.asm"), "utf8");
-  // The example uploads tiles/tilemap at boot — trace from reset.
+  // The example uploads tiles/tilemap at boot - trace from reset.
   const b = await buildForPlatform({ platform: "snes", language: "asm", source: src });
   assert.ok(b.ok && b.binary, "snes build failed");
   const host = new LibretroHost();
@@ -158,7 +158,7 @@ test("SNES copy trace: port hook sees CPU/DMA uploads to VRAM", { timeout: 24000
   await host.loadCore(core.jsPath, core.wasmPath);
   await host.loadMedia({ platform: "snes", bytes: b.binary });
   assert.ok(host.vramWatchSupported(), "snes9x must export the VRAM copy trace");
-  // The example uploads during loadMedia's settling frames — reset the machine
+  // The example uploads during loadMedia's settling frames - reset the machine
   // so the boot upload re-runs WHILE the watch is armed.
   host.mod._romdev_vramwatch_set(0x0000, 0xFFFF, 1);
   host.mod._retro_reset();

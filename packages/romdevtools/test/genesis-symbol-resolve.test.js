@@ -1,4 +1,4 @@
-// Genesis/m68k symbol resolution — the v0.6.0 feedback HEADLINE: there was no
+// Genesis/m68k symbol resolution - the v0.6.0 feedback HEADLINE: there was no
 // name→address path on Genesis, so every gameplay-state check went through a
 // full-res screenshot. symbols({op:'resolve'}) now parses the GNU ld map that
 // build({output:'romWithDebug'}) produces, so a C global's name → address →
@@ -46,7 +46,7 @@ test("parseGnuLdMap pulls C globals (incl. static) with work-RAM ramOffset", asy
   assert.ok(byName("levelIdx"), "static file-local global 'levelIdx' must resolve");
   // Work-RAM globals carry a low-16 ramOffset; `main` (in ROM) does not.
   assert.equal(typeof byName("score").ramOffset, "number", "score should have a work-RAM ramOffset");
-  assert.equal(byName("main").ramOffset, null, "main is in ROM — no ramOffset");
+  assert.equal(byName("main").ramOffset, null, "main is in ROM - no ramOffset");
 });
 
 test("symbols({op:'resolve'}) on a Genesis map returns address + ramOffset + read hint", async () => {

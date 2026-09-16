@@ -1,12 +1,12 @@
-// browser-surface-imports — the modules a browser Web Worker bundle loads for
+// browser-surface-imports - the modules a browser Web Worker bundle loads for
 // the GBA/Genesis build pipelines must have NO top-level node-builtin imports
 // and must not statically pull the child-process worker layer. Node bits are
 // allowed only behind lazy `await import(...)` on the default (no-env) paths.
 // This is what keeps the env-injectable pipeline (0.95.0) actually bundleable:
 // one stray top-level `import fs from "node:fs"` breaks every browser IDE.
 //
-// (`Buffer` as a global is tolerated where a pure fallback exists — see
-// common/io.js — and ar.js is documented as needing a Buffer shim.)
+// (`Buffer` as a global is tolerated where a pure fallback exists - see
+// common/io.js - and ar.js is documented as needing a Buffer shim.)
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -24,7 +24,7 @@ const BROWSER_SURFACE = [
   "romdev-toolchain-m68k-gcc/build/genesis-c/genesis-c.js",
   "romdev-toolchain-m68k-gcc/build/m68k-elf-gcc/gcc.js",
   "romdev-toolchain-m68k-gcc/build/sjasm/sjasm.js",
-  // the shared kit (canonical copies — the vendored ones are parity-tested equal)
+  // the shared kit (canonical copies - the vendored ones are parity-tested equal)
   "romdevtools/src/toolchains/common/gcc-toolchain.js",
   "romdevtools/src/toolchains/common/io.js",
   "romdevtools/src/toolchains/common/share-fs.js",
@@ -34,7 +34,7 @@ const BROWSER_SURFACE = [
   "romdevtools/src/toolchains/parse-errors.js",
 ];
 
-// Top-level static imports only — dynamic `await import("node:fs")` inside a
+// Top-level static imports only - dynamic `await import("node:fs")` inside a
 // function body is the sanctioned lazy pattern and must NOT match.
 const STATIC_IMPORT = /^\s*import\s[^;]*?from\s+["']([^"']+)["']/gm;
 const BANNED = [/^node:/, /_worker\//];
@@ -55,7 +55,7 @@ for (const rel of BROWSER_SURFACE) {
 // The static import closure of `romdev-core-host` (index.js) must be
 // browser-bundleable: no top-level `node:` imports AND no pngjs (it drags
 // node:zlib). Node I/O lives in io-node.js and PNG in framebuffer-png.js,
-// both reached only via lazy `await import(...)` — the sanctioned pattern.
+// both reached only via lazy `await import(...)` - the sanctioned pattern.
 // Deliberately NOT listed: io-node.js, framebuffer-png.js (the adapters),
 // chafa-render.js / LibretroGL*.js / glOptionalDep.js (desktop-only, loaded
 // lazily behind hwRender / terminal rendering).

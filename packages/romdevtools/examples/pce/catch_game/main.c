@@ -1,5 +1,5 @@
 /*
- * PC Engine "catch_game" — a tiny complete, playable game.
+ * PC Engine "catch_game" - a tiny complete, playable game.
  *
  * Move the catcher (a wide paddle sprite at the bottom of the screen) LEFT and
  * RIGHT with the d-pad to catch a fruit that falls from the top. Each catch
@@ -12,13 +12,13 @@
  * sprites driven from a shadow SATB, BG tilemap (BAT) text for the HUD, the VCE
  * palette, joypad input, and a PSG sound effect.
  *
- * BUILD (multi-source cc65 — link the PCE helper lib):
+ * BUILD (multi-source cc65 - link the PCE helper lib):
  *   sources: { "main.c": <this>, "pce_video.c": ..., "pce_input.c": ...,
  *              "pce_sound.c": ... }
  *   headers/includes: { "pce_hw.h": ... }
  *   buildForPlatform({ platform:"pce", sources, headers, sourceName:"main.c" })
  *
- * cc65 is C89 — locals are declared at the top of each block.
+ * cc65 is C89 - locals are declared at the top of each block.
  */
 #include <pce.h>
 #include "pce_hw.h"
@@ -37,7 +37,7 @@
 
 /* The 8x8 glyphs we need: blank, the 10 digits, and the letters for "SCORE",
  * "LIVES" and "GAME OVER". Each glyph is a 5x7 bitmap (top-left of the cell).
- * Index order matters — it maps to FONT_VRAM tile slots. */
+ * Index order matters - it maps to FONT_VRAM tile slots. */
 #define G_BLANK 0
 #define G_0     1   /* digits 0..9 -> tiles 1..10 */
 #define G_S     11
@@ -150,7 +150,7 @@ static void upload_sprites(void) {
 
 /* ---- build the dim "field" BG tile -------------------------------------- */
 /* A solid 8x8 tile in BG colour index 2 (the dim field blue). Filling the BAT
- * with this instead of blank gives the playfield a visible background — an
+ * with this instead of blank gives the playfield a visible background - an
  * all-blank BAT reads as a near-empty backdrop (one colour > 92% of the screen,
  * which looks blank to a human). plane1 set = colour index 2. */
 static void upload_field(void) {
@@ -317,7 +317,7 @@ void main(void) {
                 }
             }
         } else {
-            /* game over — RUN restarts */
+            /* game over - RUN restarts */
             if ((pad & PCE_JOY_RUN) && !(prev_pad & PCE_JOY_RUN)) {
                 clear_bat();
                 draw_hud_labels();

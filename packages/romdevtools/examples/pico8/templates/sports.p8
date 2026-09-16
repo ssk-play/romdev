@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 18
 __lua__
--- rally volley — a 2-player paddle sports scaffold
+-- rally volley - a 2-player paddle sports scaffold
 -- genre example for romdev/pico8. paddle + ball sprites (see __gfx__),
 -- looping music, bounce sfx, angle-off-paddle physics, speed-up on rally,
 -- 1p-vs-cpu or 2p couch mode, first to 5. fork it.

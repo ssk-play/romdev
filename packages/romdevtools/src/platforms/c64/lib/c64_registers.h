@@ -69,13 +69,13 @@
 #define SID_PULSE        0x40
 #define SID_NOISE        0x80
 
-/* ── CIA1 ($DC00-$DC0F) — keyboard / joystick / timers ──────────── */
+/* ── CIA1 ($DC00-$DC0F) - keyboard / joystick / timers ──────────── */
 #define CIA1_PRA         0xDC00  /* port A (keyboard col / joystick 2) */
 #define CIA1_PRB         0xDC01  /* port B (keyboard row / joystick 1) */
 #define CIA1_DDRA        0xDC02
 #define CIA1_DDRB        0xDC03
 
-/* ── CIA2 ($DD00-$DD0F) — VIC bank select + serial bus ──────────── */
+/* ── CIA2 ($DD00-$DD0F) - VIC bank select + serial bus ──────────── */
 #define CIA2_PRA         0xDD00  /* bits 0-1 = VIC bank (inverted) */
 #define CIA2_PRB         0xDD01
 #define CIA2_DDRA        0xDD02

@@ -1,4 +1,4 @@
-/* n64.h — N64 (R4300) helper lib with a software 3D pipeline, for romdev.
+/* n64.h - N64 (R4300) helper lib with a software 3D pipeline, for romdev.
  *
  * The N64 is a 3D machine; this is a real software 3D engine (identical fixed-point
  * math to the PS1 lib, so games port directly) with an N64 framebuffer backend: a

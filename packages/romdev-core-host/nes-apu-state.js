@@ -10,18 +10,18 @@
 // patch (scripts/patches/fceumm-romdev-memory-regions.patch). It's a 24-byte
 // synthesized snapshot of the APU register file at CPU $4000-$4017:
 //
-//   [0x00..0x0F]  PSG[0..15]      — $4000-$400F (pulse1, pulse2, triangle, noise)
-//   [0x10]        DMCFormat       — $4010
-//   [0x11]        RawDALatch      — $4011 (DMC direct load, 7-bit)
-//   [0x12]        DMCAddressLatch — $4012
-//   [0x13]        DMCSizeLatch    — $4013
-//   [0x14]        0               — ($4014 is OAMDMA, not APU; zero-filled)
-//   [0x15]        EnabledChannels — $4015 (write side: per-channel enable)
-//   [0x16]        0               — ($4016 is controller, not APU)
-//   [0x17]        IRQFrameMode    — $4017 (frame counter mode)
+//   [0x00..0x0F]  PSG[0..15]      - $4000-$400F (pulse1, pulse2, triangle, noise)
+//   [0x10]        DMCFormat       - $4010
+//   [0x11]        RawDALatch      - $4011 (DMC direct load, 7-bit)
+//   [0x12]        DMCAddressLatch - $4012
+//   [0x13]        DMCSizeLatch    - $4013
+//   [0x14]        0               - ($4014 is OAMDMA, not APU; zero-filled)
+//   [0x15]        EnabledChannels - $4015 (write side: per-channel enable)
+//   [0x16]        0               - ($4016 is controller, not APU)
+//   [0x17]        IRQFrameMode    - $4017 (frame counter mode)
 //
 // These are the *register* bytes (what the CPU last wrote), not the APU's
-// internal swe/envelope counters — which is exactly what you want for music
+// internal swe/envelope counters - which is exactly what you want for music
 // transcription: timer + duty + volume nibble decode straight to pitch.
 
 // 2A03 CPU clock (NTSC). Pulse freq = CPU / (16 * (timer + 1)),
@@ -122,7 +122,7 @@ export function decodeNesApu(regs) {
     midi: triM?.midi ?? null,
     note: triM?.name ?? null,
     cents: triM?.cents ?? null,
-    // Triangle has no volume control — it plays at full level whenever
+    // Triangle has no volume control - it plays at full level whenever
     // enabled with a non-zero linear+length counter and audible timer.
     playing: triEnabled && triFreq != null && linearReload > 0,
   };
@@ -174,7 +174,7 @@ export function decodeNesApu(regs) {
     },
     regsHex: Array.from(regs, (b) => b.toString(16).padStart(2, "0")).join(""),
     note:
-      "Decoded from the APU register file ($4000-$4017) — i.e. the last values " +
+      "Decoded from the APU register file ($4000-$4017) - i.e. the last values " +
       "the CPU wrote, which is exactly the pitch/duty/volume layer you want for " +
       "music transcription. freq/midi assume NTSC (CPU 1789773 Hz); recompute " +
       "from `timer` for PAL. `playing` is a heuristic (enabled + audible timer + " +

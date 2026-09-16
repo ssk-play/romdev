@@ -5,7 +5,7 @@
 // C64 music job had to reverse-engineer the game's private player RAM by hand;
 // now the hardware register file is decoded directly, player-independent.
 //
-// Data source: the `c64_sid_regs` region — a 29-byte snapshot of the SID
+// Data source: the `c64_sid_regs` region - a 29-byte snapshot of the SID
 // register file at $D400-$D41C. These are the *register* bytes (what the CPU
 // last wrote); the SID is write-only for $D400-$D414, so this is exactly the
 // pitch/waveform/ADSR layer you want for music transcription:
@@ -140,7 +140,7 @@ export function decodeC64Sid(regs) {
     masterVolume: modeVol & 0x0f,
     voice3Off: !!(modeVol & 0x80),
     note:
-      "Decoded from the SID register file ($D400-$D41C) — the last values the " +
+      "Decoded from the SID register file ($D400-$D41C) - the last values the " +
       "CPU wrote (SID is write-only here), which is exactly the pitch/waveform/" +
       "ADSR layer you want for music transcription. freqHz assumes PAL " +
       "(clock 985248 Hz, 24-bit phase accumulator); for NTSC recompute with " +

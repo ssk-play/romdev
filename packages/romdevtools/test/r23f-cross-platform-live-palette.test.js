@@ -7,7 +7,7 @@
 // the equivalent standalone extractSpriteSheet would have produced.
 //
 // Fix: the composite now mirrors extractSpriteSheet's palette resolution
-// — when intent:"homebrew" and a ROM is loaded for sourcePlatform, it
+// - when intent:"homebrew" and a ROM is loaded for sourcePlatform, it
 // reads the live palette via decodeLivePalette and passes it into
 // renderTilesGrid for the internal extract.
 //
@@ -72,7 +72,7 @@ test("R23f crossPlatformSpriteImport propagates live source palette under intent
       await client.callTool({ name: "frame", arguments: { op: "step",  frames: 300 } });
 
       // Now run the composite under intent:"homebrew" with no explicit
-      // paletteFromEmulator — the intent default should kick in and pull
+      // paletteFromEmulator - the intent default should kick in and pull
       // the live palette automatically.
       const outPng = path.join(dir, "lift.png");
       const res = await client.callTool({
@@ -86,7 +86,7 @@ test("R23f crossPlatformSpriteImport propagates live source palette under intent
           platform: "gbc",
           outputPng: outPng,
           intent: "homebrew",
-          paletteIndex: 1,  // BG palette 1 — the example writes a non-grayscale (blue) palette here
+          paletteIndex: 1,  // BG palette 1 - the example writes a non-grayscale (blue) palette here
         },
       });
       assert.equal(res.isError, undefined, "composite tool errored: " + JSON.stringify(res));
@@ -99,7 +99,7 @@ test("R23f crossPlatformSpriteImport propagates live source palette under intent
       assert.match(
         parsed.sourcePaletteSource,
         /^emulator \(subpalette \d+\)$/,
-        `sourcePaletteSource should report 'emulator (subpalette N)' — got '${parsed.sourcePaletteSource}'`,
+        `sourcePaletteSource should report 'emulator (subpalette N)' - got '${parsed.sourcePaletteSource}'`,
       );
 
       // Invariant 2: the response's output palette must not be the GBC
@@ -108,7 +108,7 @@ test("R23f crossPlatformSpriteImport propagates live source palette under intent
       // at least one color in the output palette has color information.
       assert.ok(Array.isArray(parsed.palette), "palette missing from response");
       const hasColor = parsed.palette.some((hex) => {
-        // hex is "#rrggbb" — parse the 3 channels and check they differ.
+        // hex is "#rrggbb" - parse the 3 channels and check they differ.
         const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
         if (!m) return false;
         const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
@@ -116,7 +116,7 @@ test("R23f crossPlatformSpriteImport propagates live source palette under intent
       });
       assert.ok(
         hasColor,
-        `output palette looks monochrome (the bug's exact symptom) — got ${JSON.stringify(parsed.palette)}`,
+        `output palette looks monochrome (the bug's exact symptom) - got ${JSON.stringify(parsed.palette)}`,
       );
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -169,7 +169,7 @@ test("R23f crossPlatformSpriteImport with explicit paletteFromEmulator:true requ
   async () => {
     // Explicit opt-in without a loaded ROM should error, not silently
     // fall back. Mirrors extractSpriteSheet's same behavior.
-    const client = await startSession();  // fresh session — no ROM loaded
+    const client = await startSession();  // fresh session - no ROM loaded
     const dir = mkdtempSync(path.join(os.tmpdir(), "r23f-noload-"));
     try {
       const outPng = path.join(dir, "lift.png");
@@ -184,7 +184,7 @@ test("R23f crossPlatformSpriteImport with explicit paletteFromEmulator:true requ
           platform: "gbc",
           outputPng: outPng,
           intent: "homebrew",
-          paletteFromEmulator: true,  // explicit — should error w/o ROM
+          paletteFromEmulator: true,  // explicit - should error w/o ROM
         },
       });
       // safeTool wraps errors as isError:true in the response.

@@ -23,14 +23,14 @@ lcd_off::
   ld a, [$FF40]
   bit 7, a
   ret z               ; already off
-  ; Wait for vblank before turning off — turning off mid-frame can
+  ; Wait for vblank before turning off - turning off mid-frame can
   ; damage real DMG hardware (rare but documented).
 .wait
   ld a, [$FF44]
   cp 144
   jr c, .wait
   xor a
-  ldh [$40], a        ; LCDC = 0 — LCD off
+  ldh [$40], a        ; LCDC = 0 - LCD off
   ret
 
 lcd_on_bg_sprites::

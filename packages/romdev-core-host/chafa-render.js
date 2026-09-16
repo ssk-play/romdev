@@ -1,4 +1,4 @@
-// chafa-render.js — wrap @monteslu/chafa-wasm into a "give me an RGBA
+// chafa-render.js - wrap @monteslu/chafa-wasm into a "give me an RGBA
 // buffer + target cell size, get back an ANSI string" helper.
 //
 // One char cell = 2 vertical pixels via half-block symbols (▀ ▄ █),
@@ -6,7 +6,7 @@
 // Most agents will pass smaller dimensions (e.g. cols=80) and let
 // chafa downsample for a readable context-window-sized view.
 //
-// Chafa init is a few hundred ms — keep the canvas + symbol map alive
+// Chafa init is a few hundred ms - keep the canvas + symbol map alive
 // between calls. setupCanvas() reuses the canvas when dimensions and
 // settings haven't changed (same pattern as retroemu's videoWorker).
 
@@ -20,7 +20,7 @@ let lastSettings = "";
 
 // chafa.h CHAFA_SYMBOL_TAG_* bitmask flags. Real values cross-checked
 // against retroemu's videoWorker.js (which uses this lib in
-// production). My original constants were guessed and wrong — e.g.
+// production). My original constants were guessed and wrong - e.g.
 // I had BLOCK=1, ASCII=2; real BLOCK=0x8, ASCII=0x4000. The bad
 // values silently picked an unrelated tag, which is why "ascii"
 // mode was still rendering Unicode block glyphs.
@@ -39,26 +39,26 @@ const TAG_OCTANT    = 0x4000000;
 /* eslint-enable no-unused-vars */
 
 const SYMBOL_TAGS = {
-  // Pure ASCII glyphs (space + printable 7-bit) — most text-shaped,
+  // Pure ASCII glyphs (space + printable 7-bit) - most text-shaped,
   // safest for any environment, lossiest visually.
   ascii:     TAG_SPACE | TAG_ASCII,
-  // Half-block (▀ ▄ █) — 1 cell = 2 stacked pixels (top fg / bottom bg).
+  // Half-block (▀ ▄ █) - 1 cell = 2 stacked pixels (top fg / bottom bg).
   // Best image fidelity for retro frames; requires Unicode.
   halfblock: TAG_SPACE | TAG_VHALF,
-  // Mixed half/full-block + borders — chafa picks the best glyph
+  // Mixed half/full-block + borders - chafa picks the best glyph
   // per cell. Denser than pure half-block.
   block:     TAG_SPACE | TAG_BLOCK | TAG_BORDER,
-  // Quad (▘ ▝ ▖ ▗ ▙ etc.) — 1 cell = 2×2 pixels. Doubles horizontal
+  // Quad (▘ ▝ ▖ ▗ ▙ etc.) - 1 cell = 2×2 pixels. Doubles horizontal
   // density at the cost of glyph variety.
   quad:      TAG_SPACE | TAG_QUAD,
-  // Sextant (1 cell = 2×3 pixels) — Unicode 13+ font support required.
+  // Sextant (1 cell = 2×3 pixels) - Unicode 13+ font support required.
   sextant:   TAG_SPACE | TAG_SEXTANT,
 };
 
 // chafa canvas-mode constants (from chafa.h). Values cross-checked
 // against retroemu's videoWorker.js which uses this exact lib in
-// production. (I had these flipped originally — TRUECOLOR=0 not 5,
-// FGBG=5 not 0 — which made `colors:'true'` silently render in
+// production. (I had these flipped originally - TRUECOLOR=0 not 5,
+// FGBG=5 not 0 - which made `colors:'true'` silently render in
 // no-color mode and emit zero SGR escapes.)
 const COLOR_MODES = {
   true:  0,  // CHAFA_CANVAS_MODE_TRUECOLOR
@@ -109,7 +109,7 @@ function setupCanvas(termCols, termRows, symbols, colors) {
 // Serial mutex for the singleton canvas/symbolMap. Two concurrent
 // renderRgbaToAnsi calls (different MCP sessions, or even one session
 // firing back-to-back without awaiting) would race on the shared
-// WASM-side state — at best garbled output, at worst a heap corruption
+// WASM-side state - at best garbled output, at worst a heap corruption
 // crash. Chain everything onto a promise queue so only one render
 // runs at a time.
 let renderQueue = Promise.resolve();
@@ -117,7 +117,7 @@ let renderQueue = Promise.resolve();
 /**
  * Render an RGBA8888 image to an ANSI escape-sequence string.
  *
- * Calls are serialized via an internal mutex — safe to invoke from
+ * Calls are serialized via an internal mutex - safe to invoke from
  * multiple concurrent contexts (e.g. two MCP sessions). Each call
  * still completes in <10ms so the queue doesn't grow.
  *

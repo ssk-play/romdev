@@ -28,12 +28,12 @@ export function parseBuildLog(log) {
   const stages = splitByStage(log);
   for (const { stage, text } of stages) {
     // Normalize the stage name. SDCC emits markers like "sdcc (main.c)" and
-    // "sdcc --c1mode" — strip parens/args so we can pattern-match the bare tool.
+    // "sdcc --c1mode" - strip parens/args so we can pattern-match the bare tool.
     const baseStage = stage.split(/\s|\(/)[0].toLowerCase();
     if (/^cc65$|^ca65$|^ld65$/.test(baseStage)) {
       issues.push(...parseCc65Like(text, baseStage));
       // ld65's linker-level errors (segment-missing / memory-overflow) carry no
-      // file:line and slip past parseCc65Like — pick them up too.
+      // file:line and slip past parseCc65Like - pick them up too.
       if (baseStage === "ld65") issues.push(...parseLd65Linker(text, baseStage));
     } else if (/^dasm$/.test(baseStage)) {
       issues.push(...parseDasm(text));
@@ -46,13 +46,13 @@ export function parseBuildLog(log) {
     } else if (/^sdcc$|^sdasz80$|^sdasgb$|^sdld$|^mcpp$/.test(baseStage)) {
       // SDCC family: sdcc / sdasz80 / sdasgb / sdld / mcpp. Some diagnostics use
       // the cc65-style `file:line: Error: msg`; SDCC's frontend ALSO emits a
-      // keyword-less form — `main.c:2: syntax error: token -> ';' ; column 44`
-      // and `main.c:N: warning NNN: msg` — which parseCc65Like misses. Run both.
+      // keyword-less form - `main.c:2: syntax error: token -> ';' ; column 44`
+      // and `main.c:N: warning NNN: msg` - which parseCc65Like misses. Run both.
       issues.push(...parseCc65Like(text, baseStage));
       issues.push(...parseSdcc(text, baseStage));
     } else if (/^wla|^wlalink|^wladx/.test(baseStage)) {
       // SNES C path: wla-65816 assembler + wlalink linker. wlalink floods a
-      // symbol-table dump on failure — parseWla extracts just the diagnostics.
+      // symbol-table dump on failure - parseWla extracts just the diagnostics.
       issues.push(...parseWla(text, baseStage));
     } else if (/^gcc$|^cc1$|^as$|^ld$|^m68k$|^objcopy$/.test(baseStage)) {
       // Genesis/GBA C path: GNU m68k/arm toolchain. ld emits "multiple
@@ -61,11 +61,11 @@ export function parseBuildLog(log) {
       // classic rom_header collision.
       issues.push(...parseGnuToolchain(text, baseStage));
     } else {
-      // Unknown stage — try every parser, accept anything that yields hits.
+      // Unknown stage - try every parser, accept anything that yields hits.
       // Tag everything with the (possibly empty) actual stage name so an
       // assembler error doesn't mistakenly report as "asar" on a non-SNES
       // build.
-      // Try EVERY parser — some toolchains (vasm genesis-asm) emit no
+      // Try EVERY parser - some toolchains (vasm genesis-asm) emit no
       // "--- stage ---" marker, so the whole log lands here unnamed; if we skip
       // a parser the error is silently swallowed (issues[] empty on a real
       // failure). Include vasm + sdcc + wla, which the old fallback omitted.
@@ -113,7 +113,7 @@ function splitByStage(log) {
   return stages;
 }
 
-// ld65 LINKER diagnostics have NO file:line — parseCc65Like (which requires a
+// ld65 LINKER diagnostics have NO file:line - parseCc65Like (which requires a
 // `file:line:` lead) misses them entirely, so a failed link returned issues[]
 // EMPTY even though the real error sat in the log. The common ones on a
 // mis-wired NES rebuild (wrong/absent linker config for the project's segments):
@@ -122,18 +122,18 @@ function splitByStage(log) {
 //   Error: Cannot generate most of the files due to memory area overflow
 // They appear either bare or with an `ld65:`/`ld65.exe:` tool prefix. We add a
 // short hint on the segment/overflow case (the linker config doesn't match the
-// project's segments — the exact CHR-ROM-vs-CHR-RAM mismatch agents hit).
+// project's segments - the exact CHR-ROM-vs-CHR-RAM mismatch agents hit).
 function parseLd65Linker(text, stage) {
   const out = [];
   const re = /^(?:ld65(?:\.exe)?:\s*)?(?<sev>Error|Warning):\s*(?<msg>.+)$/gm;
   let m;
   while ((m = re.exec(text))) {
     const msg = m.groups.msg.trim().replace(/\x1b\[[0-9;]*m/g, "");
-    // Skip the file:line form — parseCc65Like already owns those (and a leading
+    // Skip the file:line form - parseCc65Like already owns those (and a leading
     // path would have been consumed as the message here, doubling the issue).
     if (/^[^\s:]+:\d+:/.test(msg)) continue;
     // Actionable hint in a SEPARATE field (matching GNU ld / sdld), not glued
-    // onto the message — two common ld65 link failures:
+    // onto the message - two common ld65 link failures:
     let hint;
     if (/does not exist|overflow|Cannot generate/i.test(msg)) {
       hint =
@@ -192,7 +192,7 @@ function parseSdcc(text, stage) {
   while ((m = re.exec(text))) {
     const kind = m.groups.kind.toLowerCase();
     // Skip the forms parseCc65Like already caught ("Error:" capitalized w/ colon)
-    // — this regex is case-insensitive on `error`/`warning`, but parseCc65Like
+    // - this regex is case-insensitive on `error`/`warning`, but parseCc65Like
     // only matches when a colon immediately follows the keyword AND it's
     // capitalized; SDCC's lowercase keyword-less form is what we add here.
     const severity = kind.startsWith("warning") ? "warning"
@@ -208,7 +208,7 @@ function parseSdcc(text, stage) {
       stage,
     });
   }
-  // sdld/ASlink linker diagnostics have NO file:line — they reference a symbol +
+  // sdld/ASlink linker diagnostics have NO file:line - they reference a symbol +
   // module. The most common is an undefined symbol (a call to a function that was
   // never defined/linked). Without parsing these the agent sees "build failed"
   // with no reason in issues[] (the error lived only in the raw log).
@@ -219,12 +219,12 @@ function parseSdcc(text, stage) {
   while ((lm = linkRe.exec(text))) {
     const msg = lm.groups.msg.trim();
     // An "Undefined Global" is effectively an error even though ASlink labels it
-    // a warning — the ROM won't run. Promote it so the agent treats it as fatal.
+    // a warning - the ROM won't run. Promote it so the agent treats it as fatal.
     const isUndef = /undefined\s+global/i.test(msg);
     // Give the same actionable hint GNU ld's undefined-reference path gets, so
     // the SDCC platforms (GB/GBC/SMS/GG/MSX) reach parity on the single most
     // common link failure (forgot to include the source/runtime that defines it).
-    // SDCC mangles C symbols with a leading '_' — show the C name too.
+    // SDCC mangles C symbols with a leading '_' - show the C name too.
     let hint;
     if (isUndef) {
       const sym = msg.match(/global\s+['"]?(?<s>\w+)['"]?/i)?.groups?.s;
@@ -332,7 +332,7 @@ function parseRgbds(text, stage) {
     });
   }
 
-  // PRE-0.5 MACRO SYNTAX — the single most likely reason an old GB
+  // PRE-0.5 MACRO SYNTAX - the single most likely reason an old GB
   // disassembly won't assemble here.
   //
   // RGBDS changed macro definition from `NAME: MACRO` to `MACRO NAME` in 0.5,
@@ -350,14 +350,14 @@ function parseRgbds(text, stage) {
         "definitions from `NAME: MACRO` to `MACRO NAME` (and `ENDM` is still " +
         "`ENDM`). The bundled rgbasm is modern, so an old disassembly (0.3.x-era, " +
         "which is most of them) needs its macro definitions rewritten" +
-        (site ? ` — e.g. \`${site.groups.name}: MACRO\` becomes \`MACRO ${site.groups.name}\`` : "") +
+        (site ? ` - e.g. \`${site.groups.name}: MACRO\` becomes \`MACRO ${site.groups.name}\`` : "") +
         ". Check the project's README for the RGBDS version it targets.",
     });
   }
   return out;
 }
 
-// wla-dx (wla-65816 assembler + wlalink linker — the SNES C path).
+// wla-dx (wla-65816 assembler + wlalink linker - the SNES C path).
 //
 // wlalink floods stdout with a `stack_item:` / `id: N file: ...` symbol-table
 // dump on link failure; the ACTUAL error is one line, e.g.:
@@ -375,7 +375,7 @@ function parseWla(text, stage = "wla") {
   let m;
   while ((m = reLink.exec(text))) {
     const rawMsg = m.groups.msg.trim();
-    // An "unknown label" reference is SNES's undefined-symbol failure — give it
+    // An "unknown label" reference is SNES's undefined-symbol failure - give it
     // the same actionable hint ld65/sdld/GNU ld carry, so SNES reaches parity.
     let hint;
     const lbl = /unknown label\s+["'`]?(?<l>[A-Za-z_]\w*)/i.exec(rawMsg)?.groups?.l;
@@ -390,7 +390,7 @@ function parseWla(text, stage = "wla") {
       file: m.groups.file,
       line: parseInt(m.groups.line, 10),
       // Keep the wla internal phase name (FIX_REFERENCES, etc.) out of the
-      // agent-facing message — it's noise; the message + hint say what to do.
+      // agent-facing message - it's noise; the message + hint say what to do.
       message: rawMsg,
       stage: stage === "wla" ? "wlalink" : stage,
       ...(hint ? { hint } : {}),
@@ -482,7 +482,7 @@ function parseGnuToolchain(text, stage = "ld") {
     });
   }
 
-  // 2. ld "multiple definition of `sym'" — with the rom_header special case.
+  // 2. ld "multiple definition of `sym'" - with the rom_header special case.
   const multiRe = /multiple definition of [`'"]?(?<sym>[A-Za-z_]\w*)['"`]?/g;
   while ((m = multiRe.exec(text))) {
     const sym = m.groups.sym;
@@ -495,7 +495,7 @@ function parseGnuToolchain(text, stage = "ld") {
         ? "The Genesis startup `sega.s` that romdev auto-assembles already " +
           "defines `rom_header` (at .text.keepboot+0x100). You also compiled a " +
           "`rom_header.c` (commonly copied from SGDK examples) which defines it " +
-          "AGAIN — so the link fails. FIX: remove rom_header.c from your build's " +
+          "AGAIN - so the link fails. FIX: remove rom_header.c from your build's " +
           "source list. The build supplies the header itself; you do not need to. " +
           "(If you need custom header fields, edit them in your build config, not " +
           "by re-defining the symbol.)"

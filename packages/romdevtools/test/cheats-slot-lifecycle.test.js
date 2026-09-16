@@ -47,7 +47,7 @@ test("apply REPLACES a same-address freeze; remove drops one; clear nukes all", 
     r = parse(await cheats({ op: "apply", code: "0032:09" }));
     assert.equal(r.active.length, 2);
 
-    // 4. remove ONLY the $5C freeze (by code) — the $32 one survives
+    // 4. remove ONLY the $5C freeze (by code) - the $32 one survives
     r = parse(await cheats({ op: "remove", code: "005C:03" }));
     assert.equal(r.removed, true);
     assert.deepEqual(r.active.map((c) => c.code), ["0032:09"], "remove dropped only $5C");

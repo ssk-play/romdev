@@ -1,4 +1,4 @@
-// platform-palette.js — single accessor for every platform's master RGB palette.
+// platform-palette.js - single accessor for every platform's master RGB palette.
 //
 // The per-platform palette PNG generators (nesPalettePng, snesPalettePng, ...)
 // each hardcoded their RGB list inline. Lospec / hex / indexed-PNG validation
@@ -13,7 +13,7 @@ import { C64_PALETTE } from "../c64/vic.js";
 import { A78_PALETTE } from "../atari7800/maria.js";
 import { NTSC_PALETTE } from "../atari2600/tia.js";
 
-/* ── SNES master swatch — 16 well-spaced colors (matches snesPalettePng) ── */
+/* ── SNES master swatch - 16 well-spaced colors (matches snesPalettePng) ── */
 const SNES_SWATCH = [
   [0, 0, 0], [128, 128, 128], [255, 255, 255], [128, 0, 0],
   [255, 0, 0], [255, 128, 0], [255, 255, 0], [0, 128, 0],
@@ -101,7 +101,7 @@ export function getPlatformPaletteRgb(platform) {
 
 /**
  * Check if a color is within tolerance of any palette entry.
- * Used by indexed-PNG validation — sRGB gamma drift can shift exported
+ * Used by indexed-PNG validation - sRGB gamma drift can shift exported
  * pixels by 1-2 per channel even when the artist used the right swatch.
  *
  * @param {[number,number,number][]} palette
@@ -129,7 +129,7 @@ export function rgbHex(r, g, b) {
 }
 
 /**
- * Format an RGB triple as "rrggbb" (lowercase hex, no hash) — Lospec style.
+ * Format an RGB triple as "rrggbb" (lowercase hex, no hash) - Lospec style.
  */
 export function rgbHexLospec(r, g, b) {
   const h = (n) => n.toString(16).padStart(2, "0");

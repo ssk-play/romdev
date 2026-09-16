@@ -1,4 +1,4 @@
-// loadSpriteSheet — R15 phase C emit / emitDefines option tests.
+// loadSpriteSheet - R15 phase C emit / emitDefines option tests.
 //
 // Builds a tiny indexed PNG + manifest pair on the fly, runs loadSpriteSheet
 // through the MCP client, asserts the new emit modes produce source code

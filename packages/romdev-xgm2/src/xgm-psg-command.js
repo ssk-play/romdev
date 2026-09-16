@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.XGMPSGCommand — XGM2 PSG (SN76489) command codec.
+// Port of sgdk.xgm2tool.format.XGMPSGCommand - XGM2 PSG (SN76489) command codec.
 
 import { Command } from "./command.js";
 import { getInt8, getInt24, setInt24 } from "./util.js";
@@ -6,7 +6,7 @@ import { getInt8, getInt24, setInt24 } from "./util.js";
 /**
  * Faithful mirror of sgdk.tool.StringUtil.toHexaString(int value, int size):
  * Integer.toHexString (LOWERCASE) of `value`, then forced to exactly `size`
- * chars — keep last `size` chars if longer, left-pad with '0' if shorter.
+ * chars - keep last `size` chars if longer, left-pad with '0' if shorter.
  * @param {number} value
  * @param {number} size
  * @returns {string}
@@ -124,9 +124,9 @@ export class XGMPSGCommand extends Command {
 
   /**
    * Java has three constructors:
-   *   XGMPSGCommand(byte[] data, int offset) — slices computeSize bytes
-   *   XGMPSGCommand(byte[] data)             — wraps the given bytes
-   *   XGMPSGCommand(int command)             — single-byte command
+   *   XGMPSGCommand(byte[] data, int offset) - slices computeSize bytes
+   *   XGMPSGCommand(byte[] data)             - wraps the given bytes
+   *   XGMPSGCommand(int command)             - single-byte command
    * Dispatch on argument shape to reproduce all three.
    * @param {Uint8Array|number[]|number} data raw command bytes, or an int command value
    * @param {number} [offset] when provided, slice computeSize bytes from `offset`

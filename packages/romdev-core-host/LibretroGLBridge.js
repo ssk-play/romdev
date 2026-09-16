@@ -1,4 +1,4 @@
-// LibretroGLBridge.js — Maps Emscripten GL imports to native-gles
+// LibretroGLBridge.js - Maps Emscripten GL imports to native-gles
 //
 // Emscripten-compiled libretro cores import GL functions as env.glClear,
 // env.glBindFramebuffer, etc. (plus env.emscripten_glXxx for get_proc_address).
@@ -13,7 +13,7 @@
    documents its real ABI (and so the port stays diff-able against upstream). */
 
 // `native-gles` is injected by the caller (createEmscriptenGLBridge(getMemory, gl))
-// rather than imported here — it's an OPTIONAL dependency loaded lazily by the host
+// rather than imported here - it's an OPTIONAL dependency loaded lazily by the host
 // only when a HW-render core boots (see glOptionalDep.js / LibretroHost).
 let gl = null;
 
@@ -192,7 +192,7 @@ export function createEmscriptenGLBridge(getMemory, nativeGl) {
       if (dataPtr) {
         gl.glBufferData(target, u8().subarray(dataPtr, dataPtr + size), usage);
       } else {
-        // Allocate without data — pass a zeroed buffer
+        // Allocate without data - pass a zeroed buffer
         gl.glBufferData(target, new Uint8Array(size), usage);
       }
     },
@@ -324,7 +324,7 @@ export function createEmscriptenGLBridge(getMemory, nativeGl) {
       writeInfoLog(gl.glGetShaderSource(shader), bufSize, lengthPtr, sourcePtr);
     },
     glShaderBinary: (count, shadersPtr, binaryFormat, binaryPtr, length) => {
-      // Usually not supported on GLES — no-op
+      // Usually not supported on GLES - no-op
     },
     glReleaseShaderCompiler: () => {},
     glGetShaderPrecisionFormat: (shadertype, precisiontype, rangePtr, precisionPtr) => {
@@ -393,11 +393,11 @@ export function createEmscriptenGLBridge(getMemory, nativeGl) {
       }
     },
     glGetAttachedShaders: (program, maxCount, countPtr, shadersPtr) => {
-      // Rarely used — stub with empty result
+      // Rarely used - stub with empty result
       if (countPtr) i32()[countPtr >> 2] = 0;
     },
     glGetProgramBinary: (program, bufSize, lengthPtr, binaryFormatPtr, binaryPtr) => {
-      // Not critical — stub
+      // Not critical - stub
       if (lengthPtr) i32()[lengthPtr >> 2] = 0;
     },
     glProgramBinary: (program, binaryFormat, binaryPtr, length) => {
@@ -405,7 +405,7 @@ export function createEmscriptenGLBridge(getMemory, nativeGl) {
       gl.glProgramBinary(program, binaryFormat, data, length);
     },
     glProgramParameteri: (program, pname, value) => {
-      // GL_PROGRAM_BINARY_RETRIEVABLE_HINT — no-op is fine
+      // GL_PROGRAM_BINARY_RETRIEVABLE_HINT - no-op is fine
     },
 
     // ─── Uniforms ────────────────────────────────────────────────────
@@ -452,7 +452,7 @@ export function createEmscriptenGLBridge(getMemory, nativeGl) {
       writeInfoLog(result, bufSize, lengthPtr, namePtr);
     },
     glGetActiveUniformsiv: (program, uniformCount, uniformIndicesPtr, pname, paramsPtr) => {
-      // Stub — rarely used
+      // Stub - rarely used
       for (let i = 0; i < uniformCount; i++) i32()[(paramsPtr >> 2) + i] = 0;
     },
     glGetUniformIndices: (program, uniformCount, uniformNamesPtr, uniformIndicesPtr) => {
@@ -548,7 +548,7 @@ export function createEmscriptenGLBridge(getMemory, nativeGl) {
       gl.glInvalidateFramebuffer(target, arr);
     },
     glInvalidateSubFramebuffer: (target, numAttachments, attachmentsPtr, x, y, width, height) => {
-      // Stub — optimization hint only
+      // Stub - optimization hint only
     },
     glIsFramebuffer: (framebuffer) => gl.glIsFramebuffer(framebuffer),
     glGetFramebufferAttachmentParameteriv: (target, attachment, pname, paramsPtr) => {
@@ -713,7 +713,7 @@ export function createEmscriptenGLBridge(getMemory, nativeGl) {
       new DataView(getMemory().buffer).setBigInt64(paramsPtr, BigInt(Math.round(result)), true);
     },
     glGetInteger64i_v: (target, index, dataPtr) => {
-      // Stub — use 32-bit fallback
+      // Stub - use 32-bit fallback
       const view = new Int32Array(getMemory().buffer, dataPtr, 1);
       gl.glGetIntegeri_v(target, index, view);
     },
@@ -781,7 +781,7 @@ export function createEmscriptenGLBridge(getMemory, nativeGl) {
   result.glIsQueryEXT = funcs.glIsQuery;
   result.glBeginQueryEXT = funcs.glBeginQuery;
   result.glEndQueryEXT = funcs.glEndQuery;
-  result.glQueryCounterEXT = (id, target) => {}; // timer query — stub
+  result.glQueryCounterEXT = (id, target) => {}; // timer query - stub
   result.glGetQueryivEXT = funcs.glGetQueryiv;
   result.glGetQueryObjectivEXT = (id, pname, paramsPtr) => { i32()[paramsPtr >> 2] = 0; };
   result.glGetQueryObjectuivEXT = funcs.glGetQueryObjectuiv;
@@ -803,15 +803,15 @@ export function createEmscriptenGLBridge(getMemory, nativeGl) {
   result.emscripten_glGetQueryObjecti64vEXT = result.glGetQueryObjecti64vEXT;
   result.emscripten_glGetQueryObjectui64vEXT = result.glGetQueryObjectui64vEXT;
 
-  // Polygon mode WEBGL extension — stub
+  // Polygon mode WEBGL extension - stub
   result.glPolygonModeWEBGL = (face, mode) => {};
   result.emscripten_glPolygonModeWEBGL = result.glPolygonModeWEBGL;
 
-  // Polygon offset clamp EXT — stub
+  // Polygon offset clamp EXT - stub
   result.glPolygonOffsetClampEXT = (factor, units, clamp) => gl.glPolygonOffset(factor, units);
   result.emscripten_glPolygonOffsetClampEXT = result.glPolygonOffsetClampEXT;
 
-  // Clip control EXT — stub (not in GLES3 core)
+  // Clip control EXT - stub (not in GLES3 core)
   result.glClipControlEXT = (origin, depth) => {};
   result.emscripten_glClipControlEXT = result.glClipControlEXT;
 

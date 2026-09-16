@@ -3,7 +3,7 @@
 // Unlike the SNES decoders which parse savestate blobs, the Genesis
 // patch exposes live struct memory directly via retro_get_memory_data.
 // So our decoders read directly from the WASM heap at known offsets.
-// Fragile against struct layout changes in upstream gpgx — if a test
+// Fragile against struct layout changes in upstream gpgx - if a test
 // breaks loudly after a gpgx update, re-check the offsets here against
 // build/gpgx/src/core/m68k/m68k.h.
 
@@ -18,17 +18,17 @@ const formatCpuState = (s) => s;
 // After that come the fields we want.
 const M68K_BASE = 5120; // start of cpu_idle_t poll
 // M68K_POLL / M68K_CYCLES document the struct layout (consumed implicitly by the
-// next offset) — keep them named even though nothing reads them directly.
+// next offset) - keep them named even though nothing reads them directly.
 // eslint-disable-next-line no-unused-vars
 const M68K_POLL = M68K_BASE + 0;       // 12 bytes
 // eslint-disable-next-line no-unused-vars
 const M68K_CYCLES = M68K_BASE + 12;    // 12 bytes (cycles + refresh_cycles + cycle_end)
-const M68K_DAR = M68K_BASE + 24;       // uint dar[16] — D0..D7 then A0..A7
+const M68K_DAR = M68K_BASE + 24;       // uint dar[16] - D0..D7 then A0..A7
 const M68K_PC = M68K_DAR + 64;         // uint pc
 const M68K_PREV_PC = M68K_PC + 4;
-const M68K_PREV_DR = M68K_PREV_PC + 4; // uint prev_dr[8] — 32 bytes
+const M68K_PREV_DR = M68K_PREV_PC + 4; // uint prev_dr[8] - 32 bytes
 const M68K_PREV_AR = M68K_PREV_DR + 32;
-const M68K_SP = M68K_PREV_AR + 32;     // uint sp[5] — USP, ISP, MSP, etc.
+const M68K_SP = M68K_PREV_AR + 32;     // uint sp[5] - USP, ISP, MSP, etc.
 const M68K_IR = M68K_SP + 20;
 const M68K_T1 = M68K_IR + 4;
 const M68K_S = M68K_T1 + 4;
@@ -252,7 +252,7 @@ export function decodeGenesisPSG(blob) {
 //
 // gpgx's YM2612 internal struct is large and implementation-private. We
 // decode what's safely reachable: the dacen flag + dacout value (DAC sample
-// stream — the "PCM voice" Genesis games like Streets of Rage 2 use). Full
+// stream - the "PCM voice" Genesis games like Streets of Rage 2 use). Full
 // per-channel envelope state requires walking FM_CH/FM_SLOT internals
 // whose layout isn't stable across gpgx versions; that's deferred.
 //
@@ -262,7 +262,7 @@ export function decodeGenesisPSG(blob) {
 //
 // The struct starts with `FM_CH CH[6]`. FM_CH is large (operators + state)
 // so we can't safely decode without pinning to a specific gpgx version.
-// What WE expose: a stable summary derived from blob analysis — the dacen
+// What WE expose: a stable summary derived from blob analysis - the dacen
 // + dacout bytes at known offsets after the CH array.
 //
 // Caller can still get the raw blob via readMemory("genesis_ym2612") and
@@ -272,7 +272,7 @@ export function decodeGenesisPSG(blob) {
  * @returns {{ note: string, blobBytes: number, rawHex: string }}
  */
 export function decodeGenesisYM2612(blob) {
-  // Find length of meaningful blob — gpgx zero-fills past actual size.
+  // Find length of meaningful blob - gpgx zero-fills past actual size.
   let len = blob.length;
   while (len > 0 && blob[len - 1] === 0) len--;
   // First few bytes are the FM_CH[0] struct start; not stable to decode

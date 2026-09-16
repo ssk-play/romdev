@@ -1,4 +1,4 @@
-// SNES PPU helpers — decode OAM, CGRAM, VRAM tiles, and BG tilemaps from
+// SNES PPU helpers - decode OAM, CGRAM, VRAM tiles, and BG tilemaps from
 // snes9x's exposed memory regions (romdev/snes9x patch: snes_oam,
 // snes_cgram, plus the standard video_ram → Memory.VRAM 64 KB region).
 //
@@ -29,7 +29,7 @@
 // --- PPU register decode (from snes_fillram) -------------------------------
 //
 // snes9x DOES mirror the write-only PPU register file $2100-$213f into
-// Memory.FillRAM — but indexed by the FULL register address, so OBSEL is
+// Memory.FillRAM - but indexed by the FULL register address, so OBSEL is
 // FillRAM[0x2101], NOT FillRAM[0x101]. The `snes_fillram` region exposes
 // the whole 32 KB shadow, so we can read back every PPU register the game
 // last wrote. (Verified empirically; the old "snes9x doesn't expose PPU
@@ -214,7 +214,7 @@ export function decodeOAM(oam, opts = {}) {
     // Renderability: an OBJ is renderable this frame only if it overlaps the
     // 256×224 (or ×239) screen box AND isn't parked at the off-screen-top
     // Y=$E0..$FF convention games use to "hide" sprites. This is the real
-    // distinction Codex asked for — a populated OAM slot is NOT the same as
+    // distinction Codex asked for - a populated OAM slot is NOT the same as
     // a drawn sprite.
     const onX = sx + w > 0 && sx < 256;
     const onY = y < 0xE0 && (y + h) > 0;      // Y≥0xE0 is the hide convention
@@ -264,7 +264,7 @@ export function decodeOAM(oam, opts = {}) {
 
 /**
  * Inspect the OBJ palette lines that renderable sprites actually reference and
- * flag the ones that look UNINTENTIONAL — not just all-zero, but stale/default
+ * flag the ones that look UNINTENTIONAL - not just all-zero, but stale/default
  * "garbage" too. The classic SNES bug (Codex's Asteroids) is a sprite naming
  * OBJ palette line 1 or 3 when only line 0 was uploaded: the unused lines hold
  * whatever was in CGRAM (zero on some paths, a default ramp / leftover junk on
@@ -274,7 +274,7 @@ export function decodeOAM(oam, opts = {}) {
  *
  * The single strongest signal is **contiguity**: real games upload OBJ
  * palettes as a block starting at line 0, so a referenced line ABOVE the
- * highest authored-looking line — with nothing authored in between — almost
+ * highest authored-looking line - with nothing authored in between - almost
  * always means "I used a palette I never uploaded."
  *
  * @param {Array<ReturnType<typeof decodeOAM>[number]>} sprites
@@ -292,7 +292,7 @@ export function checkObjPalettes(sprites, cgramColors) {
   // the OBJ-transparent slot and the renderer ignores it, so judge colors 1-15.
   const analyzeLine = (line) => {
     const w = lineWords(line);
-    const body = w.slice(1); // colors 1..15 — the ones that actually draw
+    const body = w.slice(1); // colors 1..15 - the ones that actually draw
     const reasons = [];
     const allZero = w.every((v) => v === 0);
     const bodyZero = body.every((v) => v === 0);
@@ -308,7 +308,7 @@ export function checkObjPalettes(sprites, cgramColors) {
     }
     const monotonic = (inc || dec) && distinct >= 8; // a long smooth ramp, not a real sprite palette
     if (allZero || bodyZero) reasons.push("all-zero (never written)");
-    if (uniform && !bodyZero) reasons.push("every color identical (flat fill — stale/default, not a sprite palette)");
+    if (uniform && !bodyZero) reasons.push("every color identical (flat fill - stale/default, not a sprite palette)");
     if (monotonic) reasons.push("smooth color ramp across all 16 entries (looks like a power-on/leftover default, not authored art)");
     return { line, words: w, allZero: allZero || bodyZero, uniform, monotonic, distinct, reasons };
   };
@@ -336,7 +336,7 @@ export function checkObjPalettes(sprites, cgramColors) {
     if (highestAuthored >= 0 && pal > highestAuthored && !looksAuthored(a)) {
       reasons.push(
         `referenced but ABOVE the uploaded block (line ${highestAuthored} is the ` +
-        `highest that looks authored) — likely never uploaded`
+        `highest that looks authored) - likely never uploaded`
       );
     }
     if (reasons.length === 0) { paletteReport.push({ line: pal, verdict: "ok", reasons: [] }); continue; }
@@ -386,7 +386,7 @@ import { PNG } from "pngjs";
 // --- VRAM tile + tilemap decode --------------------------------------------
 //
 // These render helpers take bpp / tilemap base / tile base as parameters.
-// You can get the live values from decodePpuRegs(snes_fillram) — BG mode,
+// You can get the live values from decodePpuRegs(snes_fillram) - BG mode,
 // each BGxSC tilemap base, each BGxNBA char base, and OBSEL OBJ base are all
 // decodable now (snes9x mirrors $2100-$213f into FillRAM). Defaults below are
 // the PVSnesLib / SNES-common Mode-1 values (4bpp BG1/BG2, 2bpp BG3) for when
@@ -447,7 +447,7 @@ export function decodeSnesTile(bytes, bpp = 4) {
 export function renderSnesTilesheet(vram, cgramColors, opts = {}) {
   const bpp = opts.bpp ?? 4;
   const tileBytes = BPP_TILE_BYTES[bpp];
-  if (!tileBytes) throw new Error(`SNES bpp must be 2, 4, or 8 — got ${bpp}`);
+  if (!tileBytes) throw new Error(`SNES bpp must be 2, 4, or 8 - got ${bpp}`);
   const tileBase = opts.tileBaseByte ?? 0;
   const cols = opts.cols ?? 16;
   const paletteBase = opts.paletteBase ?? 0;
@@ -483,7 +483,7 @@ export function renderSnesTilesheet(vram, cgramColors, opts = {}) {
     bpp,
     note: `${tileCount} ${bpp}bpp tiles from VRAM byte offset 0x${tileBase.toString(16)} ` +
       `(palette base CGRAM index ${paletteBase}). If bpp/tileBase/paletteBase weren't supplied they ` +
-      `default to Mode-1 values — get the live ones from getRenderingContext({platform:'snes'}).`,
+      `default to Mode-1 values - get the live ones from getRenderingContext({platform:'snes'}).`,
   };
 }
 
@@ -514,7 +514,7 @@ export function renderSnesTilesheet(vram, cgramColors, opts = {}) {
 export function renderSnesTilemap(vram, cgramColors, opts = {}) {
   const bpp = opts.bpp ?? 4;
   const tileBytes = BPP_TILE_BYTES[bpp];
-  if (!tileBytes) throw new Error(`SNES bpp must be 2, 4, or 8 — got ${bpp}`);
+  if (!tileBytes) throw new Error(`SNES bpp must be 2, 4, or 8 - got ${bpp}`);
   const tilemapBase = opts.tilemapBaseByte ?? 0;
   const tileBase = opts.tileBaseByte ?? 0;
   const mapW = opts.mapWidth ?? 32;
@@ -574,7 +574,7 @@ export function renderSnesTilemap(vram, cgramColors, opts = {}) {
     bpp,
     note: `${mapW}×${mapH}-tile BG map from VRAM byte offset 0x${tilemapBase.toString(16)} ` +
       `(${bpp}bpp tiles at 0x${tileBase.toString(16)}). If tilemapBase/tileBase/bpp/mapSize weren't ` +
-      `supplied they default to Mode-1 BG1 — get the live ones from getRenderingContext({platform:'snes'}).layers. ` +
+      `supplied they default to Mode-1 BG1 - get the live ones from getRenderingContext({platform:'snes'}).layers. ` +
       `Scroll is NOT applied; the visible window is a 256×224 sub-region.`,
   };
 }

@@ -1,16 +1,16 @@
-/* ── sports.c — GameTank 2-player paddle game (complete example) ─────────────
+/* ── sports.c - GameTank 2-player paddle game (complete example) ─────────────
  *
- * A COMPLETE, working game on the bundled GameTank SDK draw-queue runtime — and
+ * A COMPLETE, working game on the bundled GameTank SDK draw-queue runtime - and
  * a genuine 2-PLAYER one (the GameTank has two gamepad ports, unlike the
  * handhelds). Two paddles, a bouncing ball that speeds up on each hit, first to
  * 7 wins. Title → play → match-point → restart. The framebuffer makes a clean
- * paddle game trivial — paddles + ball are just rects redrawn each frame.
+ * paddle game trivial - paddles + ball are just rects redrawn each frame.
  *
  * FORK THIS. Markers:
- *   HARDWARE IDIOM (load-bearing) — paddles/ball/court = rects redrawn each
+ *   HARDWARE IDIOM (load-bearing) - paddles/ball/court = rects redrawn each
  *     frame; the ball's sub-pixel motion is integer x/y with a velocity. No
  *     sprites, no flicker.
- *   GAME LOGIC (clay) — paddle speed, ball speed-up, win score: tune freely.
+ *   GAME LOGIC (clay) - paddle speed, ball speed-up, win score: tune freely.
  *
  * SFX (gt_sound.h, ACP synth): a blip on wall bounces, a "pong" on paddle hits,
  * and a ding on each point scored. Box-drawn HUD (gt_hud.h).
@@ -76,7 +76,7 @@ void main(void) {
     for (;;) {
       update_inputs();
 
-      /* P1 (left pad) + P2 (right pad) — update_inputs fills player1/2_buttons */
+      /* P1 (left pad) + P2 (right pad) - update_inputs fills player1/2_buttons */
       if ((player1_buttons & INPUT_MASK_UP)   && p1y > 2)              p1y -= 3;
       if ((player1_buttons & INPUT_MASK_DOWN) && p1y < 127 - PAD_H)    p1y += 3;
       if ((player2_buttons & INPUT_MASK_UP)   && p2y > 2)              p2y -= 3;
@@ -87,7 +87,7 @@ void main(void) {
       if (by <= 2)   { by = 2;   vy = -vy; gt_sfx(GT_SFX_SHOOT); }   /* wall blip */
       if (by >= 122) { by = 122; vy = -vy; gt_sfx(GT_SFX_SHOOT); }
 
-      /* paddle collisions (speed up on hit) — the satisfying "pong" */
+      /* paddle collisions (speed up on hit) - the satisfying "pong" */
       if (vx < 0 && bx <= 25 && bx >= 18 && by + 5 >= (signed char)p1y && by <= (signed char)(p1y + PAD_H)) {
         bx = 25; vx = (signed char)(-vx + 1); vy += (signed char)((by - (signed char)(p1y + PAD_H / 2)) >> 3);
         gt_sfx(GT_SFX_HIT);
@@ -98,7 +98,7 @@ void main(void) {
       }
       if (vx > 4) vx = 4; if (vx < -4) vx = -4;
 
-      /* score — a clear ding for the point */
+      /* score - a clear ding for the point */
       if (bx < 0)   { s2++; gt_sfx(GT_SFX_COIN); if (s2 >= WIN) goto win2; serve(0); }
       if (bx > 126) { s1++; gt_sfx(GT_SFX_COIN); if (s1 >= WIN) goto win1; serve(1); }
 

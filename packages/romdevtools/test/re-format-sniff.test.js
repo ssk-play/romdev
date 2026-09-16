@@ -1,4 +1,4 @@
-// re-format-sniff.test.js — A6: container/format sniffing for the RE engine.
+// re-format-sniff.test.js - A6: container/format sniffing for the RE engine.
 // SMD-interleaved Genesis dumps scramble every byte under a flat read; the
 // sniff must detect + reverse the interleave (and leave plain ROMs alone).
 
@@ -24,7 +24,7 @@ function makeSmd(flat) {
   return out;
 }
 
-test("A6: SMD round-trip — deinterleave reverses the interleave exactly", () => {
+test("A6: SMD round-trip - deinterleave reverses the interleave exactly", () => {
   // A 32KB flat ROM with a recognizable pattern (byte value = offset & 0xff).
   const flat = new Uint8Array(0x8000);
   for (let i = 0; i < flat.length; i++) flat[i] = i & 0xff;

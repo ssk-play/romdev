@@ -1,5 +1,5 @@
 // The MCP server is multi-session: one server serves several agents, and a user
-// can have 2-3 games open at once. Playtest windows must be keyed per session —
+// can have 2-3 games open at once. Playtest windows must be keyed per session -
 // one agent's window must never clobber another's, closing one session closes
 // only its own window, and a full shutdown closes them all. These exercise the
 // per-session registry via fake session handles (no real SDL window).

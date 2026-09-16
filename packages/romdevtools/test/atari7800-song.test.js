@@ -1,4 +1,4 @@
-// Atari 7800 (TIA) song compiler — note/frames → bundled atari7800_music driver
+// Atari 7800 (TIA) song compiler - note/frames → bundled atari7800_music driver
 // 3-byte-per-row note table { distortion, freq(AUDF), frames } + {0,0,0} sentinel.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -41,7 +41,7 @@ test("known note→divider: C6 snaps to AUDF=14 (mode 4) ≈ exact", () => {
 
 test("known note→divider: A4=440Hz is out of mode-4 range → snaps to AUDF=31", () => {
   // mode 4's lowest pitch (AUDF=31) is ~490.6 Hz, above A4. So A4 snaps up to the
-  // floor AUDF=31 — a documented ~+189-cent approximation of the 32-pitch chip.
+  // floor AUDF=31 - a documented ~+189-cent approximation of the 32-pitch chip.
   const snap = noteToAudf(noteToSemitone("A4"), DIST_MELODY);
   assert.equal(snap.audf, 31);
   assert.ok(Math.abs(snap.hz - 490.62) < 0.1);

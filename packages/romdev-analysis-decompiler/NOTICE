@@ -16,21 +16,21 @@ Components and attribution
    Licensed under the Apache License, Version 2.0.
    https://github.com/NationalSecurityAgency/ghidra
    Compiled here via rz-ghidra (https://github.com/rizinorg/rz-ghidra,
-   LGPL-3.0) — only Ghidra's decompiler C++ and the SLEIGH compiler are used;
+   LGPL-3.0) - only Ghidra's decompiler C++ and the SLEIGH compiler are used;
    no rz-ghidra plugin code is linked into the shipped decompiler binary.
 
-2. SM83 (Game Boy / Game Boy Color) SLEIGH spec — "GhidraBoy".
+2. SM83 (Game Boy / Game Boy Color) SLEIGH spec - "GhidraBoy".
    Copyright Joonas Javanainen (Gekkio).
    Licensed under the Apache License, Version 2.0.
    https://github.com/Gekkio/GhidraBoy
 
-3. 65816 (Super Nintendo) SLEIGH spec — from "ghidra-snes".
+3. 65816 (Super Nintendo) SLEIGH spec - from "ghidra-snes".
    Copyright Arnaud 'red' Rouyer (joshleaves); 65816 language derived from
    the ghidra-65816 project.
    Licensed under the MIT License.
    https://github.com/joshleaves/ghidra-snes
 
-4. HuC6280 (PC Engine / TurboGrafx-16) SLEIGH spec — from "Ghidra_HuC6280".
+4. HuC6280 (PC Engine / TurboGrafx-16) SLEIGH spec - from "Ghidra_HuC6280".
    Copyright Jozsef Tikviczki (TiCoKH), with cleanup by qufb.
    This spec is a DERIVATIVE WORK of Ghidra's own Apache-2.0 6502 SLEIGH
    specification: its git history shows it was developed inside Ghidra's

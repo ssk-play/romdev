@@ -1,10 +1,10 @@
-// getStarterSnippet / listStarterSnippets — vetted boilerplate the agent
+// getStarterSnippet / listStarterSnippets - vetted boilerplate the agent
 // can include in their project instead of writing from scratch. Encodes
 // the foot-guns we've already hit so the next agent doesn't have to.
 //
 // Snippets live in: src/platforms/<platform>/lib/[<language>/]<name>.<ext>
-//   - Flat layout (current): lib/foo.s, lib/bar.s — language-implicit (asm)
-//   - Language layout: lib/asm/foo.s, lib/c/baz.h — supports multiple
+//   - Flat layout (current): lib/foo.s, lib/bar.s - language-implicit (asm)
+//   - Language layout: lib/asm/foo.s, lib/c/baz.h - supports multiple
 //     languages per platform without name collisions.
 // Both layouts are supported simultaneously: language-specific dirs
 // override flat names when a language is requested.
@@ -52,7 +52,7 @@ async function listSnippetsForPlatform(platform) {
     try { s = await stat(full); } catch { continue; }
     if (s.isDirectory()) {
       // Language-specific subdir (e.g. lib/c/, lib/asm/).
-      // ONLY list regular files inside — directory-shaped entries
+      // ONLY list regular files inside - directory-shaped entries
       // (vendored SDK trees like lib/pvsneslib/include, lib/sgdk/
       // include) shouldn't appear as snippets because:
       //   1. They'd crash copyStarterSnippets with EISDIR.
@@ -74,7 +74,7 @@ async function listSnippetsForPlatform(platform) {
         });
       }
     } else {
-      // Flat file at lib/ root — infer language from extension.
+      // Flat file at lib/ root - infer language from extension.
       const ext = path.extname(entry).toLowerCase();
       const lang = EXT_TO_LANG[ext] ?? "asm";
       out.push({
@@ -175,7 +175,7 @@ export function registerSnippetTools(_server, _z) {
             await stat(dstPath);
             skipped.push({ name: s.name, file: s.file, dstPath, reason: "exists" });
             continue;
-          } catch { /* doesn't exist — proceed */ }
+          } catch { /* doesn't exist - proceed */ }
         }
         const bytes = await readFile(srcPath);
         await writeFile(dstPath, bytes);
@@ -204,6 +204,6 @@ export function registerSnippetTools(_server, _z) {
 // starterSnippets/copyStarterSnippets folded into the `examples` tool. The cores
 // are assigned inside registerSnippetTools (they close over the local helpers);
 // examples imports these and calls them. registerSnippetTools registers NO tools
-// now — it just wires the cores.
-export let starterSnippetsCore = async () => { throw new Error("snippet cores not initialized — registerSnippetTools must run first"); };
-export let copyStarterSnippetsCore = async () => { throw new Error("snippet cores not initialized — registerSnippetTools must run first"); };
+// now - it just wires the cores.
+export let starterSnippetsCore = async () => { throw new Error("snippet cores not initialized - registerSnippetTools must run first"); };
+export let copyStarterSnippetsCore = async () => { throw new Error("snippet cores not initialized - registerSnippetTools must run first"); };

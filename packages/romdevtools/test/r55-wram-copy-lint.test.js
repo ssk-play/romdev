@@ -1,6 +1,6 @@
 // R55: the SDCC "xdata-copy-miscompile" lint must STOP crying wolf on every
 // plain WRAM array copy. It was firing a scary "warning" on the SHAPE
-// `dst[i] = src[i]` unconditionally — including for `static uint8_t rb[78];
+// `dst[i] = src[i]` unconditionally - including for `static uint8_t rb[78];
 // ... rb[i] = grid[i];` (a perfectly fine WRAM copy). A real agent building a
 // GBC Columns clone reported that this trains agents to distrust the linter.
 //
@@ -30,7 +30,7 @@ test("R55: plain WRAM array copy (`static uint8_t rb[78]; rb[i]=grid[i];`) produ
   ].join("\n");
   const issues = lintSdccSource(src, "main.c", { port: "sm83" });
   const copy = findCopy(issues);
-  // SUPPRESSED entirely — rb is a declared array, provably WRAM.
+  // SUPPRESSED entirely - rb is a declared array, provably WRAM.
   assert.equal(copy, undefined, "no xdata-copy issue at all for a declared RAM array dest");
   // And definitely no "warning" of any kind from this rule.
   assert.ok(
@@ -69,7 +69,7 @@ test("R55: a VRAM pointer (`uint8_t *dst = (uint8_t*)0x8000; dst[i]=src[i];`) ST
   assert.match(copy.message, /VRAM/i, "message names VRAM so the agent knows why it fired");
 });
 
-test("R55: a pointer-typed dest (no literal) still warns — only pointers alias __xdata", () => {
+test("R55: a pointer-typed dest (no literal) still warns - only pointers alias __xdata", () => {
   const src = [
     "void copy_tiles(unsigned char *dst, unsigned char *src, unsigned char n){",
     "  unsigned char i;",
@@ -137,7 +137,7 @@ test("R56: hardcoded (uint8_t*)0xC000 pointer flags an INFO overlap (sm83)", () 
   const src = "void f(void){ volatile unsigned char *board = (volatile unsigned char*)0xC000; board[0]=1; }";
   const o = findOverlap(lintSdccSource(src, "main.c", { port: "sm83" }));
   assert.ok(o, "hardcoded $C000 pointer should be surfaced");
-  assert.equal(o.severity, "info", "advisory only — not a hard error (a low pointer is occasionally legit)");
+  assert.equal(o.severity, "info", "advisory only - not a hard error (a low pointer is occasionally legit)");
   assert.notEqual(o.critical, true);
   assert.match(o.message, /\$C000/);
   assert.match(o.details, /static/i, "details must explain the static-data overlap");
@@ -148,14 +148,14 @@ test("R56: $C0FF is the top of the flagged range; $C200 scratch is NOT flagged",
   assert.ok(findOverlap(lintSdccSource(hi, "main.c", { port: "sm83" })), "$C0FF is in-range");
   const safe = "void f(void){ unsigned char *w = (unsigned char*)0xC200; w[0]=1; }";
   assert.equal(findOverlap(lintSdccSource(safe, "main.c", { port: "sm83" })), undefined,
-    "$C200 is the documented-safe scratch floor — must NOT flag");
+    "$C200 is the documented-safe scratch floor - must NOT flag");
   // shadow_oam at $C100 is outside the static range and must not be flagged.
   const oam = "void f(void){ unsigned char *o = (unsigned char*)0xC100; o[0]=1; }";
   assert.equal(findOverlap(lintSdccSource(oam, "main.c", { port: "sm83" })), undefined,
-    "$C100 (shadow_oam) is outside $C000-$C0FF — not flagged");
+    "$C100 (shadow_oam) is outside $C000-$C0FF - not flagged");
 });
 
-test("R56: a plain `static` array is the recommended form — no overlap warning", () => {
+test("R56: a plain `static` array is the recommended form - no overlap warning", () => {
   const src = "static unsigned char board[78];\nvoid f(void){ board[0]=1; }";
   assert.equal(findOverlap(lintSdccSource(src, "main.c", { port: "sm83" })), undefined,
     "letting the linker place a static array is the safe pattern → no flag");

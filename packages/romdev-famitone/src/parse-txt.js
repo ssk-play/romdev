@@ -1,4 +1,4 @@
-// parse-txt.js — pure-JS ESM port of the PARSER half of text2data.cpp
+// parse-txt.js - pure-JS ESM port of the PARSER half of text2data.cpp
 // (FamiTone2's FamiTracker .txt -> data tool, nesdoug bug-fix fork Oct 2025).
 //
 // This is a byte-exact port of the FamiTracker-text-export parsing path:
@@ -768,7 +768,7 @@ function parseSong(S, subsong, header_only) {
     off = textFindTagStartSubSong(S, str, off);
 
     if (off < 0) {
-      // pattern not found (FamiTracker cleanup removed it) — fill empties, skip
+      // pattern not found (FamiTracker cleanup removed it) - fill empties, skip
       off = off_prev;
       for (let row = 0; row < so.pattern_length; ++row) {
         for (let chn = 0; chn < S.channels; ++chn) {

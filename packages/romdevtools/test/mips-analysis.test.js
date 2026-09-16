@@ -1,6 +1,6 @@
 // MIPS analysis-first tier (PS1 R3000 LE / N64 R4300 BE). The shipped rizin.wasm
 // has the Capstone MIPS plugin, so disasm/functions/cfg/xrefs work; decompile does
-// NOT (rz-ghidra ships no MIPS SLEIGH yet) — it must steer to the disasm path, not
+// NOT (rz-ghidra ships no MIPS SLEIGH yet) - it must steer to the disasm path, not
 // fail cryptically. Endianness is the key correctness axis: same `mips` arch, but
 // PS1 is little-endian and N64 is big-endian.
 
@@ -40,7 +40,7 @@ test("capability manifest: ps1/n64 have FULL parity (run+screenshot+disasm+decom
 });
 
 test("rizin decodes a MIPS prologue in BOTH endians", async () => {
-  // addiu sp,sp,-0x20 ; sw ra,0x1c(sp)  — big-endian words, then byte-swapped.
+  // addiu sp,sp,-0x20 ; sw ra,0x1c(sp)  - big-endian words, then byte-swapped.
   const be = new Uint8Array([0x27, 0xbd, 0xff, 0xe0, 0xaf, 0xbf, 0x00, 0x1c]);
   const le = new Uint8Array([0xe0, 0xff, 0xbd, 0x27, 0x1c, 0x00, 0xbf, 0xaf]);
   const rBe = await runRizin({ romBytes: be, arch: "mips", bits: 32, endian: "big", commands: "pd 2" });

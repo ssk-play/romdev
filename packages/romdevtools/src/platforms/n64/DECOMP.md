@@ -12,10 +12,10 @@ as matched.
 decomp({op:'import',   project:'myproj', root:'/abs/checkout'})          once
 decomp({op:'resolve',  project:'myproj', symbol:'func_801DEB08'})         segment, ROM offset, TU, target asm
 decomp({op:'generate', project:'myproj', symbol:'func_801DEB08'})         m2c draft with the TU's real type context
-decomp({op:'compare',  project:'myproj', symbol:'func_801DEB08', candidatePath:'…/gen-1.c'})
-decomp({op:'search',   project:'myproj', symbol:'func_801DEB08', candidatePath:'…'})   bounded permuter job
-decomp({op:'job',      project:'myproj', jobId:'…', action:'best'})
-decomp({op:'integrate',project:'myproj', symbol:'func_801DEB08', candidatePath:'…', apply:true})
+decomp({op:'compare',  project:'myproj', symbol:'func_801DEB08', candidatePath:'.../gen-1.c'})
+decomp({op:'search',   project:'myproj', symbol:'func_801DEB08', candidatePath:'...'})   bounded permuter job
+decomp({op:'job',      project:'myproj', jobId:'...', action:'best'})
+decomp({op:'integrate',project:'myproj', symbol:'func_801DEB08', candidatePath:'...', apply:true})
 decomp({op:'progress', project:'myproj'})
 ```
 
@@ -33,7 +33,7 @@ project's make, then reports three independent verdicts:
 proof. A compile failure has no distance.
 
 The verdict contract: every required check (text, rodata, romLinked) has a
-state — `exact`, `mismatch`, `error`, `unknown`, `not-applicable` — and
+state - `exact`, `mismatch`, `error`, `unknown`, `not-applicable` - and
 `verdict.functionLocal` aggregates them: any mismatch → mismatch, else any
 error → error, else any unknown → unknown, else exact. `exactFunctionMatch`
 is true ONLY for exact; `verification.functionLocal` is the same aggregate;
@@ -52,7 +52,7 @@ check cannot save you. An overlay VA is AMBIGUOUS by construction: the
 resolver returns the candidate segments and refuses to pick. Pass
 `segment:'ovl_i8'`.
 
-`disasm({target:'decompile', platform:'n64', project:'myproj', address:…})`
+`disasm({target:'decompile', platform:'n64', project:'myproj', address:...})`
 uses the same resolver, loads only that segment's bytes AT ITS TRUE VA (so
 absolute calls, globals and jump tables resolve during analysis), returns
 `provenance` (segment, ROM offset, loadedAt, bytes hash) and swaps in the
@@ -74,7 +74,7 @@ compare says exact.
 
 ## Search honesty
 
-A search job ends `complete-zero` (a zero-score candidate exists — confirm it
+A search job ends `complete-zero` (a zero-score candidate exists - confirm it
 with `compare`, the permuter's score is not romdev's strict test),
 `complete-budget` (time ran out; `best` is the closest candidate, not a
 match), `cancelled`, or `failed`. Resume from a job's best with
@@ -94,7 +94,7 @@ that the game is decompiled.
 `decomp({op:'plan'})` ranks the remaining asm functions by expected payoff
 (bytes, discounted by what earlier attempts learned, boosted by typed C
 neighbours) and groups functions that call each other inside one TU into
-batches. `decomp({op:'batch', symbols:[…]})` runs generate → compare for a
+batches. `decomp({op:'batch', symbols:[...]})` runs generate → compare for a
 batch under a time budget and names the shared blocker (usually a
 placeholder prototype in one header). `decomp({op:'types'})` is the
 accumulated evidence: offsets with the access widths the asm uses. None of
@@ -137,7 +137,7 @@ never written to a header by the tool.
 ## Rodata
 
 `compare` compares the function's own jump tables and literals by
-reference order — against the target object when the extracted asm exists,
+reference order - against the target object when the extracted asm exists,
 against the base ROM bytes at the object's `.rodata` VA when it does not.
 A differing jump table or literal makes `verdict.functionLocal` mismatch and
 `exactFunctionMatch` false even when the text is identical; `textExact`

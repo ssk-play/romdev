@@ -55,9 +55,9 @@ test("the assets unpack/repack actions are reachable through the declared schema
   // ...AND named in action's own description, because the per-op scope checker
   // reads that description to decide whether `action` applies to op:'assets'.
   // Omitting it made the checker refuse romdev's own new action.
-  const desc = srcText.match(/"op:'job' — status \(default\)[\s\S]*?\)\;/)?.[0] ?? "";
-  assert.match(desc, /op:'assets'/, "action's description does not list op:'assets' — the scope checker will refuse it");
-  assert.match(desc, /op:'artifacts' — status \(default\), prune, restore/, "artifacts restore missing from the description");
+  const desc = srcText.match(/"op:'job' - status \(default\)[\s\S]*?\)\;/)?.[0] ?? "";
+  assert.match(desc, /op:'assets'/, "action's description does not list op:'assets' - the scope checker will refuse it");
+  assert.match(desc, /op:'artifacts' - status \(default\), prune, restore/, "artifacts restore missing from the description");
   // outputPath must be declared, or every unpack call is a 400.
   assert.match(srcText, /outputPath: z\.string\(\)/, "outputPath is used by the handler but not declared");
 });

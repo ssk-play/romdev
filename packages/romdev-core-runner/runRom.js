@@ -1,11 +1,11 @@
-// runRom.js — the human "fire it up" tier: one call opens an SDL window
+// runRom.js - the human "fire it up" tier: one call opens an SDL window
 // running a ROM on any romdev-core-* emulator core, with keyboard + hot-plug
 // gamepad input, audio at the core's native rate, and aspect-correct
 // pixel-perfect scaling. Built on romdev-core-host (the same libretro host
 // the romdev MCP server uses) + the initSdl() hardening in ./sdl.js.
 //
 // DELIBERATELY SIMPLE. No agent surface: no save-state checkpoints, no rewind
-// ring, no live-host-follow, no audio-paced burst stepping — those live in
+// ring, no live-host-follow, no audio-paced burst stepping - those live in
 // romdev's playtest (the agent tier). If this file starts growing them, it is
 // becoming romdevtools; stop. (See internal plan §4.3.)
 
@@ -34,12 +34,12 @@ import {
  * { jsPath, wasmPath } object, or a { core: { jsPath, wasmPath } } wrapper.
  */
 function resolveCorePaths(core) {
-  if (!core) throw new Error("runRom: `core` is required — pass a romdev-core-* package namespace or { jsPath, wasmPath }");
+  if (!core) throw new Error("runRom: `core` is required - pass a romdev-core-* package namespace or { jsPath, wasmPath }");
   const c = core.core ?? core;
   if (typeof c.jsPath === "string" && typeof c.wasmPath === "string") {
     return { jsPath: c.jsPath, wasmPath: c.wasmPath };
   }
-  throw new Error("runRom: couldn't find jsPath/wasmPath on `core` — pass a romdev-core-* package (import * as core from \"romdev-core-fceumm\") or { jsPath, wasmPath }");
+  throw new Error("runRom: couldn't find jsPath/wasmPath on `core` - pass a romdev-core-* package (import * as core from \"romdev-core-fceumm\") or { jsPath, wasmPath }");
 }
 
 /**
@@ -52,7 +52,7 @@ function resolveCorePaths(core) {
  * @param {string} [opts.platform] platform id for the host (inferred from the
  *                                 core package's `platform` export when present)
  * @param {Record<string, number>} [opts.buttonMap] SDL button name → RetroPad bit
- *                                 (replaces the default map — GameTank/C64 layouts)
+ *                                 (replaces the default map - GameTank/C64 layouts)
  * @param {Record<string, number>} [opts.keyMap]    keyboard key → RetroPad bit override
  * @param {number} [opts.scale=3]  initial window scale (multiples of framebuffer height)
  * @param {string} [opts.title]    window title (default: ROM basename + platform)
@@ -72,7 +72,7 @@ export async function runRom(rom, opts = {}) {
   const buttonMap = opts.buttonMap ?? SDL_BUTTON_TO_LIBRETRO_BIT;
   const keyMap = opts.keyMap ?? KEY_TO_LIBRETRO_BIT;
 
-  // SDL first — fail fast (and honestly: SDL_UNAVAILABLE) before touching the core.
+  // SDL first - fail fast (and honestly: SDL_UNAVAILABLE) before touching the core.
   const sdl = await initSdl({ log, ...(opts._initSdlOpts ?? {}) });
 
   // Load core + ROM.
@@ -84,7 +84,7 @@ export async function runRom(rom, opts = {}) {
 
   const title = opts.title ?? (typeof rom === "string"
     ? `${path.basename(rom).replace(/\.[^.]+$/, "")}${platform ? ` (${platform})` : ""}`
-    : platform ? `romdev — ${platform}` : "romdev");
+    : platform ? `romdev - ${platform}` : "romdev");
 
   // First frame → framebuffer geometry → window size.
   host.stepFrames(1);
@@ -98,7 +98,7 @@ export async function runRom(rom, opts = {}) {
 
   // HW-render cores already own a GL context via native-gles; an accelerated
   // SDL window would open a second GL context on the same display and collide
-  // (X BadAccess) — software blit for those, accelerated for the rest.
+  // (X BadAccess) - software blit for those, accelerated for the rest.
   const window = sdl.video.createWindow({
     title,
     width: winInitW,
@@ -185,7 +185,7 @@ export async function runRom(rom, opts = {}) {
   const fps = (coreFps >= 20 && coreFps <= 120) ? coreFps : 60;
   const frameMs = 1000 / fps;
 
-  // Per-slot trigger tracking (baseline + hysteresis) — the SAME derivation
+  // Per-slot trigger tracking (baseline + hysteresis) - the SAME derivation
   // playtest uses (present.js), so "when does a trigger count as pressed"
   // cannot disagree between the two windows.
   const triggerStates = [makeTriggerState(), makeTriggerState()];
@@ -207,7 +207,7 @@ export async function runRom(rom, opts = {}) {
     const trig = deriveTriggerState(axes, triggerStates[slot] ?? makeTriggerState());
     if (trig.l2) port.l2 = true;
     if (trig.r2) port.r2 = true;
-    // Raw analog passthrough — feeds the host's ANALOG device (real stick
+    // Raw analog passthrough - feeds the host's ANALOG device (real stick
     // deflection) and any Active Bezel input reads; additive to the mask.
     port.axes = {
       lx: normAxis(lx), ly: normAxis(ly),

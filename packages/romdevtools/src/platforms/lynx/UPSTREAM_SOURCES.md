@@ -1,18 +1,18 @@
-# Lynx — source you can read
+# Lynx - source you can read
 
 When the bundled examples + MENTAL_MODEL.md aren't enough and you
 need to grep around the actual implementation. Trust hierarchy:
 
-1. **Bundled examples** (`examples/lynx/templates/*.c`) — verified to
+1. **Bundled examples** (`examples/lynx/templates/*.c`) - verified to
    compile and (mostly) work. Start here.
-2. **Bundled runtime source** (`src/platforms/lynx/lib/`) — our thin
+2. **Bundled runtime source** (`src/platforms/lynx/lib/`) - our thin
    wrappers (lynx_sfx.c, lynx_music.c). Read these when an API call
    isn't doing what you expect.
-3. **cc65 lynx libsrc** — shipped at `src/platforms/lynx/lib/cc65-src/`.
+3. **cc65 lynx libsrc** - shipped at `src/platforms/lynx/lib/cc65-src/`.
    The complete cc65 Lynx target source: TGI graphics driver (`tgi/
    lynx-160-102-16.s`), joystick driver, conio, header builder, sound
-   engine (`lynx-snd.s`), etc. Read this when "tgi_bar does X — why?".
-4. **Compiler + emulator GitHub** (links below) — for anything below
+   engine (`lynx-snd.s`), etc. Read this when "tgi_bar does X - why?".
+4. **Compiler + emulator GitHub** (links below) - for anything below
    our thin wrappers and beyond cc65's source. We don't bundle these
    because they're big and the agent can't rebuild them anyway, but
    you can fetch them on demand when chasing a deep bug.
@@ -31,10 +31,10 @@ need to grep around the actual implementation. Trust hierarchy:
 | cc65 conio | `src/platforms/lynx/lib/cc65-src/conio.s` |
 | cc65 header builder | `src/platforms/lynx/lib/cc65-src/header.s` |
 
-When you grep, start in `cc65-src/` — it's the most likely place
+When you grep, start in `cc65-src/` - it's the most likely place
 your "why doesn't tgi_X work?" question gets answered.
 
-## Upstream sources (NOT bundled — fetch on demand if needed)
+## Upstream sources (NOT bundled - fetch on demand if needed)
 
 | What | Upstream | Why not bundled |
 |---|---|---|
@@ -63,4 +63,4 @@ attempting anything beyond `tgi_bar`.
 - "What's the actual audio register layout?" → `cc65-src/lynx-snd.s`
   + Programmer's Manual section 5.6
 - "Does the bundled lynx_sfx wrap MIKEY correctly?" → our
-  `lynx_sfx.c` source (it's tiny — 100 lines, fully readable)
+  `lynx_sfx.c` source (it's tiny - 100 lines, fully readable)

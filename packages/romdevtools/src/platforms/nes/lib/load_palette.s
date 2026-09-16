@@ -1,6 +1,6 @@
-; NES — upload 32 palette bytes from a table to PPU $3F00.
+; NES - upload 32 palette bytes from a table to PPU $3F00.
 ;
-; Pass the table address in A (low) / Y (high) via your own caller —
+; Pass the table address in A (low) / Y (high) via your own caller -
 ; simpler version below assumes a fixed label `palette_data`.
 ;
 ; The 32 bytes cover: 1 universal BG + 4 BG palettes × 4 entries + 4

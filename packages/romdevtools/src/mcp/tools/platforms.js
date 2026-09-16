@@ -14,10 +14,10 @@ const PLATFORM_QUIRKS = {
     maxRomBytesPerBank: 32768,
     headerLocation: "$XXFFC0..$XXFFFF in bank $00 only",
     notes: [
-      "asar 1.x silently crashes if `org` rewinds to a lower bank — keep org directives in monotonically increasing bank order.",
+      "asar 1.x silently crashes if `org` rewinds to a lower bank - keep org directives in monotonically increasing bank order.",
       "LoROM header at $00FFC0 must be written BEFORE any large incbin that would extend past it. See lorom_multibank.asm starter snippet.",
       "Bank $00 has only ~32 KB before the header at $FFC0. Put CHR/audio/level data in bank $01+ (org $018000).",
-      "SPC700 audio chip is separate from main 65816 CPU — upload driver via IPL handshake, communicate via $2140-$2143 mailbox ports. See audio_pipeline.asm.",
+      "SPC700 audio chip is separate from main 65816 CPU - upload driver via IPL handshake, communicate via $2140-$2143 mailbox ports. See audio_pipeline.asm.",
       "DSP register $5C is KOFF, $6C is FLG. Many references swap them. Power-on FLG=$E0 (mute+reset). Confirmed by 4hr debugging.",
       "Debugging tools available: getCPUState({cpu:'main'|'spc700'}), getAudioState({chip:'dsp'}), inspectSprites, inspectPalette, readMemory regions snes_oam/snes_cgram/snes_aram/snes_fillram.",
     ],
@@ -30,9 +30,9 @@ const PLATFORM_QUIRKS = {
     notes: [
       "68000 reads SSP from $00000000 and reset PC from $00000004 on power-on. Vector table fills $00-$FF (64 vectors × 4 bytes). See header.s starter snippet.",
       "ROM header at $100 must include 'SEGA MEGA DRIVE ' magic for real hardware to boot. Emulators (gpgx) tolerate its absence; cartridges don't.",
-      "Z80 sound CPU is separate — sits at $A00000, has its own 8KB RAM. Bus protocol: request via $A11100, wait for grant, write code, release reset via $A11200, release bus. See z80_bootstrap.s.",
+      "Z80 sound CPU is separate - sits at $A00000, has its own 8KB RAM. Bus protocol: request via $A11100, wait for grant, write code, release reset via $A11200, release bus. See z80_bootstrap.s.",
       "YM2612 FM synth + SN76489 PSG are accessed via $A04000-$A04003 and $C00011 respectively. Most games drive them from the Z80 via SMPS or similar driver.",
-      "VDP at $C00000 (data) + $C00004 (control). 24 registers control video — vdp_init.s shows the standard 320×224 H40 setup.",
+      "VDP at $C00000 (data) + $C00004 (control). 24 registers control video - vdp_init.s shows the standard 320×224 H40 setup.",
       "VDP DMA during ACTIVE display causes 'snow' artifacts. Only DMA during VBlank or HBlank windows. See sprite_table.s for the DMA sprite-table upload pattern.",
       "Genesis sprites use a LINKED LIST: each sprite has a link byte pointing to the next. Link 0 = end of list. Must initialize sprite 0's link even if you have just one sprite.",
       "Debugging tools available: getCPUState({cpu:'main'}) for 68K, inspectSprites, inspectPalette, getAudioState({chip:'ym2612'|'psg'}), readMemory regions genesis_cram/genesis_vsram/genesis_vdp_regs/genesis_z80_ram/genesis_m68k.",
@@ -42,9 +42,9 @@ const PLATFORM_QUIRKS = {
   pce: {
     multiBank: false,                    // HuCard up to 1MB flat (no mapper for the common case)
     maxRomBytesPerBank: 8 * 1024 * 1024,
-    headerLocation: "none — PCE HuCards boot from the reset vector at $FFFE (no magic header)",
+    headerLocation: "none - PCE HuCards boot from the reset vector at $FFFE (no magic header)",
     notes: [
-      "Toolchain is cc65 (HuC6280 = 65C02 superset), language C by default. The conio text library is the fastest path to a visible screen — it inits the HuC6270 VDC + HuC6260 VCE and uploads a font for you.",
+      "Toolchain is cc65 (HuC6280 = 65C02 superset), language C by default. The conio text library is the fastest path to a visible screen - it inits the HuC6270 VDC + HuC6260 VCE and uploads a font for you.",
       "EMPTY-BSS TRAP: cc65's pce/crt0.s clears .bss with `tii ...,__BSS_SIZE__-1`. With NO globals, __BSS_SIZE__=0 → ld65 'Range error in pce/crt0.s' AND a BLACK screen. ALWAYS keep at least one (ideally 2+ byte) global/static. See the hello_pce.c starter's `_keep_bss`.",
       "Color is the HuC6260 VCE: 512 entries (256 BG + 256 SPR), 9-bit GRB (0bGGG_RRR_BBB). inspectPalette decodes it; area:'bg'|'sprite' narrows. Slot 0 of each 16-color sub-palette = transparent.",
       "Sprites are the HuC6270 SATB: 64 sprites, 16/32 wide × 16/32/64 tall, pattern codes index 16×16 cells in VRAM. inspectSprites reads it.",
@@ -57,8 +57,8 @@ const PLATFORM_QUIRKS = {
     maxRomBytesPerBank: 32 * 1024,
     headerLocation: "$4000: 'AB' magic + INIT pointer at $4002 (the BIOS CALLs INIT to start the cart)",
     notes: [
-      "Toolchain is SDCC (z80), language C by default. A cart maps at $4000-$BFFF; build with the msx_crt0.s starter (emits the 'AB' header) + `crt0:'.module empty\\n'`. romdev ships C-BIOS (open MSX BIOS) and auto-boots the MSX2+ machine — no proprietary ROM, zero setup.",
-      "INIT MUST NOT RETURN: C-BIOS CALLs the cart INIT to hand over the machine. If it `ret`s, the BIOS prints 'No cartridge found' (after running your code). End main() in an infinite loop — see hello_msx.c.",
+      "Toolchain is SDCC (z80), language C by default. A cart maps at $4000-$BFFF; build with the msx_crt0.s starter (emits the 'AB' header) + `crt0:'.module empty\\n'`. romdev ships C-BIOS (open MSX BIOS) and auto-boots the MSX2+ machine - no proprietary ROM, zero setup.",
+      "INIT MUST NOT RETURN: C-BIOS CALLs the cart INIT to hand over the machine. If it `ret`s, the BIOS prints 'No cartridge found' (after running your code). End main() in an infinite loop - see hello_msx.c.",
       "TIMING: C-BIOS shows its logo for ~2-3s (≈150 frames) BEFORE calling the cart INIT. Step >= 240 frames before expecting output on screen.",
       "Fastest visible output is BIOS calls: INITXT ($006C) sets the 40-col text screen + enables display, CHPUT ($00A2) prints the char in A. Put asm data labels INSIDE a function's asm block (file-scope __asm is a SDCC syntax error).",
       "Video is the V9938 VDP: VRAM up to 128KB, 16-entry programmable palette (9-bit GRB) on MSX2 bitmap modes, fixed TMS9918 palette on MSX1 modes. inspectPalette picks the right source automatically.",
@@ -71,9 +71,9 @@ const PLATFORM_QUIRKS = {
     maxRomBytesPerBank: 0, // disc/EXE based, not a fixed cart
     headerLocation: "PS-EXE: 'PS-X EXE' magic at 0, entry (pc0) at +0x10, load addr (t_addr) at +0x18; 2048-byte header then code",
     notes: [
-      "32-bit MIPS R3000 (little-endian), framebuffer GPU. Runs via PCSX-ReARMed with its BUILT-IN HLE BIOS — no firmware file needed, software-rendered. Load a .exe (PS-EXE), or a disc image if you have one.",
+      "32-bit MIPS R3000 (little-endian), framebuffer GPU. Runs via PCSX-ReARMed with its BUILT-IN HLE BIOS - no firmware file needed, software-rendered. Load a .exe (PS-EXE), or a disc image if you have one.",
       "WORKS NOW: build (buildSource language:'c' → mips-elf-gcc → a PS-EXE the HLE BIOS runs; write GPU/SPU registers directly, no SDK yet), run, frame({op:'screenshot'}), cpu({op:'read'}) (live R3000 registers), cheats, readMemory/writeMemory (system_ram = 2MB main RAM), disasm + decompile (Ghidra MIPS C), the live-debug tools breakpoint({on:'pc'/'write'/'read'}) + watch({on:'range'}), AND getAudioState({chip:'spu'}) (24-voice SPU). MIPS is little-endian here.",
-      "The bare build path: a minimal crt0 sets the stack + clears .bss + calls main(); code loads at 0x80010000. No PSn00bSDK runtime yet — drive the GPU at ports 0x1F801810/0x1F801814. The framebuffer renderer has no tile/sprite inspectors — use screenshot + memory.",
+      "The bare build path: a minimal crt0 sets the stack + clears .bss + calls main(); code loads at 0x80010000. No PSn00bSDK runtime yet - drive the GPU at ports 0x1F801810/0x1F801814. The framebuffer renderer has no tile/sprite inspectors - use screenshot + memory.",
       "For higher fidelity (GL hardware renderer) a real PS1 BIOS + the beetle_psx_hw core is the alternative, but the HLE pcsx_rearmed path ships clean with zero firmware.",
     ],
     starterSnippets: [],
@@ -83,16 +83,16 @@ const PLATFORM_QUIRKS = {
     maxRomBytesPerBank: 0,
     headerLocation: ".z64 (big-endian) magic 80 37 12 40 at 0; entry point (big-endian word) at +0x08; 0x1000-byte IPL3 bootcode then game code. .v64/.n64 byte orders are auto-normalized.",
     notes: [
-      "32-bit MIPS R4300 (big-endian), 3D RDP/RSP. Runs via ParaLLEl-N64 with the glide64 GL renderer — HW-rendered on a real GPU through the native GL stack (native-gles + webgl-node), which ships as a required dependency, so nothing extra to install.",
+      "32-bit MIPS R4300 (big-endian), 3D RDP/RSP. Runs via ParaLLEl-N64 with the glide64 GL renderer - HW-rendered on a real GPU through the native GL stack (native-gles + webgl-node), which ships as a required dependency, so nothing extra to install.",
       "WORKS NOW: build (buildSource language:'c' → mips-elf-gcc → a big-endian MIPS image; bare crt0, no libdragon yet so it's logic-only for now), run, frame({op:'screenshot'}) (real 3D frames, headless via FBO readback), cpu({op:'read'}) (live R4300 registers), cheats, readMemory/writeMemory (system_ram = 8MB RDRAM, 0x80xxxxxx maps to offset 0), disasm + decompile (Ghidra MIPS C), breakpoint + watch (live-debug instrumentation), AND getAudioState({chip:'ai'}) (audio output: sample rate + playing). MIPS is big-endian here.",
-      "build caveat: a fully BOOTABLE N64 ROM needs the IPL3 bootcode + a libdragon-style header (libdragon SDK forthcoming). The bare build compiles+links your C to a flat image — great for logic/RE, not yet a self-booting cart. 3D renderer has no tile/sprite inspectors — use screenshot + memory.",
-      "If frame() errors pointing at GL, the native GL module failed to build/download during install — reinstall romdevtools and check that step's output.",
+      "build caveat: a fully BOOTABLE N64 ROM needs the IPL3 bootcode + a libdragon-style header (libdragon SDK forthcoming). The bare build compiles+links your C to a flat image - great for logic/RE, not yet a self-booting cart. 3D renderer has no tile/sprite inspectors - use screenshot + memory.",
+      "If frame() errors pointing at GL, the native GL module failed to build/download during install - reinstall romdevtools and check that step's output.",
     ],
     starterSnippets: [],
   },
 };
 
-/** op:'list' — every platform with core/toolchains/languages/quirks. */
+/** op:'list' - every platform with core/toolchains/languages/quirks. */
 export function listPlatformsCore({ platform, slim } = {}) {
       const available = new Set(listAvailableCores());
       let ids = Object.keys(CORES);
@@ -100,7 +100,7 @@ export function listPlatformsCore({ platform, slim } = {}) {
         if (!CORES[platform]) {
           throw new Error(`platform({op:'list'}): unknown platform '${platform}'. Known: ${ids.join(", ")}.`);
         }
-        ids = [platform]; // per-platform filter — the big token-sink fix (v0.71.0 fb)
+        ids = [platform]; // per-platform filter - the big token-sink fix (v0.71.0 fb)
       }
       const platforms = ids.map((id) => {
         const info = CORES[id];
@@ -131,15 +131,15 @@ export function listPlatformsCore({ platform, slim } = {}) {
       return platform ? platforms[0] : { platforms };
 }
 
-/** op:'resolve' — resolved core paths + the toolchain summary for a platform. */
+/** op:'resolve' - resolved core paths + the toolchain summary for a platform. */
 export function resolvePlatformCore({ platform }) {
       const r = resolveCore(platform);
       if (!r) throw new Error(`no core available for platform '${platform}'`);
-      // Also surface the toolchain(s) — resolve used to report only the emulator
+      // Also surface the toolchain(s) - resolve used to report only the emulator
       // core, so agents had to spelunk node_modules to learn the build path (v0.71.0
       // fb #3). We do NOT hand out the WASM/.mjs artifact paths: those tools run ONLY
       // inside romdev's `build` worker harness (virtual FS), so a node_modules path
-      // invites the wrong mental model (shimming them into an external Makefile —
+      // invites the wrong mental model (shimming them into an external Makefile -
       // which does NOT work). The `note` states that plainly (fb #4/#5).
       const toolchains = Object.values(TOOLCHAINS)
         .filter((t) => t.platforms.includes(platform))
@@ -149,7 +149,7 @@ export function resolvePlatformCore({ platform }) {
         toolchains,
         toolchainNote:
           "Build via the `build` tool (it compiles a source set into one ROM). The toolchain " +
-          "binaries are WASM, run ONLY inside romdev's build worker (virtual FS) — they are NOT " +
+          "binaries are WASM, run ONLY inside romdev's build worker (virtual FS) - they are NOT " +
           "host-callable and CANNOT back an external project's Makefile. For an existing decomp/" +
           "romhack that needs its own legacy compiler (e.g. agbcc) + Makefile, build it on the host " +
           "and use romdev to run/inspect/debug the resulting ROM.",
@@ -159,29 +159,29 @@ export function resolvePlatformCore({ platform }) {
 export function registerPlatformTools(server, z) {
   server.tool(
     "platform",
-    "Platform/toolchain/docs discovery — what romdev can run and how. `op`: 'list' | 'capabilities' | 'resolve' | " +
+    "Platform/toolchain/docs discovery - what romdev can run and how. `op`: 'list' | 'capabilities' | 'resolve' | " +
     "'toolchains' | 'docs' | 'doc'.\n" +
     "'list': every platform with its emulator core, toolchain(s), available languages (+ documented default), and " +
     "platform-specific quirks. Call this FIRST to discover what's possible + check a non-default language is " +
     "available before asking build for it.\n" +
-    "'capabilities': the CAPABILITY CONTRACT — which platform-sensitive ops a platform supports (inspectSprites/" +
+    "'capabilities': the CAPABILITY CONTRACT - which platform-sensitive ops a platform supports (inspectSprites/" +
     "Palette/Background, cpuState, audioDebug, renderingContext, cart, disasm, decompile), plus its cpuFamily, " +
     "renderingKind (tile/framebuffer/3d), introspection depth, CPUs, audio chips, and memory regions. Pass `platform` " +
     "for one, omit it for the whole matrix. Check this BEFORE calling a platform-sensitive tool to avoid an " +
-    "'unsupported' error — every tool that can't do an op on a platform returns {unsupported:true, platform, op, " +
+    "'unsupported' error - every tool that can't do an op on a platform returns {unsupported:true, platform, op, " +
     "reason, alternative}.\n" +
     "'resolve': resolved core paths for a platform (debugging aid).\n" +
     "'toolchains': the bundled homebrew toolchains (all Tier-1 = bundled WASM, no install). Pass `id` to confirm a " +
-    "specific toolchain's install status (a no-op in v1 — everything's bundled).\n" +
+    "specific toolchain's install status (a no-op in v1 - everything's bundled).\n" +
     "'docs': the doc names available for a platform. 'doc': the full markdown of one (`name`: mental_model / " +
     "troubleshooting / upstream_sources; `platform:'romhacking'` + `name:'playbook'` for the RE decision tree). " +
     "Read MENTAL_MODEL before writing code, and the romhacking playbook before a hack.",
     {
       op: z.enum(["list", "capabilities", "resolve", "toolchains", "docs", "doc"]).describe("list=platforms (pass `platform` to get just ONE, `slim:true` to drop the verbose notes); capabilities=per-platform op support matrix; resolve=core + toolchain artifact paths; toolchains; docs=a platform's doc names; doc=read one doc."),
       platform: z.string().optional().describe("op=list/resolve/docs/doc/capabilities: platform id (e.g. nes, gb, genesis; 'romhacking' for the RE playbook). On op=list it filters to that ONE platform's row instead of the whole matrix (big token saver)."),
-      slim: z.boolean().optional().describe("op=list: drop the heavy per-language `note` + `quirks` prose; return just {platform, toolchains[], languages{defaultLanguage,…}}. Detail stays behind op:'doc' / op:'capabilities'."),
+      slim: z.boolean().optional().describe("op=list: drop the heavy per-language `note` + `quirks` prose; return just {platform, toolchains[], languages{defaultLanguage,...}}. Detail stays behind op:'doc' / op:'capabilities'."),
       id: z.string().optional().describe("op=toolchains: a specific toolchain's install status (e.g. 'cc65')."),
-      name: z.string().optional().describe("op=doc: which doc — mental_model | troubleshooting | upstream_sources | playbook."),
+      name: z.string().optional().describe("op=doc: which doc - mental_model | troubleshooting | upstream_sources | playbook."),
     },
     safeTool(async (args) => {
       switch (args.op) {
@@ -192,7 +192,7 @@ export function registerPlatformTools(server, z) {
             if (!cap) throw new Error(`platform({op:'capabilities'}): unknown platform '${args.platform}'. Known: ${Object.keys(CAPABILITIES).join(", ")}.`);
             // Call out WHY each unsupported op is N/A by hardware (a framebuffer/3D
             // renderer has no tile/sprite tables; a disc system has no cart) so an
-            // agent reading the manifest sees "can't, because hardware" — not a
+            // agent reading the manifest sees "can't, because hardware" - not a
             // bare `false` it might mistake for "not built yet".
             const naReasons = {};
             for (const op of OP_KEYS) {
@@ -200,7 +200,7 @@ export function registerPlatformTools(server, z) {
             }
             return jsonContent({ platform: args.platform, ...cap, ...(Object.keys(naReasons).length ? { naReasons } : {}) });
           }
-          // All platforms incl. the partial MIPS tier (ps1/n64) — so an agent can
+          // All platforms incl. the partial MIPS tier (ps1/n64) - so an agent can
           // discover their capability map and see which ops are live vs not-yet.
           return jsonContent({ platforms: Object.keys(CAPABILITIES), capabilities: CAPABILITIES });
         }

@@ -35,7 +35,7 @@ function parseToolJson(res) {
   return JSON.parse(text);
 }
 
-// Smallest possible NES C source — compiles cleanly through cc65 and
+// Smallest possible NES C source - compiles cleanly through cc65 and
 // runs for a couple of frames without crashing. We don't care what it
 // draws, only that the build succeeds so runSource gets to the hint.
 const NES_TINY = `

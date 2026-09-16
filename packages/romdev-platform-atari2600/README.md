@@ -2,7 +2,7 @@
 
 Atari 2600 bundle: stella2014 emulator core + dasm assembler, as WebAssembly.
 
-A binary package for [romdev](https://github.com/monteslu/romdev) — it ships the
+A binary package for [romdev](https://github.com/monteslu/romdev) - it ships the
 prebuilt WebAssembly + JS glue and is resolved by the main `romdev` package on
 demand. You normally install `romdev`, not this package directly.
 

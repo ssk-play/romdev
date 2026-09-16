@@ -22,4 +22,4 @@
     .byte "2061", $00          ; "2061" + line terminator
     .word $0000                ; end-of-program
 
-; Your code starts at $080D — define your reset entry there.
+; Your code starts at $080D - define your reset entry there.

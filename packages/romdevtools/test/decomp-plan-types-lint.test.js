@@ -1,4 +1,4 @@
-// decomp-plan-types-lint.test.js — the parts of the decomp domain that need
+// decomp-plan-types-lint.test.js - the parts of the decomp domain that need
 // no compiler: candidate lint (what never counts as recovered C), type
 // evidence from asm access widths, and the m2c macro injection.
 import { test } from "node:test";

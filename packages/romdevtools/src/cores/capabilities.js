@@ -1,32 +1,32 @@
-// capabilities.js — the platform CAPABILITY CONTRACT.
+// capabilities.js - the platform CAPABILITY CONTRACT.
 //
 // One declarative entry per platform stating, in machine-readable form, what
 // romdev's platform-sensitive tools can do on it. This is the SOURCE OF TRUTH
-// the BUILDING.md `deep`/`shallow` legend used to encode as prose — now data,
+// the BUILDING.md `deep`/`shallow` legend used to encode as prose - now data,
 // enforced by test/capability-conformance.test.js (declared MUST exactly match
 // actual tool behavior; mismatch fails CI).
 //
 // Why it exists: the 14 tier-1 platforms are near-uniform, but the next-gen tier
-// (N64/PS1/Dreamcast/PSP/DS) breaks that — 3D rendering, MIPS/SH-4 CPUs, GPU-FBO
+// (N64/PS1/Dreamcast/PSP/DS) breaks that - 3D rendering, MIPS/SH-4 CPUs, GPU-FBO
 // screenshots, ops that are meaningless on a polygon renderer. A declared
 // contract + a uniform "unsupported" signal lets agents discover what a system
 // can do BEFORE calling, and keeps the matrix honest as platforms diverge.
 //
-// Fields (keep MINIMAL — only what the contract / discovery / conformance use):
+// Fields (keep MINIMAL - only what the contract / discovery / conformance use):
 //   cpuFamily       primary CPU family (forward-looking; "6502","z80","sm83",
 //                   "m68k","arm","65816","huc6280" today; "mips","sh4" later)
-//   renderingKind   "tile" | "framebuffer" | "3d" | "none" — how the screen is
+//   renderingKind   "tile" | "framebuffer" | "3d" | "none" - how the screen is
 //                   produced. The current 14 are all "tile". Drives whether
 //                   tile/nametable inspection ops even make sense.
-//   introspection   "deep" | "shallow" — the BUILDING.md legend, as data.
+//   introspection   "deep" | "shallow" - the BUILDING.md legend, as data.
 //   ops.*           boolean per platform-sensitive op (see OP_KEYS below).
 //   decompileQuality "excellent"|"good"|"medium"|"rough" (from the RE engine).
-//   cpus            { main, secondary[] } — what getCPUState({op:'read'}) decodes.
+//   cpus            { main, secondary[] } - what getCPUState({op:'read'}) decodes.
 //   audioChips      chip ids audioDebug({op:'inspect'}) decodes ([] = no chip).
 //   memoryRegions   exact region ids memory({op}) accepts beyond the generic set.
 
 /** The platform-sensitive op keys the contract tracks. Universal tools (build's
- * file plumbing, encodeAudio, catalog, files, ...) are NOT here — they don't
+ * file plumbing, encodeAudio, catalog, files, ...) are NOT here - they don't
  * vary by platform. */
 export const OP_KEYS = /** @type {const} */ ([
   "build",              // buildSource for this platform
@@ -40,8 +40,8 @@ export const OP_KEYS = /** @type {const} */ ([
   "audioDebug",         // audioDebug({op:'inspect'})
   "cart",               // cart({op:'extract'/'wrap'})
   "disasm",             // disasm({target:'rom'/'project'/'references'})
-  "decompile",          // disasm({target:'decompile'}) — RE engine, all 14
-  "decomp",             // decomp({op}) — matching decompilation on a splat project's own compiler
+  "decompile",          // disasm({target:'decompile'}) - RE engine, all 14
+  "decomp",             // decomp({op}) - matching decompilation on a splat project's own compiler
 ]);
 
 // Generic regions every running core exposes (libretro RETRO_MEMORY_*).
@@ -138,7 +138,7 @@ export const CAPABILITIES = {
     audioChips: ["gba"],
     memoryRegions: [...GENERIC_REGIONS, "gba_cpu_regs", "gba_io_regs", "gba_palette", "gba_oam"],
     // GBA: the patched mgba regions give MORE than BUILDING.md's old "shallow"
-    // prose implied — inspectSprites/Palette + renderingContext + cpuState +
+    // prose implied - inspectSprites/Palette + renderingContext + cpuState +
     // audioDebug are all wired (per the tool Supported lists). cart extract/wrap
     // and inspectBackgroundMap are NOT.
     renderingKind: "tile", introspection: "shallow",
@@ -179,7 +179,7 @@ export const CAPABILITIES = {
     cpus: { main: "65c02", secondary: [] },
     audioChips: ["mikey"],
     memoryRegions: [...GENERIC_REGIONS, "lynx_cpu_regs", "lynx_hw_regs"],
-    // Lynx: sprites return the SCB list head (no fixed OAM) — counts as wired.
+    // Lynx: sprites return the SCB list head (no fixed OAM) - counts as wired.
     // shallow per BUILDING.md (generic introspection + sfx/music templates).
     renderingKind: "tile", introspection: "shallow",
     ops: {
@@ -195,14 +195,14 @@ export const CAPABILITIES = {
     // hardware blitter (no tilemap / no fixed OAM), + a second 65C02 audio
     // coprocessor. Closest cousin is the Lynx (also 65C02 + blitter). The core
     // is patched with the romdev_* debug hooks (6502 regsnap + MemoryWrite/Read
-    // watchpoints + the mos6502 dispatch freeze) — so cpuState + write/read
+    // watchpoints + the mos6502 dispatch freeze) - so cpuState + write/read
     // watchpoints + pc-break + watchdog + coverage are LIVE, alongside build/run/
     // screenshot/disasm/decompile. inspectSprites is N/A (the blitter has no OAM,
     // like Dreamcast); inspectBackground N/A (framebuffer, not a tilemap).
     cpuFamily: "6502", decompileQuality: "rough",
     cpus: { main: "6502", secondary: ["acp-65c02"] }, // ACP = the audio coprocessor (2nd 65C02)
     // audioDebug(chip:'acp') reports the ACP's STATE (DAC output, IRQ/sample rate,
-    // run/mute, audio-CPU PC) via the core's romdev_acp_get export — it's a second
+    // run/mute, audio-CPU PC) via the core's romdev_acp_get export - it's a second
     // 65C02 driving a DAC, not a fixed-register synth.
     audioChips: ["acp"],
     memoryRegions: [...GENERIC_REGIONS],
@@ -216,22 +216,22 @@ export const CAPABILITIES = {
     },
   },
   pico8: {
-    // FAKE-08 (MIT) runs PICO-8 carts. PICO-8 is a Lua VM, not a real CPU — so there's
+    // FAKE-08 (MIT) runs PICO-8 carts. PICO-8 is a Lua VM, not a real CPU - so there's
     // no machine code to disassemble/decompile and no CPU register file (cpuState N/A).
     // But: build=PACKAGE a .p8 cart (Lua + gfx/sfx/map sections); run/screenshot work;
-    // memory works — the romdev patch exposes the full 64KB PICO-8 address space as
+    // memory works - the romdev patch exposes the full 64KB PICO-8 address space as
     // system_ram (sprite sheet, map, flags, music, sfx, general RAM, screen buffer).
-    // disasm here is target:'source' — the cart IS Lua source, so we return the Lua
+    // disasm here is target:'source' - the cart IS Lua source, so we return the Lua
     // itself (the honest "understand this cart" path), not a machine-code listing.
     // It renders to a 128×128 framebuffer (poke to screen memory), so the inspect-*
     // tile/sprite-table tools are N/A like gametank/the disc platforms.
-    // tier:"fantasy" — a fantasy console (Lua VM), not a CPU emulator. Held to its OWN
+    // tier:"fantasy" - a fantasy console (Lua VM), not a CPU emulator. Held to its OWN
     // conformance, NOT the canonical-14 cross-checks (which assume CPU disasm/decompile/
     // cpuState/tile inspectors every real console has). Excluded from CONTRACT_PLATFORMS
     // via NEXTGEN_TIER_PLATFORMS.
     tier: "fantasy",
     cpuFamily: "lua", decompileQuality: "n/a",
-    cpus: { main: "", secondary: [] }, // Lua VM — no CPU register file
+    cpus: { main: "", secondary: [] }, // Lua VM - no CPU register file
     audioChips: [], // audioDebug not wired (PICO-8's synth isn't a fixed-register chip we decode)
     memoryRegions: [...GENERIC_REGIONS],
     renderingKind: "framebuffer", introspection: "shallow",
@@ -245,9 +245,9 @@ export const CAPABILITIES = {
   },
   sync32: {
     // monteslu's RP2350 console (Cortex-M33 games as .s32 ROMs), emulated by
-    // s32core — a first-party pure-C interpreter (11-cart byte-exact
+    // s32core - a first-party pure-C interpreter (11-cart byte-exact
     // differential suite against the Unicorn reference emulator lives in the
-    // s32core repo). tier:"arm" — new 32-bit tier, analysis/inspectors land
+    // s32core repo). tier:"arm" - new 32-bit tier, analysis/inspectors land
     // later; today: run + screenshot (+ input/frames/playtest via the host).
     // Carts build IN romdev now (0.131.0): the WASM arm-none-eabi toolchain
     // that ships for GBA also targets Cortex-M33, and the SDK's
@@ -258,7 +258,7 @@ export const CAPABILITIES = {
     cpuFamily: "arm", decompileQuality: "n/a",
     cpus: { main: "cortex-m33", secondary: [] },
     audioChips: [],
-    // system_ram IS the console's 520KB SRAM at 0x20000000 — a game's globals,
+    // system_ram IS the console's 520KB SRAM at 0x20000000 - a game's globals,
     // its stack, and in ram mode its code. The sync32_* regions are the
     // debugger views the core exposes on top.
     memoryRegions: ["system_ram", "sync32_cpu_regs", "sync32_palette", "sync32_canvas", "sync32_sheet0"],
@@ -267,8 +267,8 @@ export const CAPABILITIES = {
     // text used to name `video_ram`, which this platform does not have).
     framebufferRegion: "sync32_canvas",
     // No cart(): a .s32 is an ELF-derived image with a 64-byte header, not a
-    // mapper-banked ROM — nothing to identify or patch as a "cart".
-    cartNa: "sync32 carts are ELF-derived .s32 images with a 64-byte header (title/id/api/video/mode), not a mapper-banked ROM — there is no board or mapper for cart() to identify or patch. build({platform:'sync32'}) reports the header fields it wrote.",
+    // mapper-banked ROM - nothing to identify or patch as a "cart".
+    cartNa: "sync32 carts are ELF-derived .s32 images with a 64-byte header (title/id/api/video/mode), not a mapper-banked ROM - there is no board or mapper for cart() to identify or patch. build({platform:'sync32'}) reports the header fields it wrote.",
     // The single most decision-relevant number on the platform, and it lived
     // only in a linker script on disk: how many bytes an IMAGE may occupy.
     // ram mode: text+rodata+data+bss all live in the 320KB game region minus
@@ -287,7 +287,7 @@ export const CAPABILITIES = {
       build: true, run: true, screenshot: true,
       // inspectSprites stays FALSE, and that is not a gap: it means OAM
       // slots, and sync32 has no OAM. A game blits from loaded SHEETS with
-      // api->sprite(), so the sheets are what there is to look at — read them
+      // api->sprite(), so the sheets are what there is to look at - read them
       // as the sync32_sheet* regions (8-bit indices into the palette below).
       //
       // inspectBackground/renderingContext are false for the same reason:
@@ -335,16 +335,16 @@ export const CAPABILITIES = {
     },
   },
 
-  // ── 32-bit MIPS tier — ANALYSIS-FIRST (no run-side core yet) ──────────────
+  // ── 32-bit MIPS tier - ANALYSIS-FIRST (no run-side core yet) ──────────────
   // disasm/decompile are wired through the shipped rizin.wasm MIPS plugin (PS1 =
   // R3000 LE, N64 = R4300 BE). Everything run-side (build/run/screenshot/the
   // tile/sprite inspectors) is FALSE: there is no emulator core in this slice, and
   // the tile/nametable/OAM inspectors are MEANINGLESS on a framebuffer (PS1) / 3D
-  // (N64) renderer anyway — so an agent gets the uniform unsupported() signal
+  // (N64) renderer anyway - so an agent gets the uniform unsupported() signal
   // instead of blindly calling inspectBackground on a polygon machine.
   // disasm/cfg/xrefs/functions WORK (rizin's Capstone MIPS plugin). decompile is
   // FALSE: the rz-ghidra decompiler ships only the 8 SLEIGH specs for the current
-  // tier (no MIPS.sla) — adding it is a romdev-analysis-decompiler rebuild, a later
+  // tier (no MIPS.sla) - adding it is a romdev-analysis-decompiler rebuild, a later
   // step. decompileQuality records the EXPECTED quality once that spec ships.
   ps1: {
     cpuFamily: "mips", decompileQuality: "good", tier: "mips",
@@ -355,7 +355,7 @@ export const CAPABILITIES = {
     ops: {
       // beetle_psx_hw: the GPU renders on the REAL GPU via the GLES3/WebGL2 hardware
       // renderer through native-gles (like glide64-N64 + Flycast-DC), with OpenBIOS
-      // EMBEDDED (PCSX-Redux, MIT, region-free) — no Sony firmware to ship, no BIOS file.
+      // EMBEDDED (PCSX-Redux, MIT, region-free) - no Sony firmware to ship, no BIOS file.
       // run/screenshot + cheats + cpuState + audioDebug live; disasm + decompile work
       // (MIPS Capstone + the MIPS:LE:32 SLEIGH spec). cpuState (R3000A GPR_full/BACKED_PC)
       // + audioDebug (SPU $1F801C00 register block) come from beetle-side
@@ -396,7 +396,7 @@ export const CAPABILITIES = {
     renderingKind: "3d", introspection: "shallow",
     ops: {
       // Flycast WASM boots + RUNS homebrew .elf (reios HLE): the SH-4 executes guest
-      // code (run + memory introspection), and the PowerVR2 present-path works — flycast
+      // code (run + memory introspection), and the PowerVR2 present-path works - flycast
       // renders to the GL FBO and the host reads it back (verified: a framebuffer-writing
       // program shows ~727k captured pixels). `build` lands with the sh-elf-gcc WASM
       // toolchain. cpuState (SH-4 Sh4cntx regs) + audioDebug (AICA 64-channel register
@@ -413,7 +413,7 @@ export const CAPABILITIES = {
   },
 };
 
-/** The 32-bit MIPS tier (PS1/N64) — marked `tier:"mips"`. A PARTIAL tier: they
+/** The 32-bit MIPS tier (PS1/N64) - marked `tier:"mips"`. A PARTIAL tier: they
  *  run + screenshot + disasm, but don't yet have the full op surface of the canonical
  *  14 (no build toolchain, no MIPS decompile/cpuState, framebuffer/3D renderers have
  *  no tile/sprite inspectors). They're held to their OWN conformance, not the
@@ -449,14 +449,14 @@ export function capabilitiesFor(platform) {
   return CAPABILITIES[platform] ?? null;
 }
 
-// Why an op is unsupported, grounded in the HARDWARE — so `unsupported()`'s reason
+// Why an op is unsupported, grounded in the HARDWARE - so `unsupported()`'s reason
 // distinguishes "N/A by hardware, permanent" from "a decoder we haven't wired."
 // Keyed on renderingKind: a framebuffer (PS1) / 3D (N64) renderer has no tile,
 // sprite-attribute, nametable, or palette tables for the tile-era inspectors to
-// read — those ops are MEANINGLESS on the hardware, not merely absent.
+// read - those ops are MEANINGLESS on the hardware, not merely absent.
 const RENDERING_NA = {
-  framebuffer: "this platform renders to a flat framebuffer — there are no tile/sprite-attribute/nametable/palette tables to inspect (the GPU draws pixels/polys directly). Read the raw framebuffer via memory({region:'video_ram'}).",
-  "3d": "this platform is a 3D (polygon) renderer — there are no tile/sprite-attribute/nametable/palette tables to inspect (geometry is transformed + rasterized, not composed from tile maps). Inspect the scene via memory({region:'system_ram'}) / cpu state.",
+  framebuffer: "this platform renders to a flat framebuffer - there are no tile/sprite-attribute/nametable/palette tables to inspect (the GPU draws pixels/polys directly). Read the raw framebuffer via memory({region:'video_ram'}).",
+  "3d": "this platform is a 3D (polygon) renderer - there are no tile/sprite-attribute/nametable/palette tables to inspect (geometry is transformed + rasterized, not composed from tile maps). Inspect the scene via memory({region:'system_ram'}) / cpu state.",
 };
 const NA_OPS = new Set(["inspectSprites", "inspectPalette", "inspectBackground", "renderingContext"]);
 
@@ -467,9 +467,9 @@ const NA_OPS = new Set(["inspectSprites", "inspectPalette", "inspectBackground",
 export function naReason(platform, op) {
   const cap = CAPABILITIES[platform];
   if (!cap || cap.ops?.[op]) return null;            // supported → no N/A reason
-  if (op === "decomp") return platform === "ps1" ? "the decomp tool's MIPS path is parameterized for splat psx projects (little-endian, GCC, PS-EXE), but no PS1 checkout has been run through it yet: import works and marks the project platformVerified:false; the capability is declared only once a known-matching PS1 function compares exact" : "matching decompilation needs a splat-layout project with its original compiler registered (decomp({op:'import'})); proven for n64 (IDO 5.3) — other platforms have no compile-and-compare adapter";
+  if (op === "decomp") return platform === "ps1" ? "the decomp tool's MIPS path is parameterized for splat psx projects (little-endian, GCC, PS-EXE), but no PS1 checkout has been run through it yet: import works and marks the project platformVerified:false; the capability is declared only once a known-matching PS1 function compares exact" : "matching decompilation needs a splat-layout project with its original compiler registered (decomp({op:'import'})); proven for n64 (IDO 5.3) - other platforms have no compile-and-compare adapter";
   if (op === "cart") {
-    // The boilerplate said "disc-based" for every framebuffer platform —
+    // The boilerplate said "disc-based" for every framebuffer platform -
     // true of PlayStation, false of sync32 (a cartridge console whose carts
     // simply have no mapper). A platform states its own reason when it has one.
     if (cap.cartNa) return cap.cartNa;

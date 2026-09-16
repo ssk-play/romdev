@@ -1,4 +1,4 @@
-// romdev-maxmod — pure-JS Maxmod soundbank compiler for the GBA.
+// romdev-maxmod - pure-JS Maxmod soundbank compiler for the GBA.
 //
 // A faithful port of devkitPro/blocksds `mmutil`: parses a tracker module
 // (.xm / .mod / .it / .s3m) and emits a Maxmod **MAS soundbank** (.bin + .h)

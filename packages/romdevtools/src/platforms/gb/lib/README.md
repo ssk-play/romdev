@@ -1,15 +1,15 @@
-# Game Boy / Game Boy Color — quickstart
+# Game Boy / Game Boy Color - quickstart
 
 The compressed version of "everything I had to learn the hard way
 building a GB ROM with romdev."
 
 ## Language: RGBDS assembly
 
-Game Boy uses RGBDS (rgbasm + rgblink + rgbfix) — the canonical
+Game Boy uses RGBDS (rgbasm + rgblink + rgbfix) - the canonical
 toolchain for GB homebrew. `build({output:'rom', platform:"gb", source: <asm>})`
 builds + links + runs `rgbfix` to fix the cart header. GBC builds the
 same way; pass `platform:"gbc"` to enable the CGB-only opcodes (KEY1,
-BCPS, etc.) — gambatte detects mode from the cart header byte at $0143.
+BCPS, etc.) - gambatte detects mode from the cart header byte at $0143.
 
 C is theoretically supported via GBDK (sdcc-gbz80 backend) but is NOT
 bundled today; the SM83 backend in sdcc 4.4.0 has been less tested for
@@ -24,7 +24,7 @@ us than the z80 backend.
 | `vblank_wait.asm` | Polling vblank wait (LY $\geq$ 144). The IRQ-driven variant uses halt to save battery on a real DMG. |
 | `joypad_read.asm` | Reads the joypad via the two-pass $FF00 protocol. Returns one byte: D-pad in low nybble, buttons in high nybble. |
 | `load_palette.asm` | DMG palette setup (BGP/OBP0/OBP1). Standard $E4 = white→gray→darkgray→black. |
-| `load_tiles.asm` | Bulk VRAM upload. Assumes LCD is OFF — pause renders for big uploads. |
+| `load_tiles.asm` | Bulk VRAM upload. Assumes LCD is OFF - pause renders for big uploads. |
 | `dma_oam.asm` | The canonical HRAM-resident OAM DMA routine. Copies shadow OAM at $C000 to actual OAM at $FE00 in 160 µs. |
 
 Fetch any with `getStarterSnippet({platform:"gb", name:"<file>"})`.
@@ -38,21 +38,21 @@ Writes during those modes are silently dropped. Safe write windows:
 
 - **LCD off** (LCDC bit 7 = 0): unrestricted. Use this for big uploads
   at startup. Turn LCD off, upload everything, turn back on.
-- **Vblank** (LY ≥ 144): about 1140 cycles per frame — enough for a
+- **Vblank** (LY ≥ 144): about 1140 cycles per frame - enough for a
   large but not huge upload (~150 tiles).
 - **Hblank** (PPU mode 0): ~50 cycles each, but you'd be reading STAT
   bit 1-0 = 0 to detect it. Used for HDMA-style streaming on GBC.
 
 The "screen flashes white when uploading mid-frame" bug is almost
 always missing this. `tiles({op:'png'})` shows you exactly what
-landed in VRAM — if it's empty after your upload, the LCD was on.
+landed in VRAM - if it's empty after your upload, the LCD was on.
 
 ### 2. OAM DMA must run from HRAM
 
 The OAM DMA pauses the main CPU bus for 160 µs; instructions can only
 fetch from HRAM ($FF80-$FFFE) during that time. The conventional pattern
 is to copy a tiny stub (10 bytes) into HRAM at startup, then call it
-once per vblank. See `dma_oam.asm` for the shipped version — it includes
+once per vblank. See `dma_oam.asm` for the shipped version - it includes
 both the setup routine (run once) and the HRAM-resident copy stub.
 
 ### 3. The cart header MUST have the Nintendo logo + a valid checksum
@@ -72,13 +72,13 @@ gambatte even with an invalid header. Real hardware won't.
 
 ### 4. DMG colors are 4 SHADES, not 4 colors
 
-Tile pixel value 0-3 doesn't directly pick an RGB color — it indexes
+Tile pixel value 0-3 doesn't directly pick an RGB color - it indexes
 into the BGP register, which itself picks a shade from a hardware-
 fixed 4-shade ramp. So "tile pixel = 0" is whatever shade BGP's low
 2 bits select; you can remap shades at runtime by changing BGP.
 
 This is why the same tile data looks completely different in different
-games — they all use 4 shades, but the BGP mapping varies. To preview
+games - they all use 4 shades, but the BGP mapping varies. To preview
 art, use `tiles({op:'preview', platform:"gb", ...})` with an explicit
 palette, or `paletteFromEmulator:true` after loading.
 
@@ -106,7 +106,7 @@ After init (LCD off → tiles + palette + map → LCD on), the inner loop is:
 vblank_wait_poll      ; or halt with vblank IRQ
 call oam_dma          ; DMA shadow OAM to $FE00
 call joypad_read      ; update JoypadState in HRAM
-call game_update      ; your logic — moves shadow OAM around
+call game_update      ; your logic - moves shadow OAM around
 jr   main_loop
 ```
 

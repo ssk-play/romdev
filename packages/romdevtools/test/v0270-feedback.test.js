@@ -1,14 +1,14 @@
 // Fixes from the 0.27.0 NES (mapper-2) feedback round:
 //   #1 disasm({target:'project'}) banked-NES rebuild glue is now COMPLETE +
 //      one-call (header segment, per-bank PRGn wrappers, multi-bank .cfg,
-//      rebuild.json wired to all of it via linkerConfigPath) — byte-exact.
+//      rebuild.json wired to all of it via linkerConfigPath) - byte-exact.
 //   #2 build({linkerConfigPath}) reads the .cfg from disk.
 //   #3 disasm({target:'references'}) scans EVERY PRG bank (was a flat blob
 //      at $8000 → refsFound:0 on banked ROMs) + skips `#$nn` immediates.
 //   #4 memory({op:'read', outputPath, echo:false}) suppresses the hex echo.
 //   #5 memory({op:'diff'}) summary clusters carry before/after (≤8 bytes)
 //      + minDelta filters churn.
-//   #6 memory({op:'diffRuns'}) — the A/B input-diff primitive.
+//   #6 memory({op:'diffRuns'}) - the A/B input-diff primitive.
 //   #7 input({op:'press'}) emits a guaranteed released→pressed edge.
 
 import { test } from "node:test";
@@ -77,7 +77,7 @@ test("banked NES: disasm project emits working glue; rebuild.json build() is byt
     assert.ok(call.sourcesPaths["nes_header.s"], "header segment source must be wired in");
     assert.ok(call.sourcesPaths["bank3_seg.s"], "every bank wrapper must be wired in");
 
-    // Feed the emitted call STRAIGHT back to build() — the #1 ask.
+    // Feed the emitted call STRAIGHT back to build() - the #1 ask.
     const build = toolHandler(registerToolchainTools, "build", "v0270-banked");
     const outPath = path.join(dir, "rebuilt.nes");
     const r = parse(await build({ ...call, outputPath: outPath }));
@@ -97,14 +97,14 @@ test("banked NES: references scan every bank (zero-page direct + indexed) and sk
     await writeFile(romPath, makeBankedNes());
     const disasm = toolHandler(registerDisasmTools, "disasm");
 
-    // $F5 is touched by `rol $F5` in EVERY bank — the exact shape the NES
+    // $F5 is touched by `rol $F5` in EVERY bank - the exact shape the NES
     // session reported as refsFound:0.
     const r = parse(await disasm({ target: "references", path: romPath, address: 0xF5, maxRefsReturned: 64 }));
     assert.ok(r.refsFound >= 4, `expected refs in all 4 banks, got ${r.refsFound}`);
     const banks = new Set(r.refs.map((x) => x.prgBank));
     assert.ok(banks.has(0) && banks.has(3), "refs must carry prgBank tags spanning switchable + fixed banks");
 
-    // $02: lda/sta in every bank — and NO immediate false positives.
+    // $02: lda/sta in every bank - and NO immediate false positives.
     const r2 = parse(await disasm({ target: "references", path: romPath, address: 0x02, maxRefsReturned: 64 }));
     assert.ok(r2.refsFound >= 8, "zp direct refs across banks");
     assert.ok(!r2.refs.some((x) => /#\$/.test(x.instruction)), "immediates (#$02) must not count as references");

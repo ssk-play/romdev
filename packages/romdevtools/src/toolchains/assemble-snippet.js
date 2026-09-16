@@ -1,4 +1,4 @@
-// assembleSnippet — take a small chunk of asm and return raw bytes.
+// assembleSnippet - take a small chunk of asm and return raw bytes.
 //
 // NOT a full build. NO header, NO linker config, NO segments. Just:
 //   { cpu: "6502", origin: 0xC500, code: "lda #$05\nsta $0123\nrts" }
@@ -14,7 +14,7 @@
 //   68k                   → vasm68k -Fbin
 //   z80                   → sdasz80 + sdld (via the existing sdcc helpers)
 //   sm83 (gb/gbc)         → rgbasm + rgblink + rgbfix -p 0 (flat binary)
-//   spc700                → NOT YET BUNDLED — throws structured error
+//   spc700                → NOT YET BUNDLED - throws structured error
 //
 // All return shape: { ok: true, cpu, origin, bytes: Uint8Array, length, hex, asm, log }
 
@@ -32,8 +32,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Build a transparent snippet-assembly error: lead with the FIRST structured
-// diagnostic (file:line: message) parsed out of the raw log — the same
-// issues[]-style surfacing build() does — instead of dumping the unparsed
+// diagnostic (file:line: message) parsed out of the raw log - the same
+// issues[]-style surfacing build() does - instead of dumping the unparsed
 // assembler stdout and making the agent grep it. Full log still appended for
 // fallback. `where` is e.g. "ca65" / "ld65 link" / "asar".
 function asmError(where, log) {
@@ -63,13 +63,13 @@ const CPU_ASSEMBLERS = {
   "sm83":    assembleRgbds,     // GB/GBC LR35902
   "gb":      assembleRgbds,     // alias for sm83
   "gbc":     assembleRgbds,     // alias for sm83
-  // spc700 — TODO: would need a dedicated SPC700 assembler bundle. We have
+  // spc700 - TODO: would need a dedicated SPC700 assembler bundle. We have
   // NO upstream WASM assembler for SPC700; raw 6502 doesn't work because
   // the ISA differs. Caller gets a clear "not supported yet" message.
   "spc700":  () => { throw new Error(
     "assembleSnippet: spc700 not yet supported. " +
     "No SPC700 assembler is currently bundled (would need to extract one " +
-    "from bsnes or write a tiny encoder — captured in plan as future work).");
+    "from bsnes or write a tiny encoder - captured in plan as future work).");
   },
 };
 
@@ -81,7 +81,7 @@ const CPU_ASSEMBLERS = {
  * @param {number} [args.origin]   where the code is intended to live in CPU
  *   address space. Required for any code that uses absolute addressing or
  *   relative branches that need a real target. Default 0x0000.
- * @param {string} args.code       the asm source (no .org / no headers needed —
+ * @param {string} args.code       the asm source (no .org / no headers needed -
  *   we synthesize them based on cpu + origin).
  * @returns {Promise<{ ok: boolean, cpu: string, origin: number, bytes: Uint8Array, length: number, hex: string, log: string }>}
  */
@@ -125,7 +125,7 @@ async function assembleCa65({ origin, code }, cpu = "6502") {
   }
 
   // Minimal linker config: one MEMORY block at `origin`, one SEGMENT
-  // mapping CODE there. Output is raw bytes — no header bytes prepended.
+  // mapping CODE there. Output is raw bytes - no header bytes prepended.
   const cfg = `MEMORY { OUT: file = %O, start = $${origin.toString(16).toUpperCase()}, size = $10000 - $${origin.toString(16).toUpperCase()}, fill = no; }
 SEGMENTS { CODE: load = OUT, type = ro; }
 `;
@@ -167,7 +167,7 @@ async function assembleAsar({ origin, code }) {
     if (bin[i] !== SENTINEL) { start = i; break; }
   }
   if (start < 0) {
-    throw new Error(`assembleSnippet[asar]: no bytes written (origin 0x${origin.toString(16)}) — the source assembled but emitted nothing at this origin. Check the org address and that the code actually emits bytes.\nFull log:\n${r.log ?? ""}`);
+    throw new Error(`assembleSnippet[asar]: no bytes written (origin 0x${origin.toString(16)}) - the source assembled but emitted nothing at this origin. Check the org address and that the code actually emits bytes.\nFull log:\n${r.log ?? ""}`);
   }
   let end = start + 1;
   let sentinelRun = 0;
@@ -251,7 +251,7 @@ async function assembleSdcc({ origin, code }) {
 async function assembleRgbds({ origin, code }) {
   // rgbasm needs SECTION declarations to place code at an address.
   const sectionAt = `$${origin.toString(16).toUpperCase()}`;
-  // GB has no BANK[0] for fixed ROM — use ROM0 if origin < 0x4000, else ROMX BANK[1].
+  // GB has no BANK[0] for fixed ROM - use ROM0 if origin < 0x4000, else ROMX BANK[1].
   const useRom0 = origin < 0x4000;
   const realSource = useRom0
     ? `SECTION "snippet", ROM0[${sectionAt}]\n${code}\n`

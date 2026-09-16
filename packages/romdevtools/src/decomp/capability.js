@@ -1,4 +1,4 @@
-// capability.js — prove the runtime's debug capabilities instead of describing
+// capability.js - prove the runtime's debug capabilities instead of describing
 // them.
 //
 // A real session recorded `PC_BREAK_UNSUPPORTED` against
@@ -44,19 +44,19 @@ export async function probeCapabilities(host, info) {
   if (!host) {
     for (const k of Object.keys(CAPABILITIES)) mark(k, "unknown", { note: "no ROM loaded: nothing to probe against" });
     return { platform: info.platform, core: info, capabilities: out, probedAt: new Date().toISOString(),
-      note: "load media first — a capability report with no core behind it would be a description, not a probe" };
+      note: "load media first - a capability report with no core behind it would be a description, not a probe" };
   }
 
   // THE METHOD NAMES ARE TAKEN FROM THE HOST, NOT INVENTED. An earlier version
   // probed `stepInstructions` (plural) and `setPCBreak(pc, on)`; the host
   // exposes `stepInstruction` (singular) and `setPCBreak(pc, on, once)`, gated
   // by `pcBreakSupported()`. So this reported "unsupported" for capabilities
-  // that `coverage` proved working on the SAME host in the same session — a
+  // that `coverage` proved working on the SAME host in the same session - a
   // capability report that contradicts a runtime proof is worse than none,
   // because it is the thing a caller consults BEFORE trying.
   const gate = typeof host.pcBreakSupported === "function" ? !!host.pcBreakSupported() : null;
 
-  // instruction step — PROVE it by stepping and watching the PC move.
+  // instruction step - PROVE it by stepping and watching the PC move.
   try {
     if (gate === false) {
       mark("instructionStep", "unsupported", { evidence: "host.pcBreakSupported() is false for this core" });
@@ -71,7 +71,7 @@ export async function probeCapabilities(host, info) {
     } else mark("instructionStep", "unsupported", { upgrade: "this host exposes no stepInstruction()" });
   } catch (e) { mark("instructionStep", "unsupported", { evidence: String(e?.message ?? e).slice(0, 160) }); }
 
-  // exact PC break — ARM one on a PC we know executes, then confirm the hit.
+  // exact PC break - ARM one on a PC we know executes, then confirm the hit.
   try {
     if (gate === false) {
       mark("pcBreak", "unsupported", {
@@ -79,7 +79,7 @@ export async function probeCapabilities(host, info) {
         upgrade: info.platform === "n64"
           ? "N64 exact PC breaks need romdev-core-parallel-n64 >= 0.3.0 (the hook is in the default cached-interpreter CPU)."
           : `no PC-break support in the ${info.platform} core build`,
-        note: "WITHOUT this, a frame-sampled PC is the only signal — and a sample must NOT be reported as an exact trace.",
+        note: "WITHOUT this, a frame-sampled PC is the only signal - and a sample must NOT be reported as an exact trace.",
       });
     } else if (typeof host.setPCBreak === "function" && typeof host.getPCBreak === "function") {
       const pc = host.stepInstruction?.()?.pc ?? host.getCPUState?.()?.pc ?? null;
@@ -97,7 +97,7 @@ export async function probeCapabilities(host, info) {
   } catch (e) { mark("pcBreak", "unsupported", { evidence: String(e?.message ?? e).slice(0, 160) }); }
 
   // read / write watchpoints. The METHOD NAMES ARE THE HOST'S: the write
-  // watchpoint is `setWatchpoint`, not `setWriteWatch` — guessing the symmetric
+  // watchpoint is `setWatchpoint`, not `setWriteWatch` - guessing the symmetric
   // name reported "unsupported" for a capability the host has. Each also has a
   // `*Supported()` gate, which is the core's own answer and outranks a probe.
   for (const [k, fnName, gateName] of [
@@ -115,7 +115,7 @@ export async function probeCapabilities(host, info) {
     } catch (e) { mark(k, "unsupported", { evidence: String(e?.message ?? e).slice(0, 160) }); }
   }
 
-  // exact PC coverage (the bitmap) — CALL it, do not merely look for the name.
+  // exact PC coverage (the bitmap) - CALL it, do not merely look for the name.
   try {
     if (typeof host.logPCBitmap === "function") {
       const r = host.logPCBitmap(0, 0, 0);
@@ -130,7 +130,7 @@ export async function probeCapabilities(host, info) {
     }
   } catch (e) { mark("pcCoverage", "unknown", { evidence: String(e?.message ?? e).slice(0, 160) }); }
 
-  // deterministic save/load — try every spelling the hosts actually use before
+  // deterministic save/load - try every spelling the hosts actually use before
   // concluding anything. Reporting `unknown` because ONE guessed name returned
   // nothing is how a working capability gets written off.
   try {

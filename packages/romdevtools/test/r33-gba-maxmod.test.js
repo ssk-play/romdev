@@ -1,8 +1,8 @@
-// R33 — GBA maxmod link smoke test.
+// R33 - GBA maxmod link smoke test.
 //
 // Confirms libmm.a is bundled + the maxmod symbols (mmInitDefault,
 // mmVBlank, mmFrame, mmStart, etc.) resolve when buildGbaC is called
-// with `maxmod: true`. Doesn't actually play music — that requires a
+// with `maxmod: true`. Doesn't actually play music - that requires a
 // soundbank built from .xm/.mod sources via the bundled host tool
 // (mmutil), which is a separate scaffold-asset step.
 
@@ -18,7 +18,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, "..");
 
 test("R33 maxmod SOURCE is bundled (built from source, not a prebuilt libmm.a)", () => {
-  // maxmod now compiles from its own .s source in-build — no opaque libmm.a.
+  // maxmod now compiles from its own .s source in-build - no opaque libmm.a.
   const srcDir = join(REPO_ROOT, "../romdev-platform-gba/share/gba/lib/maxmod/source");
   const gbaDir = join(REPO_ROOT, "../romdev-platform-gba/share/gba/lib/maxmod/source_gba");
   assert.ok(existsSync(join(srcDir, "mm_main.s")), "maxmod source/mm_main.s missing");
@@ -34,7 +34,7 @@ test("R33 maxmod headers (maxmod.h + mm_types.h) are bundled", () => {
 });
 
 test("R33 GBA libtonc + maxmod: minimal ROM links cleanly", { timeout: 180000 }, async () => {
-  // No soundbank — just verify the maxmod symbols resolve through libmm.a.
+  // No soundbank - just verify the maxmod symbols resolve through libmm.a.
   // A real game would also pass a soundbank.bin compiled by mmutil.
   const main = `
 #include <tonc.h>

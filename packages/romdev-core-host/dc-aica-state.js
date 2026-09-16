@@ -1,4 +1,4 @@
-// Dreamcast AICA sound-chip decode — the "what is each of the 64 PCM channels
+// Dreamcast AICA sound-chip decode - the "what is each of the 64 PCM channels
 // doing this frame?" view that getAudioState gives the other platforms' chips.
 // Input is the raw AICA register window (Uint8Array) from host.getAicaRegs():
 // 64 channels × 0x80 bytes starting at 0x000, plus CommonData at 0x2800.

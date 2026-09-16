@@ -1,4 +1,4 @@
-/* ── hUGEDriver.c — compact SDCC-native music driver for Game Boy ──
+/* ── hUGEDriver.c - compact SDCC-native music driver for Game Boy ──
  *
  * See hUGEDriver.h for the song-format contract. This file is the
  * implementation. ~150 lines, C89 (SDCC sm83 friendly).
@@ -18,7 +18,7 @@
  *   - No instruments (envelope/sweep/duty are hard-coded per channel).
  *   - No effects (vibrato, slide, arpeggio, etc.).
  *   - No subpatterns.
- *   - No wave channel (CH3) — silent for now.
+ *   - No wave channel (CH3) - silent for now.
  *
  * Swap in upstream by replacing this .c + the .h's struct definitions with
  * the upstream .h and the `rgb2sdas.py`-converted hUGEDriver.o.
@@ -70,7 +70,7 @@ static void trigger_square(uint8_t channel, uint16_t period) {
 
 static void silence_square(uint8_t channel) {
   /* Setting NRx2 (volume/envelope) to 0 with bits 3..7 clear is the
-   * canonical "DAC off" — instantly silences the channel. */
+   * canonical "DAC off" - instantly silences the channel. */
   if (channel == HT_CH1) {
     NR12 = 0x00;
     NR14 = 0x80;   /* re-trigger so the silence takes effect immediately */
@@ -112,7 +112,7 @@ static void channel_step(uint8_t channel, const huge_channel_t * ch) {
   pattern = ch->orders[oi];
   note  = pattern[row_index].note;
   flags = pattern[row_index].flags;
-  if (flags & 0x80u) return;        /* sustain — leave APU alone */
+  if (flags & 0x80u) return;        /* sustain - leave APU alone */
 
   if (note == HUGE_NOTE_REST) {
     if (channel == HT_CH1 || channel == HT_CH2) silence_square(channel);

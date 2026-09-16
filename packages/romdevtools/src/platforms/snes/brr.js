@@ -2,7 +2,7 @@
 //
 // Bit-accurate against snes9x's SPC_DSP::decode_brr (see
 // snes9x/src/apu/bapu/dsp/SPC_DSP.cpp). Earlier versions of this file
-// guessed at the decode math from wiki descriptions and produced buzz —
+// guessed at the decode math from wiki descriptions and produced buzz -
 // real BRR encoding requires simulating the actual DSP at encode time
 // because:
 //   1. The DSP multiplies the decoded sample by 2 AFTER clamping to int16
@@ -122,7 +122,7 @@ export function pcmToBrr(pcm, opts = {}) {
   const blockCount = padded.length / 16;
   const brr = new Uint8Array(blockCount * 9);
 
-  // Running state — the decoder's p1/p2 (post-clamp post-doubled samples).
+  // Running state - the decoder's p1/p2 (post-clamp post-doubled samples).
   // Must match exactly across the encode so filters 1-3 stay in sync with
   // what the DSP will reconstruct.
   let p1 = 0;
@@ -135,7 +135,7 @@ export function pcmToBrr(pcm, opts = {}) {
 
     // Try every (filter, shift) combination; pick the one with lowest
     // squared reconstruction error vs the source PCM. The first block of
-    // a sample MUST use filter 0 — filters 1-3 reference p1/p2 which are
+    // a sample MUST use filter 0 - filters 1-3 reference p1/p2 which are
     // undefined at sample start (DSP fills them with whatever was there
     // before KON, which we can't predict).
     let bestError = Infinity;
@@ -156,7 +156,7 @@ export function pcmToBrr(pcm, opts = {}) {
           // Invert the filter: ideal pre-filter value = target/2 - prediction
           // (since the final step is s = (clamp16(s) * 2) & int16).
           // We choose the nibble that minimizes |decoded - target|.
-          // Brute force all 16 nibble values — way cheaper than algebra
+          // Brute force all 16 nibble values - way cheaper than algebra
           // and guaranteed correct against the DSP code.
           let bestNib = 0;
           let bestNibErr = Infinity;

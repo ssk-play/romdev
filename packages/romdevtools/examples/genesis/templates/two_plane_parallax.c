@@ -1,8 +1,8 @@
-/* ── two_plane_parallax.c — Genesis SGDK two-plane parallax scaffold ──
+/* ── two_plane_parallax.c - Genesis SGDK two-plane parallax scaffold ──
  *
  * A smooth-scrolling side-scroller starting point: a side-scrolling world that
  * moves SMOOTHLY because the frame loop does HARDWARE SCROLL ONLY. There
- * are ZERO tilemap writes inside the loop — the two planes are painted
+ * are ZERO tilemap writes inside the loop - the two planes are painted
  * ONCE at setup, and every frame we just nudge two scroll registers and
  * re-stage one sprite. This is the single most important thing to copy:
  *
@@ -12,7 +12,7 @@
  * vblank and makes movement feel choppy/juddery. Hardware scroll is free.
  *
  * Layout:
- *   - Plane A (foreground): a painted "world" — a ground strip + scattered
+ *   - Plane A (foreground): a painted "world" - a ground strip + scattered
  *     platform blocks across a 512-px (64-cell) plane. Scrolls 1:1 with
  *     the camera.
  *   - Plane B (background): a repeated starfield filling the whole plane.
@@ -27,13 +27,13 @@
  * IMPORTANT (logical vs hardware plane size): the Genesis has ONE shared
  * plane-size setting for BOTH planes. We use the default 64x32 cells
  * (512x256 px). A "32-wide level" still lives inside a 64-wide PHYSICAL
- * plane — you don't get an independent per-plane size. See the Genesis
+ * plane - you don't get an independent per-plane size. See the Genesis
  * MENTAL_MODEL.md "Scrolling, parallax & the feel trap".
  *
  * To go WIDER than 512 px (a large multi-screen level) you keep this exact
  * loop and add ONE thing: stream the single offscreen column that's about
  * to scroll into view each time the camera crosses an 8-px tile boundary
- * (a circular buffer in the 64-cell plane) — NOT a whole-plane redraw.
+ * (a circular buffer in the 64-cell plane) - NOT a whole-plane redraw.
  * See MENTAL_MODEL.md "How large scrolling maps REALLY work".
  */
 
@@ -72,7 +72,7 @@ static const u32 tile_star[8]   = {
 #define PLANE_W_CELLS 64          /* default plane is 64x32 cells       */
 #define WORLD_W       512         /* = 64 cells * 8 px (one plane wide)  */
 #define SCREEN_W      320         /* H40                                  */
-#define GROUND_Y      192         /* px — top of the ground strip         */
+#define GROUND_Y      192         /* px - top of the ground strip         */
 
 /* Static foreground platforms in WORLD PIXEL coords. Painted ONCE. */
 typedef struct { s16 x, y, wcells; } Block;
@@ -108,7 +108,7 @@ int main(bool hard) {
     VDP_loadTileData(tile_player, T_PLAYER, 1, DMA);
     VDP_loadTileData(tile_star,   T_STAR,   1, DMA);
 
-    /* ── PAINT PLANE B (starfield) ONCE — fills the whole 64x32 plane so
+    /* ── PAINT PLANE B (starfield) ONCE - fills the whole 64x32 plane so
      *    it tiles forever as the scroll wraps. NEVER touched again. ── */
     VDP_fillTileMapRect(BG_B, TILE_ATTR_FULL(PAL1, 0, 0, 0, T_STAR),
                         0, 0, PLANE_W_CELLS, 32);

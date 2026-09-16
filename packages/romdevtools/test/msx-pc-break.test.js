@@ -1,4 +1,4 @@
-// MSX (blueMSX / Z80) PC breakpoint + read watchpoint + single-step — end to end.
+// MSX (blueMSX / Z80) PC breakpoint + read watchpoint + single-step - end to end.
 //
 // Exercises the romdev_pcbreak_* / romdev_readwatch_* / romdev_watchpoint_* core
 // patch (blueMSX R800/Z80) through the MCP tool surface: findWriter discovers the
@@ -97,7 +97,7 @@ test("MSX PC breakpoint + read watch + single-step (blueMSX Z80)", { timeout: 24
   const bp = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "pc",  address: writerPC, maxFrames: 300 },
   }));
-  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported — core patch missing?");
+  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported - core patch missing?");
   assert.equal(bp.hit, true, "runUntilPC did not hit the writer PC: " + JSON.stringify(bp));
   assert.equal(bp.pcRaw, writerPC, "frozen PC != requested PC");
 
@@ -108,7 +108,7 @@ test("MSX PC breakpoint + read watch + single-step (blueMSX Z80)", { timeout: 24
   const pcField = regs.pc ?? regs.PC ?? regs.regs?.pc;
   assert.ok(pcField !== undefined, "getCPUState returned no PC field: " + JSON.stringify(regs).slice(0, 200));
 
-  // 4) stepInstruction must ADVANCE the PC past the breakpoint — not re-stop on
+  // 4) stepInstruction must ADVANCE the PC past the breakpoint - not re-stop on
   //    the same (un-executed) instruction. (The countdown-arm fix.)
   const stepRes = toJSON(await client.callTool({ name: "frame", arguments: { op: "stepInstruction" } }));
   assert.equal(stepRes.notSupported, undefined, "stepInstruction reported notSupported");
@@ -116,11 +116,11 @@ test("MSX PC breakpoint + read watch + single-step (blueMSX Z80)", { timeout: 24
   assert.ok(stepRes.pcRaw >= 0, "single-step returned no pc");
   assert.notEqual(stepRes.pcRaw, writerPC, "single-step did not advance PC: " + JSON.stringify(stepRes));
 
-  // 5) runUntilRead on RAM — the program reads it back each iteration, so this
+  // 5) runUntilRead on RAM - the program reads it back each iteration, so this
   //    is a positive-hit read test.
   const rd = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "read",  address: RAM, maxFrames: 300 },
   }));
-  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported — read-watch patch missing?");
+  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported - read-watch patch missing?");
   assert.equal(rd.hit, true, "runUntilRead did not catch the RAM read: " + JSON.stringify(rd));
 });

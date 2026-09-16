@@ -1,4 +1,4 @@
-// assets.js — identify and ROUND-TRIP the non-code bytes.
+// assets.js - identify and ROUND-TRIP the non-code bytes.
 //
 // 7,238,640 bytes of this ROM (86.3%) sit in `bin` ranges the ledger can only
 // call "raw". Some of that is compressed archives, some is textures, some is
@@ -13,7 +13,7 @@
 // reports the sha of both sides so the claim is checkable.
 //
 // Identification is by MAGIC and STRUCTURE, never by file extension or by a
-// name in the splat yaml — a name is a label someone typed, not evidence.
+// name in the splat yaml - a name is a label someone typed, not evidence.
 //
 // Plain JS ESM + JSDoc.
 
@@ -48,11 +48,11 @@ function decodeMio0(buf, h) {
   let dst = 0, bitIdx = 0;
 
   // SEMANTICS TAKEN FROM THE PROJECT'S OWN libmio0.c, which is what its build
-  // actually links — not from a guess, and not from tools/mio0_decompress.py,
+  // actually links - not from a guess, and not from tools/mio0_decompress.py,
   // whose bit polarity is inverted relative to this data.
   //
   // Four details, each of which silently corrupts output on its own, and none
-  // of which "the decode reached destSize" can detect — four different WRONG
+  // of which "the decode reached destSize" can detect - four different WRONG
   // variants all produced exactly destSize bytes on real data here:
   //   * a SET layout bit is a LITERAL; a clear bit is a backref.
   //   * length   = ((vals[0] & 0xF0) >> 4) + 3
@@ -91,7 +91,7 @@ function decodeMio0(buf, h) {
  * encoder makes different (valid) choices about which match to take, so a
  * re-encode of arbitrary data will NOT reproduce the original bytes even when
  * both decode correctly. `roundTrip()` therefore verifies decode(encode(x)) ==
- * x — semantic identity — and separately reports whether the bytes are
+ * x - semantic identity - and separately reports whether the bytes are
  * identical to the original container.
  */
 export function encodeMio0(data) {
@@ -102,7 +102,7 @@ export function encodeMio0(data) {
   // The lookback is keyed by FIRST BYTE ONLY (not a 3-byte hash) and scanned
   // OLDEST-FIRST, because `cur_length > best_length` is a strict improvement:
   // among equal-length matches the OLDEST (largest distance) wins. A hash-chain
-  // encoder scanning newest-first picks a different, equally valid offset — and
+  // encoder scanning newest-first picks a different, equally valid offset - and
   // the container bytes then differ from the original. Reproducing the
   // reference's choices exactly is what makes the round trip byte-identical.
   const lookback = Array.from({ length: 256 }, () => ({ idx: [], start: 0 }));
@@ -215,7 +215,7 @@ export const IMAGE_FORMATS = Object.freeze({
 /**
  * Identify what a byte range is, by magic and structure only.
  *
- * Returns candidates with confidence. An unidentified range says so — a guess
+ * Returns candidates with confidence. An unidentified range says so - a guess
  * dressed as an identification is the failure this module is built to avoid.
  */
 export function identify(buf, { name } = {}) {
@@ -264,7 +264,7 @@ export function roundTrip(buf, { name, repack } = {}) {
   if (decoded.length !== best.destSize) {
     return { ...id, roundTrip: "decode-short", state: "format-identified",
       decodedBytes: decoded.length, expectedBytes: best.destSize,
-      why: "the decode produced a different length than the header declares — treat the decode as unverified" };
+      why: "the decode produced a different length than the header declares - treat the decode as unverified" };
   }
 
   // DEFAULT REPACKER. romdev ships a MIO0 encoder, so the round trip can be
@@ -285,9 +285,9 @@ export function roundTrip(buf, { name, repack } = {}) {
 
   // TWO DIFFERENT CLAIMS, and conflating them would overstate the result.
   //
-  //   payloadExact  — decode(repack(decode(x))) == decode(x). The data survives
+  //   payloadExact  - decode(repack(decode(x))) == decode(x). The data survives
   //                   a full round trip. THIS is what makes a range editable.
-  //   containerExact— repack(decode(x)) == x byte for byte. Only true when our
+  //   containerExact- repack(decode(x)) == x byte for byte. Only true when our
   //                   encoder happens to make the same match choices as the
   //                   original compressor, which is NOT required for
   //                   correctness: a different valid encoding decodes the same.
@@ -320,12 +320,12 @@ export function roundTrip(buf, { name, repack } = {}) {
     decodedBytes: decoded.length, decodedSha256: decodedSha.slice(0, 16),
     why: !exact
       ? "the repacked container did not decode back to the same payload, so the encoder is NOT faithful and this range stays at "
-        + "'format-identified' — a lossy round trip cannot rebuild the ROM."
+        + "'format-identified' - a lossy round trip cannot rebuild the ROM."
       : containerExact
         ? "unpack -> repack reproduced the original container byte for byte."
         : "unpack -> repack -> unpack reproduces the PAYLOAD exactly; the container bytes differ because a different (equally valid) "
           + "set of match choices was made. The data is fully recoverable and editable, which is what 'round-trip-tool' means. "
-          + "Rebuilding the ORIGINAL ROM byte-for-byte additionally needs the original compressor's choices — use the untouched "
+          + "Rebuilding the ORIGINAL ROM byte-for-byte additionally needs the original compressor's choices - use the untouched "
           + "container for ranges you are not editing.",
   };
 }
@@ -351,7 +351,7 @@ export function scanRanges(rom, ranges) {
     schema: ASSET_SCHEMA,
     scanned: out.length, identified, identifiedBytes, opaqueBytes,
     ranges: out.sort((a, b) => b.bytes - a.bytes).slice(0, 60),
-    note: "identification is by MAGIC and STRUCTURE only — never by the name in the splat yaml, which is a label someone typed. "
+    note: "identification is by MAGIC and STRUCTURE only - never by the name in the splat yaml, which is a label someone typed. "
       + "`identifiedBytes` may still be far short of the opaque total; that is the honest state, not a failure of the scan.",
   };
 }

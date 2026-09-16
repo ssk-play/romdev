@@ -1,9 +1,9 @@
-// run.js — caller-facing wrapper around the worker pool.
+// run.js - caller-facing wrapper around the worker pool.
 //
 // Each toolchain helper (runCc65, runSdcc, runAsar, runDasm, ...) calls
 // `runIsolated()` with a structured spec instead of the old callback-style
 // `runEmscriptenTool(setup, collect)`. That spec gets handed to a child
-// worker that runs the WASM in isolation — so a WASM abort can't take
+// worker that runs the WASM in isolation - so a WASM abort can't take
 // down the MCP server.
 //
 // The result shape mirrors the old in-process tool: { exitCode, log, ...outputs }.

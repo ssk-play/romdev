@@ -1,4 +1,4 @@
-// Window sizing for the playtest/runRom SDL windows — regression for the
+// Window sizing for the playtest/runRom SDL windows - regression for the
 // 2026-07-23 macOS failure: opening the playtest window on a wasmcart cart
 // (mruby wyvern, playtest {scale:2, aspect:'tv'}) died with SDL "invalid
 // width". The sizing math lived duplicated + inline in playtest.js and

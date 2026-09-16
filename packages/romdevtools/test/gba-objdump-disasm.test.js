@@ -1,4 +1,4 @@
-// GBA (ARM7TDMI) disassembly via native binutils ARM objdump — the 14th
+// GBA (ARM7TDMI) disassembly via native binutils ARM objdump - the 14th
 // platform, previously rejected ("no bundled ARM disassembler"). objdump ships
 // in romdev-platform-gba alongside as/ld/objcopy.
 
@@ -39,7 +39,7 @@ int main(){ REG_DISPCNT = DCNT_MODE3 | DCNT_BG2; while(1){ vid_vsync(); } }`;
   const r = await runObjdump({ bytes: b.binary.slice(0, 0x400), arch: "arm", startAddress: 0x08000000 });
   assert.equal(r.available, true);
   // The cart entry is a branch over the header; the I/O base 0x4000000 appears
-  // in the boot code. Just assert we got real, varied ARM mnemonics — not junk.
+  // in the boot code. Just assert we got real, varied ARM mnemonics - not junk.
   assert.match(r.asm, /\b(b|bl|mov|ldr|str|msr|add|sub)\b/i, "real ARM mnemonics present");
   const instrLines = r.asm.split("\n").filter((l) => l.startsWith("        ") && !l.includes(".setcpu"));
   assert.ok(instrLines.length > 20, "substantial disassembly");

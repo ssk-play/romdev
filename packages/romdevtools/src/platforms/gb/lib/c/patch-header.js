@@ -1,4 +1,4 @@
-// patch-header.js — patch a Game Boy / GBC ROM with the canonical
+// patch-header.js - patch a Game Boy / GBC ROM with the canonical
 // Nintendo boot logo + valid header + global checksums.
 //
 // USAGE:
@@ -10,7 +10,7 @@
 // whose header checksum at $014D doesn't validate.
 //
 // NOTE: romdev's own build pipeline DOES auto-patch the header now (it
-// runs a bundled rgbfix after every gb/gbc link — see the
+// runs a bundled rgbfix after every gb/gbc link - see the
 // "rgbfix (auto header fix)" line in build logs), so you only need this
 // script when rebuilding the project OUTSIDE romdev with stock SDCC and
 // no RGBDS installed. It's what keeps the forked project self-contained.
@@ -34,7 +34,7 @@ const NINTENDO_LOGO = [
  * Patch a GB/GBC ROM buffer in place. Returns the same buffer.
  *
  * Fills EVERY cartridge-header byte the boot ROM and gambatte care
- * about — not just the Nintendo logo + checksums.
+ * about - not just the Nintendo logo + checksums.
  *
  * Why this matters (round 26 friction report): an agent shipped a
  * working C ROM that booted into a WHITE SCREEN on gambatte. Root
@@ -137,7 +137,7 @@ export function patchGbHeader(rom, opts = {}) {
   return rom;
 }
 
-// CLI entry — only runs when invoked directly.
+// CLI entry - only runs when invoked directly.
 const isCli = import.meta.url.startsWith("file:") &&
               process.argv[1] &&
               import.meta.url.endsWith(process.argv[1].split("/").pop());

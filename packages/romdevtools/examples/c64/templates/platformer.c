@@ -1,6 +1,6 @@
-/* ── platformer.c — C64 side-scrolling platformer (complete example game) ─────
+/* ── platformer.c - C64 side-scrolling platformer (complete example game) ─────
  *
- * TALUS TROT — a COMPLETE, working game: title screen, 1P mode and 2P
+ * TALUS TROT - a COMPLETE, working game: title screen, 1P mode and 2P
  * ALTERNATING-TURNS mode (arcade-classic: players swap on death; each player
  * has their own score and own 3 lives; player 2 plays on CONTROL PORT 1),
  * gravity/jump physics, one-way platforms, pits + spikes, coins + distance
@@ -8,33 +8,33 @@
  * music with the C64's signature filter sweep + SFX, and the C64's signature
  * raster-IRQ split: a fixed score bar over a HARDWARE-scrolled level.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented C64 footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented C64 footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — level layout, physics tuning, scoring, art: reshape
+ *   GAME LOGIC (clay) - level layout, physics tuning, scoring, art: reshape
  *     freely.
  *
  * What depends on what:
- *   c64_registers.h — VIC-II / SID / CIA symbolic addresses (header only).
- *   c64_sfx.{h,c}   — one-shot SID sound effects on voice 2.
+ *   c64_registers.h - VIC-II / SID / CIA symbolic addresses (header only).
+ *   c64_sfx.{h,c}   - one-shot SID sound effects on voice 2.
  *   The BASIC stub + crt0 come from cc65's c64 target: the .prg loads at
  *     $0801, a tiny BASIC line does SYS into the C runtime, and the KERNAL
- *     stays banked in (we lean on that for the IRQ vector — see below).
+ *     stays banked in (we lean on that for the IRQ vector - see below).
  *
  * Memory map this file assumes (VIC bank 0 = $0000-$3FFF):
  *   $0400  screen RAM (40×25 chars)        $D800 color RAM (per-cell color)
  *   $0801  this program (code+data grow up from here)
- *   $3F00  sprite images (2 × 64 bytes)    — NOT $0800, which collides with
+ *   $3F00  sprite images (2 × 64 bytes)    - NOT $0800, which collides with
  *          the .prg load address, and NOT $1000-$1FFF, where the VIC sees
  *          the character ROM instead of RAM (a classic invisible-sprite trap).
  *   Keep the program under ~14 KB so it stays below $3F00.
  *
- * THE SCROLL — C64 horizontal scrolling is the fiddliest of all 14 platforms,
+ * THE SCROLL - C64 horizontal scrolling is the fiddliest of all 14 platforms,
  * and this game does it for real. The VIC-II fine-scrolls only 0-7 px in
  * hardware ($D016 low 3 bits); past that you COARSE-scroll in software by
  * shifting the visible char columns and rendering one fresh column at the
- * edge from a world map. Both halves run here — see scroll_field and the
+ * edge from a world map. Both halves run here - see scroll_field and the
  * raster split. (C64 MENTAL_MODEL.md → "Horizontal scrolling".)
  */
 
@@ -42,7 +42,7 @@
 #include "c64_sfx.h"
 #include <stdint.h>
 
-/* cc65 KERNAL disk-I/O prototypes. We DON'T #include <cbm.h> — it drags in
+/* cc65 KERNAL disk-I/O prototypes. We DON'T #include <cbm.h> - it drags in
  * <c64.h>, whose VIC/SID/JOY macros collide with this project's
  * c64_registers.h (cc65 errors "macro redefinition is not identical"). These
  * four are the stable cc65 ABI; declaring them directly avoids the clash. */
@@ -52,7 +52,7 @@ void __fastcall__ cbm_close(unsigned char lfn);
 int __fastcall__ cbm_read(unsigned char lfn, void *buffer, unsigned int size);
 int __fastcall__ cbm_write(unsigned char lfn, const void *buffer, unsigned int size);
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "TALUS TROT"
 
@@ -64,11 +64,11 @@ int __fastcall__ cbm_write(unsigned char lfn, const void *buffer, unsigned int s
 #define SPRITE_POINTERS ((volatile uint8_t*)0x07F8) /* last 8 bytes of screen RAM */
 
 /* ── Screen layout (the raster split divides bar from scrolling level) ──────
- *   char row 0  — score bar text: SC / HI / LV / P# / mode    (FIXED)
- *   char row 1  — solid divider line                          (FIXED)
- *   char row 2  — blank spacer: the split lands mid-row HERE, where a few
+ *   char row 0  - score bar text: SC / HI / LV / P# / mode    (FIXED)
+ *   char row 1  - solid divider line                          (FIXED)
+ *   char row 2  - blank spacer: the split lands mid-row HERE, where a few
  *                 raster lines of IRQ jitter are invisible (uniform color)
- *   char rows 3-24 — the scrolling level (ground, platforms, pits, sky)
+ *   char rows 3-24 - the scrolling level (ground, platforms, pits, sky)
  * PAL raster geometry: with YSCROLL=3 (the power-on default) text row r
  * occupies raster lines 51+8r .. 58+8r. So the spacer row 2 = lines 67-74,
  * and the playfield's first row 3 starts at line 75. */
@@ -76,11 +76,11 @@ int __fastcall__ cbm_write(unsigned char lfn, const void *buffer, unsigned int s
 #define SPLIT_LINE   68   /* inside spacer row 2 (67-74): jitter-proof */
 #define BOTTOM_LINE  251  /* first line below the 25-row text window (ends 250) */
 /* $D016 values for the two halves of the frame. Bit 3 CLEAR = 38-column mode
- * (masks the garbage column fine-X scrolling exposes at the edges — keep all
+ * (masks the garbage column fine-X scrolling exposes at the edges - keep all
  * bar text inside columns 1-38). Low 3 bits = fine X scroll 0-7. */
-#define D016_BAR     0xC0          /* fine X = 0, 38 cols — the fixed bar */
+#define D016_BAR     0xC0          /* fine X = 0, 38 cols - the fixed bar */
 
-/* ── GAME LOGIC (clay — reshape freely) — sprite art (24×21, 3 bytes/row) ──
+/* ── GAME LOGIC (clay - reshape freely) - sprite art (24×21, 3 bytes/row) ──
  * Two VIC-II hardware sprites are used: the active player and one coin. The
  * world's ground/platforms/spikes are CHARACTERS in screen RAM (the scroll
  * shifts them), so they cost no sprite slots. */
@@ -105,8 +105,8 @@ static const uint8_t coin_sprite[64] = {    /* a small spinning disc */
   0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,0,0, 0,
 };
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * THE RASTER-IRQ SPLIT — the C64's classic "fixed status bar over a moving
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * THE RASTER-IRQ SPLIT - the C64's classic "fixed status bar over a moving
  * world" trick (and the gateway drug to all raster effects). The VIC-II has
  * ONE $D016 fine-scroll for the whole frame; to scroll the level while the
  * score bar stays put, you change $D016 MID-FRAME, at an exact raster line,
@@ -120,17 +120,17 @@ static const uint8_t coin_sprite[64] = {    /* a small spinning disc */
  *
  * The handshake, register by register:
  *   $D012      raster compare line (low 8 bits)
- *   $D011 b7   raster compare bit 8 — MUST be 0 here (both lines < 256).
+ *   $D011 b7   raster compare bit 8 - MUST be 0 here (both lines < 256).
  *              Forgetting this bit is the classic "my IRQ fires on the
  *              wrong line / twice" bug when lines ≥ 256 get involved.
  *   $D01A b0   raster IRQ enable
  *   $D019      IRQ latch. ACK by WRITING THE BITS BACK (write-1-to-clear).
  *              THE LOAD-BEARING LINE: skip the ack and the IRQ re-fires the
- *              instant it returns, forever — the main loop starves and the
+ *              instant it returns, forever - the main loop starves and the
  *              machine looks hung.
  *   $0314/15   the KERNAL's IRQ indirection. The hardware vector ($FFFE)
  *              points into KERNAL ROM, which saves A/X/Y and jumps through
- *              $0314 — so with the KERNAL banked in (cc65 default) we just
+ *              $0314 - so with the KERNAL banked in (cc65 default) we just
  *              repoint $0314. Exit via jmp $EA81 (KERNAL: restore regs +
  *              rti), SKIPPING $EA31's jiffy-clock/keyboard scan.
  *   $DC0D      CIA1 interrupt control. The KERNAL leaves a 60Hz CIA timer
@@ -139,18 +139,18 @@ static const uint8_t coin_sprite[64] = {    /* a small spinning disc */
  *              with the raster and fires our handler at random lines.
  *
  * JITTER: an IRQ only starts after the current instruction finishes, so the
- * handler begins 0-7 cycles late, plus the KERNAL thunk (~35 cycles) — the
+ * handler begins 0-7 cycles late, plus the KERNAL thunk (~35 cycles) - the
  * $D016 write lands one-to-two raster lines after SPLIT_LINE. We hide that
  * by splitting inside a UNIFORM blank row, where shifting the (invisible)
  * pixels mid-line changes nothing. Splits next to visible detail need
- * cycle-exact stabilization (double-IRQ trick) — don't go there until you do.
+ * cycle-exact stabilization (double-IRQ trick) - don't go there until you do.
  *
  * The handler is ASSEMBLY-IN-C on purpose: cc65's generated C uses shared
  * zero-page scratch registers, so a C-level IRQ body would corrupt whatever
  * the main loop was computing. These asm lines touch only A + the flags
  * (which the KERNAL thunk already saved). requires: KERNAL banked in,
  * frame_count/field_d016 file-scope NON-static (asm %v needs the symbol). */
-volatile uint8_t frame_count;  /* bumped by the bottom IRQ — frame heartbeat */
+volatile uint8_t frame_count;  /* bumped by the bottom IRQ - frame heartbeat */
 volatile uint8_t field_d016;   /* level $D016 value, precomputed by main */
 
 void raster_irq(void) {
@@ -158,14 +158,14 @@ void raster_irq(void) {
   asm("sta $d019");          /* ...write it back = ACK (write-1-to-clear).
                               * THE line you must not lose (see above).     */
   asm("lda $d012");          /* which raster line woke us? (self-correcting
-                              * dispatch — no phase variable to desync)     */
+                              * dispatch - no phase variable to desync)     */
   asm("cmp #150");
   asm("bcs %g", at_bottom);  /* ≥150 → we're at BOTTOM_LINE                 */
-  /* — split point (line ~68, inside the blank spacer row) — */
+  /* - split point (line ~68, inside the blank spacer row) - */
   asm("lda %v", field_d016);
   asm("sta $d016");          /* level fine-X from here down                 */
   asm("lda #251");           /* = BOTTOM_LINE (cc65's asm %b only takes     */
-  asm("sta $d012");          /* signed bytes, so these are literals — the   */
+  asm("sta $d012");          /* signed bytes, so these are literals - the   */
   asm("jmp $ea81");          /* #if below keeps them honest)                */
 at_bottom:
   asm("lda #$C0");           /* = D016_BAR                                  */
@@ -183,32 +183,32 @@ static void install_raster_irq(void) {
   asm("sei");                       /* no IRQs while we rewire them */
   POKE(CIA1_PRA + 0x0D, 0x7F);      /* $DC0D: disable ALL CIA1 IRQ sources
                                      * (kills the KERNAL jiffy/keyboard IRQ
-                                     * — we read the sticks ourselves) */
+                                     * - we read the sticks ourselves) */
   (void)PEEK(CIA1_PRA + 0x0D);      /* reading $DC0D acks anything pending */
   POKE(0x0314, (uint8_t)((unsigned)raster_irq & 0xFF));
   POKE(0x0315, (uint8_t)((unsigned)raster_irq >> 8));
   POKE(VIC_CTRL1, 0x1B);            /* $D011 = power-on default: screen on,
                                      * 25 rows, YSCROLL=3, and bit 7 (raster
-                                     * compare bit 8) = 0 — both lines < 256 */
+                                     * compare bit 8) = 0 - both lines < 256 */
   POKE(VIC_RASTER, SPLIT_LINE);     /* first stop */
   POKE(VIC_IRQ_ENA, 0x01);          /* raster IRQ on */
   POKE(VIC_IRQ, 0xFF);              /* clear any stale latch bits */
   asm("cli");
 }
 
-/* Wait for the bottom IRQ's heartbeat. Replaces the usual poll-$D012 loop —
+/* Wait for the bottom IRQ's heartbeat. Replaces the usual poll-$D012 loop -
  * the IRQ owns the raster now, the main loop just paces itself on it. */
 static void wait_frame(void) {
   uint8_t f = frame_count;
   while (frame_count == f) { }
 }
 
-/* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ── reading BOTH
+/* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ── reading BOTH
  * joystick ports. CIA1 port A ($DC00) = control port 2, port B ($DC01) =
  * control port 1. Active-low: a pressed switch reads 0, so invert and mask
  * to bits 0-4 (up/down/left/right/fire).
  *
- * THE PORT-1 GOTCHA: $DC01 is ALSO the keyboard row register — the matrix
+ * THE PORT-1 GOTCHA: $DC01 is ALSO the keyboard row register - the matrix
  * hangs off the same CIA lines. Writing $FF to $DC00 first deselects every
  * keyboard column, so held keys can't pull $DC01 rows low and ghost into
  * the port-1 stick. That's also why "port 2 is the C64 game port": P1 lives
@@ -229,8 +229,8 @@ static uint8_t read_stick_port1(void) {     /* player 2 */
 #define JOY_RIGHT 0x08
 #define JOY_FIRE  0x10
 
-/* ── HARDWARE IDIOM (load-bearing) — hi-score persistence: DISK SAVE ─────────
- * The C64 has no battery SRAM — the honest save medium is the FLOPPY. A game
+/* ── HARDWARE IDIOM (load-bearing) - hi-score persistence: DISK SAVE ─────────
+ * The C64 has no battery SRAM - the honest save medium is the FLOPPY. A game
  * persists by writing a file to drive 8; VICE commits it into the live 1541
  * disk image (true-drive GCR write-back), so a save survives a power cycle
  * exactly as it did on real hardware. (To capture it headlessly the host does
@@ -238,7 +238,7 @@ static uint8_t read_stick_port1(void) {     /* player 2 */
  *
  * REQUIRES THE GAME RUN FROM A DISK: build/package it as a .d64 and load THAT
  * (loadMedia autostarts it). A bare .prg injected straight into RAM has no
- * mounted disk to save to, so the save is a silent no-op — still honest (the
+ * mounted disk to save to, so the save is a silent no-op - still honest (the
  * value just stays in-session), it simply has nowhere to persist.
  *
  * We keep a 2-byte record in a SEQ file "HI" on drive 8. These are the STABLE
@@ -268,26 +268,26 @@ static void hiscore_save(uint16_t v) {
     /* No disk mounted (ran as a bare .prg) -> cbm_open fails -> silent no-op. */
 }
 
-/* ── GAME LOGIC (clay) — SID music: 2 voices + THE filter sweep ─────────────
+/* ── GAME LOGIC (clay) - SID music: 2 voices + THE filter sweep ─────────────
  * Voice 0 = melody (pulse), voice 1 = bass (sawtooth THROUGH THE FILTER),
  * voice 2 is reserved for sound effects (c64_sfx). Each voice walks a
  * (freq, frames) note table once per frame; end wraps → continuous loop.
  *
- * THE SID FILTER — the C64's sonic signature, and the part most "music
+ * THE SID FILTER - the C64's sonic signature, and the part most "music
  * drivers ported from other chips" miss. One analog-modeled filter, shared
  * by all voices, four registers:
  *   $D415  cutoff low 3 bits   $D416  cutoff high 8 bits (11-bit total)
  *   $D417  high nibble = resonance 0-15; low 3 bits ROUTE voices into the
  *          filter (bit0=voice0, bit1=voice1, bit2=voice2)
- *   $D418  bit4=lowpass bit5=bandpass bit6=highpass — AND master volume in
+ *   $D418  bit4=lowpass bit5=bandpass bit6=highpass - AND master volume in
  *          bits 0-3. Volume and filter mode share a register: any "set
  *          volume" helper that writes plain $0F silently turns the filter
  *          OFF (c64_sfx's sfx_init does exactly that, so music_init runs
  *          AFTER it and re-asserts the mode bits).
- *          FOOTGUN: bit 7 of $D418 is "3OFF" — it MUTES voice 3 entirely.
+ *          FOOTGUN: bit 7 of $D418 is "3OFF" - it MUTES voice 3 entirely.
  *          Set it by accident and all your sound effects vanish.
  * The sweep: a triangle LFO walks the cutoff up and down each frame over
- * the resonant lowpass — the bass goes from muffled to snarling and back,
+ * the resonant lowpass - the bass goes from muffled to snarling and back,
  * the "wah" that screams Commodore. Hear it change: that IS the chip. */
 #define N_A2 0x0F3Cu
 #define N_C3 0x1199u
@@ -313,7 +313,7 @@ static void hiscore_save(uint16_t v) {
 
 typedef struct { uint16_t freq; uint8_t len; } Note;
 
-/* The table IS the song — edit these to rescore your fork. A bouncy major run. */
+/* The table IS the song - edit these to rescore your fork. A bouncy major run. */
 static const Note melody[] = {
   { N_C4, STEP }, { N_E4, STEP }, { N_G4, STEP*2 }, { N_E4, STEP }, { N_C5, STEP*2 }, { N_G4, STEP },
   { N_F4, STEP }, { N_A4, STEP }, { N_C5, STEP*2 }, { N_A4, STEP }, { N_F4, STEP*2 }, { N_REST, STEP },
@@ -323,7 +323,7 @@ static const Note melody[] = {
   { N_F4, STEP }, { N_G4, STEP }, { N_A4, STEP }, { N_F4, STEP }, { N_C5, STEP*2 }, { N_A4, STEP*2 },
 };
 static const Note bassline[] = {
-  /* Octave-pumping bass — the filter sweep chews on this. */
+  /* Octave-pumping bass - the filter sweep chews on this. */
   { N_C3, STEP*3 }, { N_C4, STEP }, { N_C3, STEP*2 }, { N_G3, STEP*2 },
   { N_F3, STEP*3 }, { N_C3, STEP }, { N_F3, STEP*2 }, { N_A3, STEP*2 },
   { N_G3, STEP*3 }, { N_D3, STEP }, { N_G3, STEP*2 }, { N_B3, STEP*2 },
@@ -343,7 +343,7 @@ static void music_trigger(uint8_t v, uint16_t freq, uint8_t wave) {
   }
   POKE(SID_FREQ_LO(v), (uint8_t)(freq & 0xFF));
   POKE(SID_FREQ_HI(v), (uint8_t)(freq >> 8));
-  POKE(SID_CTRL(v), wave);                /* gate OFF then ON — the 6581/8580 */
+  POKE(SID_CTRL(v), wave);                /* gate OFF then ON - the 6581/8580 */
   POKE(SID_CTRL(v), wave | SID_GATE);     /* envelope only retriggers on the
                                            * 0→1 gate edge */
 }
@@ -353,13 +353,13 @@ static void music_init(void) {
   POKE(SID_PW_LO(0), 0x00); POKE(SID_PW_HI(0), 0x08);
   POKE(SID_AD(0), 0x07);    /* attack 0, decay 7 */
   POKE(SID_SR(0), 0x84);    /* sustain 8, release 4 */
-  /* Bass: sawtooth (harmonically rich — gives the filter teeth to chew). */
+  /* Bass: sawtooth (harmonically rich - gives the filter teeth to chew). */
   POKE(SID_AD(1), 0x06);
   POKE(SID_SR(1), 0xA5);
   /* Filter: route VOICE 1 ONLY into it (bit 1 of $D417), resonance 13/15. */
   POKE(SID_RES_FILT, 0xD2);
   /* Lowpass mode + master volume 15. NOTE bits shared with volume, and bit
-   * 7 (3OFF) stays 0 or voice-2 sound effects go silent — see block doc. */
+   * 7 (3OFF) stays 0 or voice-2 sound effects go silent - see block doc. */
   POKE(SID_VOL_MODE, 0x1F);
   filter_cut = 0x180; filter_up = 1;
   m_pos[0] = m_pos[1] = 0;
@@ -378,7 +378,7 @@ static void music_update(void) {
     m_left[1] = bassline[m_pos[1]].len;
     if (++m_pos[1] >= BASS_LEN) m_pos[1] = 0;
   }
-  /* THE FILTER SWEEP — triangle LFO on the cutoff, ~10s round trip.
+  /* THE FILTER SWEEP - triangle LFO on the cutoff, ~10s round trip.
    * 11-bit value split across two registers: low 3 bits in $D415,
    * high 8 in $D416. */
   if (filter_up) { filter_cut += 6; if (filter_cut >= 0x700) filter_up = 0; }
@@ -387,7 +387,7 @@ static void music_update(void) {
   POKE(SID_FILTER_HI, (uint8_t)(filter_cut >> 3));
 }
 
-/* ── GAME LOGIC (clay) — screen text. The C64 has NO VRAM port: screen RAM
+/* ── GAME LOGIC (clay) - screen text. The C64 has NO VRAM port: screen RAM
  * is plain memory, writable any time, mid-frame, no vblank dance. The only
  * translation is ASCII → SCREEN CODES (not PETSCII!): A-Z land at 1-26;
  * space through '?' (incl. digits) keep their ASCII values. ── */
@@ -412,7 +412,7 @@ static void draw_u16(uint8_t row, uint8_t col, uint16_t v) {
   }
 }
 
-/* ── GAME LOGIC (clay) — xorshift-style PRNG (cheap, period 255) ── */
+/* ── GAME LOGIC (clay) - xorshift-style PRNG (cheap, period 255) ── */
 static uint8_t rng_state = 0xB7;
 static uint8_t rand8(void) {
   uint8_t lsb = (uint8_t)(rng_state & 1);
@@ -421,13 +421,13 @@ static uint8_t rand8(void) {
   return rng_state;
 }
 
-/* ── GAME LOGIC (clay) — THE LEVEL ──────────────────────────────────────────
+/* ── GAME LOGIC (clay) - THE LEVEL ──────────────────────────────────────────
  * A LOOPING column map, MAP_COLS wide. Each visible screen column shows world
  * column (coarse + screen_col) mod MAP_COLS, so the camera runs forever and
  * the level wraps seamlessly. Per column:
- *   ground_row[c] — char row of the ground's surface, NO_GROUND = a pit
- *   plat_row[c]   — char row of a one-way floating platform, 0 = none
- *   spike[c]      — 1 = a lethal spike stands on this column's ground
+ *   ground_row[c] - char row of the ground's surface, NO_GROUND = a pit
+ *   plat_row[c]   - char row of a one-way floating platform, 0 = none
+ *   spike[c]      - 1 = a lethal spike stands on this column's ground
  * Char rows are screen rows; playfield rows are FIELD_TOP..24, world y = row*8.
  * The bottom of the 25-row window is row 24 (ground sits at row 21). */
 #define MAP_COLS  64          /* 64-cell loop = 512 px of distinct level */
@@ -473,13 +473,13 @@ static void init_spikes(void) {
   spike[56] = 1;   /* final flat before pit 3     */
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — the TWO-LAYER scroll trick (straight from
+/* ── HARDWARE IDIOM (load-bearing) - the TWO-LAYER scroll trick (straight from
  * the shmup): screen RAM holds the MOVING level chars; COLOR RAM holds a
  * STATIC per-row texture that NEVER scrolls. The coarse shift then touches
  * ONLY screen RAM (half the byte-moves), and chars drifting left pick up each
  * cell's resident color for free. This is THE thing that keeps the scroll
  * fast: shifting BOTH screen AND color RAM every 8 px (≈3400 byte-moves of
- * cc65 C) costs ~6-7 frames per coarse step — the loop visibly crawls while
+ * cc65 C) costs ~6-7 frames per coarse step - the loop visibly crawls while
  * you hold a direction (measured: 8 iterations / 60 frames). Screen-only is
  * ~1700 moves and stays real-time. The level's geometry (ground at one row,
  * platforms on a few fixed rows) makes a row-based color texture read fine. */
@@ -494,7 +494,7 @@ static const uint8_t row_color[25] = {
   COLOR_BROWN, COLOR_ORANGE, COLOR_BROWN,                      /* earth      */
 };
 
-/* Paint the STATIC color texture for the whole level window — ONCE, at boot. */
+/* Paint the STATIC color texture for the whole level window - ONCE, at boot. */
 static void paint_colors(void) {
   uint8_t r, c;
   for (r = FIELD_TOP; r < 25; r++) {
@@ -505,7 +505,7 @@ static void paint_colors(void) {
 
 /* Render ONE level column's CHARS into screen RAM at screen column `sc`, for
  * world column `wc`. The COARSE scroll calls this once per 8 px (for the
- * freshly exposed right edge), NOT per cell of the whole screen — a full
+ * freshly exposed right edge), NOT per cell of the whole screen - a full
  * 40×22 repaint of cc65 C is ~50 frames (a frozen second). Keep it lean. */
 static void draw_column(uint8_t sc, uint8_t wc) {
   uint8_t r, g, pr;
@@ -532,13 +532,13 @@ static void paint_level(uint8_t coarse) {
 }
 
 /* COARSE scroll: shift the 40 visible level columns one char LEFT in SCREEN
- * RAM (color RAM is static — see paint_colors), then render the freshly
+ * RAM (color RAM is static - see paint_colors), then render the freshly
  * exposed rightmost column from the world map. Runs only on the frame the
  * fine offset wraps (every 8 px). SCHEDULING IS THE TRICK: called right after
  * wait_frame() (i.e. just after the line-251 IRQ). The beam won't draw
  * playfield row 3 until line 75 of the NEXT frame (~8500 cycles away) and then
  * takes 504 cycles/row; this loop spends ~600 cycles/row, so with that head
- * start it stays ahead of the beam — no tearing, no double buffer. (The
+ * start it stays ahead of the beam - no tearing, no double buffer. (The
  * grown-up alternative is page-flipping screen RAM via $D018.) */
 static void scroll_field(uint8_t new_right_wc) {
   uint8_t r, c;
@@ -546,7 +546,7 @@ static void scroll_field(uint8_t new_right_wc) {
    * so cc65 is free to keep the running pointer in zero page and emit a tight
    * indexed copy. Marking it volatile (as the per-cell game writes do, for
    * mid-frame correctness) would force a reload per access and roughly DOUBLE
-   * this loop's cost — and this loop is the scroll's whole frame budget. */
+   * this loop's cost - and this loop is the scroll's whole frame budget. */
   uint8_t *srow = (uint8_t*)(0x0400 + FIELD_TOP * 40);
   for (r = FIELD_TOP; r < 25; r++) {
     for (c = 0; c < 39; c++) srow[c] = srow[c + 1];
@@ -555,7 +555,7 @@ static void scroll_field(uint8_t new_right_wc) {
   draw_column(39, new_right_wc);
 }
 
-/* ── GAME LOGIC (clay) — game state ── */
+/* ── GAME LOGIC (clay) - game state ── */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
@@ -567,14 +567,14 @@ static uint16_t p_score[2], hiscore;
 
 /* ── Physics + camera (Q4.4 sub-pixel Y, like the NES platformer) ──
  * The player sits at a FIXED screen X (SCROLL_WALL): pressing RIGHT advances
- * the camera through the world, not the sprite — the classic one-way runner
+ * the camera through the world, not the sprite - the classic one-way runner
  * camera. World position is the camera; the player's world column is
  * coarse + player_col. */
 #define GRAVITY_Q44   3      /* +3/16 px per frame per frame                */
 #define JUMP_VEL_Q44 (-46)   /* launch vy (Q4.4) → a satisfying hop          */
-#define MAX_VY_Q44    72      /* terminal velocity ~4.5 px/frame — keep under *
+#define MAX_VY_Q44    72      /* terminal velocity ~4.5 px/frame - keep under *
                               * 6 so the 6-px landing window can't tunnel    */
-#define MOVE_SPEED    1       /* camera advance px/frame — 1 px keeps the    *
+#define MOVE_SPEED    1       /* camera advance px/frame - 1 px keeps the    *
                               * coarse shift to once / 8 frames (like the   *
                               * shmup), so the loop stays real-time; the     *
                               * fine scroll makes 1 px/frame look smooth     */
@@ -600,10 +600,10 @@ static uint8_t player_world_col(void) {
   return (uint8_t)(((cam_px >> 3) + PLAYER_COL) % MAP_COLS);
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — staging a sprite with the 9th X bit.
+/* ── HARDWARE IDIOM (load-bearing) - staging a sprite with the 9th X bit.
  * VIC sprite X is 9 bits: low 8 in $D000+2n, bit 8 for ALL sprites packed
  * into $D010. Forget $D010 and anything past X=255 wraps back to the left
- * edge — the classic "my sprite teleports at two-thirds screen" bug. We
+ * edge - the classic "my sprite teleports at two-thirds screen" bug. We
  * accumulate the MSB bits while staging and commit the byte once. ── */
 static uint8_t spr_msb, spr_ena;
 static void stage_begin(void) { spr_msb = 0; spr_ena = 0; }
@@ -615,10 +615,10 @@ static void stage_sprite(uint8_t slot, int16_t x, uint8_t y) {
 }
 static void stage_commit(void) {
   POKE(VIC_SPRITES_X8, spr_msb);
-  POKE(VIC_SPR_ENA, spr_ena);   /* unstaged slots vanish — no stale sprites */
+  POKE(VIC_SPR_ENA, spr_ena);   /* unstaged slots vanish - no stale sprites */
 }
 
-/* ── GAME LOGIC (clay) — score bar (rows 0-1) ── */
+/* ── GAME LOGIC (clay) - score bar (rows 0-1) ── */
 static void draw_bar_labels(void) {
   uint8_t c;
   for (c = 0; c < 40; c++) {              /* row 1: solid divider line */
@@ -643,7 +643,7 @@ static void draw_bar_stats(void) {
   COLORS[28] = COLOR_WHITE;
 }
 
-/* ── GAME LOGIC (clay) — coins (a single VIC sprite drifting with the world) ──
+/* ── GAME LOGIC (clay) - coins (a single VIC sprite drifting with the world) ──
  * The active coin is anchored to a world column; it drifts left with the
  * scroll and respawns ahead at the right when collected or passed. */
 #define SCREEN_RIGHT_PX 320
@@ -654,7 +654,7 @@ static void respawn_coin(void) {
   coin_row = 13 + (rand8() % 6);   /* float at a reachable height */
 }
 
-/* ── GAME LOGIC (clay) — title / start / game over ──────────────────────────
+/* ── GAME LOGIC (clay) - title / start / game over ──────────────────────────
  * Transition rule (see paint_level's note): never repaint the whole field on
  * a fire press. The title draws its text ON TOP of the parked level; start
  * repaints the level once (cheap enough at a state change, not per frame). */
@@ -712,7 +712,7 @@ static void game_over(void) {
   if (two_player && p_score[1] > best) best = p_score[1];
   if (best > hiscore) {
     hiscore = best;
-    hiscore_save(hiscore);      /* the persistence seam — see its block doc */
+    hiscore_save(hiscore);      /* the persistence seam - see its block doc */
   }
   draw_text_band(11, 15, "GAME OVER");
   draw_text_band(13, 13, "FIRE - TITLE");
@@ -721,7 +721,7 @@ static void game_over(void) {
   state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay) — death + alternating-turn handoff (arcade-classic) ── */
+/* ── GAME LOGIC (clay) - death + alternating-turn handoff (arcade-classic) ── */
 static void kill_player(void) {
   uint8_t other;
   sfx_noise(16);
@@ -734,7 +734,7 @@ static void kill_player(void) {
   begin_turn();
 }
 
-/* ── GAME LOGIC (clay) — landing probe against the column map ──────────────
+/* ── GAME LOGIC (clay) - landing probe against the column map ──────────────
  * One-way platforms, classic style: only catch the player while FALLING
  * through a narrow window at a surface. feet = sprite Y + 16 (sprite bottom).
  * A surface at char row r has its top at SPR_Y_FOR_ROW(r)+16 in feet units. */
@@ -765,7 +765,7 @@ void main(void) {
   uint8_t pad0, pad1, pad, fine_prev = 0;
   uint8_t feet, y8, top;
 
-  /* ── HARDWARE IDIOM (load-bearing) — boot order. VIC + SID config before
+  /* ── HARDWARE IDIOM (load-bearing) - boot order. VIC + SID config before
    * the IRQ goes live; sfx_init BEFORE music_init (sfx_init writes a plain
    * volume to $D418, music_init re-asserts the filter-mode bits on top). ── */
   POKE(VIC_SPR_ENA, 0);
@@ -787,7 +787,7 @@ void main(void) {
   hiscore = hiscore_load();               /* 0 until the core save round lands */
 
   field_d016 = D016_BAR;
-  paint_colors();                         /* STATIC color texture — once, ever */
+  paint_colors();                         /* STATIC color texture - once, ever */
   paint_level(0);                         /* the ONE full-field char paint (boot) */
   install_raster_irq();                   /* the split + heartbeat go live */
   paint_title();
@@ -797,12 +797,12 @@ void main(void) {
 
     music_update();
     sfx_update();
-    pad0 = read_stick_port2();            /* P1 — control port 2 (convention) */
-    pad1 = read_stick_port1();            /* P2 — control port 1 */
+    pad0 = read_stick_port2();            /* P1 - control port 2 (convention) */
+    pad1 = read_stick_port1();            /* P2 - control port 1 */
 
     if (state == ST_TITLE) {
       /* Mode select doubles as a controls demo: the stick that presses FIRE
-       * picks the mode — port 2 starts 1P, port 1 starts 2P alternating. */
+       * picks the mode - port 2 starts 1P, port 1 starts 2P alternating. */
       if ((pad0 & JOY_FIRE) && !(prev0 & JOY_FIRE)) start_game(0);
       else if ((pad1 & JOY_FIRE) && !(prev1 & JOY_FIRE)) start_game(1);
       prev0 = pad0; prev1 = pad1;
@@ -818,15 +818,15 @@ void main(void) {
 
     /* ── ST_PLAY ─────────────────────────────────────────────────────────
      * The current player's controller drives the run (P2 on control port 1).
-     * Set field_d016 EARLY — it must be settled long before the beam reaches
-     * SPLIT_LINE — and run the coarse shift right after the heartbeat. */
+     * Set field_d016 EARLY - it must be settled long before the beam reaches
+     * SPLIT_LINE - and run the coarse shift right after the heartbeat. */
     pad = cur_player ? pad1 : pad0;
 
     if (turn_pause) {                     /* "P# ready" breather */
       --turn_pause;
       /* Do NOT refresh prev0/prev1 here: begin_turn seeded them with FIRE
        * held (0x1F), so the start/respawn FIRE press that's still down is
-       * swallowed — the player won't auto-jump the instant control returns.
+       * swallowed - the player won't auto-jump the instant control returns.
        * A fresh release+press after the breather makes the first real jump. */
       stage_begin();
       stage_sprite(SLOT_PLAYER, PLAYER_X_PX, (uint8_t)(py_q44 >> 4));
@@ -858,7 +858,7 @@ void main(void) {
     if ((pad & JOY_FIRE) && !((cur_player ? prev1 : prev0) & JOY_FIRE) && on_ground) {
       vy_q44 = JUMP_VEL_Q44;
       on_ground = 0;
-      sfx_tone(2, 0x60, 0x30, 4);         /* jump chirp — voice 2 */
+      sfx_tone(2, 0x60, 0x30, 4);         /* jump chirp - voice 2 */
     }
     prev0 = pad0; prev1 = pad1;
 
@@ -870,7 +870,7 @@ void main(void) {
     /* Fell below the window → into a pit → lose the turn. */
     if (y8 >= 224 || (py_q44 >> 4) >= 224) { kill_player(); continue; }
 
-    /* Landing — probe the column under the player's feet (falling only). */
+    /* Landing - probe the column under the player's feet (falling only). */
     if (vy_q44 >= 0) {
       feet = (uint8_t)(y8 + 16);
       top = land_top(feet);

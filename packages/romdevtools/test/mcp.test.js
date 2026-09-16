@@ -26,7 +26,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Build a real, bootable NES ROM from our own example source. These tests just
-// need *a* valid NES ROM (load/step/screenshot/memory/savestate) — building it
+// need *a* valid NES ROM (load/step/screenshot/memory/savestate) - building it
 // ourselves means they always run and reference no external ROM on disk.
 let ROM_PATH;
 before(async () => { ROM_PATH = await buildExampleRom("nes"); });
@@ -52,7 +52,7 @@ async function startServerAndClient() {
 
   // Tests directly call tools that live in deferred PD categories
   // (listPlatforms is in 'platforms', loadMedia is in 'run', etc.).
-  // Load everything so tests can call any tool by name — mirrors the
+  // Load everything so tests can call any tool by name - mirrors the
   // power-user `loadCategory({category:"all"})` escape hatch.
 
   return { server, client };
@@ -86,7 +86,7 @@ test("MCP: load NES rom, step frames, screenshot returns valid PNG", async () =>
   assert.equal(loadInfo.platform, "nes");
   assert.equal(loadInfo.core, "fceumm");
 
-  // stepAndScreenshot — inline:true to get the image in the response
+  // stepAndScreenshot - inline:true to get the image in the response
   // (default writes to a path; this test asserts the inline image shape).
   const shot = await client.callTool({
     name: "frame", arguments: { op: "stepAndShot",  frames: 60, inline: true },
@@ -150,7 +150,7 @@ test("MCP: save state, step further, load state restores frame count", async () 
   });
   assert.equal(restore.isError, undefined);
   // loadState refreshes the framebuffer by default (render:true) so an
-  // immediate screenshot isn't stale — it reports rendered:true and advances
+  // immediate screenshot isn't stale - it reports rendered:true and advances
   // the monotonic counter by one (130 → 131). The core state itself is back
   // at cp1; only our power-on counter is monotonic (documented).
   const restoreBody = JSON.parse(restore.content[0].text);
@@ -158,7 +158,7 @@ test("MCP: save state, step further, load state restores frame count", async () 
   const afterRestore = JSON.parse((await client.callTool({ name: "catalog", arguments: { op: "status" } })).content[0].text).frameCount;
   assert.equal(afterRestore, 131, "render:true stepped exactly one frame");
 
-  // render:false restores WITHOUT advancing — for callers who need the core
+  // render:false restores WITHOUT advancing - for callers who need the core
   // paused at the exact restored instant before any frame runs.
   const restoreNoRender = await client.callTool({
     name: "state",
@@ -230,7 +230,7 @@ test("MCP: findWriter captures the instruction-level write PC (watchpoint)", asy
   for (let i = 0; i < 0x100; i++) {
     if (before.slice(i * 2, i * 2 + 2) !== after.slice(i * 2, i * 2 + 2)) { addr = i; break; }
   }
-  if (addr < 0) return; // no zero-page write in this window — nothing to assert
+  if (addr < 0) return; // no zero-page write in this window - nothing to assert
   const r = await client.callTool({ name: "breakpoint", arguments: { on: "write",  address: addr, maxFrames: 120 } });
   assert.equal(r.isError, undefined, `findWriter errored: ${JSON.stringify(r)}`);
   const w = JSON.parse(r.content[0].text);

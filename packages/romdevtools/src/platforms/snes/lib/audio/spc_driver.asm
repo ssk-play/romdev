@@ -1,12 +1,12 @@
-; SPC700 driver — command-driven SFX + music dispatcher.
+; SPC700 driver - command-driven SFX + music dispatcher.
 ;
 ; R46 extension: adds continuous music playback on voice 1 layered on
 ; top of the R31 two-sample sfx system (voice 0). Voices 2-7 are free.
 ;
 ; Commands (sent by SNES via STA $2140 -> SPC reads $F4):
 ;   $00 = no-op / release (resets edge detector)
-;   $01 = play sample 0 on voice 0 (shoot — sfx)
-;   $02 = play sample 1 on voice 0 (explosion — sfx)
+;   $01 = play sample 0 on voice 0 (shoot - sfx)
+;   $02 = play sample 1 on voice 0 (explosion - sfx)
 ;   $03 = music start  (begin walking the song table at $5000)
 ;   $04 = music stop   (silence voice 1, halt the row walker)
 ;
@@ -27,9 +27,9 @@
 ;   - Timing source: SPC Timer 0 at 62.5 Hz (target $80, base 8 kHz).
 ;     Read $FD per loop pass; nonzero means at least one tick elapsed.
 ;     We treat each $FD read as "advance tick_counter by 1" (loose but
-;     fine — at 62.5 Hz vs main loop spin rate we'll never miss many).
+;     fine - at 62.5 Hz vs main loop spin rate we'll never miss many).
 ;
-; CRITICAL: DSP $6C = FLG (not $5C — that's KOFF). Power-on FLG = $E0
+; CRITICAL: DSP $6C = FLG (not $5C - that's KOFF). Power-on FLG = $E0
 ; (reset+mute set); must be cleared. Same hard-won lesson from R31.
 
 arch spc700
@@ -87,7 +87,7 @@ start:
   mov $f2, #$07
   mov $f3, #$7f
 
-  ; Voice 1 vol (music) — slightly quieter so sfx still cuts through
+  ; Voice 1 vol (music) - slightly quieter so sfx still cuts through
   mov $f2, #$10
   mov $f3, #$50
   mov $f2, #$11
@@ -110,7 +110,7 @@ start:
   mov a, $fd
 
   ; ── State init ──────────────────────────────────────────────────
-  ; previous-command cache at ARAM $00 — seed with whatever $F4 has now
+  ; previous-command cache at ARAM $00 - seed with whatever $F4 has now
   ; so we don't mistake the leftover upload-protocol byte as a command.
   mov a, $f4
   mov $00, a
@@ -137,7 +137,7 @@ main_loop:
   beq music_start
   cmp a, #$04
   beq music_stop
-  ; fall through for $00 (release) — just cache, no action
+  ; fall through for $00 (release) - just cache, no action
 
 cmd_done:
   ; ── 2. Music tick ───────────────────────────────────────────────

@@ -1,4 +1,4 @@
-// disasm-platform-contract.test.js — the disasm `platform` enum is derived
+// disasm-platform-contract.test.js - the disasm `platform` enum is derived
 // from the capability manifest, so a platform that declares disasm/decompile
 // can be named explicitly (the 0.135.1 report: n64 worked by inference and
 // was REJECTED by the schema). Ties MCP + HTTP schemas to the manifest.

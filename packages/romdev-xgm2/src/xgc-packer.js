@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.tool.XGCPacker — XGC LZ-style block packer/unpacker.
+// Port of sgdk.xgm2tool.tool.XGCPacker - XGC LZ-style block packer/unpacker.
 
 const LITERAL_MAX_SIZE = 7;
 const MATCH_MAX_SIZE = 31;

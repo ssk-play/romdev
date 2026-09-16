@@ -1,4 +1,4 @@
-// pool.js — child-process pool for WASM toolchain isolation.
+// pool.js - child-process pool for WASM toolchain isolation.
 //
 // Spawns N child workers (wasm-worker.js). Acquire/release semantics:
 // when a caller wants to run a build, it grabs an idle worker, sends the
@@ -76,7 +76,7 @@ function spawnWorker() {
       if (waiter) {
         waiter(w);
       } else {
-        // Nothing waiting — unref so this idle worker doesn't hold the
+        // Nothing waiting - unref so this idle worker doesn't hold the
         // parent's event loop open. Re-ref'd on next acquire.
         w.child.unref();
         w.child.channel?.unref?.();
@@ -88,7 +88,7 @@ function spawnWorker() {
       return;
     }
     if (msg.type === "prewarmed") {
-      // ack — pool decided to prewarm a module
+      // ack - pool decided to prewarm a module
       return;
     }
     if (msg.type === "result" && w.pendingResolve) {
@@ -130,7 +130,7 @@ function spawnWorker() {
     // Remove from pool + spawn replacement so capacity is preserved.
     const idx = workers.indexOf(w);
     if (idx >= 0) workers.splice(idx, 1);
-    // Replenish (only if we still want a pool — process not shutting down).
+    // Replenish (only if we still want a pool - process not shutting down).
     if (!shuttingDown) {
       const replacement = spawnWorker();
       workers.push(replacement);
@@ -169,7 +169,7 @@ function acquire() {
       resolve(idle);
       return;
     }
-    // Queue up — the 'ready' handler will deliver to us.
+    // Queue up - the 'ready' handler will deliver to us.
     waiters.push((w) => {
       w.state = "busy";
       // Worker is already ref'd in spawn or was ref'd when previous job
@@ -210,7 +210,7 @@ export async function runInWorker(job) {
     w.pendingResolve = (result) => settle(result);
     w.pendingReject = (err) => {
       if (err && err.crash && /** @type {any} */ (err).timedOut) {
-        // A timeout we triggered — report it cleanly, not as a generic crash.
+        // A timeout we triggered - report it cleanly, not as a generic crash.
         settle({
           exitCode: -1,
           log: `[timeout] analysis exceeded ${job.timeoutMs}ms and was killed; the WASM worker was ` +
@@ -224,7 +224,7 @@ export async function runInWorker(job) {
         // Convert crash to a normal result so callers don't have to catch.
         settle({
           exitCode: err.crash.exitCode ?? -1,
-          log: `[crash] worker exited unexpectedly — signal=${err.crash.signal} code=${err.crash.exitCode}\n`,
+          log: `[crash] worker exited unexpectedly - signal=${err.crash.signal} code=${err.crash.exitCode}\n`,
           outputs: {},
           crash: err.crash,
         });
@@ -236,7 +236,7 @@ export async function runInWorker(job) {
 
     // Per-call timeout (A5 reliability): a hung WASM analysis (whole-ROM `aaa` on
     // a multi-MB ROM) never exits the worker, so without this the pending job
-    // wedges the slot forever. On timeout we KILL the worker — the exit handler
+    // wedges the slot forever. On timeout we KILL the worker - the exit handler
     // (which sees `w.timedOut`) rejects this job with a clear timeout result and
     // respawns a fresh worker, so the pool keeps its capacity.
     if (job.timeoutMs && job.timeoutMs > 0) {
@@ -261,7 +261,7 @@ export function _internalWorkers() {
 /** Pre-warm a specific WASM module in every worker. Speeds first call. */
 export async function prewarm(gluePath) {
   ensureInit();
-  // Don't await — fire-and-forget across all current workers.
+  // Don't await - fire-and-forget across all current workers.
   for (const w of workers) {
     if (w.state === "dead") continue;
     w.child.send({ type: "prewarm", id: nextJobId++, gluePath });

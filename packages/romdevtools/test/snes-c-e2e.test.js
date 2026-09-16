@@ -1,7 +1,7 @@
 // SNES C end-to-end through MCP buildSource + loadMedia.
 //
 // Confirms the language:"c" SNES dispatch produces a ROM that actually
-// loads in snes9x via the MCP tool surface — the full agent-facing flow
+// loads in snes9x via the MCP tool surface - the full agent-facing flow
 // for "I want C on SNES."
 
 import { test } from "node:test";

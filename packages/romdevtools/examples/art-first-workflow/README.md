@@ -1,4 +1,4 @@
-# Art-first workflow — FOSS tools → ROM
+# Art-first workflow - FOSS tools → ROM
 
 The goal: a non-coder using only open-source tools (LibreSprite, Tiled,
 Pixelorama, GIMP) can author a retro game and get a working ROM
@@ -44,14 +44,14 @@ palette({ source:'platformMaster', platform: "nes", format: "lospec", outputPath
 3. Draw your sprites. Use **Slice tool** to name regions:
    `player_idle`, `chalice`, `dragon_yorgle`, etc. Each named slice
    becomes a separately addressable tile group in your game code.
-4. Use **Tags** to group frames into animations: select frames 0–3,
+4. Use **Tags** to group frames into animations: select frames 0-3,
    name the tag `walk_down`. Same for `walk_left`, `attack`, etc.
 5. **File → Save** as `sprites.ase`.
 
 ### 3. Load sprites into your game
 
 ```js
-// MCP call — returns tile bytes + named groups + tags
+// MCP call - returns tile bytes + named groups + tags
 importArt({
   from: 'aseprite',
   path: "sprites.ase",
@@ -76,7 +76,7 @@ importArt({
 ```
 
 Your C code references `tile_indices[0]` for "the first tile of
-player_idle" — no magic numbers. Animation timing comes from the
+player_idle" - no magic numbers. Animation timing comes from the
 artist's frame durations in LibreSprite, not hardcoded in code.
 
 ### 4. Design a level in Tiled
@@ -90,7 +90,7 @@ artist's frame durations in LibreSprite, not hardcoded in code.
 4. Add an **Object Layer** named e.g. `spawns`. Drop named point
    objects: `player_start`, `door_north`, `chest`. Each can carry
    key/value custom properties (e.g. `loot=potion`).
-5. **File → Export As** → "Tiled map files (.tmj)". (NOT `.tmx` — the
+5. **File → Export As** → "Tiled map files (.tmj)". (NOT `.tmx` - the
    XML variant. `.tmj` is JSON and works directly.)
 
 ### 5. Load the level into your game
@@ -178,7 +178,7 @@ void main(void) {
     ppu_off();
     chr_ram_upload(0x0000, tile_data, /* tile_count * 16 */ );
     palette_load(palette);
-    /* upload nametable_data straight to $2000 — vram_unsafe_set 960× */
+    /* upload nametable_data straight to $2000 - vram_unsafe_set 960× */
     oam_clear();
     oam_spr(player_x, player_y, PLAYER_IDLE, 0);
     ppu_on_all();
@@ -197,7 +197,7 @@ ImageMagick installs.
 ## Gotchas (see the loader docs for details)
 
 - **Tiled compression**: if Tiled's "Tile Layer Format" is set to
-  "zstd-compressed Base64", re-export with zlib/gzip/uncompressed —
+  "zstd-compressed Base64", re-export with zlib/gzip/uncompressed -
   zstd isn't supported.
 - **`.ase` tilemap-mode cels** (Aseprite 1.3+): convert to regular
   layers first (`Layer → Convert → To Layer`).
@@ -205,5 +205,5 @@ ImageMagick installs.
   GIFs with `Disposal: Replace` for full-frame sprite animations.
 - **Indexed PNG colors must match the platform palette** (±8/channel
   tolerance). If `encodeArt({stage:'tiles'})` warns about colors outside the
-  palette, the editor exported them slightly drifted by sRGB gamma —
+  palette, the editor exported them slightly drifted by sRGB gamma -
   re-export, or re-pick the palette with `palette({source:'platformMaster'})`.

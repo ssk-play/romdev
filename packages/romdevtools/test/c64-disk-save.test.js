@@ -68,14 +68,14 @@ test("importDiskImage swaps the whole disk", { timeout: 60000 }, async () => {
 test("importDiskImage rejects a non-174848-byte image at the state layer", () => {
   // (the size guard lives in state.js importDiskCore; here we assert the host
   // import returns 0 / refuses a wrong-size disk rather than corrupting)
-  // A tiny buffer can't be a valid .d64 — host import writes only what fits and
+  // A tiny buffer can't be a valid .d64 - host import writes only what fits and
   // the directory won't parse to anything meaningful; the state op enforces 174848.
   assert.ok(true); // documented invariant; enforced + tested via the MCP op
 });
 
 // THE headline case: a running game does its OWN KERNAL SAVE to disk, and we read
 // the saved file back out. This persists because VICE writes it into the live
-// disk image (TDE GCR writeback) — exportDisk reads that image. The filename is
+// disk image (TDE GCR writeback) - exportDisk reads that image. The filename is
 // stored in high-bit PETSCII by the KERNAL, which the readDirectory fix decodes.
 test("a game's own cbm_save persists into the disk and reads back", { timeout: 120000 }, async () => {
   const { buildC } = await import("../src/toolchains/cc65/cc65.js");

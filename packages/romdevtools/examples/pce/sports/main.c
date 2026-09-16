@@ -1,25 +1,25 @@
-/* ── main.c — PC Engine versus court game (complete example game) ────────────
+/* ── main.c - PC Engine versus court game (complete example game) ────────────
  *
- * SPIKE SURGE — a COMPLETE, working head-to-head court game (Pong lineage):
+ * SPIKE SURGE - a COMPLETE, working head-to-head court game (Pong lineage):
  * title screen, 1P vs a beatable CPU and 2P SIMULTANEOUS VERSUS (P1 on the
  * stock pad, P2 on the TurboTap's second pad), first-to-5 match flow with a
  * result screen, PSG music + SFX, and an in-session record (your longest win
- * streak vs the CPU; a bare HuCard can't save — see the record note).
+ * streak vs the CPU; a bare HuCard can't save - see the record note).
  *
  * The game: two paddles, one "pulse" bouncing between them. UP/DOWN move your
  * paddle; the pulse deflects off paddles (steeper the further from centre you
  * parry it) and the top/bottom court rails. A pulse past either edge scores
  * for the other side and re-serves. First to 5 takes the match.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented PCE footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented PCE footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — court art, pulse physics, CPU skill, scoring rules:
+ *   GAME LOGIC (clay) - court art, pulse physics, CPU skill, scoring rules:
  *     reshape freely.
  *
  * What depends on what:
- *   pce_hw.h / pce_video.c / pce_input.c / pce_sound.c — the helper lib
+ *   pce_hw.h / pce_video.c / pce_input.c / pce_sound.c - the helper lib
  *     (VDC/VCE/PSG register dances + joypad). The HARDWARE IDIOM markers in
  *     pce_video.c say which parts are load-bearing.
  *   cc65's pce crt0 + pce.lib are auto-linked; the 'rom32k' linker preset
@@ -28,13 +28,13 @@
  * 2P, honestly: the stock PC Engine has ONE controller port; 2P needs a
  * TurboTap. The geargrafx core implements the TurboTap and the romdev host
  * now force-ENABLES it (PLATFORM_CORE_OPTIONS pce: geargrafx_turbotap), so a
- * second pad's input reaches the game on pad slot 2 — verified by driving
+ * second pad's input reaches the game on pad slot 2 - verified by driving
  * port-1 input and seeing P2's paddle move. So this game ships REAL
  * simultaneous 2P versus. (On real hardware the player plugs a TurboTap and a
  * second pad.) The CPU opponent only exists in 1P mode.
  *
  * Frame budget (NTSC, 60fps, 7.16MHz 65C02-class CPU): 2 paddles + 1 pulse +
- * 2 paddle AABB tests + a 7-entry SATB copy in vblank — a tiny fraction of a
+ * 2 paddle AABB tests + a 7-entry SATB copy in vblank - a tiny fraction of a
  * frame. Plenty of headroom for fancier physics.
  */
 #include <pce.h>
@@ -46,15 +46,15 @@
 typedef signed char s8;
 typedef int         s16;
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "SPIKE SURGE"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * VRAM map (WORD addresses — the VDC is a 16-bit-word machine; an 8x8 tile is
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * VRAM map (WORD addresses - the VDC is a 16-bit-word machine; an 8x8 tile is
  * 16 words, a 16x16 sprite cell is 64). Sprites and BG tiles share one 64KB
  * VRAM, so lay it out ONCE and keep the SATB out of pattern space:
- *   $0000  BAT (32x32 background map — matches vdc_init's VDC_MWR setting)
+ *   $0000  BAT (32x32 background map - matches vdc_init's VDC_MWR setting)
  *   $1000  font glyphs (38 tiles: blank, 0-9, A-Z, dash)
  *   $1400  court furniture tiles (floor, rail, net, HUD band)
  *   $1800  16x16 sprite cells: paddle, pulse */
@@ -73,20 +73,20 @@ typedef int         s16;
 #define PADDLE_PAT  (PADDLE_VRAM >> 6)
 #define PULSE_PAT   (PULSE_VRAM >> 6)
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Court geometry + match rules. The 256x224 court is framed by rail tiles on
  * BAT rows 2 and 27; COURT_TOP/BOT keep the pulse between them. Rows 0-1 are
  * the HUD band. Paddles are 3 stacked 16px sprite segments (48px tall). */
 #define COURT_TOP   24            /* first pixel row below the top rail        */
 #define COURT_BOT   216           /* first pixel row of the bottom rail        */
 #define PADDLE_H    48            /* 3 stacked 16px sprite segments            */
-#define PADDLE_X1   16            /* P1 — left side                            */
-#define PADDLE_X2   224           /* P2/CPU — right side                       */
+#define PADDLE_X1   16            /* P1 - left side                            */
+#define PADDLE_X2   224           /* P2/CPU - right side                       */
 #define PULSE_SIZE  12
 #define WIN_SCORE   5             /* first to 5 takes the match                */
-#define P1_SPEED    3             /* px/frame — both humans move at this       */
-#define CPU_SPEED   1             /* px/frame — third speed: clearly beatable  */
-#define BALL_VMAX   3             /* max |bdy| — exceeds CPU_SPEED so a steep  *
+#define P1_SPEED    3             /* px/frame - both humans move at this       */
+#define CPU_SPEED   1             /* px/frame - third speed: clearly beatable  */
+#define BALL_VMAX   3             /* max |bdy| - exceeds CPU_SPEED so a steep  *
                                    * edge parry outruns the CPU (the win)      */
 
 /* SATB slot plan (slot order = priority): 0-2 P1 paddle, 3-5 P2 paddle, 6
@@ -99,7 +99,7 @@ typedef int         s16;
 #define PAL_PULSE   2
 #define OFFSCREEN_Y 0x1F0         /* park hidden sprites below the display     */
 
-/* ── GAME LOGIC (clay — reshape freely) ── game state ── */
+/* ── GAME LOGIC (clay - reshape freely) ── game state ── */
 static s16 p1y, p2y;              /* paddle top Y (signed: collision math)     */
 static s16 bx, by;               /* pulse top-left, pixels                    */
 static s8  bdx, bdy;             /* pulse velocity (px/frame)                 */
@@ -107,14 +107,14 @@ static u8  score_p1, score_p2;
 static u8  serve_timer;          /* freeze frames between points              */
 static u8  two_player;           /* title pick: 0 = vs CPU, 1 = 2P versus     */
 static u8  streak;               /* current 1P-vs-CPU win streak (RAM)        */
-static u16 best_streak;          /* in-session record — see end_match         */
+static u16 best_streak;          /* in-session record - see end_match         */
 static u8  new_record;           /* result screen shows NEW RECORD            */
 static u8  state;                /* ST_TITLE / ST_PLAY / ST_OVER              */
 static u8  prev_pad;             /* edge-triggered menu input                 */
 static u8  sfx_timer;
 static u8  hud_dirty;
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
@@ -122,7 +122,7 @@ static u8  hud_dirty;
 static u16 tile_buf[16];          /* scratch for one 8x8 tile                  */
 static u16 spr_buf[64];           /* scratch for one 16x16 sprite cell         */
 
-/* ── GAME LOGIC (clay) — 5x7 glyph font: blank, 0-9, A-Z, dash ──────────────
+/* ── GAME LOGIC (clay) - 5x7 glyph font: blank, 0-9, A-Z, dash ──────────────
  * Each glyph is 7 rows of 5 bits (bit4 = leftmost). upload_font() expands
  * them into 8x8 1-plane tiles; drawn with BG sub-palette 1 (white). */
 #define G_BLANK 0
@@ -154,7 +154,7 @@ static const u8 FONT5x7[NUM_GLYPHS][7] = {
     {0x00,0x00,0x00,0x1F,0x00,0x00,0x00},
 };
 
-/* ── GAME LOGIC (clay) — sprite masks (16 rows × 16 bits, bit15 leftmost) ──
+/* ── GAME LOGIC (clay) - sprite masks (16 rows × 16 bits, bit15 leftmost) ──
  * The paddle is a solid 8px-wide bar centred in the 16px cell; the pulse is a
  * round blip. Colour is the PALETTE, not the bits (one shape, three sub-pals). */
 static const u16 paddle_mask[16] = {
@@ -166,7 +166,7 @@ static const u16 pulse_mask[16] = {
     0x3FFC, 0x3FFC, 0x1FF8, 0x1FF8, 0x0FF0, 0x07E0, 0x0000, 0x0000
 };
 
-/* ── GAME LOGIC (clay) — tile/sprite builders ────────────────────────────── */
+/* ── GAME LOGIC (clay) - tile/sprite builders ────────────────────────────── */
 static void make_solid_tile(u16 *t, u8 ci) {
     u8 r;
     u8 p0 = (ci & 1) ? 0xFF : 0x00;
@@ -224,7 +224,7 @@ static void upload_art(void) {
     make_sprite16(PULSE_VRAM,  pulse_mask);
 }
 
-/* ── GAME LOGIC (clay) — BAT text + court paint ──────────────────────────── */
+/* ── GAME LOGIC (clay) - BAT text + court paint ──────────────────────────── */
 static void put_glyph(u8 col, u8 row, u8 glyph) {
     u16 e = BAT_ENTRY(1, (u16)(FONT_VRAM + glyph * 16));  /* pal 1 = white   */
     vram_set_write_addr((u16)(BAT_VRAM + row * 32 + col));
@@ -255,16 +255,16 @@ static void draw_num5(u8 col, u8 row, u16 v) {
     for (i = 0; i < 5; ++i) put_glyph((u8)(col + i), row, (u8)(G_DIGIT + d[4 - i]));
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * WHOLE-SCREEN BAT PAINT — the PCE's bandwidth (the inverse of the NES vblank
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * WHOLE-SCREEN BAT PAINT - the PCE's bandwidth (the inverse of the NES vblank
  * famine; the puzzle template's match-3 board exploits the same thing). The
  * court is just BG tiles; when a screen changes we rewrite ALL 32x32 BAT
- * entries — 1024 word writes straight at the VDC's VWR port. The whole map
+ * entries - 1024 word writes straight at the VDC's VWR port. The whole map
  * streams in well under a vblank, so this game NEVER touches the tilemap inside
  * the frame loop (only on a state change: title → play → result). Two rules:
  *   - do the streaming with the address latch armed by vram_set_write_addr(),
  *     which auto-increments as we feed VDC_DATA_LO/HI;
- *   - keep the SATB DMA (satb_dma) after the BAT writes — both share the VDC.
+ *   - keep the SATB DMA (satb_dma) after the BAT writes - both share the VDC.
  *
  * requires: BAT 32x32 (vdc_init's MWR). */
 static void paint_court(void) {
@@ -310,7 +310,7 @@ static void draw_hud(void) {
  * This was researched and corrected: earlier versions wrote the longest 1P win
  * streak to BRAM ("backup RAM", bank $F7) and claimed it persisted across power
  * cycles. That is NOT honest for a HuCard game. On REAL hardware a plain HuCard
- * plugged into a base PC Engine / TurboGrafx-16 has NO backup RAM at all — BRAM
+ * plugged into a base PC Engine / TurboGrafx-16 has NO backup RAM at all - BRAM
  * exists ONLY when a peripheral is attached: the CD-ROM² System (2KB kept by a
  * supercapacitor), the Tennokoe Bank HuCard, or the Memory Base 128. No
  * commercial HuCard self-saved; they used PASSWORDS. (The often-cited Populous
@@ -320,19 +320,19 @@ static void draw_hud(void) {
  *
  * The record we track is still the longest 1P win streak vs the CPU (a raw
  * hi-score is meaningless when every match ends 5-x; 2P matches never touch
- * it) — but IN-SESSION only, resetting to 0 on a cold boot like the honest
+ * it) - but IN-SESSION only, resetting to 0 on a cold boot like the honest
  * 2600/Lynx examples. To ACTUALLY persist on real hardware you would target a
- * peripheral (BRAM behind a detect, or a CD-ROM² build) — a real-hardware
+ * peripheral (BRAM behind a detect, or a CD-ROM² build) - a real-hardware
  * feature, not a property of the cartridge.                              */
 static u16 record_load(void) {
     return 0;          /* cold boot: no persistence on a bare HuCard */
 }
 
 static void record_save(u16 v) {
-    (void)v;           /* in-session only — nowhere to persist on real HW */
+    (void)v;           /* in-session only - nowhere to persist on real HW */
 }
 
-/* ── GAME LOGIC (clay) — music: a 2-channel tune ticked once per frame ──────
+/* ── GAME LOGIC (clay) - music: a 2-channel tune ticked once per frame ──────
  * PSG channel plan: 5 = melody, 4 = bass, 2/3 = SFX (tones cut by sfx_timer).
  * PCE frequency regs are DIVIDERS: pitch ≈ 3.58MHz / (32 × value), so a
  * BIGGER number is a LOWER note. Note indices into NOTE_DIV below. */
@@ -393,10 +393,10 @@ static void sfx(u8 chan, u16 freq, u8 frames) {
     if (frames > sfx_timer) sfx_timer = frames;
 }
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG ─────────────────────────────────────
+/* ── GAME LOGIC (clay) - xorshift16 PRNG ─────────────────────────────────────
  * A versus game NEEDS this: the PCE is fully deterministic, so without a noise
  * source two fixed strategies lock into an infinite rally loop (the exact same
- * cycle, forever — a match that never ends). random8() is ticked once per play
+ * cycle, forever - a match that never ends). random8() is ticked once per play
  * frame so identical game states a few seconds apart still diverge, and every
  * paddle return adds a ±1 "spin" (see deflect). This is what makes an idle
  * 1P-vs-CPU match provably END. */
@@ -410,8 +410,8 @@ static u8 random8(void) {
     return (u8)r;
 }
 
-/* ── GAME LOGIC (clay) — serve: pulse to centre, toward the chosen side.
- * The serve angle takes a PRNG bit (not a fixed alternation) — one more place
+/* ── GAME LOGIC (clay) - serve: pulse to centre, toward the chosen side.
+ * The serve angle takes a PRNG bit (not a fixed alternation) - one more place
  * determinism is broken so idle matches can't settle into a cycle. */
 static void serve_ball(u8 to_left) {
     bx = 120;
@@ -421,8 +421,8 @@ static void serve_ball(u8 to_left) {
     serve_timer = 40;                  /* breather between points */
 }
 
-/* ── GAME LOGIC (clay) — paddle hit: deflect by where the pulse struck.
- * Centre = flat-ish, edges = steep. Max |bdy| is 2 — the CPU moves at 2 too,
+/* ── GAME LOGIC (clay) - paddle hit: deflect by where the pulse struck.
+ * Centre = flat-ish, edges = steep. Max |bdy| is 2 - the CPU moves at 2 too,
  * but the random spin + steep edge parries are exactly how a human beats it. */
 static void deflect(s16 paddle_y) {
     s16 rel = (by + PULSE_SIZE / 2) - (paddle_y + PADDLE_H / 2);
@@ -434,7 +434,7 @@ static void deflect(s16 paddle_y) {
     sfx(2, 0x200, 4);
 }
 
-/* ── GAME LOGIC (clay) — screen painters (full BAT repaint per state change) ── */
+/* ── GAME LOGIC (clay) - screen painters (full BAT repaint per state change) ── */
 static void paint_title(void) {
     paint_court();
     draw_text((u8)((32 - (sizeof(GAME_TITLE) - 1)) / 2), 8, GAME_TITLE);
@@ -464,7 +464,7 @@ static void paint_over(void) {
     draw_hud();
 }
 
-/* ── GAME LOGIC (clay) — start a match ── */
+/* ── GAME LOGIC (clay) - start a match ── */
 static void start_match(u8 players) {
     two_player = players;
     p1y = (COURT_TOP + COURT_BOT) / 2 - PADDLE_H / 2;
@@ -479,7 +479,7 @@ static void start_match(u8 players) {
     sfx(2, 0x180, 6);                  /* start blip */
 }
 
-/* ── GAME LOGIC (clay) — match over: result + record bookkeeping ── */
+/* ── GAME LOGIC (clay) - match over: result + record bookkeeping ── */
 static void end_match(void) {
     if (score_p1 >= WIN_SCORE && !two_player) {
         ++streak;
@@ -500,7 +500,7 @@ static void end_match(void) {
     music_set(ST_OVER);
 }
 
-/* ── GAME LOGIC (clay) — one point scored ── */
+/* ── GAME LOGIC (clay) - one point scored ── */
 static void score_point(u8 for_p1) {
     if (for_p1) ++score_p1; else ++score_p2;
     sfx(3, 0x100, 8);
@@ -509,7 +509,7 @@ static void score_point(u8 for_p1) {
     else serve_ball(for_p1);           /* winner of the point receives */
 }
 
-/* ── GAME LOGIC (clay) — stage this frame's sprites ─────────────────────────
+/* ── GAME LOGIC (clay) - stage this frame's sprites ─────────────────────────
  * Fixed SATB slots: 0-2 P1 paddle, 3-5 P2 paddle, 6 pulse. Paddles freeze on
  * the result screen; the pulse only shows in play. Hidden slots park below the
  * display at OFFSCREEN_Y. */
@@ -529,7 +529,7 @@ static void push_sprites(void) {
                PULSE_PAT, PAL_PULSE);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * 2P INPUT via the TurboTap. pce_joy_read() reads pad 1 (slot 0). For pad 2 we
  * read cc65's JOY_2 directly and translate it to the same clean PCE bitmask
  * pce_input.c builds for pad 1. The host force-enables the TurboTap core
@@ -554,9 +554,9 @@ void main(void) {
 
     _pce_keep[0] = 0;   /* see the EMPTY-BSS TRAP note in pce_hw.h */
 
-    /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
      * Init order: palette → VRAM uploads → BAT paint → joypad → display ON.
-     * disp_enable() also sets the VBlank IRQ bit — without it waitvsync()
+     * disp_enable() also sets the VBlank IRQ bit - without it waitvsync()
      * never returns and the game freezes on its first frame. */
     /* BG sub-pal 0: court (floor/rail/net/band). BG sub-pal 1: HUD/text white. */
     vce_set_color(0,   PCE_RGB(0, 1, 0));   /* backdrop: dark green          */
@@ -564,7 +564,7 @@ void main(void) {
     vce_set_color(2,   PCE_RGB(7, 7, 7));   /* rails / net: white            */
     vce_set_color(3,   PCE_RGB(1, 2, 1));   /* HUD band: dark green-grey     */
     vce_set_color(17,  PCE_RGB(7, 7, 7));   /* pal1 text: white              */
-    /* sprite sub-palettes (256 + pal*16 + index) — P1 cyan, P2 red, pulse
+    /* sprite sub-palettes (256 + pal*16 + index) - P1 cyan, P2 red, pulse
      * yellow, each on its own sub-palette so the paddles read as two sides. */
     vce_set_color(256 + 0 * 16 + 1, PCE_RGB(2, 6, 7));  /* spr pal0 c1: P1 cyan   */
     vce_set_color(256 + 1 * 16 + 1, PCE_RGB(7, 1, 1));  /* spr pal1 c1: P2 red    */
@@ -572,7 +572,7 @@ void main(void) {
 
     upload_art();
 
-    best_streak = record_load();   /* always 0 — no persistence on a bare HuCard */
+    best_streak = record_load();   /* always 0 - no persistence on a bare HuCard */
     streak = 0;
     state = ST_TITLE;
     paint_title();
@@ -623,16 +623,16 @@ void main(void) {
          * tick the noise source every play frame so idle matches diverge. */
         random8();
 
-        /* P1 — pad 1 (port 0), UP/DOWN. */
+        /* P1 - pad 1 (port 0), UP/DOWN. */
         if ((pad1 & PCE_JOY_UP)   && p1y > COURT_TOP)            p1y -= P1_SPEED;
         if ((pad1 & PCE_JOY_DOWN) && p1y < COURT_BOT - PADDLE_H) p1y += P1_SPEED;
 
         if (two_player) {
-            /* P2 — TurboTap pad 2 (port 1), same speed: a fair versus match. */
+            /* P2 - TurboTap pad 2 (port 1), same speed: a fair versus match. */
             if ((pad2 & PCE_JOY_UP)   && p2y > COURT_TOP)            p2y -= P1_SPEED;
             if ((pad2 & PCE_JOY_DOWN) && p2y < COURT_BOT - PADDLE_H) p2y += P1_SPEED;
         } else {
-            /* CPU — chases the pulse centre at a third of the player speed
+            /* CPU - chases the pulse centre at a third of the player speed
              * with a small dead zone. Beatable by design: a steep edge parry
              * (|bdy| up to 3) outruns the CPU's 1px/frame tracking. */
             s16 target = by + PULSE_SIZE / 2 - PADDLE_H / 2;

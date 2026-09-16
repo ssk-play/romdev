@@ -56,7 +56,7 @@ export function gpuMemory() {
     try {
       text = readFileSync(`/proc/self/fdinfo/${fd}`, "utf8");
     } catch {
-      continue; // fd closed between readdir and read — normal, skip it
+      continue; // fd closed between readdir and read - normal, skip it
     }
     if (!text.includes("drm-driver")) continue;
 

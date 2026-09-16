@@ -1,4 +1,4 @@
-// romdev-core-s32core — binary package: the sync32 console core.
+// romdev-core-s32core - binary package: the sync32 console core.
 // Exports absolute paths to the bundled WASM so romdev's registry can load it
 // via the package (instead of reaching into romdev's own gitignored src/).
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,7 @@ const WASM = path.join(__dirname, "wasm");
 
 export const platform = "sync32";
 
-// Emulator core (libretro) — glue .js + .wasm.
+// Emulator core (libretro) - glue .js + .wasm.
 //
 // Built with NODERAWFS: the frontend fopen()s the .s32 by its REAL path and
 // streams the game's "<romname>/" data directory straight off the host

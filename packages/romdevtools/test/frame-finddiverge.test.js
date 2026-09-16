@@ -1,4 +1,4 @@
-// frame({op:'findDiverge'}) — the root-cause finder built on compareRam. Where
+// frame({op:'findDiverge'}) - the root-cause finder built on compareRam. Where
 // compareRam says THAT two slots differ, findDiverge says exactly WHEN (frame)
 // and WHERE (byte) they first split. Must be NON-DESTRUCTIVE (both hosts
 // restored to their pre-search state). Two real hosts, no mocks.

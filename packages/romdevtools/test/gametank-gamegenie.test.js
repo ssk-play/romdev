@@ -1,4 +1,4 @@
-// GameTank Game Genie — a NEW cheat-code format for Clyde Shaffer's open GameTank
+// GameTank Game Genie - a NEW cheat-code format for Clyde Shaffer's open GameTank
 // console (no prior art). Codec round-trips + the in-core value-override device
 // (romdev_cheat_set/read) substituting a byte on the CPU bus read, exactly like a
 // hardware Game Genie you could build for the console's open cart bus.

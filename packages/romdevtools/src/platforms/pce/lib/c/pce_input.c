@@ -1,5 +1,5 @@
 /*
- * pce_input.c — PC Engine pad input via cc65's joystick driver (C89).
+ * pce_input.c - PC Engine pad input via cc65's joystick driver (C89).
  *
  * The PCE pad has a 2-button layout: I (east/'a'), II (west/'b'), Select, Run
  * (start), plus the d-pad. cc65 ships a standard PCE joystick driver linked in

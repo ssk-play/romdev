@@ -1,81 +1,81 @@
-/* ── main.c — PC Engine top-down road racer (complete example game) ───────────
+/* ── main.c - PC Engine top-down road racer (complete example game) ───────────
  *
- * PINION PURSUIT — a COMPLETE, working game: title screen, 1P endless race with
+ * PINION PURSUIT - a COMPLETE, working game: title screen, 1P endless race with
  * speed control, 2P simultaneous SPLIT-LANE VERSUS (both cars on screen at once,
  * P2 on the TurboTap's second pad), a vertically-scrolling road done the PC
  * Engine way (hardware BG Y-scroll via the VDC's BYR register), streamed
  * roadside scenery as the road wraps, crash/lives rules, in-session best
- * distance (a bare HuCard can't save — see the best-distance note), PSG music + SFX.
+ * distance (a bare HuCard can't save - see the best-distance note), PSG music + SFX.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented PCE footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented PCE footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — traffic patterns, speeds, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - traffic patterns, speeds, tuning, art: reshape freely.
  *
  * What depends on what:
- *   pce_hw.h / pce_video.c / pce_input.c / pce_sound.c — the helper lib
+ *   pce_hw.h / pce_video.c / pce_input.c / pce_sound.c - the helper lib
  *     (VDC/VCE/PSG register dances + joypad). The HARDWARE IDIOM markers in
  *     pce_video.c say which parts are load-bearing.
  *   cc65's pce crt0 + pce.lib are auto-linked; the 'rom32k' linker preset
  *     (applied automatically to example projects) gives a 32KB HuCard.
  *
  * THE DESIGN (read before reshaping):
- *   Scrolling — the road is the BACKGROUND, scrolled DOWN by INCREMENTING the
+ *   Scrolling - the road is the BACKGROUND, scrolled DOWN by INCREMENTING the
  *     VDC's BYR register each frame (driving up = the road slides toward you).
  *     The PCE wins here: its BAT is a 32x32 (256px-tall) virtual map and the
  *     VDC masks BYR to the plane IN HARDWARE, so `road_scroll += speed` on a
- *     plain u8 is the whole idiom — 256 wraps seamlessly forever. Compare the
+ *     plain u8 is the whole idiom - 256 wraps seamlessly forever. Compare the
  *     NES racing template (examples/nes/templates/racing.c): there a nametable
  *     is only 240px tall, scroll_y 240-255 fetches attribute bytes as garbage
  *     tiles, and EVERY scroll change must run through a 240-wrap helper. The
  *     SMS (examples/sms/templates/racing.c) wraps at 224. On the PCE there is
  *     no wrap math at all. Cars/traffic are hardware sprites with their own Y.
- *   Streamed scenery — see the BYR idiom below: as the road wraps, the BAT row
+ *   Streamed scenery - see the BYR idiom below: as the road wraps, the BAT row
  *     re-entering at the top gets restamped with fresh random roadside so the
  *     256-px loop never shows the same scenery twice. The swap hides under the
- *     HUD band (the PCE's curtain — same trick the Genesis window HUD plays).
- *   HUD — the PCE has no hardware window plane and this minimal lib does no
+ *     HUD band (the PCE's curtain - same trick the Genesis window HUD plays).
+ *   HUD - the PCE has no hardware window plane and this minimal lib does no
  *     raster split, so (like the platformer template's painted-band HUD) the
  *     status row is BAT tiles at the top. Because BYR scrolls the WHOLE BG, we
  *     keep the HUD readable by parking it in BAT rows the scroll never exposes:
  *     the road only ever occupies the play band, and the top 2 BAT rows hold a
  *     fixed HUD band repainted with each scenery stream so it reads continuous.
- *   2P VERSUS — ONE VDC means ONE road scroll, so both players share one road
+ *   2P VERSUS - ONE VDC means ONE road scroll, so both players share one road
  *     at a fixed speed and only STEER (the same constraint the NES/Genesis
  *     versions explain): solid center divider, P1 (cyan, port 0) owns the left
  *     two lanes, P2 (amber, TurboTap port 1) the right two. Each starts with 3
  *     crashes; first to use them all LOSES.
- *   1P RACE — all four lanes, UP/I accelerates, DOWN/II brakes (speed 1-4);
+ *   1P RACE - all four lanes, UP/I accelerates, DOWN/II brakes (speed 1-4);
  *     3 crashes end the run. Persistent stat: best DISTANCE (u16, one unit =
  *     16 scrolled pixels ≈ one car length); in-session only (see the note below).
  *
  * 2P, honestly: the stock PC Engine has ONE controller port; 2P needs a
  * TurboTap. The geargrafx core implements the TurboTap and the romdev host
  * force-ENABLES it (PLATFORM_CORE_OPTIONS pce: geargrafx_turbotap), so a second
- * pad's input reaches the game on pad slot 2 — verified by driving port-1 input
+ * pad's input reaches the game on pad slot 2 - verified by driving port-1 input
  * and seeing car 2 move. So this game ships REAL simultaneous 2P versus. (On
  * real hardware the player plugs a TurboTap and a second pad.)
  *
  * Frame budget (NTSC, 60fps, 7.16MHz 65C02-class CPU): 4 traffic + 2 cars AABB,
  * one BAT row restamp at most every other frame, an 8-entry SATB copy in
- * vblank — a tiny fraction of a frame. Hardware BYR scroll is one register.
+ * vblank - a tiny fraction of a frame. Hardware BYR scroll is one register.
  */
 #include <pce.h>
 #include <stdint.h>   /* int16_t for the per-frame speed step                  */
 #include <joystick.h> /* JOY_2 + joy_read for the 2nd pad (TurboTap port 1)    */
 #include "pce_hw.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "PINION PURSUIT"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * VRAM map (WORD addresses — the VDC is a 16-bit-word machine; an 8x8 tile is
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * VRAM map (WORD addresses - the VDC is a 16-bit-word machine; an 8x8 tile is
  * 16 words, a 16x16 sprite cell is 64). Sprites and BG tiles share one 64KB
  * VRAM, so lay it out ONCE and keep the SATB out of pattern space:
- *   $0000  BAT (32x32 background map — matches vdc_init's VDC_MWR setting)
- *   $1000  font glyphs (38 tiles: blank, 0-9, A-Z, dash) — BG text only
+ *   $0000  BAT (32x32 background map - matches vdc_init's VDC_MWR setting)
+ *   $1000  font glyphs (38 tiles: blank, 0-9, A-Z, dash) - BG text only
  *   $1400  road furniture tiles (grass, asphalt, dash, edge, divider, band)
  *   $1800  16x16 sprite cells: player car, traffic car
  *   $1900  16x16 sprite DIGIT cells (0-9) for the SPRITE HUD (see HUD idiom) */
@@ -97,7 +97,7 @@
 #define ENEMY_PAT   (ENEMY_VRAM >> 6)
 #define SDIGIT_PAT  (SDIGIT_VRAM >> 6)   /* digit d → SDIGIT_PAT + d (cells are *4 words apart = +1 pattern code) */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Road geometry. Four 4-cell-wide lanes between shoulders, a solid centre
  * divider (it's also the 2P territory line). BAT columns (cells):
  *   8  = left shoulder, 12/20 = dashed lane lines, 16 = centre divider,
@@ -112,16 +112,16 @@ static const u16 lane_x[4] = { 80, 112, 144, 176 };
 
 #define MAX_TRAFFIC  4         /* sprite slots 2-5 (0=P1, 1=P2)               */
 #define CAR_Y        176       /* both players' fixed screen Y                */
-#define SPAWN_Y      28        /* traffic entry Y — BELOW the sprite HUD line  */
+#define SPAWN_Y      28        /* traffic entry Y - BELOW the sprite HUD line  */
 #define HUD_Y        8         /* sprite HUD scanline (digits live here)       */
 #define DESPAWN_Y    216       /* traffic exits past the player                */
 #define START_LIVES  3         /* crashes per run / per player                 */
-#define SPAWN_PERIOD 40        /* frames between traffic spawns — traffic moves
+#define SPAWN_PERIOD 40        /* frames between traffic spawns - traffic moves
                                 * at road speed, so per-meter density stays
                                 * constant whatever the player does            */
 #define SPEED_2P     2         /* fixed road speed in versus (one VDC = one
                                 * scroll = one shared speed; see the design)   */
-#define MAX_SPEED    4         /* px/frame — MUST stay under 8: the row
+#define MAX_SPEED    4         /* px/frame - MUST stay under 8: the row
                                 * streamer restamps one row per 8px crossing
                                 * and a >8px step could skip a row             */
 
@@ -139,7 +139,7 @@ static const u16 lane_x[4] = { 80, 112, 144, 176 };
 #define PAL_HUD     3
 #define OFFSCREEN_Y 0x1F0      /* park hidden sprites below the display        */
 
-/* ── GAME LOGIC (clay — reshape freely) ── game state ── */
+/* ── GAME LOGIC (clay - reshape freely) ── game state ── */
 /* Players: index 0 = P1 (port 0), 1 = P2 (TurboTap port 1, versus only). */
 static u8  car_lane[2];
 static u8  car_active[2];
@@ -161,7 +161,7 @@ static u16 best;                /* persisted best 1P distance                   
 static u8  spawn_timer;
 static u8  road_scroll;         /* BG Y scroll. NEVER wrapped by hand: the BAT
                                  * is 256px tall, the VDC masks BYR to the
-                                 * plane, and 256 wrapping a u8 is seamless —
+                                 * plane, and 256 wrapping a u8 is seamless -
                                  * see the BYR idiom (the NES needs a 240-wrap
                                  * helper here, the SMS a 224-wrap).            */
 static u8  prev_top_row;        /* last restamped BAT row                       */
@@ -169,7 +169,7 @@ static u8  start_pause;         /* green-light freeze frames                    
 static u8  sfx_timer;
 static u8  state;               /* ST_TITLE / ST_PLAY / ST_OVER                 */
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
@@ -177,7 +177,7 @@ static u8  state;               /* ST_TITLE / ST_PLAY / ST_OVER                 
 static u16 tile_buf[16];        /* scratch for one 8x8 tile                     */
 static u16 spr_buf[64];         /* scratch for one 16x16 sprite cell            */
 
-/* ── GAME LOGIC (clay) — 5x7 glyph font: blank, 0-9, A-Z, dash ──────────────
+/* ── GAME LOGIC (clay) - 5x7 glyph font: blank, 0-9, A-Z, dash ──────────────
  * Each glyph is 7 rows of 5 bits (bit4 = leftmost). upload_font() expands
  * them into 8x8 1-plane tiles; drawn with BG sub-palette 1 (white). */
 #define G_BLANK 0
@@ -209,7 +209,7 @@ static const u8 FONT5x7[NUM_GLYPHS][7] = {
     {0x00,0x00,0x00,0x1F,0x00,0x00,0x00},
 };
 
-/* ── GAME LOGIC (clay) — 16x16 car sprite mask (16 rows × 16 bits, bit15 left).
+/* ── GAME LOGIC (clay) - 16x16 car sprite mask (16 rows × 16 bits, bit15 left).
  * A blocky top-down car: cabin, windows, wheels. Colour is the PALETTE, not the
  * bits (one shape, three sub-palettes → P1 cyan, P2 amber, traffic red). */
 static const u16 car_mask[16] = {
@@ -217,7 +217,7 @@ static const u16 car_mask[16] = {
     0x7FFE, 0x7FFE, 0x6FF6, 0x6FF6, 0x7FFE, 0x3FFC, 0x6006, 0x6006
 };
 
-/* ── GAME LOGIC (clay) — tile/sprite builders ────────────────────────────── */
+/* ── GAME LOGIC (clay) - tile/sprite builders ────────────────────────────── */
 static void make_solid_tile(u16 *t, u8 ci) {
     u8 r;
     u8 p0 = (ci & 1) ? 0xFF : 0x00;
@@ -275,12 +275,12 @@ static void upload_font(void) {
     }
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * SPRITE HUD digits. The PCE has NO hardware window plane and this minimal lib
  * does no raster split, so a BAT-tile HUD would scroll WITH the road under BYR
  * (and the road-row STREAMER below restamps every BAT row in turn, wiping any
- * tile HUD outright). The honest fix — the same one the NES racing template
- * uses — is a SPRITE HUD: sprites are positioned in SCREEN space and never move
+ * tile HUD outright). The honest fix - the same one the NES racing template
+ * uses - is a SPRITE HUD: sprites are positioned in SCREEN space and never move
  * with a BG scroll. We build 10 digit cells here and stage them at HUD_Y every
  * frame. Traffic spawns BELOW HUD_Y so the HuC6270's 16-sprites-per-scanline
  * limit is never hit (6 HUD digits + 0 traffic share the line).
@@ -316,7 +316,7 @@ static void upload_art(void) {
     upload_sprite_digits();
 }
 
-/* ── GAME LOGIC (clay) — BAT text helpers ────────────────────────────────── */
+/* ── GAME LOGIC (clay) - BAT text helpers ────────────────────────────────── */
 static void put_glyph(u8 col, u8 row, u8 glyph) {
     u16 e = BAT_ENTRY(1, (u16)(FONT_VRAM + glyph * 16));  /* pal 1 = white   */
     vram_set_write_addr((u16)(BAT_VRAM + row * 32 + col));
@@ -347,7 +347,7 @@ static void draw_num5(u8 col, u8 row, u16 v) {
     for (i = 0; i < 5; ++i) put_glyph((u8)(col + i), row, (u8)(G_DIGIT + d[4 - i]));
 }
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG ───────────────────────────────────── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG ───────────────────────────────────── */
 static u16 rng = 0xBEEF;
 static u8 random8(void) {
     u16 r = rng;
@@ -358,14 +358,14 @@ static u8 random8(void) {
     return (u8)r;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * HARDWARE BG Y-SCROLL via BYR + STREAMED ROWS — the PCE's road. The BAT is a
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * HARDWARE BG Y-SCROLL via BYR + STREAMED ROWS - the PCE's road. The BAT is a
  * 32x32 (256px-tall) virtual map and the VDC's R8 (BYR) shifts the whole
  * background vertically with ZERO CPU per pixel. Screen line y shows plane line
- * (BYR + y) & 255, so DECREMENTING road_scroll slides the road DOWN — the
- * driving-up illusion — for one register write per frame. The BAT is 256px tall
+ * (BYR + y) & 255, so DECREMENTING road_scroll slides the road DOWN - the
+ * driving-up illusion - for one register write per frame. The BAT is 256px tall
  * and the VDC masks BYR to it IN HARDWARE, so a plain u8 wraps at 256 seamlessly
- * forever — the NES racing template (examples/nes/templates/racing.c) needs a
+ * forever - the NES racing template (examples/nes/templates/racing.c) needs a
  * 240-wrap helper here (a nametable is 240px tall; scroll_y 240-255 fetches
  * attribute bytes as garbage tiles), and the SMS a 224-wrap. On the PCE there
  * is no wrap math at all.
@@ -374,12 +374,12 @@ static u8 random8(void) {
  * of the screen is BAT row (road_scroll >> 3) & 31. The moment it changes we
  * restamp that ONE row with fresh random roadside, so the 256-px loop never
  * shows the same scenery twice. Two rules:
- *   1. Restamp with the address latch armed by vram_set_write_addr() — a row
+ *   1. Restamp with the address latch armed by vram_set_write_addr() - a row
  *      is 32 contiguous BAT words, so one latch + 32 word writes does it.
  *   2. Road speed stays under 8 px/frame (MAX_SPEED) so a frame never skips a
  *      whole row crossing (the streamer restamps one row per crossing).
  * The HUD is SPRITES (see upload_sprite_digits), so unlike the NES (overscan
- * band) or Genesis (window plane) there's no BG "curtain" to hide a restamp —
+ * band) or Genesis (window plane) there's no BG "curtain" to hide a restamp -
  * the restamp lands at the very top edge and the dashes/edges are identical
  * tiles row to row, so the only thing that changes is the random grass speckle,
  * which reads as roadside texture, not a pop.
@@ -408,17 +408,17 @@ static void paint_road_row(u8 row) {
     }
 }
 
-/* Initial full road paint (all 32 rows) — used on (re)entering the race. */
+/* Initial full road paint (all 32 rows) - used on (re)entering the race. */
 static void paint_road(void) {
     u8 r;
     for (r = 0; r < 32; ++r) paint_road_row(r);
 }
 
 /* Advance the road by `px` pixels: one BYR write + at most one row restamp.
- * DECREMENT so the road slides DOWN (driving up); the u8 wraps at 256 — idiom. */
+ * DECREMENT so the road slides DOWN (driving up); the u8 wraps at 256 - idiom. */
 static void advance_road(u8 px) {
     u8 top_row;
-    road_scroll = (u8)(road_scroll - px);    /* hardware wraps at 256 — idiom  */
+    road_scroll = (u8)(road_scroll - px);    /* hardware wraps at 256 - idiom  */
     vdc_set_reg(VDC_BYR, (u16)road_scroll);
     top_row = (u8)((road_scroll >> 3) & 31);
     if (top_row != prev_top_row) {
@@ -431,7 +431,7 @@ static void advance_road(u8 px) {
  * This was researched and corrected: earlier versions wrote the best distance
  * to BRAM ("backup RAM", bank $F7) and claimed it persisted across power
  * cycles. That is NOT honest for a HuCard game. On REAL hardware a plain HuCard
- * plugged into a base PC Engine / TurboGrafx-16 has NO backup RAM at all — BRAM
+ * plugged into a base PC Engine / TurboGrafx-16 has NO backup RAM at all - BRAM
  * exists ONLY when a peripheral is attached: the CD-ROM² System (2KB kept by a
  * supercapacitor), the Tennokoe Bank HuCard, or the Memory Base 128. No
  * commercial HuCard self-saved; they used PASSWORDS. (The often-cited Populous
@@ -440,23 +440,23 @@ static void advance_road(u8 px) {
  * "worked" in emulation in a way the real machine never would.
  *
  * So this game keeps an IN-SESSION best only (like the honest 2600/Lynx
- * examples) — it survives across runs within a power-on, resets to 0 on a cold
+ * examples) - it survives across runs within a power-on, resets to 0 on a cold
  * boot. To ACTUALLY persist on real hardware you would target a peripheral
- * (BRAM behind a detect, or a CD-ROM² build) — a real-hardware feature, not a
+ * (BRAM behind a detect, or a CD-ROM² build) - a real-hardware feature, not a
  * property of the cartridge.                                              */
 static u16 best_load(void) {
     return 0;          /* cold boot: no persistence on a bare HuCard */
 }
 
 static void best_save(u16 v) {
-    (void)v;           /* in-session only — nowhere to persist on real HW */
+    (void)v;           /* in-session only - nowhere to persist on real HW */
 }
 
 static void best_init(void) {
-    best = best_load();   /* always 0 — in-session best starts fresh each boot */
+    best = best_load();   /* always 0 - in-session best starts fresh each boot */
 }
 
-/* ── GAME LOGIC (clay) — music: a 2-channel tune ticked once per frame ──────
+/* ── GAME LOGIC (clay) - music: a 2-channel tune ticked once per frame ──────
  * PSG channel plan: 5 = melody, 4 = bass, 0-3 = SFX (tones cut by sfx_timer).
  * PCE frequency regs are DIVIDERS: pitch ≈ 3.58MHz / (32 × value), so a
  * BIGGER number is a LOWER note. Note indices into NOTE_DIV below. */
@@ -517,12 +517,12 @@ static void sfx(u8 chan, u16 freq, u8 frames) {
     if (frames > sfx_timer) sfx_timer = frames;
 }
 
-/* ── GAME LOGIC (clay) — AABB, both boxes 14x14 (16px cars, slight slack). ── */
+/* ── GAME LOGIC (clay) - AABB, both boxes 14x14 (16px cars, slight slack). ── */
 static u8 hits(u16 ax, u16 ay, u16 bx, u16 by) {
     return (u8)(ax < bx + 14 && ax + 14 > bx && ay < by + 14 && ay + 14 > by);
 }
 
-/* ── GAME LOGIC (clay) — traffic pool (fixed slots, no allocation) ── */
+/* ── GAME LOGIC (clay) - traffic pool (fixed slots, no allocation) ── */
 static void spawn_traffic(void) {
     u8 i;
     for (i = 0; i < MAX_TRAFFIC; ++i) {
@@ -535,7 +535,7 @@ static void spawn_traffic(void) {
     }
 }
 
-/* ── GAME LOGIC (clay) — stage the SPRITE HUD digits at HUD_Y ────────────────
+/* ── GAME LOGIC (clay) - stage the SPRITE HUD digits at HUD_Y ────────────────
  * 1P: crashes-left digit (left) + 5-digit distance (right) = 6 sprites on the
  * HUD scanline. 2P: one crashes-left digit per player = 2 sprites. Unused HUD
  * slots park off-screen. Sprites are SCREEN-space, so the HUD holds steady over
@@ -564,7 +564,7 @@ static void stage_hud(void) {
     }
 }
 
-/* ── GAME LOGIC (clay) — flat band behind title/result text (BAT tiles) ──────
+/* ── GAME LOGIC (clay) - flat band behind title/result text (BAT tiles) ──────
  * The title and result screens DON'T scroll (BYR held at 0, no streaming), so
  * their text safely lives in the BAT. A dark band sits behind the text rows. */
 static void paint_band_rows(u8 r0, u8 r1) {
@@ -573,7 +573,7 @@ static void paint_band_rows(u8 r0, u8 r1) {
         for (c = 0; c < 32; ++c) put_tile(c, r, BAT_ENTRY(0, BAND_VRAM));
 }
 
-/* ── GAME LOGIC (clay) — screen painters (full BAT repaint per state change) ──
+/* ── GAME LOGIC (clay) - screen painters (full BAT repaint per state change) ──
  * Title/result paint the road as a STATIC backdrop (so the scene reads as a
  * road, not a blank card) then lay text over a dark band. Only ST_PLAY scrolls. */
 static void paint_title(void) {
@@ -607,7 +607,7 @@ static void paint_over(void) {
     draw_text(9, 21, "RUN - TITLE");
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_game(u8 versus) {
     u8 i;
     two_player = versus;
@@ -660,7 +660,7 @@ static void game_over(void) {
     sfx(3, 0x500, 16);               /* wreck rumble                          */
 }
 
-/* ── GAME LOGIC (clay) — crash rules ── */
+/* ── GAME LOGIC (clay) - crash rules ── */
 static void crash(u8 p) {
     sfx(3, 0x080, 16);               /* crash buzz                            */
     invuln[p] = 60;                  /* blink + no-collide grace              */
@@ -672,7 +672,7 @@ static void crash(u8 p) {
     }
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * 2P INPUT via the TurboTap. pce_joy_read() reads pad 1 (slot 0). For pad 2 we
  * read cc65's JOY_2 directly and translate it to the same clean PCE bitmask
  * pce_input.c builds for pad 1. The host force-enables the TurboTap core
@@ -692,14 +692,14 @@ static u8 read_pad2(void) {
     return m;
 }
 
-/* ── GAME LOGIC (clay) — per-player input ───────────────────────────────────
+/* ── GAME LOGIC (clay) - per-player input ───────────────────────────────────
  * LEFT/RIGHT steer between lanes; UP/I accelerate, DOWN/II brake (1P only).
  *
  * Steering uses a short COOLDOWN (lane_cd) rather than pure rising-edge: a held
  * direction steps one lane, then can't step again until lane_cd reaches 0
  * (~9 frames). This still prevents machine-gun lane spam from a held d-pad, but
  * unlike strict `pad & ~prev` edge detection it does NOT depend on catching the
- * exact frame the button transitions — robust against input sampling latency
+ * exact frame the button transitions - robust against input sampling latency
  * (a tap that spans only a couple of frames still lands). Speed changes stay
  * rising-edge (a held gas shouldn't ramp to max in 4 frames). */
 static void update_player(u8 p, u8 pad) {
@@ -727,13 +727,13 @@ static void update_player(u8 p, u8 pad) {
     if (invuln[p] > 0) --invuln[p];
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * SPRITE STAGING + THE SATB DMA. The VDC never reads your RAM: sprites live in
  * its INTERNAL sprite attribute table, refreshed by a DMA you schedule by
  * writing R19 (satb_dma() does the copy + the R19 write; the transfer happens
  * at the next vblank). So the per-frame contract is:
  *   waitvsync() → restage EVERY slot → satb_dma()
- * Stage during vblank — satb_dma() also streams words through the VWR port, and
+ * Stage during vblank - satb_dma() also streams words through the VWR port, and
  * doing that mid-display tears sprite pattern fetches. Hidden slots park below
  * the display at OFFSCREEN_Y. ── */
 static void stage_sprites(void) {
@@ -755,14 +755,14 @@ void main(void) {
 
     _pce_keep[0] = 0;   /* see the EMPTY-BSS TRAP note in pce_hw.h */
 
-    /* BRAM first — before any VDC work, so the save file exists within the
+    /* BRAM first - before any VDC work, so the save file exists within the
      * game's first frames (a headless host sees a non-empty save_ram region
      * as early as possible; see the BRAM idiom). */
     best_init();
 
-    /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
      * Init order: palette → VRAM uploads → BAT paint → joypad → display ON.
-     * disp_enable() also sets the VBlank IRQ bit — without it waitvsync()
+     * disp_enable() also sets the VBlank IRQ bit - without it waitvsync()
      * never returns and the game freezes on its first frame. */
     /* BG sub-pal 0: road scene. BG sub-pal 1: HUD/text white. */
     vce_set_color(0,   PCE_RGB(0, 1, 0));   /* backdrop: dark green           */
@@ -770,7 +770,7 @@ void main(void) {
     vce_set_color(2,   PCE_RGB(2, 2, 2));   /* BG c2: asphalt grey             */
     vce_set_color(3,   PCE_RGB(7, 7, 1));   /* BG c3: yellow markings/specks   */
     vce_set_color(17,  PCE_RGB(7, 7, 7));   /* pal1 text: white                */
-    /* sprite sub-palettes (256 + pal*16 + index) — P1 cyan, P2 amber, traffic
+    /* sprite sub-palettes (256 + pal*16 + index) - P1 cyan, P2 amber, traffic
      * red, each on its own sub-palette so the cars read as three liveries. */
     vce_set_color(256 + 0 * 16 + 1, PCE_RGB(2, 6, 7));  /* spr pal0 c1: P1 cyan    */
     vce_set_color(256 + 1 * 16 + 1, PCE_RGB(7, 5, 0));  /* spr pal1 c1: P2 amber   */
@@ -807,7 +807,7 @@ void main(void) {
             /* The title road is a STATIC backdrop: with no hardware window and
              * no raster split, BYR would scroll the BG title text off-screen
              * (and the row-streamer would wipe it). So the title doesn't scroll
-             * — the play state is where the road comes alive. */
+             * - the play state is where the road comes alive. */
             newpad = (u8)(pad1 & ~prev_pads[0]);
             prev_pads[0] = pad1;
             if (newpad & (PCE_JOY_RUN | PCE_JOY_I)) start_game(0);

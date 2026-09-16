@@ -3,7 +3,7 @@
 //     SNES: NES $0800-$1FFF, GB/GBC echo $E000-$FDFF, SMS/GG $E000-$FFFB,
 //     Genesis $E00000-$FEFFFF. (Residual: only snes9x canonicalizes LIVE
 //     accesses core-side; a mirror-form WRITER on the others still needs a
-//     core hook patch — arm-side canon fixes the common agent mistake.)
+//     core hook patch - arm-side canon fixes the common agent mistake.)
 //   - conditionWidth:16 is endianness-aware: Genesis 68k words are BIG-endian
 //     (high byte at `address`), so 'equals' arms `address` there, not
 //     address+1, and word composition follows suit.
@@ -92,7 +92,7 @@ test("width-16 equals on Genesis arms the word's HIGH byte at `address` (big-end
   const bp = toolHandler(registerWatchMemoryTools, "breakpoint", "beq");
   const r = parse(await bp({ on: "write", precision: "exact", address: 0xFF0218, condition: "equals", conditionValue: 0x2000, conditionWidth: 16, maxFrames: 5 }));
   assert.equal(r.found, true);
-  assert.equal(host.armed[0].addr, 0xFF0218, "BIG-endian: the high byte IS `address` — no +1 shift");
+  assert.equal(host.armed[0].addr, 0xFF0218, "BIG-endian: the high byte IS `address` - no +1 shift");
   assert.equal(host.armed[0].opts.value, 0x20, "core condition byte = the value's high byte");
   assert.equal(r.valueWord, "0x2000");
   assert.match(r.note, /big-endian/, "note states the layout");

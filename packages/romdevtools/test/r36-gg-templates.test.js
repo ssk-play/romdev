@@ -1,4 +1,4 @@
-// R36 — Game Gear tier-1: 7 scaffolds + PSG sound + dedicated runtime.
+// R36 - Game Gear tier-1: 7 scaffolds + PSG sound + dedicated runtime.
 //
 // GG = sister to SMS (same Z80, same VDP, same SN76489 PSG). genesis_plus_gx
 // core handles both. This test confirms every GG scaffold compiles +

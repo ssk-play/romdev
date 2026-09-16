@@ -29,7 +29,7 @@ DLL_TABLE:
 ;   byte 0 = data address low
 ;   byte 1 = mode/control:
 ;            bit 7 = "write" (use 5-byte form)
-;            bit 6 = "ind"   (indirect — use CHARBASE)
+;            bit 6 = "ind"   (indirect - use CHARBASE)
 ;            bits 0-4 = width count (0 = 32 bytes wide, 1 = 31, ..., 31 = 1)
 ;   byte 2 = data address high
 ;   byte 3 = palette (bits 5-7) | horizontal position bits 4-0 reserved

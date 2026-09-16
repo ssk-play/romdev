@@ -1,12 +1,12 @@
-# Genesis / Mega Drive — source you can read
+# Genesis / Mega Drive - source you can read
 
 Trust hierarchy:
 
 1. **Bundled examples** (`examples/genesis/templates/*.c`).
-2. **Bundled runtime source** — `(shipped in romdev-toolchain-m68k-gcc) share/genesis/c/
+2. **Bundled runtime source** - `(shipped in romdev-toolchain-m68k-gcc) share/genesis/c/
    genesis_sfx.c` (PSG wrapper); `lib/sgdk/sega.s` (boot crt0);
    `lib/sgdk/rom_header.c` (cart header builder).
-3. **Bundled library source** (R58) — full SGDK source tree at
+3. **Bundled library source** (R58) - full SGDK source tree at
    `(shipped in romdev-toolchain-m68k-gcc) share/genesis/sgdk/src/`. Every SGDK API (VDP_*,
    SPR_*, JOY_*, XGM2_*, BMP_*, etc.) has readable C here.
 4. **Upstream GitHub** (NOT bundled):
@@ -29,9 +29,9 @@ Trust hierarchy:
 ## YM2612 + PSG (audio)
 
 The Genesis has TWO audio chips:
-- **SN76489 PSG** (3 squares + 1 noise) — what our `genesis_sfx`
+- **SN76489 PSG** (3 squares + 1 noise) - what our `genesis_sfx`
   wrapper drives via SGDK's `PSG_*` helpers
-- **YM2612 FM synth** (6 channels of 4-op FM) — driven by the Z80
+- **YM2612 FM synth** (6 channels of 4-op FM) - driven by the Z80
   side via SGDK's XGM2 driver (compiled XGM2 blobs)
 
 The Z80 sound CPU runs a separate program (XGM2 driver) loaded into
@@ -39,7 +39,7 @@ Z80 RAM at boot. To get music: compose in DefleMask or similar →
 export `.vgm` → compile to XGM2 with `encodeAudio({target:'xgm2', vgmPath, name})`
 (a pure-JS port of SGDK's Java `xgm2tool`; emits a 256-aligned C array) → `#include`
 → `XGM2_play(music)`. (The driver fn is `XGM2_play`; the older C `xgmtool`/`.xgc`
-is the LEGACY `XGM_*` v1 format — different driver, don't mix.)
+is the LEGACY `XGM_*` v1 format - different driver, don't mix.)
 
 For YM2612 register-level work: https://www.smspower.org/Development/YM2612
 

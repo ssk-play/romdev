@@ -1,10 +1,10 @@
-// classifyRegion heuristic — the "found table that's really ASCII text" trap.
+// classifyRegion heuristic - the "found table that's really ASCII text" trap.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { classifyBytes, overlapsAsciiText } from "../src/mcp/tools/classify-region.js";
 
 test("the 'ROD' trap: ASCII text is classified as ascii-text, not a table", () => {
-  // "FROM DOWNTOWN" contains 82/79/68 = R/O/D — the coincidence that cost hours.
+  // "FROM DOWNTOWN" contains 82/79/68 = R/O/D - the coincidence that cost hours.
   const bytes = new TextEncoder().encode("FROM DOWNTOWN!!");
   const c = classifyBytes(bytes);
   assert.equal(c.looksLike, "ascii-text");

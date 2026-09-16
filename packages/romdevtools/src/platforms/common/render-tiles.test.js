@@ -21,7 +21,7 @@ test("renderTilesGrid: 16 tiles in default 16-wide row → 128×8", () => {
 });
 
 test("renderTilesGrid: GB tile renders with DMG palette", () => {
-  // Make a single tile that's "all darkest color" (idx 3) — bytes all 0xff
+  // Make a single tile that's "all darkest color" (idx 3) - bytes all 0xff
   const tiles = new Uint8Array([
     0xff, 0xff, // row 0: both planes set
     0xff, 0xff,

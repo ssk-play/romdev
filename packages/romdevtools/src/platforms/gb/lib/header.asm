@@ -1,7 +1,7 @@
 ; Game Boy / Game Boy Color cartridge header.
 ;
 ; The boot ROM verifies the Nintendo logo bytes at $0104-$0133 and the
-; header checksum at $014D before handing off to $0150 — if either
+; header checksum at $014D before handing off to $0150 - if either
 ; doesn't match, the boot ROM hangs the console (locks up at the logo).
 ;
 ; rgbasm tip: use `rgbfix -v -p 0` after building to auto-compute the
@@ -15,11 +15,11 @@
 
 SECTION "Header", ROM0[$0100]
 
-  ; $0100-$0103: entry point — 4 bytes. Conventional pattern is nop+jp.
+  ; $0100-$0103: entry point - 4 bytes. Conventional pattern is nop+jp.
   nop
   jp Start
 
-  ; $0104-$0133: Nintendo logo bytes — DO NOT change. rgbfix injects.
+  ; $0104-$0133: Nintendo logo bytes - DO NOT change. rgbfix injects.
   ds $30, 0
 
   ; $0134-$0143: 16-byte title (uppercase ASCII). rgbfix sets via -t.
@@ -28,7 +28,7 @@ SECTION "Header", ROM0[$0100]
   ; $0144-$0145: licensee code (new-style 2-char ASCII).
   db "00"
 
-  ; $0146: SGB flag — 0x00 = no SGB features, 0x03 = SGB.
+  ; $0146: SGB flag - 0x00 = no SGB features, 0x03 = SGB.
   db $00
 
   ; $0147: cartridge type. rgbfix -m MBC1 / -m MBC5 / -m ROM_ONLY etc.

@@ -161,7 +161,7 @@ test("v0.70.0 #5: a clean asar error exit is NOT mislabeled 'Abort in WASM'", as
 
 test("v0.70.0 #6: bankcross preflight only flags bank $00 + honors 'check bankcross off'", async () => {
   const big = Buffer.alloc(0x8000).toString("base64"); // 32KB fills a whole bank window
-  // bank $08 crossing $08FFC0 is ordinary ROM — must NOT be rejected
+  // bank $08 crossing $08FFC0 is ordinary ROM - must NOT be rejected
   const a = await runAsar({ source: "lorom\norg $088000\nincbin \"g.bin\"\n", binaryIncludes: { "g.bin": big } });
   assert.ok(!/preflight/.test(a.log), "bank $08 cross should NOT be a preflight rejection:\n" + a.log);
   // bank $00 crossing $00FFC0 SHOULD be flagged (real header overlap)

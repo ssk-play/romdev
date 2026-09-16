@@ -1,14 +1,14 @@
 /*
- * pce_hw.h — PC Engine / TurboGrafx-16 hardware helper library (cc65, C89).
+ * pce_hw.h - PC Engine / TurboGrafx-16 hardware helper library (cc65, C89).
  *
  * Raw register addresses + prototypes for the HuC6270 VDC (video), HuC6260 VCE
  * (color), and HuC6280 PSG (sound). There is NO sprite/tile library on the PCE
- * with cc65 — you talk to the chips directly. These helpers wrap the most common
+ * with cc65 - you talk to the chips directly. These helpers wrap the most common
  * register dances so you don't have to remember the index/lo/hi protocol.
  *
  * USAGE: pair this header with pce_video.c, pce_input.c, pce_sound.c. Build all
  * four .c files together (the .h goes in `includes:` / `headers:`, the .c files
- * in `sources:`). cc65 is C89 — declare locals at the top of a block.
+ * in `sources:`). cc65 is C89 - declare locals at the top of a block.
  *
  * EMPTY-BSS TRAP: cc65's pce/crt0.s clears .bss with a block copy sized
  * __BSS_SIZE__-1. With NO globals/statics that underflows → "Range error in
@@ -106,7 +106,7 @@ void set_sprite(u8 slot, u16 x, u16 y, u16 pattern, u8 palette); /* fill shadow 
 void set_sprite_ex(u8 slot, u16 x, u16 y, u16 pattern, u8 palette, u16 attr_ex);
 void satb_dma(void);                            /* DMA shadow SATB -> VDC (R19)    */
 
-/* attr_ex bits for set_sprite_ex() — the HuC6270 large-sprite size + flip
+/* attr_ex bits for set_sprite_ex() - the HuC6270 large-sprite size + flip
  * bits in SATB word3. A 32-wide sprite needs a 2-aligned pattern code, 32x32
  * needs 4-aligned, 32x64 needs 8-aligned; the data is consecutive 16x16 cells
  * (left-to-right, then down). See the set_sprite_ex() comment in pce_video.c. */

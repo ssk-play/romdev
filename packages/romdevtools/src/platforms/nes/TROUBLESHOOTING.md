@@ -1,7 +1,7 @@
-# NES — symptom → fix
+# NES - symptom → fix
 
 > **A build failed? Read `issues[]` FIRST.** Every build/compile call returns
-> `issues: [{file, line, col, severity, message, stage}]` — the structured error
+> `issues: [{file, line, col, severity, message, stage}]` - the structured error
 > list. It almost always names the exact line to fix. Read that before matching a
 > symptom below or touching your source. Fall back to the raw `log` only if
 > `issues[]` is empty but `ok:false`.
@@ -66,7 +66,7 @@ Check in this order:
 
 1. **Universal backdrop ≠ what you set.** `$3F00` is the backdrop.
    The PPU also reads $3F04/$3F08/$3F0C as backdrop if a sprite is
-   transparent above a BG-color-0 cell — there's mirroring weirdness.
+   transparent above a BG-color-0 cell - there's mirroring weirdness.
    Set them all to the same value to avoid surprises.
 
 2. **Attribute table boundaries are 2×2 tile groups.**
@@ -123,7 +123,7 @@ for (;;) {
   /* update game state */
   oam_clear(); oam_spr(...);   // stage
   tile_set(...);                // queue BG writes
-  ppu_wait_nmi();               // sleep — NMI DMAs + flushes
+  ppu_wait_nmi();               // sleep - NMI DMAs + flushes
 }
 ```
 
@@ -137,34 +137,34 @@ your score lives at row 0 it'll be in the nametable but invisible.
 Fix: move HUD to row 2+ and keep "press start"-style bottom UI at
 row 27 or lower.
 
-## "State corrupts / mystery crashes as the game grows" — RAM/BSS overflow
+## "State corrupts / mystery crashes as the game grows" - RAM/BSS overflow
 
 The NES has only **2 KB of RAM** ($0000-$07FF), and the chr-ram linker
 config carves most of it up: zeropage, the stack, and `shadow_oam`
 (256 B at $0200) leave roughly **~512 B for your BSS+DATA** (globals).
-Overflow it and there's no error — your globals quietly collide with
+Overflow it and there's no error - your globals quietly collide with
 the stack or shadow OAM → corrupted state, sprites that flicker to
 garbage, random crashes.
 
-**Check the `ramUsage` field in the build response** —
+**Check the `ramUsage` field in the build response** -
 it lists your BSS / DATA / ZEROPAGE segment sizes from the linker map.
 If BSS+DATA is approaching the config's RAM region, shrink your state:
 prefer `uint8_t` over `int`, bit-pack flags, use small fixed arrays,
 avoid large `static` buffers. (This is why "NES-shaped C" uses bitmasks
-and tiny structs — it's not style, it's the 512 B ceiling.)
+and tiny structs - it's not style, it's the 512 B ceiling.)
 
 ## "build({output:'run'}) screenshot looks one frame behind my sprites"
 
 On NES, the NMI handler DMAs `shadow_oam` → real OAM at the *start* of
 each vblank, so sprites you stage on frame N first appear when frame
 N+1 renders. `build({output:'run'})` now steps one extra frame on NES before the
-screenshot so it matches your staged OAM — but if you script frames
+screenshot so it matches your staged OAM - but if you script frames
 manually (`frame({op:'step'})` then `frame({op:'screenshot'})`), add one extra `frame({op:'step'}, 1)`
 after staging to see the current sprite positions.
 
 ## "memory({op:'read'}, nes_chr) returns same bytes for offset 0 and offset 4096"
 
-Was a real bug in R59 of the fceumm patch — `memory({op:'read'}, nes_chr)`
+Was a real bug in R59 of the fceumm patch - `memory({op:'read'}, nes_chr)`
 collapsed all 8 1KB pages into copies of the first page on NROM.
 Fixed in R61 (2026-05-27). If you still see this, your MCP server
 is running a stale WASM:
@@ -179,7 +179,7 @@ via a different path and was unaffected throughout.
 
 Your `.cfg` puts the BSS region (`RAM:`) at $6000-$7FFF, but your
 cart is NROM with no battery WRAM (iNES flags6 bit 1 = 0). That
-region is UNMAPPED on the hardware — reads return open-bus
+region is UNMAPPED on the hardware - reads return open-bus
 (parasitic capacitance from the last bus value). Globals appear
 to "kind of work" because the open bus briefly retains what you
 just wrote, but `_nmi_counter` increments are lost and any
@@ -202,7 +202,7 @@ PRG-RAM at $6000 and set iNES flags6 bit 1.
 The bundled `chr-ram-runtime.cfg` already does this correctly as
 of 2026-05-27.
 
-## "OAM is full of $FF — DMA must be broken"
+## "OAM is full of $FF - DMA must be broken"
 
 Probably not. The crt0's init loop writes `$FF` to all 256 bytes
 of `_shadow_oam @ $0200` at boot (canonical sprite-Y off-screen
@@ -229,7 +229,7 @@ you're seeing this error, you're either:
 1. Loading a hand-built ROM that skipped the bundled crt0.
 2. The ROM has stale CHR-ROM bytes that don't match the header's
    "CHR-RAM" declaration. Re-build with `linkerConfig:"chr-ram"`
-   (or just leave linkerConfig blank — the C path defaults to chr-ram).
+   (or just leave linkerConfig blank - the C path defaults to chr-ram).
 
 Verify the header:
 ```sh
@@ -246,7 +246,7 @@ xxd -l 16 file.nes
    layout. Use the PAD_* masks from `nes_runtime.h`.
 
 2. **Strobed wrong.** `pad_poll` does the strobe internally. Don't
-   call it from inside an NMI handler — the strobe sequence collides
+   call it from inside an NMI handler - the strobe sequence collides
    with the controller pollers some emulators run during DMA.
 
 3. **Controller 1 vs 2.** `pad_poll(0)` reads $4016 (controller 1).
@@ -283,18 +283,18 @@ xxd -l 16 file.nes
 
 A few high-leverage tools you might not know exist:
 
-- **`sprites({op:'inspect'})`** — pretty-prints all 64 OAM slots with
+- **`sprites({op:'inspect'})`** - pretty-prints all 64 OAM slots with
   visible/hidden status, tile, attr, position.
-- **`background({view:'map', render:true})`** — composites the active
+- **`background({view:'map', render:true})`** - composites the active
   nametable as a PNG.
-- **`palette({source:'live'})`** — shows the loaded palette as RGB colors,
+- **`palette({source:'live'})`** - shows the loaded palette as RGB colors,
   not raw bytes.
-- **`background({view:'renderState'})`** — decodes PPUCTRL/PPUMASK/PPUSTATUS
+- **`background({view:'renderState'})`** - decodes PPUCTRL/PPUMASK/PPUSTATUS
   + "what bank are BG/sprites fetching from right now".
-- **`cpu({op:'read'})`** — PC + flags. Use when you suspect a hang.
-- **`watch({on:'mem', region:"nes_oam", offset:0, length:4})`** — trace
+- **`cpu({op:'read'})`** - PC + flags. Use when you suspect a hang.
+- **`watch({on:'mem', region:"nes_oam", offset:0, length:4})`** - trace
   every write to OAM slot 0, returns the PC that wrote it.
-- **`frame({op:'step', count:3600})`** — runs 1 minute of game time in
+- **`frame({op:'step', count:3600})`** - runs 1 minute of game time in
   milliseconds. Don't be conservative.
 
 ## Mental model + boot order

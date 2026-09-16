@@ -1,5 +1,5 @@
 /****************************************************************************
- * romdev-maxmod — it.js
+ * romdev-maxmod - it.js
  *
  * Faithful pure-JS ESM port of mmutil's it.c (Impulse Tracker .IT loader).
  *
@@ -24,7 +24,7 @@ const SAMPF_16BIT = 0x001; // mas.h
 const SAMPF_SIGNED = 0x002; // mas.h
 const SAMPF_COMP = 0x004; // mas.h
 
-// errors.h — exact values (internal only; never serialized)
+// errors.h - exact values (internal only; never serialized)
 const ERR_NONE = 0x00;
 const ERR_INVALID_MODULE = 0x01;
 const ERR_MANYCHANNELS = 0x05;
@@ -172,7 +172,7 @@ class Reader {
 }
 
 /**
- * readbits — LSB-first bit reader over a byte buffer (simple.c).
+ * readbits - LSB-first bit reader over a byte buffer (simple.c).
  *   result |= ( (buffer[byte_pos] >> bit_pos) & 1 ) << i;
  * @param {Uint8Array} buffer
  * @param {number} pos  bit position
@@ -280,7 +280,7 @@ function newPatternEntry() {
 // =========================================================================
 
 /**
- * Load_IT_Envelope — reads one envelope block (82 bytes total).
+ * Load_IT_Envelope - reads one envelope block (82 bytes total).
  * @param {Reader} r
  * @param {InstrumentEnvelope} env  (already zeroed)
  * @param {boolean} unsign  add +32 to each node_y unless filter-mode flips it off
@@ -344,7 +344,7 @@ function Load_IT_Envelope(r, env, unsign) {
 }
 
 // =========================================================================
-//  Load_IT_Instrument (it.c)  — IT2.xx instrument (547 bytes)
+//  Load_IT_Instrument (it.c)  - IT2.xx instrument (547 bytes)
 // =========================================================================
 
 /**
@@ -390,7 +390,7 @@ function Load_IT_Instrument(r, inst) {
 }
 
 /**
- * Create_IT_Instrument — synthesize an instrument template that maps every
+ * Create_IT_Instrument - synthesize an instrument template that maps every
  * note to a single sample (used in sample-mode IT files).
  * @param {Instrument} inst (already zeroed)
  * @param {number} sample  1-based sample number
@@ -401,7 +401,7 @@ function Create_IT_Instrument(inst, sample) {
 }
 
 // =========================================================================
-//  Load_IT_Sample (it.c)  — sample header
+//  Load_IT_Sample (it.c)  - sample header
 // =========================================================================
 
 /**
@@ -466,7 +466,7 @@ function Load_IT_Sample(r, samp) {
 }
 
 // =========================================================================
-//  Load_IT_SampleData (it.c)  — decode PCM into samp.data (unsigned/centered)
+//  Load_IT_SampleData (it.c)  - decode PCM into samp.data (unsigned/centered)
 // =========================================================================
 
 /**
@@ -525,7 +525,7 @@ function Load_IT_SampleData(r, samp, cmwt) {
 // =========================================================================
 
 /**
- * Load_IT_CompressedSampleBlock — read a 16-bit length-prefixed block.
+ * Load_IT_CompressedSampleBlock - read a 16-bit length-prefixed block.
  * Allocates size+4 with 4 trailing zero bytes (so readbits past end => 0).
  * @param {Reader} r
  * @returns {Uint8Array}
@@ -538,7 +538,7 @@ function Load_IT_CompressedSampleBlock(r) {
 }
 
 /**
- * Load_IT_Sample_CMP — decompress IT214 audio into p_dest_buffer.
+ * Load_IT_Sample_CMP - decompress IT214 audio into p_dest_buffer.
  * @param {Reader} r
  * @param {(Uint8Array|Uint16Array)} p_dest_buffer
  * @param {number} samp_len  total samples to produce
@@ -547,7 +547,7 @@ function Load_IT_CompressedSampleBlock(r) {
  * @returns {number} ERR_*
  */
 function Load_IT_Sample_CMP(r, p_dest_buffer, samp_len, cmwt, bit16) {
-  // integrator buffers — C uses s16 d1,d2 (16-bit) and s8 d18,d28 (8-bit).
+  // integrator buffers - C uses s16 d1,d2 (16-bit) and s8 d18,d28 (8-bit).
   let d1 = 0;
   let d2 = 0; // s16
   let d18 = 0;
@@ -716,7 +716,7 @@ function Load_IT_Sample_CMP(r, p_dest_buffer, samp_len, cmwt, bit16) {
 // =========================================================================
 
 /**
- * Empty_IT_Pattern — 64-row blank pattern (note=250, vol=255 sentinels).
+ * Empty_IT_Pattern - 64-row blank pattern (note=250, vol=255 sentinels).
  * @param {Pattern} patt
  */
 function Empty_IT_Pattern(patt) {
@@ -735,7 +735,7 @@ function Empty_IT_Pattern(patt) {
 }
 
 /**
- * Load_IT_Pattern — decompress an IT pattern into PatternEntry[].
+ * Load_IT_Pattern - decompress an IT pattern into PatternEntry[].
  * @param {Reader} r
  * @param {Pattern} patt
  * @returns {number} ERR_*
@@ -814,7 +814,7 @@ function Load_IT_Pattern(r, patt) {
 }
 
 // =========================================================================
-//  Load_IT (it.c)  — top-level
+//  Load_IT (it.c)  - top-level
 // =========================================================================
 
 /**
@@ -969,7 +969,7 @@ export function parseIt(bytes, opts = {}) {
 }
 
 /**
- * fourcc — pack 4 ASCII chars into the u32 that read32() (little-endian)
+ * fourcc - pack 4 ASCII chars into the u32 that read32() (little-endian)
  * produces for a 4-byte tag laid out as c0,c1,c2,c3 in the file.
  *
  * In the C, the magic compares against a multi-char constant like 'MPMI'.

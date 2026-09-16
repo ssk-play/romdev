@@ -38,19 +38,19 @@ FLUSH_BUDGET = 16
         .importzp       c_sp
 
 ; ------------------------------------------------------------------------
-; 16-byte iNES header — CHR-RAM (byte 5 = 0).
+; 16-byte iNES header - CHR-RAM (byte 5 = 0).
 
 .segment "HEADER"
         .byte   $4e, $45, $53, $1a   ; "NES" + EOF
         .byte   2                    ; PRG-ROM banks (16K each) → 32K
         .byte   0                    ; CHR-ROM banks (8K each)  → 0 = CHR-RAM
-        .byte   %00000011            ; flags6 — vertical mirroring + BATTERY.
+        .byte   %00000011            ; flags6 - vertical mirroring + BATTERY.
                                      ; The battery bit maps persistent 8KB
                                      ; PRG-RAM at $6000 (the save_ram region)
-                                     ; — hiscore_load/save in nes_runtime use
+                                     ; - hiscore_load/save in nes_runtime use
                                      ; it. Benign when unused; without it,
                                      ; $6000-$7FFF is OPEN BUS on NROM.
-        .byte   %00000000            ; flags7 — mapper hi nybble
+        .byte   %00000000            ; flags7 - mapper hi nybble
         .byte   0, 0, 0, 0, 0, 0, 0, 0
 
 ; ------------------------------------------------------------------------
@@ -84,7 +84,7 @@ start:
         bne     @oam            ; trick and BSS is already zero anyway.
 
         ; Clear CHR-RAM ($0000-$1FFF on PPU bus) so tile 0 is blank.
-        ; Power-on CHR-RAM is uninitialised garbage — leaving it that way
+        ; Power-on CHR-RAM is uninitialised garbage - leaving it that way
         ; means BG tile 0 renders as random nonsense even if the game
         ; never wrote a nametable. 8 KB / 256 = 32 outer iterations.
         lda     #0
@@ -122,7 +122,7 @@ _exit:  jsr     donelib
         jmp     start
 
 ; ------------------------------------------------------------------------
-; NMI handler — runs every vblank when ppuctrl bit 7 is set.
+; NMI handler - runs every vblank when ppuctrl bit 7 is set.
 
 .segment "STARTUP"
 
@@ -137,19 +137,19 @@ nmi:
         lda     #$00
         sta     $2003           ; PPU OAMADDR = 0
         lda     #$02            ; high byte of $0200
-        sta     $4014           ; PPU OAMDMA — kicks off the copy
+        sta     $4014           ; PPU OAMDMA - kicks off the copy
 
-        ; ── Drain the VRAM queue — IN ASSEMBLY, on purpose ──────────────
+        ; ── Drain the VRAM queue - IN ASSEMBLY, on purpose ──────────────
         ; Vblank is ~2273 CPU cycles and the OAM DMA above just spent 513.
         ; Compiled C costs 200+ cycles per queue entry, so a C flush blows
-        ; past the end of vblank — and PPUDATA writes during ACTIVE
+        ; past the end of vblank - and PPUDATA writes during ACTIVE
         ; RENDERING land at corrupted addresses (the PPU's internal v
         ; register is busy fetching tiles; its coarse-X/fine-Y counters
         ; shear every late write). This loop costs ~40 cycles per entry,
         ; so FLUSH_BUDGET entries always finish safely inside vblank.
         ; QUEUE_MASK/FLUSH_BUDGET must match nes_runtime.c's ring buffer.
         lda     _vram_queue_lock
-        bne     @flush_done     ; a push is mid-flight — skip this vblank
+        bne     @flush_done     ; a push is mid-flight - skip this vblank
         lda     _vram_queue_len
         beq     @flush_done
         cmp     #FLUSH_BUDGET
@@ -214,12 +214,12 @@ nmi:
 irq:    rti
 
 ; ------------------------------------------------------------------------
-; Shadow OAM at $0200 — the NMI handler DMAs this to the PPU each frame.
+; Shadow OAM at $0200 - the NMI handler DMAs this to the PPU each frame.
 .segment "OAM"
 _shadow_oam: .res 256
 
 ; ------------------------------------------------------------------------
-; NMI-private temporaries — deliberately NOT cc65's zp tmp1-4 (the NMI
+; NMI-private temporaries - deliberately NOT cc65's zp tmp1-4 (the NMI
 ; would corrupt them under interrupted C code).
 .segment "BSS"
 nmi_drain:   .res 1

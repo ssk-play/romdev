@@ -1,4 +1,4 @@
-// present.js — the shared presentation + input-mapping primitives every SDL
+// present.js - the shared presentation + input-mapping primitives every SDL
 // frontend over romdev-core-host needs: pixel-format → RGBA conversion for the
 // window blit, aspect-correct letterboxing, the platform "TV" aspect table,
 // and the default SDL-button / keyboard → RetroPad maps. Extracted from
@@ -38,7 +38,7 @@ export const SDL_BUTTON_TO_LIBRETRO_BIT = {
   rightShoulder: 11,  // RETRO R
   leftStick: 14,      // RETRO L3
   rightStick: 15,     // RETRO R3
-  // L2/R2 (bits 12/13) are ANALOG triggers — node-sdl exposes them as axes
+  // L2/R2 (bits 12/13) are ANALOG triggers - node-sdl exposes them as axes
   // (leftTrigger/rightTrigger), not buttons. They reach the mask through
   // deriveTriggerState below (baseline-relative threshold + hysteresis).
 };
@@ -129,7 +129,7 @@ export function bitToName(bit) {
 
 /**
  * "TV" aspect ratio per platform: the physical CRT/LCD shape the platform was
- * designed for — 4:3 for every console that hooked to a TV, native LCD aspect
+ * designed for - 4:3 for every console that hooked to a TV, native LCD aspect
  * for handhelds. Fallback when platform unknown: the core-reported aspect.
  * @param {string | null} platform
  * @param {number} displayAspect core-reported, used as fallback
@@ -148,10 +148,10 @@ export function tvAspectFor(platform, displayAspect) {
     case "gb":
     case "gbc":         return 10 / 9;   // GB LCD 160×144 native
     case "gba":         return 3 / 2;    // GBA LCD 240×160 native
-    case "lynx":        return 160 / 102; // Lynx LCD is square-pixel — native fb shape
+    case "lynx":        return 160 / 102; // Lynx LCD is square-pixel - native fb shape
     case "gametank":    return 4 / 3;    // composite out to a 4:3 display
     // Unknown platform (wasmcart/jsgame/newer cores): trust the reported
-    // aspect only if it's a real ratio — hosts that don't know theirs report
+    // aspect only if it's a real ratio - hosts that don't know theirs report
     // 0, and a 0 aspect sizes a 0-width window (SDL "invalid width").
     default:            return Number.isFinite(displayAspect) && displayAspect > 0
       ? displayAspect
@@ -162,7 +162,7 @@ export function tvAspectFor(platform, displayAspect) {
 /**
  * A usable aspect ratio from host status. `status.displayAspect ?? fbW/fbH`
  * is a trap: hosts that don't know their aspect report 0, and nullish
- * coalescing keeps the 0 — which then sizes a zero-width window. Prefer the
+ * coalescing keeps the 0 - which then sizes a zero-width window. Prefer the
  * reported aspect only when it's a real positive ratio, else the
  * framebuffer's own shape, else 4:3 as the last resort (fb dims can be 0
  * before a cart settles its resolution).
@@ -181,7 +181,7 @@ export function effectiveAspect(statusAspect, fbWidth, fbHeight) {
  * Initial window size, the way playtest and runRom open theirs: height =
  * fbHeight * scale, width follows the chosen aspect mode. THE function that
  * opened a 0-width window ("invalid width") when a host reported
- * displayAspect 0 — it lived duplicated + inline in both windows, so nothing
+ * displayAspect 0 - it lived duplicated + inline in both windows, so nothing
  * unit-tested it. Pure; throws a plain-language error instead of returning
  * dimensions SDL would reject.
  * @param {{fbWidth:number, fbHeight:number, scale:number,
@@ -208,7 +208,7 @@ export function initialWindowSize({ fbWidth, fbHeight, scale, aspectMode, platfo
 
 /**
  * Largest rect of `targetAspect` that fits inside a winW×winH window, centered
- * (letterbox/pillarbox). Pure — the image is ALWAYS drawn at this rect, so
+ * (letterbox/pillarbox). Pure - the image is ALWAYS drawn at this rect, so
  * resizing the window never stretches it off-aspect, it just grows the bars.
  * @param {number} winW window backing-store width (px)
  * @param {number} winH window backing-store height (px)
@@ -253,7 +253,7 @@ const FPS_DIGITS = [
  * Draw an fps counter into the top-left of an RGBA frame buffer (in place,
  * after framebufferToRgba, before the window blit). Green digits on a black
  * backing box, sized relative to the framebuffer so it reads the same on a
- * 160x144 handheld and a 1280x720 wasmcart cart. Pure pixel writes — no
+ * 160x144 handheld and a 1280x720 wasmcart cart. Pure pixel writes - no
  * fonts, no allocations.
  * @param {Buffer|Uint8Array} rgba RGBA32 frame (width*height*4 bytes)
  * @param {number} width frame width in pixels
@@ -296,7 +296,7 @@ export function drawFpsOverlay(rgba, width, height, fps) {
 }
 
 /** Convert a libretro framebuffer (any pixel format) to RGBA32 for the window
- *  blit. (The GL/HW-render RGBA path forces alpha=255 — the GL render target
+ *  blit. (The GL/HW-render RGBA path forces alpha=255 - the GL render target
  *  leaves alpha=0, which SDL would composite as a black window.)
  *
  *  Runs once per window tick, so it matters at 60fps on big framebuffers

@@ -4,15 +4,15 @@
 // Each line is `<type>\t<k1=v1>,<k2=v2>,...`. The first line is `version`,
 // the second is `info` (counts), then a stream of records by type.
 //
-// We don't parse every record type — only the ones an agent would want for
+// We don't parse every record type - only the ones an agent would want for
 // "what is this address" or "where is symbol X" workflows:
-//   sym    — assembly symbols
-//   csym   — C-level symbols (names from the original C source)
-//   scope  — scope ranges (functions etc.)
-//   seg    — segment definitions (e.g. CODE @ $8000, BSS @ $0000)
-//   line   — source line numbers
-//   span   — address ranges associated with lines/scopes
-//   file   — source file paths
+//   sym    - assembly symbols
+//   csym   - C-level symbols (names from the original C source)
+//   scope  - scope ranges (functions etc.)
+//   seg    - segment definitions (e.g. CODE @ $8000, BSS @ $0000)
+//   line   - source line numbers
+//   span   - address ranges associated with lines/scopes
+//   file   - source file paths
 
 /**
  * @typedef {Object} DbgInfo
@@ -130,7 +130,7 @@ export function parseDbg(text) {
         break;
       }
       default:
-        // Ignore mod/lib/type/sym-info — not needed for our queries yet.
+        // Ignore mod/lib/type/sym-info - not needed for our queries yet.
         break;
     }
   }
@@ -207,7 +207,7 @@ export class DbgIndex {
       this.byName.set(sym.name, list);
     }
     for (const [id, csym] of info.csyms) {
-      // C symbols don't carry the address directly — they point at a sym.
+      // C symbols don't carry the address directly - they point at a sym.
       let addr;
       if (csym.sym !== undefined) {
         const s = info.syms.get(csym.sym);

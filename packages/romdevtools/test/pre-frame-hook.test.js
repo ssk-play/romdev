@@ -3,12 +3,12 @@
 // end-to-end path through loadMedia -> Lua-runtime bezel -> live RAM.
 //
 // Three tiers, cheapest proof first:
-//   1. effectiveJoypadMask semantics (pure — no core).
+//   1. effectiveJoypadMask semantics (pure - no core).
 //   2. LibretroHost contract on the REAL fceumm core: beforeFrame fires once
 //      per frame with the same number the bezel tick will observe, overrides
 //      clear at the top of every frame, the physical mask is never touched,
 //      and a game-visible behavior check with a control that must fail:
-//      nestest leaves its menu when Start is held — unless a beforeFrame
+//      nestest leaves its menu when Start is held - unless a beforeFrame
 //      override masks Start away, in which case the menu must NOT change.
 //   3. MCP end-to-end: a Lua-script bezel whose pre_frame writes RAM and
 //      swaps left/right; the write must be visible through memory({op:'read'})
@@ -131,10 +131,10 @@ test("the CORE sees the override: masking Start keeps nestest on its menu", { sk
   masked.stepFrames(30);
   const maskedAfter = menuHash(masked);
   assert.equal(masked.state.inputPorts[0][0] & (1 << 3), 1 << 3,
-    "physical Start is STILL held — only the core's view was masked");
+    "physical Start is STILL held - only the core's view was masked");
   masked.shutdown?.();
   assert.equal(maskedAfter, maskedMenu,
-    "with Start masked in beforeFrame, the game must never see it — the menu must not change");
+    "with Start masked in beforeFrame, the game must never see it - the menu must not change");
 });
 
 async function mcpSession(key) {
@@ -152,7 +152,7 @@ async function mcpSession(key) {
 }
 
 /* A Lua bezel whose pre_frame (a) swaps left/right on port 0 and (b) stamps
- * the frame number into RAM $06F0 — an address nestest never touches, so the
+ * the frame number into RAM $06F0 - an address nestest never touches, so the
  * value read back through memory({op:'read'}) is exactly what pre_frame
  * wrote for the LAST frame. */
 const SWAP_BEZEL_LUA = `
@@ -213,7 +213,7 @@ test("end-to-end: a Lua bezel's pre_frame runs per frame and its RAM writes land
 
   // The last pre_frame stamped its frame number; after the step, frameCount
   // IS that number (frameCount+1 alignment). Read it back through the same
-  // memory tool an agent would use — core RAM as ground truth.
+  // memory tool an agent would use - core RAM as ground truth.
   const mem = await call("memory", { op: "read", region: "system_ram", offset: 0x6F0, length: 1 });
   assert.ok(!mem._error, String(mem._error));
   const byte = parseInt(String(mem.hex ?? mem.bytes ?? "").replace(/[^0-9a-f]/gi, "").slice(0, 2), 16);
@@ -242,5 +242,5 @@ test("end-to-end: a Lua bezel's pre_frame runs per frame and its RAM writes land
     "pre_frame resumes counting from where it left off");
   const ticksAfter = after.activeBezel.stats?.ticks ?? after.activeBezel.ticks;
   assert.ok(ticksAfter >= ticksBefore,
-    "the SAME guest instance resumed — tick stats continue, nothing was re-initialized");
+    "the SAME guest instance resumed - tick stats continue, nothing was re-initialized");
 });

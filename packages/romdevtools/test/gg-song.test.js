@@ -1,4 +1,4 @@
-// Game Gear (SN76489 PSG) song compiler — note/duration → gg_music music_note_t
+// Game Gear (SN76489 PSG) song compiler - note/duration → gg_music music_note_t
 // table (3 bytes/row: divider_lo, divider_hi, dur) + {0,0} sentinel.
 import { test } from "node:test";
 import assert from "node:assert/strict";

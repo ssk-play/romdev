@@ -1,6 +1,6 @@
-/* ── puzzle.c — SHALE WELL: Game Boy falling-stone matcher (complete example game) ──
+/* ── puzzle.c - SHALE WELL: Game Boy falling-stone matcher (complete example game) ──
  *
- * A COMPLETE, working game — title screen, persistent battery hi-score
+ * A COMPLETE, working game - title screen, persistent battery hi-score
  * (MBC1+RAM+BATTERY SRAM), APU music + SFX, level progression, cascades,
  * and the Game Boy's signature WINDOW-LAYER HUD: a fixed score/hi/level
  * strip pinned to the bottom of the screen.
@@ -8,7 +8,7 @@
  * THE GAME: a vertical column of 3 stones falls into an 8-wide x 15-tall
  * well. Move it left/right (D-pad), soft-drop (Down), hard-drop (Start),
  * and CYCLE the three stones (A rolls up, B rolls down). Line up 3+ of one
- * KIND in a row — horizontally, vertically, or diagonally — to clear them;
+ * KIND in a row - horizontally, vertically, or diagonally - to clear them;
  * gravity pulls survivors down, which can CHAIN into cascades for bonus
  * score. Every 18th piece is a MAGIC stone that clears every stone of the
  * kind it lands on. SELECT toggles the music. Levels rise as you clear,
@@ -17,44 +17,44 @@
  *
  * MONOCHROME, on purpose: the DMG has FOUR shades of grey, no color. The
  * five stone KINDS are five distinct 2bpp TILE SHAPES (a stripe, a checker,
- * a ring, a brick, a diamond) read through the one DMG background palette —
+ * a ring, a brick, a diamond) read through the one DMG background palette -
  * the honest handheld take on the GBC's six-color version. You tell stones
  * apart by their PATTERN, the way the great DMG puzzlers did.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented GB footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented GB footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — board rules, scoring, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - board rules, scoring, tuning, art: reshape freely.
  *
  * SINGLE-PLAYER, honestly: the Game Boy's "player 2" is a LINK CABLE, which
- * one emulator instance cannot provide — a single instance cannot emulate
+ * one emulator instance cannot provide - a single instance cannot emulate
  * the second Game Boy on the other end of that cable. So handheld examples
  * ship a press-start title and a 1P marathon instead of faking a 2P mode
  * the platform cannot deliver. (Consoles' examples have real 2P.)
  *
  * What depends on what:
- *   gb_hardware.h — register names (LCDC/WX/WY/BGP/OBP/NRxx/...) + bit masks.
- *   gb_runtime.{h,c} — vblank wait (HALT-driven), joypad, shadow OAM + the
+ *   gb_hardware.h - register names (LCDC/WX/WY/BGP/OBP/NRxx/...) + bit masks.
+ *   gb_runtime.{h,c} - vblank wait (HALT-driven), joypad, shadow OAM + the
  *     OAM-DMA-from-HRAM routine, VRAM-safe memcpy, APU helpers.
- *   gb_crt0.s — boot + interrupt vectors + the cartridge header window. It
+ *   gb_crt0.s - boot + interrupt vectors + the cartridge header window. It
  *     DECLARES the cart as MBC1+RAM+BATTERY ($0147=$03, $0149=$02): that
  *     header is what makes the SRAM hi-score persist (the GB equivalent of
  *     the NES iNES BATTERY bit).
- *   (No font.h — the 1bpp glyphs are embedded below, so this template
+ *   (No font.h - the 1bpp glyphs are embedded below, so this template
  *    builds with exactly the same includes as the platformer/shmup.)
  *
- * RENDERING — the hard-won architecture (details at each routine below):
+ * RENDERING - the hard-won architecture (details at each routine below):
  *  - The FALLING column and the NEXT preview are OBJ sprites (OAM), not BG
- *    tiles, so moving them is just an OAM rewrite — no per-frame BG writes.
+ *    tiles, so moving them is just an OAM rewrite - no per-frame BG writes.
  *  - The LOCKED well is BG tiles, updated through a COLLECT/FLUSH queue:
  *    collect_well() decides what to write (RAM only); flush_well() writes a
  *    few cells to VRAM as the very first thing in vblank. The whole
  *    per-frame job (OAM DMA + flush) MUST finish inside the ~10-line vblank
- *    window — overrunning into active display silently DROPS writes on this
+ *    window - overrunning into active display silently DROPS writes on this
  *    core. An idle "scrub" continuously repaints the well from the grid so
  *    nothing can drift (the "3 stones that won't clear" bug heals itself).
- *  - The HUD (score / hi-score / level) lives on the WINDOW layer — a fixed
+ *  - The HUD (score / hi-score / level) lives on the WINDOW layer - a fixed
  *    strip at the bottom of the screen, immune to BG scrolling.
  *  - We NEVER toggle the LCD in-game. LCD-off is used only for the
  *    full-screen title <-> game transitions.
@@ -62,17 +62,17 @@
 #include "gb_hardware.h"
 #include "gb_runtime.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "SHALE WELL"
 
-/* ── GAME LOGIC (clay — reshape freely) ── board geometry */
+/* ── GAME LOGIC (clay - reshape freely) ── board geometry */
 #define COLS      8
 #define ROWS      15         /* rows 0-14; floor at map row 15; window HUD rows 16-17 */
 #define NCELL     (ROWS * COLS)
-#define NKINDS    5          /* stone kinds 1..5 — one tile SHAPE each */
+#define NKINDS    5          /* stone kinds 1..5 - one tile SHAPE each */
 
-/* BG map cell of interior grid cell (0,0) — the well's top-left corner.
+/* BG map cell of interior grid cell (0,0) - the well's top-left corner.
  * Open at the top (row 0); walls one cell outside left/right, floor below. */
 #define WELL_MX   1
 #define WELL_MY   0
@@ -106,37 +106,37 @@
 #define ST_OVER   2
 
 /* VRAM tile maps. BG playfield = $9800; the window HUD = $9C00 (offset
- * $400 in the same VRAM pointer — see the WINDOW HUD idiom below). */
+ * $400 in the same VRAM pointer - see the WINDOW HUD idiom below). */
 #define VRAM ((volatile uint8_t *)0x9800)
 #define WIN_OFF   0x400
 
-/* ── GAME LOGIC (clay — reshape freely) ── tile pixel data (2bpp).
+/* ── GAME LOGIC (clay - reshape freely) ── tile pixel data (2bpp).
  * Each 8x8 tile = 16 bytes, 2 bytes per row (low plane then high plane); a
  * pixel's 2-bit value = (hi<<1)|lo indexes the DMG palette BGP (BG) or
  * OBP0/OBP1 (OBJ). With BGP=$E4 below: 0=white, 1=light grey, 2=dark grey,
- * 3=black. The five stone KINDS are five distinct SHAPES — that's how a
+ * 3=black. The five stone KINDS are five distinct SHAPES - that's how a
  * 4-shade screen carries five readable "colors". */
 static const uint8_t tile_empty[16] = {      /* faint dither (never flat) */
     0x00,0x00, 0x22,0x00, 0x00,0x00, 0x88,0x00,
     0x00,0x00, 0x22,0x00, 0x00,0x00, 0x88,0x00,
 };
-static const uint8_t tile_s1[16] = {         /* stripe — bold horizontal bars */
+static const uint8_t tile_s1[16] = {         /* stripe - bold horizontal bars */
     0xFF,0xFF, 0xFF,0xFF, 0x00,0x00, 0x00,0x00,
     0xFF,0xFF, 0xFF,0xFF, 0x00,0x00, 0x00,0x00,
 };
-static const uint8_t tile_s2[16] = {         /* checker — alternating dark blocks */
+static const uint8_t tile_s2[16] = {         /* checker - alternating dark blocks */
     0xCC,0xCC, 0xCC,0xCC, 0x33,0x33, 0x33,0x33,
     0xCC,0xCC, 0xCC,0xCC, 0x33,0x33, 0x33,0x33,
 };
-static const uint8_t tile_s3[16] = {         /* ring — hollow circle, light fill */
+static const uint8_t tile_s3[16] = {         /* ring - hollow circle, light fill */
     0x3C,0x3C, 0x42,0x7E, 0x42,0x7E, 0x42,0x7E,
     0x42,0x7E, 0x42,0x7E, 0x42,0x7E, 0x3C,0x3C,
 };
-static const uint8_t tile_s4[16] = {         /* brick — mortar grid */
+static const uint8_t tile_s4[16] = {         /* brick - mortar grid */
     0xFF,0xFF, 0x88,0x88, 0x88,0x88, 0xFF,0xFF,
     0x22,0x22, 0x22,0x22, 0xFF,0xFF, 0x88,0x88,
 };
-static const uint8_t tile_s5[16] = {         /* diamond — solid lozenge */
+static const uint8_t tile_s5[16] = {         /* diamond - solid lozenge */
     0x18,0x18, 0x3C,0x3C, 0x7E,0x7E, 0xFF,0xFF,
     0xFF,0xFF, 0x7E,0x7E, 0x3C,0x3C, 0x18,0x18,
 };
@@ -144,12 +144,12 @@ static const uint8_t tile_wall[16] = {       /* solid frame */
     0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,
     0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,
 };
-static const uint8_t tile_magic[16] = {      /* star — clears its target kind */
+static const uint8_t tile_magic[16] = {      /* star - clears its target kind */
     0x18,0x18, 0x18,0x3C, 0xDB,0xFF, 0x7E,0x7E,
     0x3C,0x3C, 0x7E,0x66, 0xC3,0xC3, 0x81,0x81,
 };
 /* explosion frames: the stone bursts into a star, fragments fly outward,
- * then sparks, then gone. Shown ONCE, expanding — no blinking. */
+ * then sparks, then gone. Shown ONCE, expanding - no blinking. */
 static const uint8_t tile_exp0[16] = {
     0x99,0x99, 0x5A,0x5A, 0x3C,0x3C, 0xFF,0xFF,
     0xFF,0xFF, 0x3C,0x3C, 0x5A,0x5A, 0x99,0x99,
@@ -163,8 +163,8 @@ static const uint8_t tile_exp2[16] = {
     0x00,0x00, 0x00,0x00, 0x00,0x00, 0x81,0x81,
 };
 
-/* ── GAME LOGIC (clay — reshape freely) ── 1bpp font (same glyph set as the
- * platformer/shmup — 0-9, A-Z, '-'). Stored 8 bytes/glyph and expanded to
+/* ── GAME LOGIC (clay - reshape freely) ── 1bpp font (same glyph set as the
+ * platformer/shmup - 0-9, A-Z, '-'). Stored 8 bytes/glyph and expanded to
  * 2bpp shade 3 (black) at upload time, so the ROM carries 296 bytes of font
  * instead of 592. */
 static const uint8_t font8[37][8] = {
@@ -192,20 +192,20 @@ static const uint8_t font8[37][8] = {
   {0x00,0x00,0x00,0x7E,0x00,0x00,0x00,0x00},
 };
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * WRAM layout — keep big board state ABOVE the shadow-OAM page.
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * WRAM layout - keep big board state ABOVE the shadow-OAM page.
  * The OAM-DMA shadow buffer is pinned by the runtime at $C100 (one page,
- * $C100-$C19F). oam_clear() zeros that whole page every... no — oam_clear
- * zeros the 160-byte shadow_oam — but more to the point, the DMA source
+ * $C100-$C19F). oam_clear() zeros that whole page every... no - oam_clear
+ * zeros the 160-byte shadow_oam - but more to the point, the DMA source
  * lives there. SDCC allocates ordinary statics upward from $C000; with the
  * board's three 120-byte arrays that segment would run straight THROUGH
- * $C100 and collide with shadow_oam — the build links fine and then the
+ * $C100 and collide with shadow_oam - the build links fine and then the
  * grid and the sprite table silently corrupt each other at runtime.
  *
  * The fix used here: pin the three big arrays at FIXED addresses ABOVE the
  * shadow-OAM page with `__at`, so the auto-allocated _DATA segment stays a
  * handful of bytes at $C000 and never reaches $C100. (The GBC sister
- * example instead passes dataLoc:0xC200 to its build recipe — same goal,
+ * example instead passes dataLoc:0xC200 to its build recipe - same goal,
  * pushing statics above the page. `__at` keeps the choice IN the source so
  * a fork can't lose it to a forgotten build flag, and so this template
  * builds with the plain default-dataLoc recipe the test harness uses.)
@@ -215,7 +215,7 @@ static __at(0xC200) uint8_t grid[NCELL];        /* the well: 0=empty, 1..NKINDS=
 static __at(0xC280) uint8_t shadow[NCELL];      /* what's on the BG now (diff redraw) */
 static __at(0xC300) uint8_t matched[NCELL];     /* scratch: cells flagged for clearing */
 
-/* ── GAME LOGIC (clay — reshape freely) ── game state (small — auto _DATA) */
+/* ── GAME LOGIC (clay - reshape freely) ── game state (small - auto _DATA) */
 static uint8_t piece[3];            /* the 3 falling kinds, top→bottom */
 static uint8_t nextp[3];            /* the previewed next column */
 static uint8_t piece_x, piece_y;    /* well coords of the falling column's top */
@@ -237,7 +237,7 @@ static uint16_t rng = 0xACE1;       /* xorshift PRNG state */
  * two diagonals (we only walk each line once, from its lowest cell). */
 static const int8_t DIRS[4][2] = { {0,1}, {1,0}, {1,1}, {1,-1} };
 
-/* 16-bit xorshift PRNG — kept 16-bit on purpose (sm83 has no fast 32-bit
+/* 16-bit xorshift PRNG - kept 16-bit on purpose (sm83 has no fast 32-bit
  * shifts; a wider generator there degenerates toward one value). */
 static uint8_t xorshift(void) {
     rng ^= rng << 7;
@@ -283,8 +283,8 @@ static uint8_t score_beats_hi(void) {
     return 0;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * BATTERY SRAM hi-score — persistent saves on a Game Boy cart.
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * BATTERY SRAM hi-score - persistent saves on a Game Boy cart.
  * requires: gb_crt0.s declaring MBC1+RAM+BATTERY in the cartridge header
  *   ($0147=$03, $0149=$02 → 8KB at $A000-$BFFF). With a ROM-only header the
  *   $A000 region is OPEN BUS: writes vanish, reads return garbage, and
@@ -296,17 +296,17 @@ static uint8_t score_beats_hi(void) {
  *   1. write $0A to anywhere in $0000-$1FFF  → RAM enabled
  *   2. read/write $A000-$BFFF                → real battery RAM
  *   3. write $00 to $0000-$1FFF              → RAM disabled again
- * ALWAYS re-disable after access — that's what makes a yanked cartridge /
+ * ALWAYS re-disable after access - that's what makes a yanked cartridge /
  * dying battery corrupt at most the bytes mid-write, not the whole save.
  *
  * First boot is GARBAGE, not zeros: battery RAM holds whatever the silicon
  * woke up with. The magic bytes + XOR checksum below are how the load path
- * tells "my save" from "factory noise" — without them a fresh cart shows a
+ * tells "my save" from "factory noise" - without them a fresh cart shows a
  * junk hi-score like 974382.
  *
  * Save block at $A000: 'H' 'S'  d0 d1 d2 d3 d4 d5  ck
  *   (6 BCD digits, most significant first; ck = d0^..^d5^$A5)
- * No timing constraints — SRAM is not VRAM; access it any time. */
+ * No timing constraints - SRAM is not VRAM; access it any time. */
 #define SRAM_BASE ((volatile uint8_t *)0xA000)
 #define MBC_RAMG  (*(volatile uint8_t *)0x0000)   /* MBC1 RAM-gate register */
 
@@ -340,7 +340,7 @@ static void hiscore_save(void) {
     MBC_RAMG = 0x00;
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ── sound effects.
+/* ── GAME LOGIC (clay - reshape freely) ── sound effects.
  * A tiny note sequencer driving square channel 2 directly. Each note has a
  * real volume-decay envelope (NR22) so it fades instead of clicking off (a
  * hard NRx2=0 cut every note sounds like static). sfx_tick() advances one
@@ -356,7 +356,7 @@ static void hiscore_save(void) {
 #define P_C6  1923
 
 /* NR21 duty: 0x40 = 25% (soft), 0x80 = 50% (full). NR22 vol/env byte:
- * (volume<<4)|(0=decay)|envPace — bigger pace = slower fade. */
+ * (volume<<4)|(0=decay)|envPace - bigger pace = slower fade. */
 #define SFX_STEPS 4
 static uint16_t sfx_p[SFX_STEPS];
 static uint8_t  sfx_v[SFX_STEPS];
@@ -411,14 +411,14 @@ static void sfx_over(void) {       /* slow descending */
     sfx_go(3);
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ── background music.
+/* ── GAME LOGIC (clay - reshape freely) ── background music.
  * A looping square-wave lead on channel 1 (SFX live on channel 2, so they
  * mix and the effects cut through the music). music_tick() plays one melody
  * step every 12 frames, re-triggering ch1 at a steady volume. Toggle on/off
- * with SELECT — defaults ON.
+ * with SELECT - defaults ON.
  *
  * The melody is the GB 11-bit period split into low/high BYTE arrays (NR13 +
- * NR14 low 3 bits) — period p ⇒ freq 131072/(2048-p). hi == 0xFF marks a
+ * NR14 low 3 bits) - period p ⇒ freq 131072/(2048-p). hi == 0xFF marks a
  * rest. Arpeggios over a C - Am - F - G chord loop, 8 steps each. */
 static const uint8_t mel_lo[32] = {
     0x06,0x39,0x59,0x83, 0x59,0x39,0x06,0x00,   /* C E G C6 G E C  - */
@@ -463,7 +463,7 @@ static void music_toggle(void) {
     if (!music_on) { NR12 = 0x00; NR14 = 0x80; }   /* kill the lead immediately */
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ── board mechanics */
+/* ── GAME LOGIC (clay - reshape freely) ── board mechanics */
 
 /* is grid cell (r,col) off the bottom or already filled? */
 static uint8_t cell_blocked(uint8_t r, uint8_t col) {
@@ -472,7 +472,7 @@ static uint8_t cell_blocked(uint8_t r, uint8_t col) {
 }
 
 /* would the 3-tall falling column collide if its top cell were at (col,topy)?
- * Checks are unrolled (not a loop) — short indexed-read loops can miscompile on
+ * Checks are unrolled (not a loop) - short indexed-read loops can miscompile on
  * sm83, and this is the hottest correctness check in the game. */
 static uint8_t collides(uint8_t col, uint8_t topy) {
     if (col >= COLS) return 1;
@@ -584,7 +584,7 @@ static void update_level(void) {
     if (cur_fall_rate < 4) cur_fall_rate = 4;
 }
 
-/* Matched stones burst apart before they clear — a one-shot expanding star
+/* Matched stones burst apart before they clear - a one-shot expanding star
  * (no blinking, no LCD-off). Only ever runs on a real match. Direct vblank
  * writes (no contending OAM DMA, so plenty of room); blocks ~6 frames, which
  * is the satisfying beat. */
@@ -611,7 +611,7 @@ static void explode_matched(void) {
 }
 
 /* Settle the board after a lock: repeatedly find matches, burst+clear them,
- * score, and apply gravity — looping so cascades chain. Score per clear
+ * score, and apply gravity - looping so cascades chain. Score per clear
  * scales with level and (for 2nd+ cascades) the chain depth. */
 static void resolve_board(void) {
     uint8_t n;
@@ -674,7 +674,7 @@ static void lock_and_resolve(void) {
 /* ── rendering ─────────────────────────────────────────────────────── */
 /* copy one 16-byte 2bpp tile into VRAM tile slot `slot` ($8000 + slot*16) */
 static void upload_tile(uint8_t slot, const uint8_t *src) {
-    /* memcpy_vram (pointer-walk) — NOT an indexed dst[i]=src[i] loop, which
+    /* memcpy_vram (pointer-walk) - NOT an indexed dst[i]=src[i] loop, which
      * SDCC sm83 miscompiles when dst points into VRAM ($8000-$9FFF). */
     memcpy_vram((uint8_t *)(0x8000 + (uint16_t)slot * 16), src, 16);
 }
@@ -696,7 +696,7 @@ static void upload_font(void) {
  * flush OAM. MUST be the first VRAM/OAM work after wait_vblank: the OAM DMA
  * has to land in vblank, or sprites tear on a fixed scanline near the top. */
 static void update_sprites(void) {
-    /* Write shadow_oam ($C100) directly with a walking pointer — calling
+    /* Write shadow_oam ($C100) directly with a walking pointer - calling
      * oam_set() six times burns ~10 scanlines of vblank (SDCC call
      * overhead), starving the BG flush. Inlined it's ~2 lines. */
     uint8_t *o = (uint8_t *)0xC100;
@@ -712,7 +712,7 @@ static void update_sprites(void) {
     } else {
         for (i = 0; i < 12; i++) *o++ = 0;
     }
-    /* NEXT preview (sprites 3-5) only changes on a spawn — skip it most
+    /* NEXT preview (sprites 3-5) only changes on a spawn - skip it most
      * frames to keep the OAM build short enough to leave the BG flush vblank. */
     if (next_dirty) {
         next_dirty = 0;
@@ -734,8 +734,8 @@ static void update_sprites(void) {
     ((void (*)(uint8_t))0xFF80)(0xC1);
 }
 
-/* direct BG-map cell write — ONLY safe with the LCD off or in a bounded
- * vblank batch (the in-game path queues instead — see collect/flush). */
+/* direct BG-map cell write - ONLY safe with the LCD off or in a bounded
+ * vblank batch (the in-game path queues instead - see collect/flush). */
 static void set_cell(uint8_t mx, uint8_t my, uint8_t tile) {
     VRAM[(uint16_t)my * 32 + mx] = tile;
 }
@@ -767,24 +767,24 @@ static void draw_wtext(uint8_t col, uint8_t row, const char *s) {
         set_wcell((uint8_t)(col + i), row, font_slot(s[i]));
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * WINDOW-layer HUD — a fixed strip the BG scroll can never move.
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * WINDOW-layer HUD - a fixed strip the BG scroll can never move.
  * requires: LCDC bits 5 (window on) + 6 (window map = $9C00), WX/WY set,
  *   and HUD text written to the $9C00 map (set_wcell), not the $9800 one.
  *
  * The window is the GB's second BG plane: same tile data, its OWN 32x32
  * map, drawn OVER the BG starting at screen position (WX-7, WY) and
- * extending to the bottom-right. It ignores SCX/SCY completely — that's
+ * extending to the bottom-right. It ignores SCX/SCY completely - that's
  * the point: scroll the playfield all you want, the HUD strip stays put.
  * Classic placements: a bottom status bar (this game: WY=128 → the last
- * 16 pixel rows) or a full-width top bar. It CANNOT be a floating box —
+ * 16 pixel rows) or a full-width top bar. It CANNOT be a floating box -
  * the window always runs to the screen's bottom-right corner.
  *
  * Gotchas:
  *  - WX is offset by 7: WX=7 is the left edge. WX<7 glitches on hardware.
  *  - The window has its OWN line counter: it renders ITS map from window
- *    row 0 downward, regardless of WY — our HUD lives at $9C00 rows 0-1.
- *  - This is DMG-era hardware — it transplants to the GBC example unchanged.
+ *    row 0 downward, regardless of WY - our HUD lives at $9C00 rows 0-1.
+ *  - This is DMG-era hardware - it transplants to the GBC example unchanged.
  *
  * Window HUD layout (window map rows 0-1):
  *   row 0:  SC dddddd  HI dddddd      row 1:  LV dd
@@ -805,7 +805,7 @@ static void draw_window_static(void) {
     draw_wtext(0, 1, "LV");
 }
 
-/* draw every dynamic HUD value directly (LCD off / transitions only —
+/* draw every dynamic HUD value directly (LCD off / transitions only -
  * in-game updates go through the queue) */
 static void draw_hud_now(void) {
     uint8_t i;
@@ -833,7 +833,7 @@ static void draw_static(void) {
     draw_window_static();
 }
 
-/* Full LOCKED-well repaint from the grid (no piece — that's a sprite). Used
+/* Full LOCKED-well repaint from the grid (no piece - that's a sprite). Used
  * only with the LCD OFF (boot / title↔game transitions), where writing all
  * changed cells at once is safe. */
 static void redraw_all(void) {
@@ -849,23 +849,23 @@ static void redraw_all(void) {
     }
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * Deferred well/HUD rendering — the vblank COLLECT/FLUSH queue.
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * Deferred well/HUD rendering - the vblank COLLECT/FLUSH queue.
  * requires: update_sprites + flush_well as the FIRST two things after
  *   wait_vblank (in that order), batches capped at WQ_MAX, and no LCDC
  *   bit-7 toggling in-game.
  *
- * This core silently DROPS a VRAM write that lands during active display —
+ * This core silently DROPS a VRAM write that lands during active display -
  * and occasionally drops one even at the very start of vblank. So in-game
  * we never touch the LCD; instead:
- *   COLLECT — queue work (RAM only): changed cells after a lock, the HUD
- *             digits, and — when idle — a rolling SCRUB of the whole well.
- *   FLUSH   — write the queue to VRAM as the FIRST thing after wait_vblank.
+ *   COLLECT - queue work (RAM only): changed cells after a lock, the HUD
+ *             digits, and - when idle - a rolling SCRUB of the whole well.
+ *   FLUSH   - write the queue to VRAM as the FIRST thing after wait_vblank.
  * The scrub re-writes well cells from the grid continuously, so any dropped
  * write self-corrects instead of becoming a permanent wrong shape (the "3
  * stones that won't clear" bug). Idempotent ⇒ invisible.
  * Batches are kept small so the whole flush fits in vblank AFTER the OAM
- * DMA — overrunning into active display drops writes.
+ * DMA - overrunning into active display drops writes.
  * Queue offsets are plain offsets from $9800, so the same queue serves the
  * BG map (well) and the window map at $9800+$400 (HUD digits). */
 #define WQ_MAX        6             /* queue capacity (≤4 pushed per frame) */
@@ -940,7 +940,7 @@ static void collect_well(void) {
         else { wq_text(3, 7, "OVER"); over_pending = 0; }
     } else if (state == ST_PLAY) {
         /* idle: rolling scrub of the well so any dropped write heals itself.
-         * Only during play — would erase the title pile / game-over text. */
+         * Only during play - would erase the title pile / game-over text. */
         for (k = 0; k < SCRUB_N; k++) {
             wq_push(cell_off(scrub_i), tile_for(grid[scrub_i]));
             scrub_i++;
@@ -960,8 +960,8 @@ static void flush_well(void) {
     wq_n = 0;
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ── title screen.
- * A jagged pile of all five stone kinds dresses the well — it doubles as
+/* ── GAME LOGIC (clay - reshape freely) ── title screen.
+ * A jagged pile of all five stone kinds dresses the well - it doubles as
  * the "here are the five shapes you'll match" legend. */
 static const uint8_t title_heights[COLS] = { 4, 6, 3, 7, 5, 6, 4, 5 };
 
@@ -984,12 +984,12 @@ static void draw_title(void) {
     draw_text(4, 4, "PRESS START");
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * LCD-off transitions. Only flip LCDC bit 7 to 0 DURING VBLANK. Killing the
  * LCD mid-scanline is the classic "damages real DMG hardware" move;
  * emulators shrug, real units can be permanently marked. wait_vblank()
  * first, always. blit_on enables BG + OBJ + the WINDOW (map $9C00). NEVER
- * call these from the in-game loop (the off-frame blanks the whole screen —
+ * call these from the in-game loop (the off-frame blanks the whole screen -
  * a flash/strobe). */
 static void blit_off(void) { wait_vblank(); LCDC = 0; }
 static void blit_on(void)  {
@@ -1054,20 +1054,20 @@ static void game_over(void) {
     if (score_beats_hi()) {
         uint8_t i;
         for (i = 0; i < 6; i++) hi_d[i] = score_d[i];
-        hiscore_save();          /* battery SRAM — survives power-off */
+        hiscore_save();          /* battery SRAM - survives power-off */
     }
 }
 
 void main(void) {
     uint8_t pad, prev = 0, t, rate;
 
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
      * Boot order: LCD defaults (installs the OAM-DMA HRAM stub) → vblank IRQ
-     * (so wait_vblank HALTs instead of busy-polling LY — the poll runs at
+     * (so wait_vblank HALTs instead of busy-polling LY - the poll runs at
      * ~1/30 speed on this core) → APU on → LCD OFF → then all the bulk VRAM
      * work (tiles, font, maps). Tile/font/map uploads REQUIRE a VRAM-safe
      * window and boot does them all at once, so LCD-off is the only sane
-     * choice here. The window position registers are plain I/O — set once,
+     * choice here. The window position registers are plain I/O - set once,
      * they hold. */
     lcd_init_default();
     enable_vblank_irq();
@@ -1077,7 +1077,7 @@ void main(void) {
     music_on = 1;          /* background music on by default (SELECT toggles) */
     LCDC = 0;
     WY = WINY;             /* window HUD strip: bottom 16 pixel rows */
-    WX = 7;                /* WX is offset by 7 — this is the left edge */
+    WX = 7;                /* WX is offset by 7 - this is the left edge */
 
     /* DMG palettes (2 bits/shade, low bits = index 0):
      * BGP $E4 → 0=white 1=light 2=dark 3=black (stones + walls + text).
@@ -1099,7 +1099,7 @@ void main(void) {
     upload_tile(T_EXP2,  tile_exp2);
     upload_font();
 
-    hiscore_load();        /* battery SRAM — 0 on a fresh cart */
+    hiscore_load();        /* battery SRAM - 0 on a fresh cart */
     go_title();
 
     /* Main loop, one pass per frame. The order is deliberate: the two VRAM/
@@ -1108,7 +1108,7 @@ void main(void) {
      * are queued last (RAM only) for the following frame's flush. */
     while (1) {
         wait_vblank();
-        update_sprites();  /* OAM DMA FIRST — must land in vblank (no tear) */
+        update_sprites();  /* OAM DMA FIRST - must land in vblank (no tear) */
         flush_well();      /* then drain queued BG writes (≤4, fits vblank) */
         sfx_tick();
         music_tick();
@@ -1119,11 +1119,11 @@ void main(void) {
         if ((pad & PAD_SELECT) && !(prev & PAD_SELECT)) music_toggle();
 
         if (state == ST_TITLE) {
-            /* ── GAME LOGIC (clay — reshape freely) ── press-start title
-             * (handheld: no 2P mode select — see the header note) */
+            /* ── GAME LOGIC (clay - reshape freely) ── press-start title
+             * (handheld: no 2P mode select - see the header note) */
             if ((pad & PAD_START) && !(prev & PAD_START)) start_game();
         } else if (state == ST_PLAY) {
-            /* ── GAME LOGIC (clay — reshape freely) ── one frame of play */
+            /* ── GAME LOGIC (clay - reshape freely) ── one frame of play */
             if ((pad & PAD_LEFT) && !(prev & PAD_LEFT)
                 && !collides((uint8_t)(piece_x - 1), piece_y)) { piece_x--; sfx_move(); }
             if ((pad & PAD_RIGHT) && !(prev & PAD_RIGHT)
@@ -1156,7 +1156,7 @@ void main(void) {
                     piece_y++;
                 }
             }
-        } else { /* ST_OVER — START returns to the title (shows the new HI) */
+        } else { /* ST_OVER - START returns to the title (shows the new HI) */
             if ((pad & PAD_START) && !(prev & PAD_START)) go_title();
         }
 

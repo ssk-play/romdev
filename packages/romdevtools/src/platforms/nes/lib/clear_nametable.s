@@ -1,4 +1,4 @@
-; NES — fill nametable 0 ($2000-$23FF) with a single tile, plus zero out
+; NES - fill nametable 0 ($2000-$23FF) with a single tile, plus zero out
 ; the attribute table ($23C0-$23FF).
 ;
 ; Pass the fill tile in A. Disable rendering before calling, or call

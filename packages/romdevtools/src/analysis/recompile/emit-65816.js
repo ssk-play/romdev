@@ -2,7 +2,7 @@
 // 6502-sourced IR is "near-1:1": reg/branch/jump/call/return nodes re-emit the
 // original mnemonic verbatim, and hwreg (the MMIO seam) becomes a call into the
 // NES-PPU-on-SNES runtime. This emitter reproduces the byte-for-byte body the
-// original monolithic recompile-65816 produced — it's the same output, reached
+// original monolithic recompile-65816 produced - it's the same output, reached
 // through the generic IR so OTHER source ISAs (whose lifters emit the same IR)
 // could target 65816 too, and so 6502 can target OTHER CPUs via a different emitter.
 //
@@ -18,7 +18,7 @@ function emitRegNode(node) {
   return `        ${mnemonic}${operand ? "     " + operand : ""}`;
 }
 
-/** Emit the seam call(s) for one hwreg access — identical to the original
+/** Emit the seam call(s) for one hwreg access - identical to the original
  *  emitSeamAccess: A holds the value (writes) / receives it (reads); the register
  *  low byte goes in X so one seam routine handles the whole file. */
 function emitHwReg(node) {
@@ -60,7 +60,7 @@ export function emit65816Body(ir) {
         out.push(emitRegNode(node));
         break;
       case IR.BRANCH:
-        // 6502 branch mnemonics ARE valid 65816 — re-emit verbatim. node.raw holds
+        // 6502 branch mnemonics ARE valid 65816 - re-emit verbatim. node.raw holds
         // the original "bne L8016"; recover the mnemonic from it for fidelity.
         out.push(`        ${branchMnemonic(node)}     ${node.target}`);
         break;

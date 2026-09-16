@@ -11,23 +11,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // cc65's WASM now ships in romdev-toolchain-cc65; resolve from the package
-// (with a local src/ fallback for the transition layout) — same pattern as
+// (with a local src/ fallback for the transition layout) - same pattern as
 // the production resolver in src/toolchains/cc65/cc65.js.
 function resolveCc65Glue() {
   try {
     const u = import.meta.resolve("romdev-toolchain-cc65");
     const p = path.join(path.dirname(fileURLToPath(u)), "wasm", "cc65.js");
     if (existsSync(p)) return p;
-  } catch { /* package not resolvable — fall through to local */ }
+  } catch { /* package not resolvable - fall through to local */ }
   return path.resolve(__dirname, "..", "src", "toolchains", "cc65", "wasm", "cc65.js");
 }
 const CC65_GLUE = resolveCc65Glue();
 
 // Both tests share the same worker pool (module-scoped state); we
 // shutdown only once at the very end via test.after hook isn't worth
-// adding — just don't shutdown between tests.
+// adding - just don't shutdown between tests.
 
-test("worker handles benign error (bad glue path) — no exit", async () => {
+test("worker handles benign error (bad glue path) - no exit", async () => {
   const { runInWorker } = await import("../src/toolchains/_worker/pool.js");
   await assert.rejects(
     runInWorker({
@@ -57,7 +57,7 @@ test("worker crash isolation: SIGKILL'd worker → parent survives + replenishes
   });
   assert.equal(r1.exitCode, 0, "first build should succeed");
 
-  // 2. SIGKILL THIS process's own worker children only — not any other
+  // 2. SIGKILL THIS process's own worker children only - not any other
   //    test file's pool. Use the exported worker list to grab PIDs.
   const myPids = _internalWorkers().map((w) => w.child.pid).filter(Boolean);
   for (const pid of myPids) {

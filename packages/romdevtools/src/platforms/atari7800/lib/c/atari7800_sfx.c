@@ -1,4 +1,4 @@
-/* atari7800_sfx.c — TIA audio driver for Atari 7800 scaffolds.
+/* atari7800_sfx.c - TIA audio driver for Atari 7800 scaffolds.
  *
  * TIA audio register layout:
  *   $15 AUDC0   channel 0 waveform/distortion (0..15)

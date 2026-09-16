@@ -2,16 +2,16 @@
 ;;
 ;; An MSX ROM cartridge maps at $4000-$BFFF. The first 16 bytes are the ROM
 ;; header the BIOS scans on boot:
-;;   $4000: "AB"  (0x41 0x42)  — the cartridge magic
-;;   $4002: INIT  pointer       — the BIOS CALLs this (with a valid stack) to
+;;   $4000: "AB"  (0x41 0x42)  - the cartridge magic
+;;   $4002: INIT  pointer       - the BIOS CALLs this (with a valid stack) to
 ;;                                start the cartridge program
-;;   $4004: STATEMENT  ptr      — BASIC CALL handler (0 = none)
-;;   $4006: DEVICE     ptr      — expansion-device handler (0 = none)
-;;   $4008: TEXT       ptr      — BASIC program text (0 = none)
+;;   $4004: STATEMENT  ptr      - BASIC CALL handler (0 = none)
+;;   $4006: DEVICE     ptr      - expansion-device handler (0 = none)
+;;   $4008: TEXT       ptr      - BASIC program text (0 = none)
 ;;   $400A..$400F: reserved (0)
 ;;
 ;; Replaces SDCC's stock z80 crt0 (which is a CP/M-style $0000 runtime that
-;; talks to a host via rst $08 — wrong for a cartridge). This one emits the
+;; talks to a host via rst $08 - wrong for a cartridge). This one emits the
 ;; header, runs the SDCC global-initializer pass, calls main(), then RETs back
 ;; to the BIOS (the BIOS gave us the stack, so we don't touch SP).
 ;;
@@ -20,7 +20,7 @@
 ;;   build({output:'rom'})({ platform:"msx", sources:{ "main.c":..., "msx_crt0.s":<this> },
 ;;                 crt0: ".module empty\n" })   // empty stock crt0
 ;;
-;; C-BIOS shows its logo for ~2-3s, THEN CALLs INIT — step >= 240 frames before
+;; C-BIOS shows its logo for ~2-3s, THEN CALLs INIT - step >= 240 frames before
 ;; expecting the cart's output on screen.
 
         .module msx_crt0
@@ -34,8 +34,8 @@
 ;; ─── Cartridge ROM header at $4000 ────────────────────────────────
         .area   _HEADER (ABS)
         .org    0x4000
-        .db     0x41, 0x42          ; "AB" — cartridge magic
-        .dw     init                ; INIT  — BIOS calls this to start us
+        .db     0x41, 0x42          ; "AB" - cartridge magic
+        .dw     init                ; INIT  - BIOS calls this to start us
         .dw     0x0000              ; STATEMENT (none)
         .dw     0x0000              ; DEVICE (none)
         .dw     0x0000              ; TEXT (none)
@@ -48,7 +48,7 @@
 ;; initializer fragments sdcc emits, then _GSFINAL.
         ;; AREA ORDERING IS LOAD-BEARING (same bug class fixed in the SMS/GG
         ;; crt0s 2026-06-08): `_INITIALIZER` (the ROM image of every value-
-        ;; initialised static) MUST be declared in the ROM group — otherwise
+        ;; initialised static) MUST be declared in the ROM group - otherwise
         ;; sdld places it in RAM after `_INITIALIZED` and the init copy below
         ;; copies uninitialised RAM onto itself, so every `static x = N;`
         ;; boots as 0. On MSX that silenced ALL scaffold audio (the PSG
@@ -67,7 +67,7 @@
 
         .area   _CODE
 
-;; INIT entry — the BIOS CALLs here with interrupts on and a valid stack.
+;; INIT entry - the BIOS CALLs here with interrupts on and a valid stack.
 init:
         ;; ── Zero the BSS segment (`_DATA`) ── every uninitialised static
         ;; must read back 0 at boot (power-on RAM is garbage).

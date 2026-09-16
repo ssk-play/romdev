@@ -1,4 +1,4 @@
-// R23g — rom-hack cross-platform NES → SNES preserve path validation.
+// R23g - rom-hack cross-platform NES → SNES preserve path validation.
 //
 // The other agent's feedback (feedback_round17_intent_validation.md) offered
 // to test the rom-hack path now that R23f landed the homebrew live-palette
@@ -6,7 +6,7 @@
 //
 // > If you want me to test the `intent:"rom-hack"` cross-platform path
 // > next, say the word. The interesting case is "NES 4-color → SNES
-// > 16-color subpalette where preserve-verbatim is exactly right" —
+// > 16-color subpalette where preserve-verbatim is exactly right" -
 // > that's the case your v2 reply highlighted and I haven't run.
 //
 // We preempt by running it ourselves. The contract under
@@ -14,7 +14,7 @@
 //
 //   1. quantizeMode reports "skipped"
 //   2. The output PNG is byte-equal to what cropSpriteSheetImpl would
-//      have produced on the source extract — no palette remapping
+//      have produced on the source extract - no palette remapping
 //      happens between the two.
 //   3. Output palette matches the source extract's palette exactly.
 //
@@ -66,7 +66,7 @@ test("R23g rom-hack NES → SNES: composite output matches extract+crop pipeline
       });
       assert.equal(compositeResult.intent, "rom-hack");
       assert.equal(compositeResult.quantizeMode, "skipped",
-        "rom-hack must report quantize as 'skipped' — source bytes preserved verbatim");
+        "rom-hack must report quantize as 'skipped' - source bytes preserved verbatim");
 
       // ─── Path B: standalone extract → crop, matching the composite's
       //     internal sequence. We render the NES CHR bank to a grid PNG
@@ -102,7 +102,7 @@ test("R23g rom-hack NES → SNES: composite output matches extract+crop pipeline
       assert.deepEqual(
         Buffer.from(compositeBytes),
         Buffer.from(pipelineBytes),
-        "rom-hack composite output must byte-equal the discrete extract+crop chain — " +
+        "rom-hack composite output must byte-equal the discrete extract+crop chain - " +
         "preserve-verbatim is the whole point of the intent",
       );
     } finally {
@@ -142,7 +142,7 @@ test("R23g rom-hack output palette is monochrome ramp (NES default render)",
   { timeout: 30000 },
   async () => {
     // The standalone extractSpriteSheet under rom-hack uses the default
-    // grayscale ramp. The composite should match — every output palette
+    // grayscale ramp. The composite should match - every output palette
     // entry should have R == G == B (no color leakage).
     const dir = mkdtempSync(path.join(os.tmpdir(), "r23g-romhack-mono-"));
     try {

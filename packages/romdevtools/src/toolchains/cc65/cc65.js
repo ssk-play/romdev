@@ -1,4 +1,4 @@
-// cc65 — bundled 6502 C compiler + assembler + linker.
+// cc65 - bundled 6502 C compiler + assembler + linker.
 //
 // Provides a Node API that runs cc65 → ca65 → ld65 entirely in WebAssembly.
 // Each tool runs in its own Emscripten module with its own MEMFS. We shuttle
@@ -27,7 +27,7 @@ const __dirname = path.dirname(__filename);
 // Resolve the package's base dir once; fall back to a local copy under src/
 // if present (transition / dev). The package is a hard dep of romdev.
 // Lazy + memoized: resolve (and possibly throw "not installed") only on the
-// first cc65 build (NES/C64/Atari7800/Lynx), not at module load — so booting
+// first cc65 build (NES/C64/Atari7800/Lynx), not at module load - so booting
 // the server never touches this package unless cc65 is actually used. Resolve
 // the base dir once; derive the wasm + share dirs from it on demand.
 let _cc65Base;
@@ -40,7 +40,7 @@ const cc65Base = () =>
   }));
 
 /** True if the cc65 build toolchain WASM (cc65 + ld65, in romdev-toolchain-cc65)
- *  is installed/resolvable, without throwing — for the catalog(status) capability
+ *  is installed/resolvable, without throwing - for the catalog(status) capability
  *  probe. cc65, ca65, ld65, and da65 all ship in the SAME package, so this also
  *  reflects ld65 (the linker) availability. */
 export function cc65Available() {
@@ -168,7 +168,7 @@ export async function runLd65(args) {
   }
   const outputFiles = [
     { vfsPath: "/work/out.bin", encoding: "base64" },
-    // Always emit the linker map — its Segment list gives us per-segment
+    // Always emit the linker map - its Segment list gives us per-segment
     // sizes (BSS / DATA / ZEROPAGE / stack), which we surface as RAM usage
     // so the agent sees "you used 380/512 B of BSS" instead of discovering
     // a silent overflow at runtime.
@@ -214,14 +214,14 @@ export async function runLd65(args) {
  * We pull out the segments that live in RAM (BSS / DATA / ZEROPAGE / a few
  * common stack/heap names) with their sizes, so the agent can see how close
  * it is to the per-config RAM ceiling. Returns null if the map can't be
- * parsed (best-effort — never throws).
+ * parsed (best-effort - never throws).
  * @param {string|null} mapText
  * @returns {{segments: Array<{name:string,start:number,end:number,size:number}>, note:string}|null}
  */
 export function parseRamUsage(mapText) {
   if (!mapText || typeof mapText !== "string") return null;
   // The map's segment table rows look like: NAME  HHHHHH  HHHHHH  HHHHHH  ...
-  // (name, start, end, size — all hex). Match those rows.
+  // (name, start, end, size - all hex). Match those rows.
   const rows = [];
   const re = /^([A-Z_][A-Z0-9_]*)\s+([0-9A-Fa-f]{6})\s+([0-9A-Fa-f]{6})\s+([0-9A-Fa-f]{6})\b/gm;
   let m;
@@ -246,7 +246,7 @@ export function parseRamUsage(mapText) {
     note: "RAM segments from the linker map (sizes in bytes). On NROM/CHR-RAM, " +
       "normal RAM is tight (~512 B for BSS/DATA outside zeropage + stack + " +
       "shadow OAM). If BSS+DATA approaches the config's RAM region size, you're " +
-      "near overflow — symptoms are corrupted state / mystery crashes.",
+      "near overflow - symptoms are corrupted state / mystery crashes.",
   };
 }
 

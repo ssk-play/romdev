@@ -1,4 +1,4 @@
-/* ── hello_sprite.c — SMS starter (one sprite + d-pad) ──────────────
+/* ── hello_sprite.c - SMS starter (one sprite + d-pad) ──────────────
  *
  * Drives one sprite around the SMS screen with the directional pad.
  * Uses the bundled SMS runtime helpers (sms_vdp_init, sms_load_tiles,
@@ -10,7 +10,7 @@
  *   - Sprite tile data at VRAM $2000 (R6 = 0xFB)
  *   - 64 sprite slots × 4 bytes (Y / X / tile / unused)
  *
- * Multi-file project — main.c plus the runtime .c files. Build with:
+ * Multi-file project - main.c plus the runtime .c files. Build with:
  *   build({ output: "rom", platform:"sms", language:"c",
  *                sources: { "main.c": ..., "vdp_init.c": ..., ... },
  *                includes: { "sms_hw.h": ... }})
@@ -48,10 +48,10 @@ static const uint8_t palette[32] = {
 
 /* Two BG tiles in the BG bank at $0000. Tile 0 is a dithered checkerboard
  * (plane0/plane1 alternate per row) so the whole BG fills with TWO colours
- * and no single colour dominates the frame — a flat one-colour fill still
+ * and no single colour dominates the frame - a flat one-colour fill still
  * reads as a blank screen. */
 static const uint8_t bg_tiles[32 * 1] = {
-  /* T_BG — dither: plane0=0xAA→colour 1, plane1=0x55→colour 2, swapped
+  /* T_BG - dither: plane0=0xAA→colour 1, plane1=0x55→colour 2, swapped
    * each row so it reads as a fine checkerboard. */
   0xAA,0x55,0x00,0x00, 0x55,0xAA,0x00,0x00,
   0xAA,0x55,0x00,0x00, 0x55,0xAA,0x00,0x00,
@@ -90,7 +90,7 @@ void main(void) {
 
   sms_sprite_init();
   sfx_init();
-  sfx_tone(0, 220, 12);  /* boot chime — confirms sound works */
+  sfx_tone(0, 220, 12);  /* boot chime - confirms sound works */
   sms_sprite_set(0, x, y, /*tile*/ 0);
   sms_sat_upload();
 
@@ -100,7 +100,7 @@ void main(void) {
     uint8_t pad;
     sms_vblank_wait();
     sfx_update();
-    /* Stage sprite for the next frame BEFORE we read input — the SAT
+    /* Stage sprite for the next frame BEFORE we read input - the SAT
      * upload below pushes the staging buffer to VRAM at vblank. */
     sms_sprite_set(0, x, y, 0);
     sms_sat_upload();

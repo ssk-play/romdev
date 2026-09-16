@@ -1,4 +1,4 @@
-// R52 — GG-agent friction-feedback fixes.
+// R52 - GG-agent friction-feedback fixes.
 //
 // Driven by agent friction feedback on the Game Gear scaffold.
 // Captured problems + the fixes shipped here:
@@ -8,13 +8,13 @@
 //      so the GG default actually boots into Mode 4 with a visible
 //      'H' tile.
 //   2. createGame had no entry for gg. Now wired (gg has the same 5
-//      genre scaffolds as sms — shmup/platformer/puzzle/sports/racing).
+//      genre scaffolds as sms - shmup/platformer/puzzle/sports/racing).
 //   3-4. GG + SMS MENTAL_MODEL footguns documented (8-sprites-per-
 //      scanline, SAT $D0 terminator, OAM hardware-vs-visible coords).
-//   5-6. R6 vdp_init/load_tiles comment bug — said "sprite tiles at
+//   5-6. R6 vdp_init/load_tiles comment bug - said "sprite tiles at
 //      $2000" when R6=0xFB actually puts them at $0000. Fixed across
 //      sms + gg vdp_init.c, sms + gg load_tiles.c, gg + sms MENTAL_MODEL.
-//   7. New copyStarterSnippets tool — one call writes every snippet
+//   7. New copyStarterSnippets tool - one call writes every snippet
 //      to a destination dir instead of pumping the bytes through the
 //      agent's context.
 //
@@ -39,7 +39,7 @@ async function readSrc(rel) {
 test("R52 gg_crt0.s is bundled and registered in GG_RUNTIME", async () => {
   const crt0 = await readSrc("src/platforms/gg/lib/c/gg_crt0.s");
   assert.match(crt0, /\.module\s+gg_crt0/);
-  assert.match(crt0, /im\s+1/,        "missing IM 1 — won't take vblank IRQs cleanly");
+  assert.match(crt0, /im\s+1/,        "missing IM 1 - won't take vblank IRQs cleanly");
   assert.match(crt0, /ld\s+sp,\s*#0xDFF0/i, "stack pointer not initialised to $DFF0");
   assert.match(crt0, /call\s+_main/,  "doesn't call main()");
 
@@ -57,7 +57,7 @@ test("R52 GG default template is the new visible-and-runnable one (not the count
   assert.match(def, /load_tiles?\s*\(/, "default.c: must load tile data (load_tile/load_tiles)");
   assert.match(def, /wait_vblank\s*\(/, "default.c: must wait for vblank");
   assert.match(def, /vdp_write_reg\s*\(\s*1\s*,\s*0xE0\s*\)/i,
-    "default.c: must enable display (R1 = 0xE0) — otherwise screen stays black");
+    "default.c: must enable display (R1 = 0xE0) - otherwise screen stays black");
 
   const project = await readSrc("src/mcp/tools/project.js");
   // TEMPLATES.gg.default must point to templates/default.c, not the bare main.c stub.
@@ -82,7 +82,7 @@ test("R52 GG default.c + gg_crt0.s compiles end-to-end (32 KB ROM)", { timeout: 
 
 test("R52 createGame supports platform:'gg' (all 5 genres)", async () => {
   // R61: createGame derives genre availability from TEMPLATES (no GENRE_MAP).
-  // Assert the source of truth — TEMPLATES.gg registers all 5 genres — by
+  // Assert the source of truth - TEMPLATES.gg registers all 5 genres - by
   // checking each genre key appears inside the `TEMPLATES.gg = { ... };` block.
   const project = await readSrc("src/mcp/tools/project.js");
   const start = project.indexOf("TEMPLATES.gg = {");
@@ -95,9 +95,9 @@ test("R52 createGame supports platform:'gg' (all 5 genres)", async () => {
   }
 });
 
-test("R6 sprite-tile-base defaults to $2000 (0xFF) — matches where scaffolds upload", async () => {
+test("R6 sprite-tile-base defaults to $2000 (0xFF) - matches where scaffolds upload", async () => {
   // SUPERSEDES the original R52 assertion. The audit found the real fix is the
-  // OPPOSITE: every scaffold uploads sprite tiles to $2000 (load_tiles(0x2000,…)),
+  // OPPOSITE: every scaffold uploads sprite tiles to $2000 (load_tiles(0x2000,...)),
   // so vdp_init must default R6=0xFF (SA13 set → sprite tiles read from $2000).
   // The old R6=0xFB ($0000) baseline left sprites reading the empty BG bank →
   // invisible on every GG/SMS sprite scaffold.
@@ -152,7 +152,7 @@ test("R52 copyStarterSnippets writes files to disk + flattens lib/<lang>/", { ti
     const dstFiles = readdirSync(dst);
     assert.ok(dstFiles.includes("gg_hw.h"), "gg_hw.h didn't land at the flattened path");
     assert.ok(dstFiles.includes("vdp_init.c"), "vdp_init.c didn't land at the flattened path");
-    assert.ok(!dstFiles.includes("c"), "lib/c/ subdir was not flattened — should be siblings");
+    assert.ok(!dstFiles.includes("c"), "lib/c/ subdir was not flattened - should be siblings");
     // Bytes round-trip cleanly.
     const golden = readFileSync(join(REPO_ROOT, "src/platforms/gg/lib/c/gg_hw.h"));
     const copied = readFileSync(join(dst, "gg_hw.h"));
@@ -168,7 +168,7 @@ test("R52 sprite_init on SMS + GG no longer fills Y with $D0 (the terminator foo
     // The OLD body had `shadow_oam[0] = 0xD0;` + a loop filling 1..63 with 0xD0.
     // The NEW body fills with $E0 (off-screen, NOT terminator) via OAM_Y_HIDDEN.
     assert.doesNotMatch(src, /shadow_oam\[i\]\s*=\s*0x[Dd]0\s*;/,
-      `${p}/sprite_table.c: should NOT initialise unused slots to $D0 — that's the renderer terminator`);
+      `${p}/sprite_table.c: should NOT initialise unused slots to $D0 - that's the renderer terminator`);
     assert.match(src, /OAM_Y_HIDDEN\s+0x[Ee]0/i,
       `${p}/sprite_table.c: should define OAM_Y_HIDDEN as $E0 (off-screen, non-terminator)`);
     assert.match(src, /shadow_oam\[i\]\s*=\s*OAM_Y_HIDDEN/,
@@ -185,7 +185,7 @@ test("R52 SDCC preflight lint reports EVERY mid-block decl in a block (not just 
   const src = `
 void f(void) {
     int a = 1;
-    a = a + 1;             /* code — flips sawCode */
+    a = a + 1;             /* code - flips sawCode */
     int b = 2;             /* mid-decl #1 */
     b = b + a;
     int c = 3;             /* mid-decl #2 */
@@ -215,7 +215,7 @@ test("R52 createProject({withSnippets:true}) drops snippet files alongside main"
       withSnippets: true,
       overwrite: true,
     });
-    // The "default" template's runtime already writes gg_crt0.s — that
+    // The "default" template's runtime already writes gg_crt0.s - that
     // collision should be skipped by withSnippets, not duplicated.
     const files = readdirSync(dst).sort();
     // Snippets we EXPECT to land beyond the default-runtime baseline:
@@ -246,7 +246,7 @@ test("R52 createProject({withSnippets:false}) is the unchanged baseline (no snip
       name: "nosnip-test",
       path: dst,
       overwrite: true,
-      // withSnippets omitted — defaults to false
+      // withSnippets omitted - defaults to false
     });
     const files = readdirSync(dst).sort();
     assert.ok(!files.includes("vdp_init.c"),

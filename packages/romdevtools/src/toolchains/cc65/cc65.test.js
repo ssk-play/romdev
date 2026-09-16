@@ -59,7 +59,7 @@ test("cc65: build a minimal NES C program to a .nes binary", async () => {
 test("cc65: build a minimal NES asm program to a .nes binary (no-library link)", async () => {
   // Direct asm -> ld65 needs a -C config; the default target uses nes.lib
   // which assumes the cc65 C runtime. For this test we just confirm the
-  // raw asm path runs through ca65 successfully — we don't link.
+  // raw asm path runs through ca65 successfully - we don't link.
   const { runCa65 } = await import("./cc65.js");
   const ca = await runCa65({ source: HELLO_NES_ASM, target: "nes" });
   assert.equal(ca.exitCode, 0, "ca65 failed\n" + ca.log);

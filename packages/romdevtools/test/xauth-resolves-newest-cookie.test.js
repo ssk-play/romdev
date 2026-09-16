@@ -42,7 +42,7 @@ function cookieDir(files) {
  */
 // NOTE: `display` uses an explicit sentinel, NOT a `= ":0"` default parameter.
 // Passing `display: undefined` to test the headless path would TRIGGER the
-// default and set DISPLAY=:0 — the test would then exercise the opposite of
+// default and set DISPLAY=:0 - the test would then exercise the opposite of
 // what it claims. Omit the key for :0; pass `display: null` for headless.
 function withEnv({ display, xauthority, dir, works = [] }, fn) {
   const wantDisplay = display === undefined ? ":0" : display;
@@ -64,7 +64,7 @@ function withEnv({ display, xauthority, dir, works = [] }, fn) {
     process.env.XDG_RUNTIME_DIR = dir;
     process.env.PATH = `${shimDir}:${process.env.PATH}`;
     // Hand the callback the value resolveXauthority left behind. Assertions
-    // about env MUST read this, not process.env — the finally block below
+    // about env MUST read this, not process.env - the finally block below
     // restores the ambient session values (this box really does export
     // DISPLAY=:0), which would mask what the resolver actually did.
     const result = fn();
@@ -182,7 +182,7 @@ test("lock siblings and non-cookie files are never selected", { skip }, () => {
   assert.equal(r.to, real, "the -c lock file is newer but must not be a candidate");
 });
 
-// This one runs on EVERY platform — it is the guard that keeps a Linux-only
+// This one runs on EVERY platform - it is the guard that keeps a Linux-only
 // concern from touching Windows/macOS. Without it the non-linux early return
 // is the least-tested line in the file, on the platforms that depend on it
 // most. process.platform is redefined rather than stubbed at import time so a

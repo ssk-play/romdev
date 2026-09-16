@@ -1,4 +1,4 @@
-/* ── genesis_sfx.c — minimal Genesis PSG sound-effects wrapper ──────
+/* ── genesis_sfx.c - minimal Genesis PSG sound-effects wrapper ──────
  *
  * SGDK's PSG_* helpers do the byte-twiddling. We add:
  *   - 4-channel per-channel "frames-left" countdown
@@ -35,7 +35,7 @@ void sfx_noise(u8 length_frames) {
 /* ── background music: a 16-step melody loop on PSG channel 2 ───────
  * Ticked from sfx_update(), so every scaffold that already calls
  * sfx_init() + sfx_update() gets continuous music for free ("no sound"
- * was the #1 playtest complaint — a lone 6-frame blip on a rare event
+ * was the #1 playtest complaint - a lone 6-frame blip on a rare event
  * reads as silence). sfx_music(0) turns it off. SFX own channels 0-1 +
  * noise, so effects always cut through. */
 static const u16 music_hz[16] = {

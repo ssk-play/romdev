@@ -1,4 +1,4 @@
-// integrate.js — turn an exact candidate into a reviewable source patch, apply
+// integrate.js - turn an exact candidate into a reviewable source patch, apply
 // it, run the project's full build, and verify the ROM byte-for-byte. Any
 // failure restores the original TU. The patch file is written whether or not
 // it is applied, so a human can review it as a diff.
@@ -42,7 +42,7 @@ export async function integrateCandidate(project, fn, { candidateText, apply = f
   if (!v.ok) {
     await writeFile(tuAbs, original);
     result.applied = false; result.revertedTo = backup;
-    result.note = "full build did not reproduce the base ROM — the TU was RESTORED to its original text; the patch file remains for inspection";
+    result.note = "full build did not reproduce the base ROM - the TU was RESTORED to its original text; the patch file remains for inspection";
   } else result.note = "applied and the full rebuilt ROM is byte-exact with the base ROM";
 
   // DURABLE PROOF BUNDLE. §11: a recovery must stay auditable "after restarts
@@ -89,7 +89,7 @@ export async function integrateCandidate(project, fn, { candidateText, apply = f
     result.proof = bundlePath;
   } catch (e) {
     // A bundle that cannot be written must not fail an integration that
-    // already succeeded — but the caller has to know the proof is missing.
+    // already succeeded - but the caller has to know the proof is missing.
     result.proofError = `the integration completed but its proof bundle could not be written: ${String(e?.message ?? e).slice(0, 160)}`;
   }
   return result;

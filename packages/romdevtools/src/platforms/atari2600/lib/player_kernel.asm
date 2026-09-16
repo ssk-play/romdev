@@ -1,10 +1,10 @@
-; ── Single-player kernel — render an 8x16 sprite via GRP0 ─────────
+; ── Single-player kernel - render an 8x16 sprite via GRP0 ─────────
 ; Shows the minimal pattern: load sprite bytes from a table during the
 ; visible kernel, WSYNC between lines. Position the player with RESP0
 ; (cycle-counted) before the first visible line.
 ;
 ; ── COPY-PASTE TEMPLATE, not a linkable module ─────────────────────
-; No `org` directives here on purpose — they'd collide with your main
+; No `org` directives here on purpose - they'd collide with your main
 ; ROM layout ("Origin Reverse-indexed") when dasm builds the flat ROM.
 ; Inline the routines + PLAYER_SHAPE table into your own source where
 ; you want them. Your kernel_skeleton.asm owns the org $F000 / $FFFA.
@@ -16,7 +16,7 @@
 PLAYER_X equ $80
 PLAYER_Y equ $81  ; top scanline (0-191)
 
-  ; --- sprite data (8 rows × 1 byte each) — place in your data area
+  ; --- sprite data (8 rows × 1 byte each) - place in your data area
 PLAYER_SHAPE:
   .byte %00111100
   .byte %01111110
@@ -35,10 +35,10 @@ PLAYER_INIT:
   STA PLAYER_Y
   RTS
 
-; ── POS_OBJ_P0 — coarse + fine horizontal position for P0 ──────────
+; ── POS_OBJ_P0 - coarse + fine horizontal position for P0 ──────────
 ; Call with the target X column 0..159 in A. This is the canonical
 ; "burn cycles equivalent to (X/15) and use the remainder for HMOVE
-; fine adjust" 2600 technique. Same shape works for P1/M0/M1/BL —
+; fine adjust" 2600 technique. Same shape works for P1/M0/M1/BL -
 ; replace RESP0/HMP0 with the equivalent register pair.
 ;
 ; Cost: ~12-90 cycles depending on X, plus 3 WSYNCs (~228 cycles
@@ -69,7 +69,7 @@ POS_OBJ_P0:
   STA HMCLR          ; clear HMP0 so next line doesn't drift
   RTS
 
-; PLAYER_FRAME — call inside the visible-kernel loop. X holds line index.
+; PLAYER_FRAME - call inside the visible-kernel loop. X holds line index.
 PLAYER_FRAME:
   ; Is this line within the player sprite range?
   TXA

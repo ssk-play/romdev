@@ -1,6 +1,6 @@
-// ── tile_engine.c — Commodore 64 character-map walking demo ─────────
+// ── tile_engine.c - Commodore 64 character-map walking demo ─────────
 //
-// C64 doesn't have "tiles" in the NES/SNES sense — it has a 40×25
+// C64 doesn't have "tiles" in the NES/SNES sense - it has a 40×25
 // CHARACTER MATRIX (screen RAM at $0400, color RAM at $D800) where
 // each cell selects one of 256 8×8 character glyphs from the
 // character-set ROM at $D000 (or RAM you point VIC at).
@@ -12,7 +12,7 @@
 //   - A VIC-II hardware sprite walks across the world; AABB collision
 //     against character cells with the block code
 //
-// The sprite is driven by joystick port 2 (CIA1_PRA at $DC00 —
+// The sprite is driven by joystick port 2 (CIA1_PRA at $DC00 -
 // reading port 1 / CIA1_PRB conflicts with the keyboard scan).
 //
 // Hardware references:
@@ -26,7 +26,7 @@
 
 #include "c64_registers.h"
 #include <stdint.h>
-#include <string.h>   /* memset — see world_draw for why we fill via memset */
+#include <string.h>   /* memset - see world_draw for why we fill via memset */
 
 /* cc65 stdlib already defines POKE/PEEK in cc65/include/peekpoke.h
  * with a different shape (no volatile, address as integer). Use the
@@ -40,7 +40,7 @@
 #define SCREEN          ((volatile uint8_t*)0x0400)
 #define COLORS          ((volatile uint8_t*)0xD800)
 #define SPRITE_POINTERS ((volatile uint8_t*)0x07F8)
-/* Sprite data at $2000, NOT $0800 — $0800 overlaps the cc65 .prg load
+/* Sprite data at $2000, NOT $0800 - $0800 overlaps the cc65 .prg load
  * address ($0801), so writing sprite bytes there clobbers the running
  * program's own startup code and the demo never reaches the draw loop
  * (the whole screen stays blank). $2000 is free RAM in VIC bank 0. */
@@ -50,7 +50,7 @@
 #define ROWS 25
 
 #define CHAR_BLANK 0x20  /* space */
-#define CHAR_BLOCK 0xA0  /* PETSCII solid block (reverse-space) — fills    */
+#define CHAR_BLOCK 0xA0  /* PETSCII solid block (reverse-space) - fills    */
                          /* the whole cell in its foreground colour. The   */
                          /* whole world is drawn from this one glyph in    */
                          /* different colours (see world_draw).            */
@@ -97,7 +97,7 @@ static const uint8_t sprite_data[64] = {
 
 // The world is described by a function, NOT a 1000-byte RAM array. cc65
 // chokes on filling a large static uint8_t[ROWS][COLS] in a tight double
-// loop here (it walks off and the program never reaches the draw) — so we
+// loop here (it walks off and the program never reaches the draw) - so we
 // compute each cell on demand instead, exactly like the platformer
 // scaffold's render_view. Cheap and crash-free.
 //
@@ -119,7 +119,7 @@ static void fill_cells(uint16_t base, uint16_t n, uint8_t ch, uint8_t col) {
 // Paint the whole 40×25 character matrix as solid blocks in horizontal
 // colour bands.
 //
-// IMPORTANT — why memset and not a per-cell for-loop: the cc65 build for
+// IMPORTANT - why memset and not a per-cell for-loop: the cc65 build for
 // this scaffold miscompiles a hand-written `for (off..) SCREEN[off]=..`
 // loop (it hangs after ~2 rows and the rest of the screen stays the boot
 // backdrop → almost-blank). memset() fills reliably, so we lay the world
@@ -145,7 +145,7 @@ static void world_draw(void) {
   fill_cells(ROW_OF(10) + 6,  8,  CHAR_BLOCK, COL_CYAN);
   fill_cells(ROW_OF(16) + 22, 12, CHAR_BLOCK, COL_CYAN);
 
-  // Left + right wall columns. One cell per row — a 25-iteration loop is
+  // Left + right wall columns. One cell per row - a 25-iteration loop is
   // short enough to compile correctly (the hang only bites long fills).
   for (r = 0; r < ROWS; r++) {
     SCREEN[ROW_OF(r)]            = CHAR_BLOCK;
@@ -198,7 +198,7 @@ void main(void) {
      * clearing screen RAM for the first frames after boot, so a single
      * draw before the loop gets wiped (almost-blank screen). Redrawing
      * each frame is cheap (1000 cells) and guarantees the world is always
-     * on-screen regardless of boot timing — the same "redraw every frame"
+     * on-screen regardless of boot timing - the same "redraw every frame"
      * discipline the other scaffolds use. */
     world_draw();
 

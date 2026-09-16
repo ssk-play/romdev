@@ -6,7 +6,7 @@
 // CGB extends DMG with: 16 BG palettes × 4 colors (BGR555), per-tile
 // palette attribute (bits 0-2 of BG map's bank 1 attribute byte), VRAM
 // bank 1 for tile attributes + bank 0/1 for tile data. This module
-// handles DMG only — agents who need CGB-specific behavior pass GBC
+// handles DMG only - agents who need CGB-specific behavior pass GBC
 // palette + use the cgbAttr output field if extended later.
 
 import { PNG } from "pngjs";
@@ -35,7 +35,7 @@ function encodeTile(pxIdx, tx, ty, w) {
  * @param {Object} args
  * @param {Buffer | Uint8Array} args.pngBytes  160×144 PNG, pre-quantized to ≤4 colors.
  * @param {[number,number,number][]} [args.shadePalette] target 4 RGB shades
- *   (default DMG green). Used only for the preview render — the encoded
+ *   (default DMG green). Used only for the preview render - the encoded
  *   bytes are palette-index 0..3, the hardware BGP register selects shades.
  * @returns {{
  *   chr: Uint8Array,        // tile data (2bpp interleaved, 16B/tile)
@@ -69,7 +69,7 @@ export function gbImageToTilemap(args) {
       if (idx >= 4) {
         throw new Error(
           `GB DMG mode takes ≤4 colors; image quantizes to more. ` +
-          `Pre-dither with \`magick … -colors 4 -dither FloydSteinberg\` or ` +
+          `Pre-dither with \`magick ... -colors 4 -dither FloydSteinberg\` or ` +
           `pass a palette via getPlatformPalettePng({platform:"gb"}).`
         );
       }
@@ -78,7 +78,7 @@ export function gbImageToTilemap(args) {
     pxIdx[i] = idx;
   }
 
-  // 2) Encode tiles + dedupe (no h/v flip dedup for v1 — GB tile-map cells
+  // 2) Encode tiles + dedupe (no h/v flip dedup for v1 - GB tile-map cells
   // don't have flip flags in DMG mode).
   const tilesAcross = W / 8;  // 20
   const tilesDown = H / 8;    // 18

@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.XD3 — XD3 metadata tag (XGM2 GD3 equivalent).
+// Port of sgdk.xgm2tool.format.XD3 - XD3 metadata tag (XGM2 GD3 equivalent).
 
 import {
   getInt32,
@@ -10,9 +10,9 @@ import {
 export class XD3 {
   /**
    * Three constructor forms (mirroring the Java overloads):
-   *   new XD3()                            — empty tag
-   *   new XD3(data, baseOffset)            — parse from a byte buffer
-   *   new XD3(gd3, duration, loopDuration) — build from a GD3 tag
+   *   new XD3()                            - empty tag
+   *   new XD3(data, baseOffset)            - parse from a byte buffer
+   *   new XD3(gd3, duration, loopDuration) - build from a GD3 tag
    *
    * @param {?(Uint8Array|GD3)} [a]
    * @param {number} [b]

@@ -93,7 +93,7 @@ export async function genesisAdapter(host) {
 }
 
 // =====================================================================
-//  SNES — large OBJ are row-major in a wTiles×hTiles grid; tile index is
+//  SNES - large OBJ are row-major in a wTiles×hTiles grid; tile index is
 //  +1 across, +0x10 down (16-wide OBJ name table). We export contiguously.
 // =====================================================================
 export async function snesAdapter(host) {
@@ -129,7 +129,7 @@ export async function snesAdapter(host) {
 }
 
 // =====================================================================
-//  NES — 8x8 (1 tile) or 8x16 (2 tiles stacked, top then bottom).
+//  NES - 8x8 (1 tile) or 8x16 (2 tiles stacked, top then bottom).
 // =====================================================================
 export async function nesAdapter(host) {
   const { decodeTile } = await import("../nes/ppu.js");
@@ -164,7 +164,7 @@ export async function nesAdapter(host) {
 }
 
 // =====================================================================
-//  GB / GBC — 8x8 or 8x16 (top tile = idx&0xFE, bottom = idx|1).
+//  GB / GBC - 8x8 or 8x16 (top tile = idx&0xFE, bottom = idx|1).
 // =====================================================================
 export async function gbAdapter(host, platform) {
   const { decodeGbTile } = await import("../gb/ppu.js");
@@ -199,7 +199,7 @@ export async function gbAdapter(host, platform) {
 }
 
 // =====================================================================
-//  SMS / GG — 8x8 sprites (8x16 stacked when reg1 bit1 set). One sprite
+//  SMS / GG - 8x8 sprites (8x16 stacked when reg1 bit1 set). One sprite
 //  palette line (CRAM entries 16-31). Tile data base from VDP reg 6.
 // =====================================================================
 export async function smsAdapter(host, platform) {
@@ -247,7 +247,7 @@ function paletteLinesJson(cram, lines, perLine, lineRgbFn) {
   return json;
 }
 
-// NES 2C02 master palette (sample — matches sprite-pipeline's NES_MASTER).
+// NES 2C02 master palette (sample - matches sprite-pipeline's NES_MASTER).
 function nesMasterRgb() {
   // 64-entry approximation; index by the palette byte & 0x3F.
   const P = [
@@ -272,7 +272,7 @@ export async function buildAdapter(host, platform) {
     case "gb": case "gbc": return gbAdapter(host, platform);
     case "sms": case "gg": return smsAdapter(host, platform);
     case "c64":
-      throw new Error("captureMetaSprite[c64]: the C64 has 8 hardware MOBs (24×21px bitmaps, not 8x8 tiles) — they don't fit the tile-based meta-sprite model. Use inspectSprites + the sprite data pointers, and author MOB bitmaps directly.");
+      throw new Error("captureMetaSprite[c64]: the C64 has 8 hardware MOBs (24×21px bitmaps, not 8x8 tiles) - they don't fit the tile-based meta-sprite model. Use inspectSprites + the sprite data pointers, and author MOB bitmaps directly.");
     default:
       throw new Error(`captureMetaSprite: no meta-sprite adapter for platform '${platform}'. Supported: genesis, snes, nes, gb, gbc, sms, gg.`);
   }

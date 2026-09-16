@@ -1,32 +1,32 @@
-/* ── shmup.c — SNES vertical shooter (complete example game) ──────────────────
+/* ── shmup.c - SNES vertical shooter (complete example game) ──────────────────
  *
- * A COMPLETE, working game — title screen, 1P and 2P SIMULTANEOUS co-op,
+ * A COMPLETE, working game - title screen, 1P and 2P SIMULTANEOUS co-op,
  * shared lives, score + persistent hi-score (battery SRAM), SPC music + SFX,
  * and a scrolling Mode 1 starfield under a rock-steady text HUD.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented SNES footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented SNES footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — enemy patterns, scoring, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - enemy patterns, scoring, tuning, art: reshape freely.
  *
  * What depends on what:
- *   data.asm — font + sprite tiles + starfield tiles (rodata), and
+ *   data.asm - font + sprite tiles + starfield tiles (rodata), and
  *     sram_read16/write16 (battery SRAM needs 24-bit addressing that tcc
  *     C pointers don't emit). Load-bearing.
- *   hdr.asm — THIS PROJECT OVERRIDES the stock header to declare battery
+ *   hdr.asm - THIS PROJECT OVERRIDES the stock header to declare battery
  *     SRAM (CARTRIDGETYPE $02 + SRAMSIZE $01). Delete that file and saves
- *     silently stop existing — the build still succeeds.
- *   snes_sfx.{h,c} + snes_sfx_data.asm + apu_blob.bin — the SPC700 sound
+ *     silently stop existing - the build still succeeds.
+ *   snes_sfx.{h,c} + snes_sfx_data.asm + apu_blob.bin - the SPC700 sound
  *     driver (music + 2 one-shot samples). #include'd, not separately built.
  *
  * Why the HUD never shears (read this if you come from the NES): the SNES
  * Mode 1 gives you THREE independent background layers, each with its own
  * scroll registers. The starfield lives on BG1 and scrolls; the text HUD
  * lives on BG0 and simply never gets a scroll write. No sprite-0 splits, no
- * mid-frame raster tricks — layer separation IS the SNES way. (When one
- * layer must be two things — a fixed strip over a moving field on the SAME
- * BG — that's when you reach for HDMA; see the Mode 7 racing example.)
+ * mid-frame raster tricks - layer separation IS the SNES way. (When one
+ * layer must be two things - a fixed strip over a moving field on the SAME
+ * BG - that's when you reach for HDMA; see the Mode 7 racing example.)
  *
  * VRAM BUDGET (word addresses):
  *   $0000- OBJ tiles, $2000- BG1 starfield tiles, $3000- BG0 console font,
@@ -38,7 +38,7 @@
  * inline rather than linked separately. */
 #include "snes_sfx.c"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "SOLAR BULWARK"
 
@@ -50,18 +50,18 @@ extern char tilbg, palbg;              /* 4 starfield tiles + BG palette      */
  * No public prototype in console.h, so declare it; call once per frame. */
 extern void consoleVblank(void);
 
-/* data.asm exports — battery SRAM accessors (long addressing to $70:0000). */
+/* data.asm exports - battery SRAM accessors (long addressing to $70:0000). */
 extern u16 sram_read16(u16 offset);
 extern void sram_write16(u16 offset, u16 value);
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * oamSet's FIRST arg is a BYTE OFFSET into OAM, not a slot number. Each
  * sprite is 4 bytes, so sprite slot N lives at offset N*4. Passing a plain
- * slot number interleaves/corrupts entries — always go through SPR(). */
+ * slot number interleaves/corrupts entries - always go through SPR(). */
 #define SPR(slot) ((slot) << 2)
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * Object pools — fixed slots, no allocation. OAM slot layout:
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * Object pools - fixed slots, no allocation. OAM slot layout:
  *   0..1 = ships (P1, P2), 2..9 = bullets, 10..15 = enemies. */
 #define MAX_BULLETS  8
 #define MAX_ENEMIES  6
@@ -81,7 +81,7 @@ extern void sram_write16(u16 offset, u16 value);
  * Magic is written LAST in hiscore_save so a torn write never validates. */
 #define SRAM_MAGIC 0x4253u
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
@@ -110,12 +110,12 @@ static char nbuf[8];           /* 5-digit number formatter output            */
  * tcc's 8-bit stack-relative addressing. */
 static u16 bg_map[32 * 32];
 
-/* Headless-test telemetry — written once per frame; a test harness finds it
+/* Headless-test telemetry - written once per frame; a test harness finds it
  * by scanning WRAM for the "SB"+0xB7 signature, then plays the game from
  * real state instead of parsing pixels. Costs ~30 byte-writes; delete freely. */
 static u8 telem[32];
 
-/* ── GAME LOGIC (clay) — Galois LFSR (taps $B8), period 255 ────────────────── */
+/* ── GAME LOGIC (clay) - Galois LFSR (taps $B8), period 255 ────────────────── */
 static u8 rng_state = 0xA5;
 static u8 rand8(void) {
   u8 lsb = (u8)(rng_state & 1);
@@ -124,7 +124,7 @@ static u8 rand8(void) {
   return rng_state;
 }
 
-/* ── GAME LOGIC (clay) — SRAM hi-score (see sram_* in data.asm) ────────────── */
+/* ── GAME LOGIC (clay) - SRAM hi-score (see sram_* in data.asm) ────────────── */
 static u16 hiscore_load(void) {
   u16 v;
   if (sram_read16(0) != SRAM_MAGIC) return 0;
@@ -136,10 +136,10 @@ static u16 hiscore_load(void) {
 static void hiscore_save(u16 v) {
   sram_write16(2, v);
   sram_write16(4, (u16)(v ^ 0xA5C3u));
-  sram_write16(0, SRAM_MAGIC);      /* magic LAST — torn write = no record */
+  sram_write16(0, SRAM_MAGIC);      /* magic LAST - torn write = no record */
 }
 
-/* ── GAME LOGIC (clay) — text helpers ──────────────────────────────────────── */
+/* ── GAME LOGIC (clay) - text helpers ──────────────────────────────────────── */
 static void fmt5(u16 v) {           /* u16 → "00000" into nbuf */
   s8 i;
   for (i = 4; i >= 0; i--) { nbuf[i] = (char)('0' + v % 10); v /= 10; }
@@ -160,7 +160,7 @@ static void draw_hud(void) {
   hud_dirty = 0;
 }
 
-/* ── GAME LOGIC (clay) — firing + spawning ─────────────────────────────────── */
+/* ── GAME LOGIC (clay) - firing + spawning ─────────────────────────────────── */
 static void fire_bullet(u8 p) {
   u8 i;
   for (i = 0; i < MAX_BULLETS; i++) {
@@ -192,14 +192,14 @@ static u8 hits(Obj *a, Obj *b) {
       && a->y < b->y + 8 && a->y + 8 > b->y;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Stage every OAM slot every frame, then ONE oamUpdate(). Inactive objects
- * park at Y=240 (below the 224-line display) — that's how you "hide" a
+ * park at Y=240 (below the 224-line display) - that's how you "hide" a
  * sprite without touching the OAM high table; oamInitGfxSet leaves slots
  * shown. The invulnerability blink also parks the ship every few frames.
  * CHANNEL BUDGET NOTE: oamUpdate only marks the shadow table; PVSnesLib's
  * VBlank ISR DMAs it on CHANNEL 7 every frame, and ch 0 carries the console
- * text upload. If you add HDMA effects (gradient sky, per-line scroll —
+ * text upload. If you add HDMA effects (gradient sky, per-line scroll -
  * see the Mode 7 racing example) park them on channels 2-6: a channel can't
  * serve HDMA and that GP-DMA in the same frame, and the ISR silently
  * rewrites ch 7's params each NMI. */
@@ -223,7 +223,7 @@ static void stage_frame(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — state entries ─────────────────────────────────────── */
+/* ── GAME LOGIC (clay) - state entries ─────────────────────────────────────── */
 static void clear_pools(void) {
   u8 i;
   for (i = 0; i < MAX_BULLETS; i++) bullets[i].alive = 0;
@@ -240,7 +240,7 @@ static void title_enter(void) {
   consoleDrawText(10, 12, "A - 1P START");
   consoleDrawText(10, 14, "B - 2P CO-OP");
   consoleDrawText(7, 20, "D-PAD MOVE   B FIRE");
-  prev_pad0 = 0xFFFF;   /* swallow the press that ENTERED this state — without
+  prev_pad0 = 0xFFFF;   /* swallow the press that ENTERED this state - without
                          * this, the START that left the game-over screen
                          * instantly restarts (classic edge-detect reuse bug) */
   state = ST_TITLE;
@@ -275,7 +275,7 @@ static void game_over(void) {
   u8 newhi = 0;
   if (score > hiscore) {
     hiscore = score;
-    /* ── HARDWARE IDIOM (load-bearing) — persists via battery SRAM at
+    /* ── HARDWARE IDIOM (load-bearing) - persists via battery SRAM at
      * $70:0000; works because hdr.asm declares CARTRIDGETYPE $02 +
      * SRAMSIZE $01. Magic+checksum layout, magic written last. ── */
     hiscore_save(hiscore);
@@ -290,7 +290,7 @@ static void game_over(void) {
   state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay) — per-player update. THE 2P wiring is one line:
+/* ── GAME LOGIC (clay) - per-player update. THE 2P wiring is one line:
  * padsCurrent(p) reads controller port p (0 = pad 1, 1 = pad 2). ──────────── */
 static void update_ship(u8 p) {
   u16 pad = padsCurrent(p);
@@ -307,7 +307,7 @@ static void update_ship(u8 p) {
   if (ship_inv[p]) --ship_inv[p];
 }
 
-/* ── GAME LOGIC (clay) — the playfield tick ────────────────────────────────── */
+/* ── GAME LOGIC (clay) - the playfield tick ────────────────────────────────── */
 static void play_update(void) {
   u8 i, j;
   u16 interval;
@@ -324,7 +324,7 @@ static void play_update(void) {
   for (i = 0; i < MAX_ENEMIES; i++) {
     if (!enemies[i].alive) continue;
     enemies[i].y += 1;
-    if (enemies[i].y >= 224) enemies[i].alive = 0;  /* escaped — no penalty */
+    if (enemies[i].y >= 224) enemies[i].alive = 0;  /* escaped - no penalty */
   }
 
   /* difficulty ramp: spawn faster as the score grows */
@@ -367,11 +367,11 @@ static void play_update(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — boot-time starfield composition ─────────────────────
+/* ── GAME LOGIC (clay) - boot-time starfield composition ─────────────────────
  * Two space tones in a checker (so no single colour ever dominates the
  * screen) + LFSR-scattered star tiles. Map entries: tile index | 0x0400 =
  * palette block 1 (bits 10-12), keeping the console font palette (block 0)
- * untouched — HUD text stays white/legible. */
+ * untouched - HUD text stays white/legible. */
 static void build_starfield(void) {
   u16 r, c, e;
   u8 v;
@@ -408,9 +408,9 @@ static void telem_update(void) {
 int main(void) {
   u16 pad;
 
-  /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
    * Init order: console text pointers FIRST, then mode, then per-BG base
-   * registers, then VRAM uploads — all while the screen is still off.
+   * registers, then VRAM uploads - all while the screen is still off.
    * consoleInitText DMAs the font but does NOT set the PPU BG base
    * registers; bgSetGfxPtr/bgSetMapPtr for BG0 must repeat the same
    * addresses or the HUD renders garbage. */
@@ -430,17 +430,17 @@ int main(void) {
   build_starfield();
   bgInitMapSet(1, (u8 *)bg_map, sizeof(bg_map), SC_32x32, 0x4000);
   bgSetEnable(1);
-  bgSetDisable(2);                /* BG2 carries garbage in mode 1 — off  */
+  bgSetDisable(2);                /* BG2 carries garbage in mode 1 - off  */
 
   setPaletteColor(0, RGB5(0, 0, 3));        /* backdrop: near-black space */
   /* P2's ship: OBJ palette 1 (CGRAM 144+), colour 1 recoloured green.
-   * Same tile as P1 — only oamSet's palette argument differs. */
+   * Same tile as P1 - only oamSet's palette argument differs. */
   setPaletteColor(145, RGB5(6, 28, 10));
 
   /* 3 sprite tiles (ship/bullet/enemy) × 32 bytes = 96 bytes. */
   oamInitGfxSet(&tilsprite, 96, &palsprite, 32, 0, 0x0000, OBJ_SIZE8_L16);
 
-  /* ── HARDWARE IDIOM (load-bearing) — stage + flush OAM BEFORE the screen
+  /* ── HARDWARE IDIOM (load-bearing) - stage + flush OAM BEFORE the screen
    * turns on, so frame 1 shows the game (not power-on OAM garbage). ── */
   clear_pools();
   stage_frame();
@@ -448,19 +448,19 @@ int main(void) {
 
   setScreenOn();
 
-  /* ── HARDWARE IDIOM (load-bearing) — sfx_init AFTER setScreenOn, and CHECK
+  /* ── HARDWARE IDIOM (load-bearing) - sfx_init AFTER setScreenOn, and CHECK
    * the return: a wedged SPC700 must not take the video down with it. ── */
   sound_ok = (sfx_init() == 0);
-  /* ── HARDWARE IDIOM (load-bearing) — one frame between init and the first
+  /* ── HARDWARE IDIOM (load-bearing) - one frame between init and the first
    * command. sfx_init returns the instant the SPC echoes the jump command,
    * but the driver then spends ~50 port writes initialising the DSP BEFORE
    * it seeds its command edge-detector from $2140. Send a command in that
-   * window and the seed swallows it — music silently never starts. A
-   * WaitForVBlank is thousands of SPC cycles — deterministic cure. ── */
+   * window and the seed swallows it - music silently never starts. A
+   * WaitForVBlank is thousands of SPC cycles - deterministic cure. ── */
   WaitForVBlank();
   if (sound_ok) sfx_music_play();
 
-  hiscore = hiscore_load();         /* battery SRAM — 0 on first boot */
+  hiscore = hiscore_load();         /* battery SRAM - 0 on first boot */
   star_v = 0;
   frame_ct = 0;
   title_enter();
@@ -469,7 +469,7 @@ int main(void) {
     pad = padsCurrent(0);
 
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: A/START = 1P, B = 2P co-op ── */
+      /* ── GAME LOGIC (clay) - title: A/START = 1P, B = 2P co-op ── */
       if ((pad & KEY_A && !(prev_pad0 & KEY_A)) ||
           (pad & KEY_START && !(prev_pad0 & KEY_START))) {
         play_enter(0);
@@ -478,7 +478,7 @@ int main(void) {
       }
     } else if (state == ST_PLAY) {
       play_update();
-    } else { /* ST_OVER — field frozen, stars keep drifting */
+    } else { /* ST_OVER - field frozen, stars keep drifting */
       if (pad & KEY_START && !(prev_pad0 & KEY_START)) title_enter();
     }
     prev_pad0 = pad;

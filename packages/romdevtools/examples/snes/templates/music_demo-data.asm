@@ -1,4 +1,4 @@
-; ── music_demo-data.asm — stub data symbols for music_demo ─────────
+; ── music_demo-data.asm - stub data symbols for music_demo ─────────
 ;
 ; PVSnesLib's consoleInitText needs tilfont + palfont symbols at link
 ; time. We stub them as zero bytes here so the link resolves; the SNES

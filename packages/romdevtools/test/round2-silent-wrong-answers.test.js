@@ -4,7 +4,7 @@
 // SUCCESS-SHAPED response that was wrong, so a caller had no signal to
 // distrust it. A banked walk reporting `unresolved: 0`, an empty memory read
 // on a host with no memory, and a parameter accepted then ignored are all the
-// same failure — the tool answered a question it had not actually been asked.
+// same failure - the tool answered a question it had not actually been asked.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -20,7 +20,7 @@ async function bankedFixture(banks = 4) {
   for (let b = 0; b < banks; b++) {
     // Each bank gets a distinct, decodable routine at its $8000 window start.
     const at = b * 0x4000;
-    // ld a,<bank> ; ret  — different immediate per bank, so the bytes differ.
+    // ld a,<bank> ; ret  - different immediate per bank, so the bytes differ.
     rom[at] = 0x3e; rom[at + 1] = b; rom[at + 2] = 0xc9;
   }
   Buffer.from("TMR SEGA", "ascii").copy(rom, 0x7ff0);
@@ -33,8 +33,8 @@ async function bankedFixture(banks = 4) {
 test("reachable: the same paged address in two banks is TWO blocks, not one", async () => {
   // On a Sega-mapper cart $8000-$BFFF means different code per bank. Keying a
   // block by address alone collapsed all eight banks of a real 128KB cart onto
-  // one arm per address — 880 paged blocks over exactly 880 distinct addresses
-  // — while reporting `unresolved: 0`.
+  // one arm per address - 880 paged blocks over exactly 880 distinct addresses
+  // - while reporting `unresolved: 0`.
   const { analyzeReachable } = await import("../src/analysis/analyze.js");
   const rom = await bankedFixture(4);
 
@@ -76,7 +76,7 @@ test("reachable: an unbanked platform reports no banking section at all", async 
 
 test("reachable: an entry with no code says so plainly, not in raw rizin stderr", async () => {
   // The reason carried an ANSI escape, a rizin assertion warning and a header
-  // dump claiming the wrong ROM size — which reads as romdev being confused
+  // dump claiming the wrong ROM size - which reads as romdev being confused
   // about the ROM. And semantically these are entries with NO CODE, not
   // unresolved indirect jumps, which is what `unresolved` is for.
   const { analyzeReachable } = await import("../src/analysis/analyze.js");
@@ -93,7 +93,7 @@ test("reachable: an entry with no code says so plainly, not in raw rizin stderr"
     // EVERY unresolved entry carries `kind`, not just the ones from one code
     // path. The field was set only where analysis SUCCEEDED and returned no
     // blocks; an unused vector actually arrives via the exception path, so the
-    // field was absent from exactly the case a caller hits — and a caller
+    // field was absent from exactly the case a caller hits - and a caller
     // branching on `kind === 'no-code'` instead of string-matching `reason`
     // would have seen undefined.
     assert.ok(u.kind, `every unresolved entry needs a kind (missing on ${u.addressHex})`);
@@ -121,7 +121,7 @@ test("a parameter valid on a SIBLING op is refused, naming where it belongs", as
   // Three measured drops, one root cause: validation was per-TOOL, so every key
   // valid on ANY op was accepted on EVERY op and quietly ignored. On NES
   // `address` on target:'recompile' was invisible because the reset vector IS
-  // $8000 — a plausible result for the wrong address.
+  // $8000 - a plausible result for the wrong address.
   const { z } = await import("zod");
   const { makeScopeChecker } = await import("../src/mcp/util.js");
   const shape = {
@@ -167,7 +167,7 @@ test("shared parameters are exempt, because their descriptions are not exhaustiv
     path: z.string().optional().describe("target=rom: ROM file path."),
   };
   // With `path` exempted there is nothing left to enforce, so the checker is
-  // null — and a null checker means the handler is never wrapped at all.
+  // null - and a null checker means the handler is never wrapped at all.
   const check = makeScopeChecker(shape, "disasm");
   assert.equal(check, null, "`path` is shared vocabulary, so no scoped params remain");
 
@@ -206,7 +206,7 @@ function emulatedHost() {
 
 test("a read on a host with NO memory regions errors instead of returning empty", async () => {
   // An empty read is indistinguishable from "this region is legitimately all
-  // zeroes" — and on a freshly booted cart, zeroes are exactly what a caller
+  // zeroes" - and on a freshly booted cart, zeroes are exactly what a caller
   // expects. One reporter briefly believed they were reading a cart's RAM and
   // getting valid data.
   const { z } = await import("zod");
@@ -244,7 +244,7 @@ test("a foreign region gets no confident platform-specific decode note", async (
 
 test("op:'regions' says there are none, instead of listing 126 dead ids", async () => {
   // The 126-id dump is the same wall of `nes_*` that hid a real region for a
-  // whole project — and its note promised "a read of one this core does not
+  // whole project - and its note promised "a read of one this core does not
   // expose returns an error rather than wrong bytes", which was FALSE here.
   const { z } = await import("zod");
   const { registerMemoryTools } = await import("../src/mcp/tools/memory.js");

@@ -91,7 +91,7 @@ export function decodeTile(platform, buf, tileIndex) {
 
 /**
  * Render a single tile as ASCII art. Each pixel becomes one character.
- * Default mapping: " .+#" (0=empty, 3=solid) — works for 2bpp.
+ * Default mapping: " .+#" (0=empty, 3=solid) - works for 2bpp.
  * For higher bit depths uses " .:-=+*#%@" (10 levels).
  *
  * @param {Uint8Array} pixels  64 bytes from decodeTile

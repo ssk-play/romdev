@@ -17,7 +17,7 @@
 //     getTilePixels(tileIndex),       // → 8x8 array of palette indices (0=transparent)
 //     getPaletteRgb(palette),         // → [[r,g,b], ...] for that sprite's palette line
 //     exportPalette(),                // → { bytes:Uint8Array, json:{line:[hex...]}, lines:[..] }
-//     tileColumnMajor,                // bool — true if cell order increments down columns (Genesis)
+//     tileColumnMajor,                // bool - true if cell order increments down columns (Genesis)
 //   }
 
 import { PNG } from "pngjs";

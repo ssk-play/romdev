@@ -1,4 +1,4 @@
-# Atari 2600 / VCS — mental model
+# Atari 2600 / VCS - mental model
 
 One page. The 2600 is the most architecturally extreme console
 romdev supports. Read this twice before you write code.
@@ -6,22 +6,22 @@ romdev supports. Read this twice before you write code.
 ## The big idea
 
 **The 2600 has no frame buffer.** There's no VRAM. The TIA chip
-generates video signal one scanline at a time, and you — the
-6502 CPU — must reconfigure the TIA's graphics registers for each
+generates video signal one scanline at a time, and you - the
+6502 CPU - must reconfigure the TIA's graphics registers for each
 scanline you want to look different. This is called **"racing the
 beam."**
 
 If you forget to write the TIA for scanline 42, scanline 42 looks
 identical to scanline 41.
 
-## CPU memory map (6507 — a 6502 variant with fewer pins)
+## CPU memory map (6507 - a 6502 variant with fewer pins)
 
 ```
 $0000-$003F   TIA write registers (graphics, audio, collision)
 $0030-$003D   TIA read registers (collision, input)
-$0080-$00FF   RIOT 128 bytes of RAM — that's ALL the RAM, 128 bytes
+$0080-$00FF   RIOT 128 bytes of RAM - that's ALL the RAM, 128 bytes
 $0280-$0297   RIOT I/O (joysticks, timer, console switches)
-$F000-$FFFF   ROM (4 KB — standard cart size; banks for larger)
+$F000-$FFFF   ROM (4 KB - standard cart size; banks for larger)
 ```
 
 **128 bytes of RAM**. Yes. Total. The stack lives here too ($FF
@@ -31,7 +31,7 @@ The 6507 has the same 6502 instruction set but only 13 address
 pins, so it can only address 8 KB. Bigger carts use bank-switching
 hot-spots inside the cart.
 
-## TIA — the graphics object zoo
+## TIA - the graphics object zoo
 
 The TIA has 5 graphics objects and 1 playfield:
 
@@ -54,14 +54,14 @@ A 2600 NTSC frame is exactly **262 scanlines** in 4 phases:
 
 ```
 3 scanlines   VSYNC      tell the TV "new frame coming"
-37 scanlines  VBLANK     game logic runs here — no rendering
-192 scanlines visible    the part the user sees — race the beam
+37 scanlines  VBLANK     game logic runs here - no rendering
+192 scanlines visible    the part the user sees - race the beam
 30 scanlines  overscan   more game logic; off-screen
 ```
 
 Each scanline is exactly **76 CPU cycles** wide. You have to fit
 every per-line update into 76 cycles, or you'll be writing the
-TIA after the scanline started rendering — which produces
+TIA after the scanline started rendering - which produces
 mid-line artifacts (sometimes intentionally exploited).
 
 The canonical control flow:
@@ -71,13 +71,13 @@ MAIN:
   ; VSYNC
   LDA #2 ; STA VSYNC ; 3× STA WSYNC ; LDA #0 ; STA VSYNC
 
-  ; VBLANK — game logic
+  ; VBLANK - game logic
   LDA #2 ; STA VBLANK
   LDX #37 ; .vb: STA WSYNC ; DEX ; BNE .vb
   ; ... move sprites, read input, update state ...
   LDA #0 ; STA VBLANK
 
-  ; Visible — render scanline-by-scanline
+  ; Visible - render scanline-by-scanline
   LDY #192
   .draw: STA WSYNC ; <write TIA for this line> ; DEY ; BNE .draw
 
@@ -136,15 +136,15 @@ $0C   INPT4  P1 fire button (active low, bit 7)
 $0D   INPT5  P2 fire button
 ```
 
-Active low — invert after read. For SWCHA, bit 7 = P1 up, bit 6 =
+Active low - invert after read. For SWCHA, bit 7 = P1 up, bit 6 =
 P1 down, bit 5 = P1 left, bit 4 = P1 right.
 
 ### Driving input over MCP
 
 The 2600 joystick has **one** fire button. Over MCP it's pressed with
-`input({op:'set', b: true})` or the spatial `input({op:'set', south: true})` — both clear
+`input({op:'set', b: true})` or the spatial `input({op:'set', south: true})` - both clear
 `INPT4` bit 7 (verified live against stella). `input({op:'set', a: true})` is a **no-op**
-(the 2600 pad has no second button — it's not in `input({op:'layout'})`'s
+(the 2600 pad has no second button - it's not in `input({op:'layout'})`'s
 `physicalButtons`). So drive fire with `b`/`south`, plus the d-pad
 up/down/left/right.
 
@@ -153,9 +153,9 @@ up/down/left/right.
 Two voices, very simple:
 
 ```
-$15  AUDC0   channel 0 wave shape (0..15 — 1=square, 6=pulse, etc.)
+$15  AUDC0   channel 0 wave shape (0..15 - 1=square, 6=pulse, etc.)
 $16  AUDC1   channel 1 wave shape
-$17  AUDF0   channel 0 frequency (0..31 — lower = higher pitch)
+$17  AUDF0   channel 0 frequency (0..31 - lower = higher pitch)
 $18  AUDF1   channel 1 frequency
 $19  AUDV0   channel 0 volume (0..15)
 $1A  AUDV1   channel 1 volume
@@ -189,31 +189,31 @@ take care of itself.
 When you call `build({output:'rom', platform:"atari2600", source: ...})`:
 
 1. dasm assembles the .asm directly to a flat 4 KB binary.
-2. The result is `.a26` — loadable in stella (`loadMedia`).
+2. The result is `.a26` - loadable in stella (`loadMedia`).
 
-There's no linker — dasm produces a complete cart in one pass.
+There's no linker - dasm produces a complete cart in one pass.
 
 ## MCP debug & inspection tooling
 
 The 2600 runs on the **stella2014 (patched)** core. Because the 2600 has
 no framebuffer and no standard sound chip, its inspectors look different
-from the tilemap consoles — they decode the live TIA snapshot instead.
+from the tilemap consoles - they decode the live TIA snapshot instead.
 
 What you can read:
 
-- **`palette({source:'live'})`** — the NTSC 128-color palette as a PNG,
+- **`palette({source:'live'})`** - the NTSC 128-color palette as a PNG,
   with the *current* TIA background luma+hue extracted from the live
   snapshot so you can see what color the beam is painting right now. This
   is the same 128-entry `HHHHLLLL` palette the 7800 uses.
-- **`sprites({op:'inspect'})`** — there is **no OAM** on the 2600, so this
+- **`sprites({op:'inspect'})`** - there is **no OAM** on the 2600, so this
   returns the state of the 5 TIA graphics objects (P0, P1, M0, M1, Ball)
   plus a current-scanline PNG showing how the TIA is composing that line.
-- **`cpu({op:'read'})`** — the 6502 register file (A / X / Y / P / SP / PC)
+- **`cpu({op:'read'})`** - the 6502 register file (A / X / Y / P / SP / PC)
   pulled from the M6502 core's internal regs.
-- **`background({view:'renderState'})`** — decodes the 32-byte TIA snapshot
+- **`background({view:'renderState'})`** - decodes the 32-byte TIA snapshot
   into the playfield pattern, per-object enables/positions, and the color
   registers.
-- **`disasm({target:'rom'})`** and **`disasm({target:'references'})`** —
+- **`disasm({target:'rom'})`** and **`disasm({target:'references'})`** -
   both anchor to the top of the bank (`$F000-$FFFF`) and label the vector
   table (NMI / RESET / IRQ at `$FFFA`). On banked carts (F8 = 8 KB,
   F6 = 16 KB, F4 = 32 KB) `references` scans EVERY 4 KB bank at `$F000`,
@@ -226,17 +226,17 @@ Memory regions for **`memory({op:'read'})`**:
 
 | Region | Size | What it is |
 | --- | --- | --- |
-| `system_ram` | 128 bytes | the RIOT RAM — that's the *entire* console RAM |
+| `system_ram` | 128 bytes | the RIOT RAM - that's the *entire* console RAM |
 | `a26_tia_regs` | 32 bytes | the live TIA register snapshot |
 | `a26_cpu_regs` | 7 bytes | the 6502 register snapshot |
 
 **No `audioDebug` inspector.** The 2600's sound comes from the two TIA
 audio voices (`AUDC/AUDF/AUDV` at `$15-$1A`), not a standard PSG/FM chip,
-so there's no `audioDebug` decode — read the audio state directly out of
+so there's no `audioDebug` decode - read the audio state directly out of
 the `a26_tia_regs` snapshot instead.
 
 ## Reverse-engineering & decompilation
 
 The Rizin/Ghidra analysis engine works here like everywhere: `disasm({target:'functions'})` to carve the program, `disasm({target:'cfg'|'xrefs'})` to trace it, `symbols({op:'analyze'})` for a one-shot structural map.
 
-**Decompiler quality on 6502: ROUGH.** Carry-flag idioms and 16-bit math on an 8-bit CPU decompile to noise that only reads cleanly once an LLM folds it — on this CPU the disassembly is often more honest than the pseudocode. `disasm({target:'decompile', address})` returns C-like pseudocode (the `qualityNote` field restates this). Read it to UNDERSTAND a routine; use `disasm({target:'project'})` to actually edit + rebuild. See the cross-platform ROM-hacking playbook §5f for the full loop.
+**Decompiler quality on 6502: ROUGH.** Carry-flag idioms and 16-bit math on an 8-bit CPU decompile to noise that only reads cleanly once an LLM folds it - on this CPU the disassembly is often more honest than the pseudocode. `disasm({target:'decompile', address})` returns C-like pseudocode (the `qualityNote` field restates this). Read it to UNDERSTAND a routine; use `disasm({target:'project'})` to actually edit + rebuild. See the cross-platform ROM-hacking playbook §5f for the full loop.

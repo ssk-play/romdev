@@ -1,7 +1,7 @@
-// encodeAudio({target:'xgm2'}) — the v0.6.0 music-feedback #1 (HEADLINE): there
+// encodeAudio({target:'xgm2'}) - the v0.6.0 music-feedback #1 (HEADLINE): there
 // was no bundled VGM→XGM2 compiler (SGDK's xgm2tool is Java), so "add Genesis
 // music" was impossible with bundled tooling. romdev-xgm2 (a JS port of
-// xgm2tool) closes that — this test proves the FULL path end-to-end:
+// xgm2tool) closes that - this test proves the FULL path end-to-end:
 //   VGM → encodeAudio({target:'xgm2'}) → build a Genesis ROM that XGM2_play()s
 //   the blob → run in gpgx → assert audio actually comes out.
 
@@ -76,6 +76,6 @@ int main(bool h) {
       if (a > 64) nonzero++;
     }
   }
-  assert.ok(peak > 0, "gpgx produced total silence — the XGM2 blob didn't play (conversion or driver-init issue)");
-  assert.ok(nonzero > 100, `expected sustained audio samples, got peak=${peak} nonzero=${nonzero} — likely a click, not the track`);
+  assert.ok(peak > 0, "gpgx produced total silence - the XGM2 blob didn't play (conversion or driver-init issue)");
+  assert.ok(nonzero > 100, `expected sustained audio samples, got peak=${peak} nonzero=${nonzero} - likely a click, not the track`);
 });

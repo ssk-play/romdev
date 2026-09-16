@@ -1,12 +1,12 @@
-// make_chiptune_xm.js — Hand-authored CC0 chiptune XM generator.
+// make_chiptune_xm.js - Hand-authored CC0 chiptune XM generator.
 //
-// Produces `chiptune.xm` — a tiny Fasttracker II module with a single
+// Produces `chiptune.xm` - a tiny Fasttracker II module with a single
 // square-wave instrument playing a four-note arpeggio loop. The
 // output is the canonical input to mmutil (Maxmod's host converter):
 //
 //   mmutil chiptune.xm -ochiptune_soundbank.bin -hchiptune_soundbank.h
 //
-// Author/license: romdev project — released CC0 / public domain.
+// Author/license: romdev project - released CC0 / public domain.
 // No third-party tracker modules; everything in this file is generated
 // from primitives so the soundbank ships without attribution baggage.
 //
@@ -38,7 +38,7 @@ const concat = (...parts) => {
 };
 
 // ── XM file structure ───────────────────────────────────────────────
-// Header (60 bytes — fixed)
+// Header (60 bytes - fixed)
 const id      = padStr("Extended Module: ", 17);    // 17 bytes "Extended Module: "
 const title   = padStr("romdev chiptune    ", 20);  // 20-byte title
 const marker  = u8(0x1a);                            // EOF marker
@@ -55,7 +55,7 @@ const numInsts   = u16(1);            // 1 instrument
 const flags      = u16(1);            // bit 0 = linear freq table (Amiga = 0)
 const tempo      = u16(6);            // ticks per row
 const bpm        = u16(125);          // BPM
-const order      = new Uint8Array(256); // pattern order table — entry 0 = pattern 0; rest = 0 (unused but required)
+const order      = new Uint8Array(256); // pattern order table - entry 0 = pattern 0; rest = 0 (unused but required)
 
 const moduleHeader = concat(headerSize, songLength, restartPos, numChans, numPats, numInsts, flags, tempo, bpm, order);
 
@@ -98,7 +98,7 @@ const pattern = concat(patternHeaderSize, patternPackingType, patternRowsField, 
 
 // ── Instrument 1 ────────────────────────────────────────────────────
 // 8-bit signed square wave, 64 samples per period @ ~1 kHz at C-4.
-// Sample length 256 bytes (4 periods) — looped.
+// Sample length 256 bytes (4 periods) - looped.
 // XM stores 8-bit signed sample data as delta-encoded.
 
 const SAMPLE_LEN = 256;
@@ -112,13 +112,13 @@ const sampleDelta = new Int8Array(SAMPLE_LEN);
 let prev = 0;
 for (let i = 0; i < SAMPLE_LEN; i++) {
   const delta = sampleRaw[i] - prev;
-  // Int8 wraparound is fine — mmutil + every XM player decodes via cumulative sum.
+  // Int8 wraparound is fine - mmutil + every XM player decodes via cumulative sum.
   sampleDelta[i] = delta;
   prev = sampleRaw[i];
 }
 const sampleBytes = new Uint8Array(sampleDelta.buffer, sampleDelta.byteOffset, sampleDelta.byteLength);
 
-// Instrument header — XM splits this into two parts:
+// Instrument header - XM splits this into two parts:
 //
 //  (1) "Instrument header size" (4 bytes) + outer header (name, type,
 //      num samples). If numSamples > 0 the extended header follows.
@@ -126,7 +126,7 @@ const sampleBytes = new Uint8Array(sampleDelta.buffer, sampleDelta.byteOffset, s
 //  (3) Per-sample headers (40 bytes each).
 //  (4) All sample data concatenated.
 
-// We use the modern "full" instrument header — total 263 bytes.
+// We use the modern "full" instrument header - total 263 bytes.
 const INST_HEADER_SIZE = 263;       // size of (1)+(2) together
 const SAMPLE_HEADER_SIZE = 40;
 

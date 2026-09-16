@@ -61,7 +61,7 @@ test("actual wasmcart loads in slot B without replacing the session's primary ho
 
 // A frame-0 divergence returns BEFORE the stepping loop. changedFramesA/B are
 // then 0 by construction, and a client read that as "slot B never executes a
-// frame" — filing a frozen-slot-B bug against a run that never asked slot B to
+// frame" - filing a frozen-slot-B bug against a run that never asked slot B to
 // step. The counts must not be presentable as an observation about execution.
 test("zero-frame comparison labels its activity counts as structural, not observed", () => {
   // Pre-diverged at frame 0: B's byte 8 starts at 9, A's at 0.
@@ -92,8 +92,8 @@ test("a comparison that actually stepped carries no structural-zero disclaimer",
 // meaningfulActivity gates the "this is a real verification" conclusion. It must
 // be gated on framesStepped, not merely on the counters: a host whose counters
 // read nonzero without the loop having run must still not claim activity.
-// (Asserting it on the plain frame-0 case passes with OR without the gate — the
-// counters are 0 there anyway — so that assertion proves nothing. This one
+// (Asserting it on the plain frame-0 case passes with OR without the gate - the
+// counters are 0 there anyway - so that assertion proves nothing. This one
 // forces the counters high and checks the gate alone holds the line.)
 test("meaningfulActivity is gated on frames actually stepped, not on the counters", () => {
   // A host that reports a rising frameCount and mutating memory the instant it
@@ -152,7 +152,7 @@ test("frame({op:'step'}) still defaults to slot A", async () => {
 });
 
 // loadMedia runs uncounted warm-up frames to resolve framebuffer geometry, so
-// frameCount:0 does NOT mean "nothing executed" — the game's boot code has run
+// frameCount:0 does NOT mean "nothing executed" - the game's boot code has run
 // and written RAM. A client read the resulting RAM as a hardware power-on
 // pattern and concluded it was cart-dependent. Measured with the settle loop
 // suppressed, every cart tested reads the SAME byte at system_ram[0]; the

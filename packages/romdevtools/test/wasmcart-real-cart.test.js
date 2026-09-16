@@ -2,7 +2,7 @@
 // against a compiled cart (fixtures/dbghello.wasc), not mocks. Exists because
 // the mock-host suite stayed green while _padFromInput emitted named 0/1
 // fields instead of the {connected, buttons: bitmask} pad CartHost._writePads
-// expects — every pad read as disconnected and input never reached a cart.
+// expects - every pad read as disconnected and input never reached a cart.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -48,7 +48,7 @@ test("real cart: ports-form setInput and release both work", async () => {
   host.setInput({ ports: [{ left: true }] });
   host.stepFrames(5);
   assert.equal(host.readDebugValue("player_x").value, 130, "ports form moves too");
-  host.setInput({}); // release — connected idle pad, not a disconnect
+  host.setInput({}); // release - connected idle pad, not a disconnect
   host.stepFrames(5);
   assert.equal(host.readDebugValue("player_x").value, 130, "released pad stops movement");
 });
@@ -60,7 +60,7 @@ test("real cart: capabilities report hasDebugState=true", async () => {
 
 test("real cart: status reports a real displayAspect after load (playtest window sizing)", async () => {
   // Regression: WasmcartHost left displayAspect at its 0 init forever, and the
-  // playtest window computes width = round(height * aspect) — a 0 aspect opened
+  // playtest window computes width = round(height * aspect) - a 0 aspect opened
   // a 0-width SDL window ("invalid width"), misreported as a display problem.
   const host = await loadDbg();
   const { fbWidth, fbHeight, displayAspect } = host.getStatus();
@@ -88,7 +88,7 @@ test("real cart: wasm op:write/read by NAME round-trips and survives frames", as
   const wasm = getHandler("wasm", registerWasmInspectTools, "real-rw");
   await wasm({ op: "write", name: "player_x", value: 77 });
   assert.equal(parse(await wasm({ op: "read", name: "player_x" })).value, 77);
-  host.stepFrames(3); // no input held — cart clamps but doesn't move it
+  host.stepFrames(3); // no input held - cart clamps but doesn't move it
   assert.equal(parse(await wasm({ op: "read", name: "player_x" })).value, 77);
 });
 

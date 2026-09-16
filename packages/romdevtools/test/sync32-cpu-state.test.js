@@ -4,7 +4,7 @@
 // developer can read, and the parts worth pinning are the ones that are easy
 // to get subtly wrong: the APSR bit order, the single-precision float decode,
 // and NOT inventing a pipeline offset (this core is an interpreter, so r15 is
-// the next instruction — unlike the GBA path right above it, where PC really
+// the next instruction - unlike the GBA path right above it, where PC really
 // is prefetched).
 
 import { test } from "node:test";
@@ -44,7 +44,7 @@ test("decodes registers, SP/LR/PC aliases and the APSR", () => {
     { N: false, Z: true, C: true, V: false, Q: false },
   );
 
-  // An interpreter has no prefetch to undo — reporting execPc would be
+  // An interpreter has no prefetch to undo - reporting execPc would be
   // inventing one. (The GBA decoder next door DOES set it, correctly.)
   assert.equal(st.execPc, undefined, "sync32 must not report a pipeline-adjusted PC");
 });

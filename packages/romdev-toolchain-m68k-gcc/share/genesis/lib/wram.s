@@ -1,4 +1,4 @@
-; Genesis — declaring WRAM variables.
+; Genesis - declaring WRAM variables.
 ;
 ; Genesis has 64 KB of work RAM at $00FF0000-$00FFFFFF. To use it for
 ; game variables, you declare LABELS at addresses in that range.
@@ -6,7 +6,7 @@
 ; ** DO NOT use `org` for WRAM. ** vasm pads the ROM out to the
 ; highest `org` it sees, so `org $00FF0000` produces a 16 MB ROM file
 ; mostly full of zeros, and the variables you "wrote" there aren't
-; actually stored anywhere — they're just labels pointing into space
+; actually stored anywhere - they're just labels pointing into space
 ; the CPU will overwrite at runtime. The 16 MB ROM also won't fit on
 ; real cartridges and confuses some emulators.
 ;
@@ -26,7 +26,7 @@ WRAM_BASE         equ $00FF0000
 ; Per-frame VBlank flag (set by NMI, cleared by main loop).
 vblank_ready      equ WRAM_BASE + $0000   ; 1 byte
 
-; Pad state — current frame + previous frame for edge detection.
+; Pad state - current frame + previous frame for edge detection.
 pad1_held         equ WRAM_BASE + $0002   ; 2 bytes (one word per port)
 pad1_pressed      equ WRAM_BASE + $0004   ; 2 bytes
 pad1_released     equ WRAM_BASE + $0006   ; 2 bytes
@@ -40,7 +40,7 @@ score             equ WRAM_BASE + $0020   ; 4 bytes (BCD or binary)
 lines_cleared     equ WRAM_BASE + $0024   ; 2 bytes
 level             equ WRAM_BASE + $0026   ; 1 byte
 
-; Soft-OAM (sprite list) staging area — DMA'd to VRAM each VBlank.
+; Soft-OAM (sprite list) staging area - DMA'd to VRAM each VBlank.
 ; This is the convention from sprite_table.s. 640 bytes = 80 sprites
 ; × 8 bytes/sprite (H40 mode). Place it on a 256-byte boundary for
 ; alignment-friendly DMA source addressing.

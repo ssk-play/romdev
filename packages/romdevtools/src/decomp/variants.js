@@ -1,4 +1,4 @@
-// variants.js — small, reproducible experiment batches.
+// variants.js - small, reproducible experiment batches.
 //
 // §7 of the 2026-09-15 report: "We repeatedly wrote ad hoc Node scripts to load
 // a candidate, construct three small variants, call compare serially, and print
@@ -35,7 +35,7 @@ const sha = (t) => createHash("sha256").update(String(t)).digest("hex");
 /**
  * Apply a named patch to a baseline source.
  *
- * A patch is deliberately simple and LITERAL — `find` must appear exactly once,
+ * A patch is deliberately simple and LITERAL - `find` must appear exactly once,
  * because a replacement that silently hits three sites is not the experiment
  * the caller described. Callers who want something richer pass full
  * `candidateText` instead.
@@ -51,7 +51,7 @@ export function applyPatch(baseline, patch) {
     throw Object.assign(new Error(`variant patch did not apply: \`find\` text was not present in the baseline. The text searched for was: ${JSON.stringify(patch.find.slice(0, 120))}`), { code: "PATCH_NOT_APPLIED" });
   }
   if (parts.length > 2) {
-    throw Object.assign(new Error(`variant patch is ambiguous: \`find\` matched ${parts.length - 1} times. A patch that hits several sites is not the experiment you described — make the text unique or pass candidateText.`), { code: "PATCH_AMBIGUOUS" });
+    throw Object.assign(new Error(`variant patch is ambiguous: \`find\` matched ${parts.length - 1} times. A patch that hits several sites is not the experiment you described - make the text unique or pass candidateText.`), { code: "PATCH_AMBIGUOUS" });
   }
   return parts.join(patch.replace ?? "");
 }
@@ -62,7 +62,7 @@ export function applyPatch(baseline, patch) {
 export function metricsOf(result) {
   // Field names read from a REAL stored result.json, not assumed: the compare
   // result is flat (`strictMismatches`, `targetBytes`, `evidence`), and an
-  // earlier guess at nested shapes silently produced null for every metric —
+  // earlier guess at nested shapes silently produced null for every metric -
   // a table of nulls that still looked like it had run.
   const ev = result?.evidence ?? {};
   return {

@@ -1,4 +1,4 @@
-// lospec.js — R17 helper to fetch a CC0 retro palette from lospec.com
+// lospec.js - R17 helper to fetch a CC0 retro palette from lospec.com
 // by id, with optional snap to a target platform's master palette via
 // nearest-neighbour. Feeds straight into quantizePngForPlatform's
 // per-palette overrides.
@@ -17,7 +17,7 @@ const LOSPEC_URL_BASE = "https://lospec.com/palette-list";
 async function fetchLospecPalette(id) {
   if (!/^[a-z0-9-]+$/.test(id)) {
     throw new Error(
-      `getLospecPalette: id '${id}' looks malformed. Use the URL slug as it appears on lospec.com — ` +
+      `getLospecPalette: id '${id}' looks malformed. Use the URL slug as it appears on lospec.com - ` +
       `lowercase letters, digits, and hyphens only (e.g. 'kirokaze-gameboy', 'pico-8', 'sweetie-16').`
     );
   }
@@ -38,7 +38,7 @@ async function fetchLospecPalette(id) {
     throw new Error(`getLospecPalette: lospec returned HTTP ${res.status} for ${url}.`);
   }
   const data = await res.json();
-  // lospec JSON shape: { name, author, colors: [["RRGGBB", ...], ...] } — colors are hex strings.
+  // lospec JSON shape: { name, author, colors: [["RRGGBB", ...], ...] } - colors are hex strings.
   /** @type {string[]} */
   const rawColors = data.colors ?? [];
   const colors = rawColors.map((hex) => {
@@ -77,13 +77,13 @@ export async function getLospecPaletteImpl({ id, asPlatform }) {
       snappedToMaster: false,
     };
   }
-  // Snap to platform master where one exists. Today: NES only — other
+  // Snap to platform master where one exists. Today: NES only - other
   // platforms have full 24-bit color and don't need snapping. The
   // platform-specific snap functions are kept private to their tool
   // files; for NES we mirror the NES_MASTER table inline so this module
   // stays self-contained.
   if (asPlatform === "nes") {
-    // Re-export the table by re-importing — keeps sprite-pipeline.js the
+    // Re-export the table by re-importing - keeps sprite-pipeline.js the
     // single source of truth for the NES master palette.
     const { snapToNesMasterPublic } = await getNesMasterSnap();
     const snapped = fetched.colors.map(([r, g, b]) => snapToNesMasterPublic(r, g, b));
@@ -119,20 +119,20 @@ async function getNesMasterSnap() {
   if (typeof mod.snapToNesMasterPublic === "function") return mod;
   // Fallback: re-export under a private name. Implementation reuses
   // the master table that already lives in sprite-pipeline.js.
-  throw new Error("getLospecPalette: internal — snapToNesMasterPublic not exported from sprite-pipeline.js");
+  throw new Error("getLospecPalette: internal - snapToNesMasterPublic not exported from sprite-pipeline.js");
 }
 
 export function registerLospecTools(server, z, sessionKey) {
   server.tool(
     "palette",
-    "Color palettes — read the running ROM's live palette, get a platform's master palette, or fetch a Lospec " +
+    "Color palettes - read the running ROM's live palette, get a platform's master palette, or fetch a Lospec " +
     "palette. `source`: 'live' | 'platformMaster' | 'lospec'.\n" +
     "'live': the loaded ROM's ACTIVE palette as a normalized {index,r,g,b}[] list + a PNG swatch sheet. NES (32: " +
     "16 BG + 16 sprite; `area`/`subPalette` filters), SNES (256, BGR555), Genesis (64 = 4 sub-palettes×16, grouped), " +
     "GB/GBC, SMS/GG, Atari 2600 (4 active, beam-raced snapshot), 7800, C64 (16 fixed), GBA (256 BG + 256 OBJ; `area` " +
     "picks the bank), Lynx (16, Mikey), PCE (512 = 256 BG + 256 SPR; `area` picks the bank), MSX (16, V9938 or fixed " +
     "TMS9918). The color list is ALWAYS returned; the swatch PNG is path-or-inline.\n" +
-    "'platformMaster': the platform's full hardware master palette as `png` (default — the ImageMagick -remap " +
+    "'platformMaster': the platform's full hardware master palette as `png` (default - the ImageMagick -remap " +
     "target), `lospec` JSON (LibreSprite), or `hex` text. `outputPath` writes to disk.\n" +
     "'lospec': a CC0 palette from lospec.com by `id` slug (e.g. 'kirokaze-gameboy', 'pico-8'); `asPlatform` snaps " +
     "each color to that platform's master (NES today). Feeds quantize.",

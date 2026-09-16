@@ -1,11 +1,11 @@
-// skill-sync.js — stop the distributed skill from describing a romdev that no
+// skill-sync.js - stop the distributed skill from describing a romdev that no
 // longer exists.
 //
 // THE FAILURE. The installed client skill is version 0.14.0 and describes "~14
 // platforms". The running server is far past that and supports N64, PS1,
 // Dreamcast, wasmcart and the whole `decomp` domain. The skill does not mention
 // N64 ONCE. An agent following it can correctly read the documentation it was
-// given and conclude that romdev cannot do the thing it is being asked to do —
+// given and conclude that romdev cannot do the thing it is being asked to do -
 // and nothing anywhere tells it the document is stale.
 //
 // A stale skill is worse than no skill: no skill makes an agent ask, while a
@@ -71,7 +71,7 @@ export async function skillStatus(server) {
   // AN OP THE SKILL NEVER NAMES IS AN OP THE AGENT WILL NOT USE.
   //
   // Comparing version strings alone reported `stale: false` on a skill that
-  // mentioned NONE of five newly shipped ops — a document that was current by
+  // mentioned NONE of five newly shipped ops - a document that was current by
   // number and wrong by content. The live op list is the authority.
   const undocumentedOps = (server.ops ?? []).filter((op) => !new RegExp(`\\bop\\s*:\\s*['"]?${op}\\b`, "i").test(installed.text ?? "")
     && !new RegExp(`\\b${op}\\b`).test(installed.text ?? ""));
@@ -107,11 +107,11 @@ export function generateSkill({ version, platforms, decompPlatforms = [], toolCo
   const platList = platforms.join(", ");
   return `---
 name: romdev
-description: Retro game development, ROM reverse-engineering and matching decompilation for ${platforms.length} platforms (${platList}). Use when building, running, debugging, disassembling, asset-converting, romhacking or DECOMPILING a retro game — drives bundled emulators and toolchains over HTTP.
+description: Retro game development, ROM reverse-engineering and matching decompilation for ${platforms.length} platforms (${platList}). Use when building, running, debugging, disassembling, asset-converting, romhacking or DECOMPILING a retro game - drives bundled emulators and toolchains over HTTP.
 metadata:
   version: "${version}"
   generated: "${new Date().toISOString()}"
-  generatedFrom: "the live romdev capability manifest — do not hand-edit; re-run decomp({op:'skill', action:'write'}) after a server upgrade"
+  generatedFrom: "the live romdev capability manifest - do not hand-edit; re-run decomp({op:'skill', action:'write'}) after a server upgrade"
 ---
 
 romdev gives you retro game development, reverse-engineering and matching decompilation across ${platforms.length} platforms, driven over HTTP from ${toolCount ?? "~40"} tools.
@@ -123,7 +123,7 @@ ${platList}
 romdev bundles compilers and emulators as WASM and runs them in-process, in the romdev SERVER (\`npx romdevtools\`, http://localhost:7331). Connection refused means it is not running. Tools take FILESYSTEM PATHS on the local disk romdev shares with you, never uploads.
 
 ## Domains
-${domains.map((d) => `- **${d.name}** — ${d.description}`).join("\n")}
+${domains.map((d) => `- **${d.name}** - ${d.description}`).join("\n")}
 
 ${decompPlatforms.length ? `## Matching decompilation (\`decomp\`)
 
@@ -172,5 +172,5 @@ export async function writeSkill(content, { targetPath } = {}) {
   }
   await writeFile(target, content);
   return { written: target, backup, bytes: content.length,
-    note: backup ? `the previous skill was saved to ${backup} — it may have contained hand edits` : "no previous skill existed at this path" };
+    note: backup ? `the previous skill was saved to ${backup} - it may have contained hand edits` : "no previous skill existed at this path" };
 }

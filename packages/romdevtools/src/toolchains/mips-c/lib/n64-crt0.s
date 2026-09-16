@@ -1,4 +1,4 @@
-/* Minimal N64 (R4300) crt0 — bare stack + .bss clear + main(). NOTE: a real
+/* Minimal N64 (R4300) crt0 - bare stack + .bss clear + main(). NOTE: a real
    bootable N64 ROM needs the IPL3 bootcode + a libdragon-style header; this
    minimal crt0 exercises the mips-elf toolchain (big-endian) and produces a flat
    code image. Full N64 boot = libdragon (STAGE 3). */

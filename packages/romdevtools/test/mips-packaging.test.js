@@ -1,8 +1,8 @@
 // Packaging contract for the N64 core + MIPS toolchain. These ship as separate npm
 // packages (romdev-core-parallel-n64, romdev-toolchain-mips-gcc); this pins the shape a
 // consumer relies on so a bad build/pack can't silently ship (the "pcsx_vram.wasm"
-// baked-name bug that the npm-pack smoke test caught). (PS1 is beetle-psx-hw — the one
-// GPU+debug core — covered by the beetle packaging contract elsewhere.)
+// baked-name bug that the npm-pack smoke test caught). (PS1 is beetle-psx-hw - the one
+// GPU+debug core - covered by the beetle packaging contract elsewhere.)
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
@@ -29,7 +29,7 @@ for (const { dir, platform, coreName } of CORE_PKGS) {
     assert.ok(existsSync(glue), `${coreName}_libretro.js present`);
     assert.ok(existsSync(wasm), `${coreName}_libretro.wasm present`);
     // CRITICAL: the glue must reference its OWN published wasm name (not a dev scratch
-    // name like pcsx_vram.wasm) — else a consumer that loads the factory without the
+    // name like pcsx_vram.wasm) - else a consumer that loads the factory without the
     // host's wasmBinary override gets ENOENT.
     const glueText = readFileSync(glue, "utf8");
     assert.ok(glueText.includes(`${coreName}_libretro.wasm`),

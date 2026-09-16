@@ -1,4 +1,4 @@
-// wla-dx — WLA-DX assembler + wlalink linker, 65816 (SNES) variant.
+// wla-dx - WLA-DX assembler + wlalink linker, 65816 (SNES) variant.
 //
 // Two stages:
 //   1. wla-65816  → assembles .asm → .o object file

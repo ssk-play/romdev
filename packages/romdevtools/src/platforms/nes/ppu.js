@@ -147,7 +147,7 @@ export function paletteToGenericColors(palette32) {
 
 /**
  * Decode one 1KB NES nametable (960 tile indices + 64-byte attribute table)
- * into structured, ready-to-use data — so an agent reverse-engineering a
+ * into structured, ready-to-use data - so an agent reverse-engineering a
  * screen doesn't have to slice CIRAM and hand-decode the 2-bit-per-16×16-block
  * attribute format itself.
  *
@@ -230,7 +230,7 @@ export function decodeNametable(ciram, opts = {}) {
  *
  * @param {Object} args
  * @param {Uint8Array} args.nametable   1024 bytes (32×30 tiles + 64 attr bytes + 64 byte tile padding)
- * @param {Uint8Array} args.chr         4096 bytes — a single CHR pattern table
+ * @param {Uint8Array} args.chr         4096 bytes - a single CHR pattern table
  * @param {Uint8Array} args.palette     32 bytes from $3F00-$3F1F
  * @returns {Buffer} PNG bytes
  */
@@ -313,7 +313,7 @@ export function snapshotNametable(host, opts = {}) {
  * Render a 32-byte palette block (the NES has 32 palette entries total,
  * 16 BG + 16 sprite) as a 16×2 grid of swatches at 16px each → 256×32 PNG.
  *
- * @param {Uint8Array} palette32 32 bytes from $3F00–$3F1F
+ * @param {Uint8Array} palette32 32 bytes from $3F00-$3F1F
  * @returns {Buffer}
  */
 export function renderPalettePng(palette32) {
@@ -404,7 +404,7 @@ export async function snapshotPatternTables(host) {
     "inspectPatternTiles: could not read CHR. " +
     (status.mediaPath
       ? "ROM at " + status.mediaPath + " has no valid iNES header and the core didn't expose nes_chr."
-      : "No ROM loaded — call loadMedia or loadMediaBytes first.")
+      : "No ROM loaded - call loadMedia or loadMediaBytes first.")
   );
 }
 
@@ -417,7 +417,7 @@ export async function snapshotPatternTables(host) {
  *   then         CHR ROM (chrBanks * 8192 bytes)
  *
  * Returns a 256×128 PNG of both 4KB tables side by side. If the cart has
- * no CHR ROM (CHR-RAM only — chrBanks=0), returns a blank image since
+ * no CHR ROM (CHR-RAM only - chrBanks=0), returns a blank image since
  * the runtime CHR-RAM isn't accessible to us.
  *
  * @param {Uint8Array} ines full iNES file bytes

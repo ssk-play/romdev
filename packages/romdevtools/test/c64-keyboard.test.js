@@ -1,7 +1,7 @@
 // C64 keyboard + joyport: the host-side primitives that back input({op:'pressKey'
 // /'typeText'/'joyport'}). The patched VICE WASM core exposes romdev_key_matrix /
 // romdev_kbdbuf_feed / romdev_joyport_get/set. Many C64 games need KEYBOARD input
-// (F1 = 1 player, RUN/STOP, RETURN at setup screens) before joystick gameplay —
+// (F1 = 1 player, RUN/STOP, RETURN at setup screens) before joystick gameplay -
 // joystick alone can't pass them. Requires the patched core + a test PRG.
 
 import { test, before } from "node:test";
@@ -55,8 +55,8 @@ test("typeText reaches the C64 kernal keyboard buffer (NDX + $0277)", { timeout:
   const buf = host.readMemory("system_ram", 0x0277, 2);
   // The chars LANDING in the kernal buffer is the proof the keystrokes reached
   // the emulated machine. (Whether they then get DRAINED depends on what's
-  // running — the BASIC editor drains them; an autostarted game may not run the
-  // editor, so we don't assert drain here — that would be testing the test ROM.)
+  // running - the BASIC editor drains them; an autostarted game may not run the
+  // editor, so we don't assert drain here - that would be testing the test ROM.)
   assert.equal(ndx, 2, "two chars queued in the keyboard buffer");
   assert.equal(buf[0], 0x41, "buffer[0] = 'A' (PETSCII $41)");
   assert.equal(buf[1], 0x42, "buffer[1] = 'B' (PETSCII $42)");
@@ -86,12 +86,12 @@ test("controller buttons map to C64 keys via setInput (Batocera/RetroDeck model)
   host.setInput({ ports: [{}, {}] });
   assert.deepEqual(calls.at(-1), [7, 4, 0], "west released → Space released");
 
-  // The right-stick virtual button c64_f1 → F1 (0,4) — the 1-player selector.
+  // The right-stick virtual button c64_f1 → F1 (0,4) - the 1-player selector.
   calls.length = 0;
   host.setInput({ ports: [{ c64_f1: true }, {}] });
   assert.deepEqual(calls.at(-1), [0, 4, 1], "c64_f1 → F1 pressed");
 
-  // The JOYSTICK (d-pad + Fire) does NOT press any key — it stays a joypad.
+  // The JOYSTICK (d-pad + Fire) does NOT press any key - it stays a joypad.
   host.setInput({ ports: [{}, {}] });   // release everything first
   calls.length = 0;
   host.setInput({ ports: [{ up: true, b: true }, {}] });

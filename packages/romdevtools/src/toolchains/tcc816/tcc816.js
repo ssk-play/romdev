@@ -1,11 +1,11 @@
-// tcc-65816 — Tiny C Compiler fork that emits wla-dx assembly for the
+// tcc-65816 - Tiny C Compiler fork that emits wla-dx assembly for the
 // WDC 65816 (SNES CPU). Bundled as WASM via scripts/build-tcc816.sh.
 //
 // STATUS (R14, 2026-05-26): tcc itself works end-to-end through the
-// pool — `runTcc816({source})` returns the .s assembly. The full
+// pool - `runTcc816({source})` returns the .s assembly. The full
 // `C source → SNES ROM` pipeline ALSO needs wla-65816 + wlalink (to
 // assemble + link the tcc output) AND a libpvsneslib-equivalent
-// runtime + crt0. Those two are pending — see the project roadmap for the
+// runtime + crt0. Those two are pending - see the project roadmap for the
 // roadmap. Today this module is callable directly (for agents
 // inspecting what tcc would produce for a given C source) but is
 // NOT wired into buildSource yet.

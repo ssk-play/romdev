@@ -1,4 +1,4 @@
-/* c64_music.c — per-frame 3-voice SID music driver.
+/* c64_music.c - per-frame 3-voice SID music driver.
  *
  *  Architecture
  *  ────────────
@@ -26,7 +26,7 @@
  *  ────────
  *  16-bar loop, 4/4, ~125 BPM. Each "step" is 12 frames = ~0.2s @ 50 Hz.
  *  Melody plays mostly quarter-steps, bass holds half-steps, harmony
- *  rides between. C major / A minor flavor — chord progression:
+ *  rides between. C major / A minor flavor - chord progression:
  *    Am  F   C   G   (the classic four-chord loop)
  *  repeated 4× per loop with melody variations.
  *
@@ -39,7 +39,7 @@
 #define POKE(addr, val)  (*(volatile uint8_t*)(addr) = (val))
 
 /* ── SID 16-bit frequency dividers for PAL (985248 Hz clock) ────── */
-/* Standard table — match any C64 programmer's guide. Hz ≈ f * 0.0596. */
+/* Standard table - match any C64 programmer's guide. Hz ≈ f * 0.0596. */
 #define N_REST  0x0000u
 
 #define N_C3    0x1199u
@@ -87,19 +87,19 @@ static const Note melody[] = {
   /* G  bar */
   { N_G4, STEP*2 }, { N_B4, STEP }, { N_D5, STEP }, { N_B4, STEP*2 }, { N_G4, STEP*2 },
 
-  /* — verse 2: same chords, ornamented — */
+  /* - verse 2: same chords, ornamented - */
   { N_A4, STEP   }, { N_C5, STEP }, { N_E5, STEP*2 }, { N_D5, STEP }, { N_C5, STEP }, { N_E5, STEP*2 },
   { N_F4, STEP   }, { N_A4, STEP }, { N_C5, STEP*2 }, { N_B4, STEP }, { N_A4, STEP }, { N_C5, STEP*2 },
   { N_C5, STEP   }, { N_E5, STEP }, { N_G5, STEP*2 }, { N_F5, STEP }, { N_E5, STEP }, { N_G5, STEP*2 },
   { N_G4, STEP   }, { N_B4, STEP }, { N_D5, STEP*2 }, { N_C5, STEP }, { N_B4, STEP }, { N_D5, STEP*2 },
 
-  /* — verse 3: rising arpeggios — */
+  /* - verse 3: rising arpeggios - */
   { N_A3, STEP }, { N_C4, STEP }, { N_E4, STEP }, { N_A4, STEP }, { N_C5, STEP }, { N_E5, STEP }, { N_A5, STEP*2 },
   { N_F3, STEP }, { N_A3, STEP }, { N_C4, STEP }, { N_F4, STEP }, { N_A4, STEP }, { N_C5, STEP }, { N_F5, STEP*2 },
   { N_C4, STEP }, { N_E4, STEP }, { N_G4, STEP }, { N_C5, STEP }, { N_E5, STEP }, { N_G5, STEP }, { N_C5, STEP*2 },
   { N_G3, STEP }, { N_B3, STEP }, { N_D4, STEP }, { N_G4, STEP }, { N_B4, STEP }, { N_D5, STEP }, { N_G5, STEP*2 },
 
-  /* — verse 4: cooldown, longer notes — */
+  /* - verse 4: cooldown, longer notes - */
   { N_A4, STEP*4 }, { N_E5, STEP*4 },
   { N_F4, STEP*4 }, { N_C5, STEP*4 },
   { N_C5, STEP*4 }, { N_G5, STEP*4 },
@@ -110,16 +110,16 @@ static const Note melody[] = {
 
 /* ── Voice 1: bass. Low register, half-note pacing. ───────────── */
 static const Note bass[] = {
-  /* Am F C G — one note per bar, sustained */
+  /* Am F C G - one note per bar, sustained */
   { N_A3, STEP*8 }, { N_F3, STEP*8 }, { N_C3, STEP*8 }, { N_G3, STEP*8 },
   /* repeat for verse 2 */
   { N_A3, STEP*8 }, { N_F3, STEP*8 }, { N_C3, STEP*8 }, { N_G3, STEP*8 },
-  /* verse 3 — walking bass */
+  /* verse 3 - walking bass */
   { N_A3, STEP*4 }, { N_E3, STEP*4 },
   { N_F3, STEP*4 }, { N_C3, STEP*4 },
   { N_C3, STEP*4 }, { N_G3, STEP*4 },
   { N_G3, STEP*4 }, { N_D3, STEP*4 },
-  /* verse 4 — pedal */
+  /* verse 4 - pedal */
   { N_A3, STEP*8 }, { N_F3, STEP*8 }, { N_C3, STEP*8 }, { N_G3, STEP*8 },
 };
 
@@ -134,16 +134,16 @@ static const Note harmony[] = {
   /* G  chord tones */
   { N_D4, STEP*2 }, { N_G4, STEP*2 }, { N_B4, STEP*2 }, { N_G4, STEP*2 },
 
-  /* verse 2 — same with rest accents */
+  /* verse 2 - same with rest accents */
   { N_C4, STEP }, { N_E4, STEP }, { N_REST, STEP }, { N_A4, STEP*2 }, { N_E4, STEP*2 }, { N_C4, STEP },
   { N_A3, STEP }, { N_C4, STEP }, { N_REST, STEP }, { N_F4, STEP*2 }, { N_C4, STEP*2 }, { N_A3, STEP },
   { N_E4, STEP }, { N_G4, STEP }, { N_REST, STEP }, { N_C5, STEP*2 }, { N_G4, STEP*2 }, { N_E4, STEP },
   { N_D4, STEP }, { N_G4, STEP }, { N_REST, STEP }, { N_B4, STEP*2 }, { N_G4, STEP*2 }, { N_D4, STEP },
 
-  /* verse 3 — long pads */
+  /* verse 3 - long pads */
   { N_E4, STEP*8 }, { N_F4, STEP*8 }, { N_G4, STEP*8 }, { N_B4, STEP*8 },
 
-  /* verse 4 — drop out partly */
+  /* verse 4 - drop out partly */
   { N_REST, STEP*8 }, { N_C4, STEP*8 }, { N_REST, STEP*8 }, { N_D4, STEP*8 },
 };
 

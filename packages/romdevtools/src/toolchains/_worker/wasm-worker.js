@@ -1,8 +1,8 @@
-// wasm-worker.js — child process that runs ONE WASM toolchain call in isolation.
+// wasm-worker.js - child process that runs ONE WASM toolchain call in isolation.
 //
 // Spawned as `child_process.fork(__filename)` by the pool. Listens for jobs
 // over IPC, runs them, returns results. If the WASM aborts / SIGSEGVs / OOMs,
-// the child exits and the parent sees the exit code — the MCP server stays
+// the child exits and the parent sees the exit code - the MCP server stays
 // up regardless.
 //
 // Protocol (parent → child, via process.send):
@@ -25,7 +25,7 @@ import path from "node:path";
 
 // Keep a small per-worker cache of loaded module factories. The factory is
 // what the emcc glue exports; calling it returns an instantiated module
-// (which is what we throw away each call — the factory itself is reusable
+// (which is what we throw away each call - the factory itself is reusable
 // because emscripten supports it via wasmBinary reuse).
 const factoryCache = new Map();   // gluePath → { factory, wasmBinary }
 
@@ -166,7 +166,7 @@ async function runJob(job) {
     } else if (capturedExit !== null) {
       exitCode = capturedExit;
     } else {
-      // Non-exit throw — bubble up so the worker reports it as an error.
+      // Non-exit throw - bubble up so the worker reports it as an error.
       // Won't crash the worker (caught here), but the build is recorded as failed.
       log += `\n[worker] Abort in WASM: ${e?.message ?? e}\n`;
       exitCode = exitCode || 1;
@@ -190,7 +190,7 @@ async function runJob(job) {
         ? Buffer.from(bytes).toString("base64")
         : new TextDecoder().decode(bytes);
     } catch {
-      // file absent — caller decides what's required
+      // file absent - caller decides what's required
       outputs[f.vfsPath] = "";
     }
   }
@@ -233,7 +233,7 @@ process.on("message", async (msg) => {
   } catch (e) {
     // This catches JS-level errors inside the worker (e.g. file-not-found,
     // bad job spec). Real WASM aborts that bypass our handlers will crash
-    // the process — the parent sees that via the 'exit' event with a
+    // the process - the parent sees that via the 'exit' event with a
     // non-zero code, not via this path.
     process.send({
       type: "error",

@@ -1,10 +1,10 @@
-// R45 — GBC music_demo: hUGEDriver + sample song builds for the GBC tree.
+// R45 - GBC music_demo: hUGEDriver + sample song builds for the GBC tree.
 //
 // The GBC scaffold tree (R37) is independent of the GB tree, so we
 // verify the music_demo wires up correctly through GBC's own runtime
 // files. The driver source is identical (APU is the same DMG/CGB).
 //
-// In addition to the build smoke, we assert the main writes BCPS —
+// In addition to the build smoke, we assert the main writes BCPS -
 // that's the R37 "real CGB scaffold" marker.
 
 import { test } from "node:test";

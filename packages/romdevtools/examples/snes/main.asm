@@ -1,10 +1,10 @@
-; Hello, SNES — a real hello-world scaffold for asar.
+; Hello, SNES - a real hello-world scaffold for asar.
 ;
 ; What this does:
 ;   1. Standard SNES reset (sei, clc xce → native mode, stack at $1FFF).
 ;   2. Uploads a 4-colour palette + two 2bpp tiles to VRAM via DMA.
 ;   3. Fills a 32x32 BG1 tilemap with a checkerboard of those two tiles
-;      so the whole screen shows a real tiled pattern — NOT a flat one-
+;      so the whole screen shows a real tiled pattern - NOT a flat one-
 ;      colour backdrop (which reads as "blank" to a human / the verifier).
 ;   4. Points BG1 at the tile + map bases, enables BG1, turns the screen
 ;      on at full brightness, then parks forever.
@@ -142,8 +142,8 @@ LOOP:
 ; Tile CHR: two 8x8 2bpp tiles (16 bytes each). 2bpp = 2 bitplanes
 ; interleaved per row: byte0=row0 plane0, byte1=row0 plane1, ...
 ;
-; Tile 0 — solid colour 1 (plane0 all set, plane1 clear → colour 1).
-; Tile 1 — checker of colour 2 / colour 3 (both planes patterned) so the
+; Tile 0 - solid colour 1 (plane0 all set, plane1 clear → colour 1).
+; Tile 1 - checker of colour 2 / colour 3 (both planes patterned) so the
 ; map's alternating tiles give a busy, multi-colour screen.
 TILES:
 ; tile 0 (solid: every pixel colour 1)

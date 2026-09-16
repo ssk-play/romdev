@@ -1,17 +1,17 @@
-// log.js — tiny leveled logger so the server is QUIET by default in prod.
+// log.js - tiny leveled logger so the server is QUIET by default in prod.
 //
 // The per-call / per-session trace lines are invaluable while developing but
 // are noise (and IO cost) in a published package. They're gated behind a
-// verbosity switch for STDOUT — but every message is ALSO captured into an
+// verbosity switch for STDOUT - but every message is ALSO captured into an
 // in-memory ring buffer regardless of verbosity, so you can pull recent
 // activity as JSON from the /log HTTP endpoint without scraping stdout (or
 // having had --verbose on). The /livestream socket.io stream remains the
 // canonical live monitor; /log is the cheap "what just happened?" poll.
 //
 // Levels (low → high verbosity):
-//   error  — always printed (to stderr)
-//   info   — always printed (to stdout): startup banner, shutdown, fatals
-//   debug  — printed ONLY when verbose: per-call traces, session lifecycle,
+//   error  - always printed (to stderr)
+//   info   - always printed (to stdout): startup banner, shutdown, fatals
+//   debug  - printed ONLY when verbose: per-call traces, session lifecycle,
 //            playtest/observer chatter
 // All three are always recorded in the ring buffer.
 //
@@ -33,7 +33,7 @@ const VERBOSE = computeVerbose();
 
 // Bounded FIFO ring buffer of recent log records. A long-running server emits
 // unbounded log lines over its lifetime, so this MUST drop the oldest records
-// to stay flat in memory — two caps guarantee that:
+// to stay flat in memory - two caps guarantee that:
 //   - RING_CAP   : max number of records kept (oldest evicted on overflow)
 //   - MSG_CAP    : max chars per record (a giant stack/object can't bloat one)
 // Sized for "what went wrong in the last little while", NOT a session archive.
@@ -56,7 +56,7 @@ function record(level, args) {
     msg = String(args[0]);
   }
   // Truncate oversized single messages so one record can't leak memory.
-  if (msg.length > MSG_CAP) msg = msg.slice(0, MSG_CAP) + `…(+${msg.length - MSG_CAP} chars)`;
+  if (msg.length > MSG_CAP) msg = msg.slice(0, MSG_CAP) + `...(+${msg.length - MSG_CAP} chars)`;
   ring.push({ t: Date.now(), level, msg });
   // Drop oldest so the queue length never exceeds the cap.
   if (ring.length > RING_CAP) ring.splice(0, ring.length - RING_CAP);

@@ -18,7 +18,7 @@ import { compileSong } from "../src/platforms/sync32/song.js";
 import { wavToSync32Pcm, emitSync32PcmC } from "../src/platforms/sync32/pcm.js";
 import { feedbackEntry, recordFeedbackCore, listFeedbackCore } from "../src/mcp/tools/feedback.js";
 
-// ── 004537 #3: output:'project' compiles every .c — `exclude` ──────────────
+// ── 004537 #3: output:'project' compiles every .c - `exclude` ──────────────
 
 test("compileExcludes: bare names match at any depth, globs work, slashes anchor", () => {
   const f = compileExcludes(["asset_check.c", "*.test.c", "tests/**", "sub/only.c"]);
@@ -130,7 +130,7 @@ test("platform docs list and serve the sync32 ABI header", async () => {
   assert.equal(alias.contents, body.contents);
 });
 
-// ── 004537 #7: encodeArt for sync32 — banked quantization + chr/map dedup ──
+// ── 004537 #7: encodeArt for sync32 - banked quantization + chr/map dedup ──
 
 function testPng(w, h, fn) {
   const png = new PNG({ width: w, height: h });
@@ -185,7 +185,7 @@ test("dedupeTiles: repeated cells collapse; flip matching folds mirrors and wide
   assert.throws(() => dedupeTiles(r.pixels, 30, 8), /multiple of 8/);
 });
 
-// ── 004537 #8: encodeAudio for sync32 — note-song + PCM ────────────────────
+// ── 004537 #8: encodeAudio for sync32 - note-song + PCM ────────────────────
 
 test("compileSong: (hz, frames) events, rests, multi-voice, PSG quantization matches the Genesis grid", () => {
   const r = compileSong({ name: "danube", psgQuantize: true, voices: [{ rows: ["D4:21", "R:1", "F#4:21", "A4:21", "D5:21"] }, { rows: [{ note: "D3", ticks: 85 }] }] });

@@ -1,4 +1,4 @@
-// smoke.js — reproducible runtime comparison of the base ROM against the
+// smoke.js - reproducible runtime comparison of the base ROM against the
 // rebuilt ROM: same pinned core, same inputs, two isolated sessions, compare
 // DECODED pixels (not PNG bytes) and the CPU register file at the end.
 //
@@ -90,7 +90,7 @@ export async function runSmoke(project, { frames, inputs, sessionKey, sessionHan
     rebuilt: { rom: project.m.built.rom, romSha1: b.romSha1, pixelsSha1: b.pixelsSha1, png: b.png, size: `${b.width}x${b.height}` },
     pixelsIdentical: differingPixels === 0, differingPixels, firstDifferingPixel: firstDiff, cpuRegistersIdentical: regsA === regsB,
     cpuOriginal: a.cpu, cpuRebuilt: regsA === regsB ? undefined : b.cpu,
-    coverage: `boot + ${frames} frames with ${script.length} scripted input events on the pinned core; decoded RGB compared per pixel and the CPU register file compared at the end. This is a boot/render smoke check, NOT gameplay coverage — unexercised code paths are unobserved, not verified.`,
+    coverage: `boot + ${frames} frames with ${script.length} scripted input events on the pinned core; decoded RGB compared per pixel and the CPU register file compared at the end. This is a boot/render smoke check, NOT gameplay coverage - unexercised code paths are unobserved, not verified.`,
     artifacts: outDir,
   };
   delete report.cpuOriginal?.data;

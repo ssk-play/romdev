@@ -1,4 +1,4 @@
-// Atari 7800 PC breakpoint / read watchpoint / single-step — end to end.
+// Atari 7800 PC breakpoint / read watchpoint / single-step - end to end.
 //
 // Exercises the prosystem core patch (6502 / Sally execute hook + memory_Read
 // read-watch + the per-frame budget drain in prosystem_ExecuteFrame) through the
@@ -84,7 +84,7 @@ test("Atari 7800 PC breakpoint + read watch + single-step (prosystem 6502)", { t
   const bp = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "pc",  address: writerPC, maxFrames: 300 },
   }));
-  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported — core patch missing?");
+  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported - core patch missing?");
   assert.equal(bp.hit, true, "runUntilPC did not hit the writer PC: " + JSON.stringify(bp));
   assert.equal(bp.pcRaw, writerPC, "frozen PC != requested PC");
 
@@ -95,7 +95,7 @@ test("Atari 7800 PC breakpoint + read watch + single-step (prosystem 6502)", { t
   const pcField = regs.pc ?? regs.PC ?? regs.regs?.pc;
   assert.ok(pcField !== undefined, "getCPUState returned no PC field: " + JSON.stringify(regs).slice(0, 200));
 
-  // 4) Single-step must ADVANCE the PC past the breakpoint — not re-stop on the
+  // 4) Single-step must ADVANCE the PC past the breakpoint - not re-stop on the
   //    same (un-executed) instruction (the countdown-arm fix).
   const stepRes = toJSON(await client.callTool({ name: "frame", arguments: { op: "stepInstruction" } }));
   assert.equal(stepRes.notSupported, undefined, "stepInstruction reported notSupported");
@@ -103,12 +103,12 @@ test("Atari 7800 PC breakpoint + read watch + single-step (prosystem 6502)", { t
   assert.ok(stepRes.pcRaw >= 0, "single-step returned no pc");
   assert.notEqual(stepRes.pcRaw, writerPC, "single-step did not advance PC: " + JSON.stringify(stepRes));
 
-  // 5) runUntilRead on the counter — the program reads $1800 each frame, so this
+  // 5) runUntilRead on the counter - the program reads $1800 each frame, so this
   //    is a positive hit. Confirms the read-watch hook in memory_Read fires.
   const rd = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "read",  address: COUNTER, maxFrames: 120 },
   }));
-  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported — read-watch patch missing?");
+  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported - read-watch patch missing?");
   assert.equal(rd.hit, true, "runUntilRead did not catch the $1800 read: " + JSON.stringify(rd));
   assert.ok(rd.pcRaw > 0, "runUntilRead returned no reader pc");
 });

@@ -1,14 +1,14 @@
-/* music_demo.c — Atari 7800 TIA 2-voice music demo.
+/* music_demo.c - Atari 7800 TIA 2-voice music demo.
  *
  * Plays a continuous looping chiptune:
- *   - voice 0 (TIA channel 0): melody — arpeggio + descending walk
- *   - voice 1 (TIA channel 1): bass   — walking I-V-IV-V quarter notes
+ *   - voice 0 (TIA channel 0): melody - arpeggio + descending walk
+ *   - voice 1 (TIA channel 1): bass   - walking I-V-IV-V quarter notes
  *
  * Visual: a "MUSIC" banner rendered with the same MARIA pattern as
  * default.c (1-scanline zones, 7-byte DLs, full 243-entry DLL). See
  * MENTAL_MODEL.md for the format reference.
  *
- * The note tables live in atari7800_music.c — they ARE the song.
+ * The note tables live in atari7800_music.c - they ARE the song.
  *
  * Build: build({ output: "rom",  platform: "atari7800", template: "music_demo" })
  */

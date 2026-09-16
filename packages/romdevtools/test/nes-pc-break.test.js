@@ -1,4 +1,4 @@
-// NES (fceumm / 6502) execution breakpoint + read watch + single-step — e2e.
+// NES (fceumm / 6502) execution breakpoint + read watch + single-step - e2e.
 // Mirrors test/genesis-pc-break.test.js for the 6502 core.
 
 import { test } from "node:test";
@@ -63,14 +63,14 @@ test("NES PC breakpoint + read watch + single-step (fceumm 6502)", { timeout: 18
   const bp = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "pc",  address: writerPC, maxFrames: 300 },
   }));
-  assert.equal(bp.notSupported, undefined, "PC breakpoint notSupported — core patch missing?");
+  assert.equal(bp.notSupported, undefined, "PC breakpoint notSupported - core patch missing?");
   assert.equal(bp.hit, true, "runUntilPC did not hit: " + JSON.stringify(bp));
   assert.equal(bp.pcRaw, writerPC, "frozen PC != requested PC");
 
-  // 2b) registersAtHit — the register file SNAPSHOT taken at the break instant.
+  // 2b) registersAtHit - the register file SNAPSHOT taken at the break instant.
   // fceumm drains the cycle budget on hit but retro_run still finishes the frame,
   // so a follow-up cpu({op:'read'}) returns end-of-frame regs, NOT the break
-  // instant. The snapshot is the reliable break-instant register file — this is
+  // instant. The snapshot is the reliable break-instant register file - this is
   // the fix for the "break → read registers" RE workflow on NES.
   assert.ok(bp.registersAtHit, "breakpoint hit returned no registersAtHit snapshot (fceumm reg-snapshot patch missing?): " + JSON.stringify(bp));
   for (const r of ["A", "X", "Y", "P", "S"]) {
@@ -78,7 +78,7 @@ test("NES PC breakpoint + read watch + single-step (fceumm 6502)", { timeout: 18
       `registersAtHit.${r} out of range: ${bp.registersAtHit[r]}`);
   }
 
-  // 2c) captureMemory — read named RAM AT the hit, inline, in the SAME call as
+  // 2c) captureMemory - read named RAM AT the hit, inline, in the SAME call as
   // the register snapshot (collapses break→cpu→memory into one call). $10 is the
   // counter this ROM writes, so it must come back.
   const bp2 = toJSON(await client.callTool({
@@ -91,7 +91,7 @@ test("NES PC breakpoint + read watch + single-step (fceumm 6502)", { timeout: 18
   assert.match(bp2.capturedMemory.counter.hex, /^[0-9a-f]{2}$/, "captured $10 byte not a hex byte: " + JSON.stringify(bp2.capturedMemory));
 
   // 3) the LIVE register file (a follow-up cpu read) is end-of-frame state on
-  // fceumm — it is NOT expected to match registersAtHit. We just confirm cpu read
+  // fceumm - it is NOT expected to match registersAtHit. We just confirm cpu read
   // still works and that the internal fields are now under coreInternal, not regs.
   const regs = toJSON(await client.callTool({
     name: "cpu", arguments: { op: "read",  platform: "nes" },
@@ -112,6 +112,6 @@ test("NES PC breakpoint + read watch + single-step (fceumm 6502)", { timeout: 18
   const rd = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "read",  address: 0x10, maxFrames: 60 },
   }));
-  assert.equal(rd.notSupported, undefined, "runUntilRead notSupported — read-watch patch missing?");
+  assert.equal(rd.notSupported, undefined, "runUntilRead notSupported - read-watch patch missing?");
   assert.ok(typeof rd.hit === "boolean", "runUntilRead returned no hit field: " + JSON.stringify(rd));
 });

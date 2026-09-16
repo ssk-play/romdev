@@ -1,4 +1,4 @@
-// R51 — Atari 2600 two-voice music scaffold.
+// R51 - Atari 2600 two-voice music scaffold.
 //
 // The 2600 has no C compiler, so the music engine is hand-rolled 6507
 // asm: two voices (AUDC0/AUDC1 + AUDF0/AUDF1 + AUDV0/AUDV1) stepping
@@ -24,13 +24,13 @@ test("R51 Atari 2600 music_demo: 2-voice TIA chiptune compiles to 4 KB", { timeo
   const { buildForPlatform } = await import("../src/toolchains/index.js");
   const src = await readSrc("examples/atari2600/templates/music_demo.asm");
 
-  // Both voices must be referenced — otherwise it's not 2-voice music.
+  // Both voices must be referenced - otherwise it's not 2-voice music.
   assert.match(src, /AUDF0/, "music_demo: AUDF0 (voice 0 freq) not referenced");
   assert.match(src, /AUDF1/, "music_demo: AUDF1 (voice 1 freq) not referenced");
   assert.match(src, /AUDV0/, "music_demo: AUDV0 (voice 0 volume) not referenced");
   assert.match(src, /AUDV1/, "music_demo: AUDV1 (voice 1 volume) not referenced");
 
-  // The note tables ARE the song — both must be present in source.
+  // The note tables ARE the song - both must be present in source.
   assert.match(src, /melody_notes:/, "music_demo: melody_notes label missing");
   assert.match(src, /bass_notes:/,   "music_demo: bass_notes label missing");
 
@@ -40,13 +40,13 @@ test("R51 Atari 2600 music_demo: 2-voice TIA chiptune compiles to 4 KB", { timeo
 });
 
 test("R51 Atari 2600 music_demo: registered in TEMPLATES.atari2600", { timeout: 30000 }, async () => {
-  // Sanity check — the manifest entry must exist so createProject can
+  // Sanity check - the manifest entry must exist so createProject can
   // actually scaffold the template.
   const project = await readFile(
     join(REPO_ROOT, "src/mcp/tools/project.js"),
     "utf-8",
   );
-  // Look for the music_demo block under atari2600 (not lynx — lynx has
+  // Look for the music_demo block under atari2600 (not lynx - lynx has
   // its own music_demo). The atari2600 block sits between
   // `TEMPLATES.atari2600 = {` and the next `TEMPLATES.` line.
   const start = project.indexOf("TEMPLATES.atari2600 = {");

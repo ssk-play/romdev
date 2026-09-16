@@ -1,4 +1,4 @@
-// dasm — bundled 6502/6507 assembler (Atari 2600 + classic 6502).
+// dasm - bundled 6502/6507 assembler (Atari 2600 + classic 6502).
 //
 // Runs in an isolated child worker for crash isolation.
 
@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 
 // dasm's WASM ships in romdev-platform-atari2600 (the only platform that uses
 // it); a local src/ copy is the dev fallback. Lazy + memoized: resolve only on
-// the FIRST dasm build, not at boot — so booting the server never touches this
+// the FIRST dasm build, not at boot - so booting the server never touches this
 // package unless an Atari 2600 ROM is actually built.
 let _gluePath;
 const gluePath = () =>

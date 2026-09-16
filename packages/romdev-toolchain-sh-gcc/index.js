@@ -1,4 +1,4 @@
-// romdev-toolchain-sh-gcc — binary package: sh-elf gcc backend (cc1),
+// romdev-toolchain-sh-gcc - binary package: sh-elf gcc backend (cc1),
 // assembler, linker, objcopy, objdump (WASM). Dreamcast SH-4, little-endian,
 // m4-single-only FP. emcc emits ESM (EXPORT_ES6=1) so the glue uses .mjs.
 import { fileURLToPath } from "node:url";

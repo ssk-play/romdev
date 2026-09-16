@@ -70,7 +70,7 @@ test("frame step + input ops attach a deferred frame provider with a caption", a
   assert.match(stepRes._observerFrameCaption, /step ×3/);
   const img = stepRes._observerFrameProvider();
   assert.equal(img.mimeType, "image/png");
-  // The provider/caption are TOP-LEVEL sidebands — never inside the JSON text.
+  // The provider/caption are TOP-LEVEL sidebands - never inside the JSON text.
   assert.doesNotMatch(stepRes.content[0].text, /_observerFrame/);
 
   const pressRes = await input({ op: "press", button: "start", frames: 2 });

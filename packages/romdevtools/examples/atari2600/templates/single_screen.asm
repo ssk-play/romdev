@@ -1,4 +1,4 @@
-; ── single_screen.asm — Atari 2600 dodge-the-falling-pixels scaffold ──
+; ── single_screen.asm - Atari 2600 dodge-the-falling-pixels scaffold ──
 ;
 ; Player sprite at the bottom of the screen, falling "rocks" (use
 ; missile M0) from the top. Joystick port A moves left/right. Goal:
@@ -6,7 +6,7 @@
 ;
 ; Demonstrates per-frame missile re-positioning (the rock) + boundary
 ; logic + simple "score counter" stored in zero page (rendered as
-; foreground colour change — bright = high score).
+; foreground colour change - bright = high score).
 ;
 ; Why missiles for rocks? 2600's P0 is already the player; M0 (missile
 ; 0) is a 1-bit-wide 1-8-pixel-wide alternative graphics object that
@@ -69,7 +69,7 @@ START:
   LDA #5                 ; missile = 2-pixel-wide
   STA NUSIZ0
 
-  ; Boot chime — confirms TIA audio is wired.
+  ; Boot chime - confirms TIA audio is wired.
   LDA #$04
   STA AUDC0
   LDA #$0C
@@ -100,7 +100,7 @@ MAIN:
   DEX
   BNE .vb
 
-  ; Input — every 2nd frame
+  ; Input - every 2nd frame
   LDA FRAME
   AND #$01
   BNE .skipmove
@@ -122,7 +122,7 @@ MAIN:
   LDA ROCK_Y
   CMP #185
   BCC .norock_reset
-  ; Reset rock to top with a varying-but-deterministic X — chime per dodge.
+  ; Reset rock to top with a varying-but-deterministic X - chime per dodge.
   LDA #20
   STA ROCK_Y
   LDA FRAME
@@ -131,7 +131,7 @@ MAIN:
   ADC #$10
   STA ROCK_X
   INC SCORE              ; survive!
-  ; sfx_chime — short tone confirms you dodged a rock.
+  ; sfx_chime - short tone confirms you dodged a rock.
   LDA #$04
   STA AUDC0
   LDA #$06
@@ -151,7 +151,7 @@ MAIN:
   STA AUDV0
 .sfx_done:
 
-  ; Position P0 at column P_X (race-the-beam — simplified: divide by 15)
+  ; Position P0 at column P_X (race-the-beam - simplified: divide by 15)
   STA WSYNC
   LDX P_X
   LDA #0

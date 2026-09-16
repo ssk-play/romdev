@@ -1,10 +1,10 @@
-# Atari 7800 — mental model
+# Atari 7800 - mental model
 
 One page. Read once before you write your first 7800 game. The
 TROUBLESHOOTING.md alongside this file is for when something's broken;
 this is the "what's going on" version.
 
-The 7800 is the **outlier** of romdev's bundled platforms — its
+The 7800 is the **outlier** of romdev's bundled platforms - its
 architecture differs sharply from the NES / SMS / GB. If you've
 worked on those, **forget tilemaps + sprite-attribute tables**.
 The 7800 has neither.
@@ -18,12 +18,12 @@ $0040-$00FF   zero-page RAM (general use)
 $0140-$01FF   stack
 $0200-$021F   shadow regs (RIOT)
 $0280-$02FF   RIOT (joysticks, console switches, timer)
-$1800-$27FF   work RAM (4 KB — yes, only 4 KB!)
+$1800-$27FF   work RAM (4 KB - yes, only 4 KB!)
 $8000-$FFFF   ROM (32 KB single-bank; bankswitching for larger carts)
 ```
 
 **4 KB of RAM** is the binding constraint. Most other consoles have
-8–128 KB. You CANNOT software-render a frame buffer; you must use
+8-128 KB. You CANNOT software-render a frame buffer; you must use
 MARIA's display lists.
 
 ## MARIA: the unusual one
@@ -35,15 +35,15 @@ table. Instead, the **MARIA graphics processor** consumes a
 Hierarchy:
 
 ```
-DPP (Display List Pointer) — fixed CPU register
+DPP (Display List Pointer) - fixed CPU register
   ↓ points at
-DLL (Display List List) — variable-length list of zones
+DLL (Display List List) - variable-length list of zones
   - each zone: how many scanlines tall + DL pointer + offset
   ↓ each zone references
-DL  (Display List) — list of objects in that zone
+DL  (Display List) - list of objects in that zone
   - each entry: ROM pointer + width + X position + palette
   ↓ each entry references
-graphics data — pixel bytes in ROM (or RAM)
+graphics data - pixel bytes in ROM (or RAM)
 ```
 
 Each frame, MARIA walks the DLL → walks each DL → DMA-copies the
@@ -58,13 +58,13 @@ and DLL; you do NOT poke pixels into a framebuffer.**
   and (worse) burns enough cycles that the CPU stops getting time.
 - **Y position = which zone the object lives in.** Each zone covers
   N scanlines. To move an object up/down, you move it between
-  zones. (Or — in our example games — you stamp the same sprite at
+  zones. (Or - in our example games - you stamp the same sprite at
   different row offsets within ONE zone's data block, which fakes
   Y movement.)
 - **Each DL header can pick a palette per object** (one of 8
-  palettes, 4 colours each — including the shared background).
+  palettes, 4 colours each - including the shared background).
 
-### Dynamic display lists — what to rebuild per frame (READ THIS)
+### Dynamic display lists - what to rebuild per frame (READ THIS)
 
 The single biggest 7800 footgun for a moving game: **do NOT rebuild the
 whole DLL + every DL from scratch every frame.** MARIA may be mid-walk
@@ -77,13 +77,13 @@ The stable pattern is **build the structure ONCE, then patch in place**:
 | Thing | When to build it | Why |
 | --- | --- | --- |
 | **DLL** (the zone list) | **Once, at init.** | Zone count + heights + DL pointers are your screen layout. It rarely changes. Point DPPH/DPPL at it once in `maria_init`. |
-| **DL headers' graphics pointer / palette** | **Per frame, in place.** | To animate or show/hide an object, overwrite the bytes of its EXISTING DL entry — don't relink the list. |
+| **DL headers' graphics pointer / palette** | **Per frame, in place.** | To animate or show/hide an object, overwrite the bytes of its EXISTING DL entry - don't relink the list. |
 | **DL header's X position** | **Per frame, in place.** | Horizontal movement = write the X byte of the object's existing DL header. Cheap and safe. |
 | **Moving an object vertically** | **Per frame, but carefully.** | Y = which zone. Either keep a DL entry in each zone and toggle which is "live" (set its width/graphics to a blank tile when hidden), or stamp the sprite at different row offsets inside one tall zone's data. Prefer the latter for a few objects. |
-| **Clearing stale objects** | **Per frame, targeted.** | Don't wipe the whole DL — overwrite just the entries that changed (set a hidden object's graphics pointer to a transparent/blank tile, or zero its width). |
+| **Clearing stale objects** | **Per frame, targeted.** | Don't wipe the whole DL - overwrite just the entries that changed (set a hidden object's graphics pointer to a transparent/blank tile, or zero its width). |
 
 Practical recipe for a shmup/invaders-style game:
-1. `maria_init` — install the DLL once (e.g. a few fixed zones: HUD band,
+1. `maria_init` - install the DLL once (e.g. a few fixed zones: HUD band,
    play-field band, shield band). Never touched again.
 2. Pre-allocate a fixed set of DL entries per zone (player, N enemies,
    shots) in RAM-backed DL data.
@@ -91,7 +91,7 @@ Practical recipe for a shmup/invaders-style game:
    entries that moved or changed; set width/graphics to "blank" for slots
    that are inactive this frame.
 4. Never call your "build the entire display list" routine inside the
-   game loop — only the targeted byte writes.
+   game loop - only the targeted byte writes.
 
 If the screen tears or hangs once motion starts, you're almost certainly
 rebuilding too much per frame. Pull the structural setup back into init.
@@ -119,8 +119,8 @@ screen stays whatever colour the TIA latched.
 ## Display list (DL) entry format
 
 Each entry in a DL describes one object MARIA draws on that zone's
-scanline. There are TWO entry forms — 4-byte (direct) and 5-byte
-(extended) — and MARIA picks based on the LOW 5 BITS of the mode
+scanline. There are TWO entry forms - 4-byte (direct) and 5-byte
+(extended) - and MARIA picks based on the LOW 5 BITS of the mode
 byte at offset +1.
 
 ### Picking the form
@@ -163,7 +163,7 @@ width 4 bytes": `[0]=lo, [1]=$40, [2]=hi, [3]=$1C, [4]=X`.
 +3  X position
 ```
 
-### DL terminator — critical
+### DL terminator - critical
 
 MARIA reads the NEXT entry's mode byte at `dp + 1` AFTER advancing
 `dp` by the entry size (4 or 5 bytes). So a 5-byte entry needs the
@@ -172,19 +172,19 @@ A 4-byte entry needs it at byte **5**.
 
 If your DL array is just barely long enough to hold the entry
 (6 bytes for a 5-byte entry), MARIA reads RANDOM MEMORY at offset
-6 as the mode byte — almost guaranteed to be non-zero — and walks
+6 as the mode byte - almost guaranteed to be non-zero - and walks
 off into garbage. **Always allocate one extra byte and zero it.**
 
 The bundled `MK_DL` macro in `templates/default.c` does this:
-`uint8_t name[7] = { 0, 0x40, 0, 0x1C, 80, 0, 0 }` — 5 entry bytes
+`uint8_t name[7] = { 0, 0x40, 0, 0x1C, 80, 0, 0 }` - 5 entry bytes
 + a "next mode" terminator at index 6 (index 5 is unused padding).
 
 ## Display List List (DLL) entry format
 
 ```
-+0  bit 7   = DLI (NMI on zone end — leave 0 unless you have a handler)
-    bit 6   = H16 (holey 16K DMA — leave 0)
-    bit 5   = H8  (holey 8K DMA — leave 0)
++0  bit 7   = DLI (NMI on zone end - leave 0 unless you have a handler)
+    bit 6   = H16 (holey 16K DMA - leave 0)
+    bit 5   = H8  (holey 8K DMA - leave 0)
     bits 0-3 = offset (zone_height - 1; 0 = 1 scanline, 15 = 16 scanlines)
 +1  DL pointer HIGH byte
 +2  DL pointer LOW byte
@@ -216,12 +216,12 @@ address quirk goes away, and you can store sprite rows back-to-back.
 The bundled example uses this pattern.
 
 The cost is more DLL entries (one per scanline), but at 3 bytes each
-across 243 lines = 729 bytes total — trivial RAM cost. Worth it for
+across 243 lines = 729 bytes total - trivial RAM cost. Worth it for
 the simpler mental model on a starter example.
 
 ## Colour bytes (Atari NTSC palette)
 
-The 7800 uses the **Atari NTSC palette** — same as the 2600. A
+The 7800 uses the **Atari NTSC palette** - same as the 2600. A
 colour byte is `HHHL` where:
 
 - `HHH` = hue (0..F, 0=grey)
@@ -232,7 +232,7 @@ white.
 
 ## Input
 
-Joystick port A via `SWCHA` at `$280`. Active **low** — invert the
+Joystick port A via `SWCHA` at `$280`. Active **low** - invert the
 read:
 
 ```c
@@ -244,8 +244,8 @@ if (pad & JOY_UP)    /* P1 up */
 ```
 
 **The bit order is the #1 7800 input footgun.** From bit 7 down the P1 nibble
-is **Right ($80), Left ($40), Down ($20), Up ($10)** — same as the 2600. Defining
-`JOY_UP 0x80 … JOY_RIGHT 0x10` (the "reads naturally" order) is exactly
+is **Right ($80), Left ($40), Down ($20), Up ($10)** - same as the 2600. Defining
+`JOY_UP 0x80 ... JOY_RIGHT 0x10` (the "reads naturally" order) is exactly
 REVERSED, and the symptom is bizarre enough to misdiagnose: up/down steer
 left/right and vice versa. Always:
 
@@ -261,19 +261,19 @@ Fire button on `INPT4` at `$0C`, also active low.
 Console switches (reset, select, pause, B/W, difficulty) on
 `SWCHB` at `$282`.
 
-### Driving input over MCP — the 2-button-mode footgun ⚠
+### Driving input over MCP - the 2-button-mode footgun ⚠
 
 `input({op:'set'})` button names map to the two ProLine fire buttons as (verified live
 against prosystem + its `Riot.c`):
 
-| `input({op:'set', …})` | physical button | register (2-button mode) |
+| `input({op:'set', ...})` | physical button | register (2-button mode) |
 |-----------------|-----------------|--------------------------|
 | `{ a: true }`   | right / button 2 | `INPT0` ($08), active-HIGH bit 7 |
 | `{ b: true }`   | left / button 1  | `INPT1` ($09), active-HIGH bit 7 |
 
 **The trap:** the 7800 **boots in 1-BUTTON mode** (SWCHB bit 2 set). In that mode
 *both* `{a}` and `{b}` read through `INPT4` ($0C, active-low) and INPT0/INPT1 stay
-dead — so if you read INPT0/1 expecting two buttons before enabling 2-button mode,
+dead - so if you read INPT0/1 expecting two buttons before enabling 2-button mode,
 you'll see nothing. Enable 2-button mode (drive CTLSWB bit 2 as output → SWCHB
 bit 2 = 0) to split the two fires onto INPT0/INPT1. The right/left *semantics*
 match the layout (a=right, b=left); the button presses are correct in both modes.
@@ -281,7 +281,7 @@ match the layout (a=right, b=left); the button presses are correct in both modes
 
 ## Audio
 
-The 7800 still has the TIA audio chip from the 2600 — 2 channels,
+The 7800 still has the TIA audio chip from the 2600 - 2 channels,
 4-bit volume, 5-bit frequency, 4-bit tone shape. Registers at
 `$15-$1A`:
 
@@ -295,7 +295,7 @@ $1A AUDV1   channel 1 volume
 ```
 
 There's also a POKEY chip option in some 7800 cartridges (Ballblazer,
-Commando) for richer audio, but it's not standard — assume TIA-only
+Commando) for richer audio, but it's not standard - assume TIA-only
 for portable code.
 
 ## Frame heartbeat
@@ -320,7 +320,7 @@ edge-detect: wait for the "currently in vblank" status to flip
 $0080-$00FF   "A78" header (32 bytes title + 32 bytes machine config)
 $0100-$7FFF   ROM (32 KB)
 $FFFC-$FFFD   reset vector
-$FFFE-$FFFF   IRQ vector (rarely used — most games poll MSTAT)
+$FFFE-$FFFF   IRQ vector (rarely used - most games poll MSTAT)
 ```
 
 cc65's bundled atari7800.cfg handles the header + layout. You
@@ -344,44 +344,44 @@ decode MARIA's display-list machinery rather than a tilemap.
 
 What you can read:
 
-- **`palette({source:'live'})`** — a 256-color master palette PNG, with
+- **`palette({source:'live'})`** - a 256-color master palette PNG, with
   the live MARIA palette block at `$20-$3F` decoded into the 8 palettes ×
   3 colors each, plus the backdrop. This is the Atari NTSC palette shared
   with the 2600.
-- **`sprites({op:'inspect'})`** — there is **no OAM** on the 7800. Instead
+- **`sprites({op:'inspect'})`** - there is **no OAM** on the 7800. Instead
   this returns the MARIA control registers and the **DPP** display-list-
   list pointer, leaving the agent to walk the DLL → DL hierarchy itself
   (the same structure described under "MARIA: the unusual one" above).
-- **`cpu({op:'read'})`** — the 6502 ("Sally") register file (A / X / Y /
+- **`cpu({op:'read'})`** - the 6502 ("Sally") register file (A / X / Y /
   P / SP / PC) read from prosystem's `sally` globals.
-- **`background({view:'renderState'})`** — the MARIA CTRL bits, DPP,
+- **`background({view:'renderState'})`** - the MARIA CTRL bits, DPP,
   CHARBASE, and the current `dlistPtr`.
-- **`disasm({target:'rom'})`** — defaults to the top 16 KB
+- **`disasm({target:'rom'})`** - defaults to the top 16 KB
   (`$C000-$FFFF`), where the reset vector lands.
-- **`disasm({target:'references'})`** — scans the WHOLE cart: flat carts
+- **`disasm({target:'references'})`** - scans the WHOLE cart: flat carts
   (≤48 KB) in one pass at their top-of-space org, SuperGame banked carts
   (>48 KB) per 16 KB bank (last bank fixed at `$C000`, others at `$8000`),
   refs tagged `romBank`. A 128-byte `.a78` header is stripped automatically.
-- **`disasm({target:'project'})`** — flat carts rebuild with one flat cc65
+- **`disasm({target:'project'})`** - flat carts rebuild with one flat cc65
   build; SuperGame carts get per-bank regions + NES-style glue (HEADER
   segment with the original 128 header bytes, `BANKn` wrappers, multi-bank
-  `.cfg` via `linkerConfigPath`) — a one-call byte-identical
+  `.cfg` via `linkerConfigPath`) - a one-call byte-identical
   `build()` rebuild either way.
 
 Memory regions for **`memory({op:'read'})`**:
 
 | Region | Size | What it is |
 | --- | --- | --- |
-| `system_ram` | 64 KB | the *entire* 6502 address space — MARIA regs, RAM, and ROM are all visible through this one region |
-| `a78_cpu_regs` | — | the 6502 register snapshot |
+| `system_ram` | 64 KB | the *entire* 6502 address space - MARIA regs, RAM, and ROM are all visible through this one region |
+| `a78_cpu_regs` | - | the 6502 register snapshot |
 
 **No `audioDebug` inspector.** The 7800's standard audio is the same TIA
 chip carried over from the 2600 (`$15-$1A`), not a decodable PSG/FM chip,
 so there's no `audioDebug` decode. (Some carts add a POKEY, but it's
-non-standard — don't assume it's present.)
+non-standard - don't assume it's present.)
 
 ## Reverse-engineering & decompilation
 
 The Rizin/Ghidra analysis engine works here like everywhere: `disasm({target:'functions'})` to carve the program, `disasm({target:'cfg'|'xrefs'})` to trace it, `symbols({op:'analyze'})` for a one-shot structural map.
 
-**Decompiler quality on 6502: ROUGH.** Carry-flag idioms and 16-bit math on an 8-bit CPU decompile to noise that only reads cleanly once an LLM folds it — on this CPU the disassembly is often more honest than the pseudocode. `disasm({target:'decompile', address})` returns C-like pseudocode (the `qualityNote` field restates this). Read it to UNDERSTAND a routine; use `disasm({target:'project'})` to actually edit + rebuild. See the cross-platform ROM-hacking playbook §5f for the full loop.
+**Decompiler quality on 6502: ROUGH.** Carry-flag idioms and 16-bit math on an 8-bit CPU decompile to noise that only reads cleanly once an LLM folds it - on this CPU the disassembly is often more honest than the pseudocode. `disasm({target:'decompile', address})` returns C-like pseudocode (the `qualityNote` field restates this). Read it to UNDERSTAND a routine; use `disasm({target:'project'})` to actually edit + rebuild. See the cross-platform ROM-hacking playbook §5f for the full loop.

@@ -9,7 +9,7 @@
 // toolchain package until something is actually built with it).
 //
 // ENV INJECTION (0.95.0, for the browser IDEs): every stage runs through ONE
-// seam — `runTool(job)` — and the caller may supply it via `env.runTool`. The
+// seam - `runTool(job)` - and the caller may supply it via `env.runTool`. The
 // job carries the logical tool identity ({ tool, glueFile, pkg }) plus the
 // fully-marshalled { argv, inputFiles, outputFiles }; the host owns WASM
 // instantiation and MEMFS mounting and returns { exitCode, log, outputs }.
@@ -20,7 +20,7 @@
 //
 // All four stages keep the exact pre-refactor argv, /work paths, output encodings,
 // and return shapes (including `...(r.crash ? { crash, stage:"crash" } : {})`).
-// ONLY the pure io helpers are imported statically — glue resolution
+// ONLY the pure io helpers are imported statically - glue resolution
 // (./wasm-tool.js: node fs/url) and the worker pool (../_worker/run.js:
 // node child_process) load lazily inside the default runner, so a browser
 // bundle that injects env.runTool never touches a node builtin through here.
@@ -57,7 +57,7 @@ import { marshalInputs, getOutputBytes, getOutputText } from "./io.js";
  * @property {string[]|((endian:string)=>string[])} [ldFlags] arch flags for ld (before -T); default []
  * @property {string}   ldScriptName name the link script is mounted as (e.g. "genesis.ld")
  * @property {string}   outputName   objcopy output filename (e.g. "main.bin", "main.gba")
- * @property {string}   [defaultEndian] "big"|"little" — only meaningful when flags are fns
+ * @property {string}   [defaultEndian] "big"|"little" - only meaningful when flags are fns
  */
 
 /** Resolve a flags entry that may be a constant array or an endian-dependent fn. */

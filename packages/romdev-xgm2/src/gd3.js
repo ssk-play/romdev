@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.GD3 — VGM GD3 metadata tag (parse/build).
+// Port of sgdk.xgm2tool.format.GD3 - VGM GD3 metadata tag (parse/build).
 
 import {
   getASCIIString,

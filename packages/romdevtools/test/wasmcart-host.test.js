@@ -1,4 +1,4 @@
-// wasmcart host kind — romdev drives a native WASM game cart (CartHost) through the
+// wasmcart host kind - romdev drives a native WASM game cart (CartHost) through the
 // same run/see/drive surface it uses for emulator cores, plus WASM introspection an
 // emulator can't offer. Uses a tiny vendored hello.wasc (2D, no-GL) so it runs headless.
 
@@ -24,7 +24,7 @@ test("wasmcart: loads a .wasc + reports a wasmcart capability profile", async ()
   assert.equal(caps.canStepFrames, true);
   assert.equal(caps.canScreenshot, true);
   assert.equal(caps.canSetInput, true);
-  // Native runtime — NO emulated memory regions / CPU state / disasm / cheats.
+  // Native runtime - NO emulated memory regions / CPU state / disasm / cheats.
   assert.equal(caps.hasMemoryRegions, false);
   assert.equal(caps.hasCpuState, false);
   assert.equal(caps.hasDisasm, false);
@@ -66,7 +66,7 @@ test("wasmcart: setInput accepts romdev's {ports} shape + drives frames", async 
   host.destroy();
 });
 
-test("wasmcart: WASM introspection — memory + exports (the V8 bonus)", async () => {
+test("wasmcart: WASM introspection - memory + exports (the V8 bonus)", async () => {
   const host = new WasmcartHost();
   await host.loadMedia({ platform: "wasmcart", path: HELLO });
   host.stepFrames(2);

@@ -4,8 +4,8 @@
 // prosystem, geargrafx, bluemsx). For every platform we can deterministically
 // build for, the check is the same shape:
 //   1. single-step (setPCBreak step) leaves a kind-1 snapshot whose pc matches
-//      the bp's lastPC — proving the snapshot capture + export plumbing.
-//   2. the live PC stays frozen across EXTRA frames after the hit — proving
+//      the bp's lastPC - proving the snapshot capture + export plumbing.
+//   2. the live PC stays frozen across EXTRA frames after the hit - proving
 //      the freeze-after-hit guard (no register drift, the 2h-chase fix).
 
 import { test } from "node:test";
@@ -80,7 +80,7 @@ const CASES = [
   ["atari7800", async () => liveHost("atari7800", { source: await exampleSource("atari7800/main.c"), sourceName: "main.c" })],
   ["lynx", async () => liveHost("lynx", { source: await exampleSource("lynx/main.c"), sourceName: "main.c" })],
   ["c64", async () => liveHost("c64", { source: await exampleSource("c64/main.c"), sourceName: "main.c" })],
-  // PCE: keep one global — an empty BSS trips a crt0 ld65 range error.
+  // PCE: keep one global - an empty BSS trips a crt0 ld65 range error.
   ["pce", async () => liveHost("pce", { source: "unsigned char g; void main(void){for(;;)g++;}", sourceName: "main.c" })],
   ["msx", async () => liveHost("msx", { source: "void main(void){volatile unsigned char x=0;for(;;)x++;}", sourceName: "main.c" })],
 ];

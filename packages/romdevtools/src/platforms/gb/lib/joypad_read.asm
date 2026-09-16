@@ -3,7 +3,7 @@
 ; Port $FF00 (JOYP) layout:
 ;   bit 5: select button group ($00 = buttons A/B/Sel/Start, $10 = D-pad)
 ;   bit 4: select D-pad group  ($00 selects, $10 deselects)
-;   bits 0-3: 4 buttons in the selected group (ACTIVE LOW — pressed = 0)
+;   bits 0-3: 4 buttons in the selected group (ACTIVE LOW - pressed = 0)
 ;
 ; To read both groups, write the selector, read $FF00 twice (small wait
 ; for the contacts to stabilize), combine into one byte. Result format:
@@ -22,7 +22,7 @@ joypad_read::
   ld a, $10
   ld [$FF00], a
   ld a, [$FF00]
-  ld a, [$FF00]       ; second read — bouncing tolerance
+  ld a, [$FF00]       ; second read - bouncing tolerance
   cpl                 ; invert: pressed = 1
   and $0F             ; keep only the 4 button bits
   swap a              ; move buttons to high nybble

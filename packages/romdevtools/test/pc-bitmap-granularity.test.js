@@ -1,4 +1,4 @@
-// pc-bitmap-granularity.test.js — the exact PC coverage bitmap must give every
+// pc-bitmap-granularity.test.js - the exact PC coverage bitmap must give every
 // instruction of a byte-addressed CPU its own bit. The first bitmap build was one
 // bit per 4-byte word (right for MIPS, wrong for the 6502/Z80/SM83 cores: adjacent
 // instructions collapsed into one PC). Proven on fceumm (6502) at the host level,
@@ -49,7 +49,7 @@ test("6502 coverage bitmap is byte-exact; word granularity (the control) collaps
   assert.equal(fine.shift, 0, "the core did not honour shift 0 (stale debug lib?): " + JSON.stringify({ shift: fine.shift, granularityBytes: fine.granularityBytes }));
   assert.equal(fine.granularityBytes, 1); assert.equal(fine.exact, true);
   assert.ok(fine.distinct > 0 && fine.pcs.length === fine.distinct, "decoded PCs must equal the distinct count: " + JSON.stringify({ distinct: fine.distinct, decoded: fine.pcs.length }));
-  assert.ok(fine.pcs.some((pc) => pc % 4 !== 0), "no unaligned 6502 PC recorded — the bitmap is still word-granular");
+  assert.ok(fine.pcs.some((pc) => pc % 4 !== 0), "no unaligned 6502 PC recorded - the bitmap is still word-granular");
   const wordsTouched = new Set(fine.pcs.map((pc) => pc >>> 2)).size;
   assert.ok(fine.distinct > wordsTouched, `byte-exact coverage must see more PCs than 4-byte groups: ${fine.distinct} PCs in ${wordsTouched} groups`);
 

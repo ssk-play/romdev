@@ -1,4 +1,4 @@
-// `files` tool (consolidation of writeAsset/readAsset/listAssets) — round-trip.
+// `files` tool (consolidation of writeAsset/readAsset/listAssets) - round-trip.
 // These three were previously untested; the consolidation adds coverage.
 
 import { test } from "node:test";

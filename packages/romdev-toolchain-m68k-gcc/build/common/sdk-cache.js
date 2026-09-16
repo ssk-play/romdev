@@ -1,4 +1,4 @@
-// sdk-cache.js — "prebuilt seed + opt-in rebuild" for SDK libraries.
+// sdk-cache.js - "prebuilt seed + opt-in rebuild" for SDK libraries.
 //
 // Compiling a whole SDK (libtonc, SGDK, pvsneslib) from source on every build
 // is slow on the FIRST build of a process (GBA ~42s, Genesis ~18s). But linking
@@ -7,11 +7,11 @@
 //   - Ship a prebuilt SEED .a derived from the vendored source (fast default).
 //   - Let the caller pass `rebuildSdk:true` to compile the SDK from source
 //     instead (slow once, then disk-cached by source hash).
-//   - The seed is reproducible from the shipped source — nobody is forced to
+//   - The seed is reproducible from the shipped source - nobody is forced to
 //     trust it; they can rebuild and byte-compare.
 //   - If the vendored source no longer matches the seed (the agent edited it)
 //     AND they didn't ask for a rebuild, we still use the fast seed but return
-//     a loud `sdkEditIgnored` warning naming the changed file — so an edit is
+//     a loud `sdkEditIgnored` warning naming the changed file - so an edit is
 //     never SILENTLY dropped (the trap we eliminated stays eliminated).
 //
 // This module is platform-agnostic: each toolchain passes in how to hash its
@@ -19,8 +19,8 @@
 //
 // ENV INJECTION (0.95.0, browser IDEs): NO top-level node imports. The node
 // bits (fs seed reads, the os.tmpdir() disk cache, node:crypto hashing) load
-// lazily; a caller may inject `io` — { readSeed, readSeedHash, cacheGet,
-// cachePut, hash } — and the node defaults are skipped entirely. A browser
+// lazily; a caller may inject `io` - { readSeed, readSeedHash, cacheGet,
+// cachePut, hash } - and the node defaults are skipped entirely. A browser
 // host supplies seed/hash bytes from its fetched share manifest and an
 // IndexedDB (or no-op) cache.
 
@@ -106,7 +106,7 @@ export async function nodeSdkIo() {
  * @param {{readSeed?:Function, readSeedHash?:Function, writeSeed?:Function,
  *          cacheGet?:Function, cachePut?:Function, hash:Function}} [a.io]
  *   injected environment (browser hosts). When io is given the node defaults
- *   are NOT loaded at all — `hash` is required, everything else optional
+ *   are NOT loaded at all - `hash` is required, everything else optional
  *   (a missing cacheGet/cachePut just means no cross-process cache)
  * @returns {Promise<{ok:boolean, archive?:Uint8Array, fromSource:boolean,
  *   sdkEditIgnored?:{sdk:string, message:string}, stage?:string, log?:string}>}
@@ -146,7 +146,7 @@ export async function resolveSdkArchive(a) {
         sdk: a.name,
         message:
           `Your changes to the bundled ${a.name} source were NOT compiled into ` +
-          `this build — it linked the prebuilt ${a.name} cache. To build your ` +
+          `this build - it linked the prebuilt ${a.name} cache. To build your ` +
           `edits, pass rebuildSdk:true.`,
       };
     }

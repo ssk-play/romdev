@@ -1,22 +1,22 @@
-/* ── shmup.c — SMS vertical shooter (complete example game) ──────────────────
+/* ── shmup.c - SMS vertical shooter (complete example game) ──────────────────
  *
- * A COMPLETE, working game — title screen, 1P and 2P co-op modes, lives,
- * score + hi-score (cart-RAM save code included — see the honesty note at
+ * A COMPLETE, working game - title screen, 1P and 2P co-op modes, lives,
+ * score + hi-score (cart-RAM save code included - see the honesty note at
  * hiscore_save), music + SFX, and the SMS's signature LINE INTERRUPT split:
  * a fixed HUD strip over a drifting starfield, with the scroll change timed
  * by the VDP's programmable line counter.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented SMS footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented SMS footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — enemy patterns, scoring, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - enemy patterns, scoring, tuning, art: reshape freely.
  *
  * What depends on what:
  *   sms_hw.h / vdp_init.c / load_tiles.c / load_palette.c / sprite_table.c /
- *     joypad_read.c — the bundled VDP + input runtime (this file's externs).
- *   sms_sfx.{h,c} + sms_music.{h,c} — SN76489 PSG sound layers.
- *   sms_crt0.s — boot + vector table. Its $0038 IM-1 handler is the OTHER
+ *     joypad_read.c - the bundled VDP + input runtime (this file's externs).
+ *   sms_sfx.{h,c} + sms_music.{h,c} - SN76489 PSG sound layers.
+ *   sms_crt0.s - boot + vector table. Its $0038 IM-1 handler is the OTHER
  *     HALF of the line-interrupt idiom below: it acks the VDP (one status
  *     read clears BOTH the frame and line IRQ flags) and returns with
  *     ei/reti. Load-bearing; edit with TROUBLESHOOTING open.
@@ -30,7 +30,7 @@
 #include "sms_music.h"
 #include <stdint.h>
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "ASTRO PICKET"
 
@@ -48,7 +48,7 @@ extern void    sms_sprite_init(void);
 extern void    sms_sprite_set(uint8_t slot, uint8_t x, uint8_t y, uint8_t tile);
 extern void    sms_sat_upload(void);
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Palettes. SMS CRAM is 2-2-2 BGR (--BBGGRR): R bits 0-1, G bits 2-3,
  * B bits 4-5. White = 0x3F. BG colour 0 doubles as the backdrop/border. */
 static const uint8_t palette[32] = {
@@ -57,19 +57,19 @@ static const uint8_t palette[32] = {
   0x00, 0x20, 0x2A, 0x3F, 0x10, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   /* Sprites: 1 = white (P1 ship), 2 = yellow (bullet), 3 = red (enemy),
-   * 4 = green (P2 ship). One shared sprite palette on SMS — per-"sprite"
+   * 4 = green (P2 ship). One shared sprite palette on SMS - per-"sprite"
    * colour means per-TILE colour indices, not per-sprite palettes. */
   0x00, 0x3F, 0x0F, 0x03, 0x0C, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-/* ── GAME LOGIC (clay) — BG tile inventory (BG bank $0000) ───────────────────
+/* ── GAME LOGIC (clay) - BG tile inventory (BG bank $0000) ───────────────────
  * tile 0          = blank space (colour 0)
  * tiles 1..37     = font: digits 0-9, A-Z, '-'  (uploaded 1bpp→4bpp below)
  * tile 38         = dim star   (one colour-2 pixel)
  * tile 39         = bright star(one colour-3 pixel + glow)
- * tile 40         = solid HUD bar (colour 1) — the split seam hides in it
- * tile 41         = nebula band (solid colour 4) — keeps the screen from
+ * tile 40         = solid HUD bar (colour 1) - the split seam hides in it
+ * tile 41         = nebula band (solid colour 4) - keeps the screen from
  *                   reading as one flat colour (render-health floor) */
 #define FONT_BASE  1
 #define BG_STAR    38
@@ -77,7 +77,7 @@ static const uint8_t palette[32] = {
 #define BG_HUDBAR  40
 #define BG_BAND    41
 
-/* 1bpp font (same glyph set as the NES/GB examples — 0-9, A-Z, '-').
+/* 1bpp font (same glyph set as the NES/GB examples - 0-9, A-Z, '-').
  * Stored 8 bytes/glyph; expanded to the SMS's 32-byte 4bpp tiles at upload
  * (see load_font below), so the ROM carries 296 bytes instead of 1184. */
 static const uint8_t font8[37][8] = {
@@ -121,7 +121,7 @@ static void load_font(void) {
   }
 }
 
-/* Star + HUD-bar + band tiles (4bpp, 32 bytes each — rows of plane0..3). */
+/* Star + HUD-bar + band tiles (4bpp, 32 bytes each - rows of plane0..3). */
 static const uint8_t deco_tiles[128] = {
   /* BG_STAR: one colour-2 pixel */
   0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x10,0x00,0x00, 0x00,0x00,0x00,0x00,
@@ -129,7 +129,7 @@ static const uint8_t deco_tiles[128] = {
   /* BG_BRITE: colour-3 dot with colour-2 glow */
   0x00,0x00,0x00,0x00, 0x00,0x10,0x00,0x00, 0x10,0x28,0x10,0x00, 0x00,0x10,0x00,0x00,
   0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-  /* BG_HUDBAR: solid colour 1 — the split seam lands inside this row */
+  /* BG_HUDBAR: solid colour 1 - the split seam lands inside this row */
   0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00,
   0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00,
   /* BG_BAND: solid colour 4 (binary 100 → plane 2 only) */
@@ -137,19 +137,19 @@ static const uint8_t deco_tiles[128] = {
   0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00,
 };
 
-/* Sprite tiles (sprite bank $2000 — vdp_init's R6=0xFF baseline reads
+/* Sprite tiles (sprite bank $2000 - vdp_init's R6=0xFF baseline reads
  * sprite patterns from $2000, so upload there, not $0000). */
 static const uint8_t sprite_tiles[32 * 4] = {
-  /* T_SHIP1 — arrowhead, colour 1 (white) */
+  /* T_SHIP1 - arrowhead, colour 1 (white) */
   0x18,0x00,0x00,0x00, 0x18,0x00,0x00,0x00, 0x3C,0x00,0x00,0x00, 0x3C,0x00,0x00,0x00,
   0x7E,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xDB,0x00,0x00,0x00, 0x81,0x00,0x00,0x00,
-  /* T_SHIP2 — same hull, colour 4 = binary 100 → plane 2 only (green) */
+  /* T_SHIP2 - same hull, colour 4 = binary 100 → plane 2 only (green) */
   0x00,0x00,0x18,0x00, 0x00,0x00,0x18,0x00, 0x00,0x00,0x3C,0x00, 0x00,0x00,0x3C,0x00,
   0x00,0x00,0x7E,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0xDB,0x00, 0x00,0x00,0x81,0x00,
-  /* T_BULLET — slug, colour 2 (yellow, plane 1) */
+  /* T_BULLET - slug, colour 2 (yellow, plane 1) */
   0x00,0x18,0x00,0x00, 0x00,0x3C,0x00,0x00, 0x00,0x3C,0x00,0x00, 0x00,0x3C,0x00,0x00,
   0x00,0x3C,0x00,0x00, 0x00,0x3C,0x00,0x00, 0x00,0x18,0x00,0x00, 0x00,0x00,0x00,0x00,
-  /* T_ENEMY — X fighter, colour 3 (red, planes 0+1) */
+  /* T_ENEMY - X fighter, colour 3 (red, planes 0+1) */
   0x81,0x81,0x00,0x00, 0x42,0x42,0x00,0x00, 0x24,0x24,0x00,0x00, 0xFF,0xFF,0x00,0x00,
   0xFF,0xFF,0x00,0x00, 0x24,0x24,0x00,0x00, 0x42,0x42,0x00,0x00, 0x81,0x81,0x00,0x00,
 };
@@ -158,10 +158,10 @@ static const uint8_t sprite_tiles[32 * 4] = {
 #define T_BULLET 2
 #define T_ENEMY  3
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * Object pools — fixed slots, no allocation (3.58MHz Z80, 8KB WRAM: a heap
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * Object pools - fixed slots, no allocation (3.58MHz Z80, 8KB WRAM: a heap
  * buys you nothing). SAT slot map: 0 = P1 ship, 1 = P2 ship, 2-7 bullets,
- * 8-13 enemies — 14 of 64 slots; mind the 8-sprites-PER-SCANLINE limit when
+ * 8-13 enemies - 14 of 64 slots; mind the 8-sprites-PER-SCANLINE limit when
  * adding rows of objects (the 9th sprite on a line silently vanishes). */
 #define MAX_BULLETS 6
 #define MAX_ENEMIES 6
@@ -190,14 +190,14 @@ static uint8_t over_pending;     /* defer GAME OVER text to the next vblank */
 static uint8_t hud_dirty;        /* score/lives changed → redraw next vblank */
 static uint16_t rng = 0xACE1;
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static uint8_t state;
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * LINE-INTERRUPT SPLIT SCROLL — the SMS's signature trick (fixed status bar
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * LINE-INTERRUPT SPLIT SCROLL - the SMS's signature trick (fixed status bar
  * over a moving field, palette splits, water effects). The VDP has ONE
  * scroll register pair for the whole frame; to keep the HUD fixed while the
  * starfield drifts you change the scroll MID-FRAME. Where the NES needs the
@@ -211,38 +211,38 @@ static uint8_t state;
  *
  * Both IRQs land on the Z80's IM-1 vector at $0038. The crt0's handler does
  * the canonical minimal handshake:  push af / in a,($BF) / pop af / ei / reti
- * — reading the status port ACKS the VDP (clears BOTH pending flags; skip
+ * - reading the status port ACKS the VDP (clears BOTH pending flags; skip
  * the read and the IRQ line stays asserted = interrupt storm), and EI must
  * precede RETI or interrupts stay off forever after the first one.
  *
  * Because the handler does no work, the MAIN loop synchronizes with HALT:
  * the Z80 sleeps until the next interrupt, then we read the V-counter (port
- * $7E) to learn WHICH one woke us — line IRQs only fire during the active
+ * $7E) to learn WHICH one woke us - line IRQs only fire during the active
  * area (V < 0xC0 here), the frame IRQ fires at vblank (V ≥ 0xC0).
  *
  *   wait_vblank():  sleep until the frame IRQ  → do per-frame VRAM work,
  *                   write R8 = 0 so the HUD strip renders unscrolled.
  *   wait_split():   sleep until the line IRQ at line 23 (R10 = HUD_PX-1,
- *                   the last line of the solid bar row — any single-line
+ *                   the last line of the solid bar row - any single-line
  *                   tear from the mid-row write hides inside solid colour)
  *                   → write R8 = scroll_x; everything below drifts.
  *
- * FOOTGUN — you cannot poll once IRQs are on: sms_vblank_wait() spins on
+ * FOOTGUN - you cannot poll once IRQs are on: sms_vblank_wait() spins on
  * the same status port the ISR reads. The ISR always wins the race (the
  * IRQ fires the instant the flag sets), eats the flag, and the poll loop
  * hangs forever. HALT + V-counter is the IRQ-era replacement.
  *
- * FOOTGUN — why the field drifts HORIZONTALLY: the Y-scroll register (R9)
+ * FOOTGUN - why the field drifts HORIZONTALLY: the Y-scroll register (R9)
  * is LATCHED ONCE PER FRAME by the VDP; mid-frame R9 writes do nothing
  * until the next frame, so a "vertical scroll below the HUD" split is
- * impossible on this chip. X-scroll (R8) is sampled per line — that's the
+ * impossible on this chip. X-scroll (R8) is sampled per line - that's the
  * one you can change mid-frame. (Vertical motion: animate the star tiles
  * or stream the name table instead.)
  *
  * Requires: R10 programmed, IE1 + IE0 enabled, EI executed once after
  * display-on, the crt0's ack-only ISR, and wait_vblank/wait_split called
  * EVERY frame in this order. R10 reloads after each underflow, so the line
- * IRQ re-fires every HUD_PX lines all the way down the frame — the later
+ * IRQ re-fires every HUD_PX lines all the way down the frame - the later
  * wakes harmlessly interrupt game logic (the ISR acks them) and re-halt
  * inside the NEXT wait_vblank(). */
 #define SPLIT_LINE (HUD_PX - 1)
@@ -260,7 +260,7 @@ static void wait_split(void) {
   sms_vdp_write_reg(8, scroll_x);   /* field below the bar drifts */
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — hi-score in Sega-mapper cart RAM ────────
+/* ── HARDWARE IDIOM (load-bearing) - hi-score in Sega-mapper cart RAM ────────
  * The Sega mapper's control register at $FFFC: bit 3 maps the cart's 8KB
  * battery RAM into $8000-$BFFF (bank slot 2). Map → copy → unmap; keep the
  * window short so stray pointer bugs can't shred the save. The block is
@@ -268,13 +268,13 @@ static void wait_split(void) {
  * "no save" instead of a garbage hi-score.
  *
  * NOTE the $FFFC address: it's IN the WRAM mirror ($C000-$DFFF mirrors at
- * $E000-$FFFF), so this write also lands in WRAM at $DFFC — the mapper
+ * $E000-$FFFF), so this write also lands in WRAM at $DFFC - the mapper
  * just snoops the bus. That's why the crt0 parks SP at $DFF0: the bytes
  * above it ($DFFC-$FFFF) belong to the mapper registers' shadow.
  *
  * HONESTY (verified 2026-06-10 against the bundled gpgx core): gpgx only
  * instantiates the Sega mapper for ROMs LARGER than 48KB, and this build
- * pipeline emits 32KB ROMs — so in-emulator the $8000 window stays open-bus
+ * pipeline emits 32KB ROMs - so in-emulator the $8000 window stays open-bus
  * (reads $FF), the magic check fails, and the game falls back to the WRAM
  * hi-score (in-session only). The code below is still the correct
  * real-hardware idiom and lights up unchanged on a >48KB build or a cart
@@ -304,7 +304,7 @@ static uint16_t hiscore_load(void) {
   return v;
 }
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call) ── */
 static uint8_t random8(void) {
   uint16_t r = rng;
   r ^= r << 7;
@@ -314,7 +314,7 @@ static uint8_t random8(void) {
   return (uint8_t)r;
 }
 
-/* ── GAME LOGIC (clay) — text via the font tiles ─────────────────────────────
+/* ── GAME LOGIC (clay) - text via the font tiles ─────────────────────────────
  * These write the name table directly, so call them only during vblank (or
  * with the display off): VRAM access during active display races the VDP's
  * own fetches and drops/garbles bytes on real hardware. */
@@ -336,7 +336,7 @@ static void draw_u16(uint8_t row, uint8_t col, uint16_t v) {
     sms_set_tilemap_cell(row, (uint8_t)(col + i), (uint8_t)(FONT_BASE + d[4 - i]), 0);
 }
 
-/* ── GAME LOGIC (clay) — HUD: SC sssss  HI hhhhh  LV n on row 0 ── */
+/* ── GAME LOGIC (clay) - HUD: SC sssss  HI hhhhh  LV n on row 0 ── */
 static void draw_hud_labels(void) {
   text_draw(0, 1, "SC");
   text_draw(0, 11, "HI");
@@ -349,12 +349,12 @@ static void draw_hud(void) {
   sms_set_tilemap_cell(0, 24, (uint8_t)(FONT_BASE + (lives > 9 ? 9 : lives)), 0);
 }
 
-/* ── GAME LOGIC (clay) — screen painters ─────────────────────────────────────
+/* ── GAME LOGIC (clay) - screen painters ─────────────────────────────────────
  * Full-screen repaints happen with the DISPLAY OFF (free VRAM access, and a
  * clean cut instead of a visible wipe). While the display is off the frame
- * IRQ doesn't fire — so no halt-based waits in here, or you hang forever. */
-/* PERF FOOTGUN (found the slow way): the obvious per-cell version of this —
- * sms_set_tilemap_cell(r, c, (r*7 + c*5) % 11 ? ... ) — costs ~35 FRAMES:
+ * IRQ doesn't fire - so no halt-based waits in here, or you hang forever. */
+/* PERF FOOTGUN (found the slow way): the obvious per-cell version of this -
+ * sms_set_tilemap_cell(r, c, (r*7 + c*5) % 11 ? ... ) - costs ~35 FRAMES:
  * SDCC's 16-bit `%` is a software-division call and set_tilemap_cell redoes
  * the 4-OUT address setup for every cell; 672 cells of that is over 2M
  * cycles of "black screen" between title and game. So: set the VRAM address
@@ -364,7 +364,7 @@ static void paint_starfield(uint8_t from_row) {
   uint8_t r, c, t, s, q;
   for (r = from_row; r < 24; r++) {
     sms_vdp_set_addr((uint16_t)(0x3800 + (uint16_t)r * 64), VDP_VRAM_WRITE);
-    /* s = (r*7) mod 11, q = (r*3) mod 29 — then walk +5 mod 11 / +13 mod 29
+    /* s = (r*7) mod 11, q = (r*3) mod 29 - then walk +5 mod 11 / +13 mod 29
      * across the columns (same field as the % expressions, no division). */
     s = (uint8_t)(r * 7); while (s >= 11) s -= 11;
     q = (uint8_t)(r * 3); while (q >= 29) q -= 29;
@@ -411,7 +411,7 @@ static void paint_field(void) {
   sms_vdp_display_on();
 }
 
-/* ── GAME LOGIC (clay) — pools ── */
+/* ── GAME LOGIC (clay) - pools ── */
 static void fire_bullet(uint8_t p) {
   uint8_t i;
   for (i = 0; i < MAX_BULLETS; i++) {
@@ -421,7 +421,7 @@ static void fire_bullet(uint8_t p) {
       bullet_y[i] = (uint8_t)(ship_y[p] - 8);
       /* Voice 2 doubles as the SFX channel: the blip steals the bass for a
        * few frames, then sfx_update() silences it and the tracker re-tones
-       * it on its next step — classic "sfx wins over music" arbitration. */
+       * it on its next step - classic "sfx wins over music" arbitration. */
       sfx_tone(2, 180, 3);
       return;
     }
@@ -447,7 +447,7 @@ static uint8_t hits(uint8_t ax, uint8_t ay, uint8_t bx, uint8_t by) {
   return (uint8_t)((dx < 8) && (dy < 8));
 }
 
-/* ── GAME LOGIC (clay) — start a run / end a run ── */
+/* ── GAME LOGIC (clay) - start a run / end a run ── */
 static void start_game(uint8_t players) {
   uint8_t i;
   two_player = players;
@@ -471,10 +471,10 @@ static void game_over(void) {
   }
   sfx_noise(20);
   state = ST_OVER;
-  over_pending = 1;          /* text is drawn next vblank — not mid-frame */
+  over_pending = 1;          /* text is drawn next vblank - not mid-frame */
 }
 
-/* ── GAME LOGIC (clay) — per-player update ── */
+/* ── GAME LOGIC (clay) - per-player update ── */
 static void update_ship(uint8_t p, uint8_t pad) {
   if (!ship_alive[p]) return;
   if ((pad & JOY_LEFT)  && ship_x[p] > 8)            ship_x[p] = (uint8_t)(ship_x[p] - 2);
@@ -489,7 +489,7 @@ static void update_ship(uint8_t p, uint8_t pad) {
 }
 
 /* Stage the SAT shadow for this frame. Inactive slots park at Y=$E0 (below
- * the 192-line area). NEVER park at Y=$D0 — that's the SAT terminator: the
+ * the 192-line area). NEVER park at Y=$D0 - that's the SAT terminator: the
  * VDP stops scanning at the first $D0 and every later slot vanishes. */
 static void stage_sprites(void) {
   uint8_t i;
@@ -504,10 +504,10 @@ static void stage_sprites(void) {
 void main(void) {
   uint8_t i, pad, pad2, prev_pad = 0;
 
-  /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
    * Init order: VDP regs (display off) → palette → tiles → name table →
    * SAT → R10 → display on (which also enables the frame IRQ) → EI. The
-   * one hard rule: EI comes LAST, after every register is in place — the
+   * one hard rule: EI comes LAST, after every register is in place - the
    * crt0 boots with DI and the FIRST halt would hang forever if interrupts
    * were never enabled. */
   sms_vdp_init();                    /* R0=0x36 already has IE1 (line IRQ) set */
@@ -521,17 +521,17 @@ void main(void) {
   music_play(0);
 
   /* R10 = SPLIT_LINE arms the line counter: IRQ at the last bar line. Set
-   * once — it reloads itself every underflow. */
+   * once - it reloads itself every underflow. */
   sms_vdp_write_reg(10, SPLIT_LINE);
 
-  hiscore = hiscore_load();          /* cart RAM if present — else 0 */
+  hiscore = hiscore_load();          /* cart RAM if present - else 0 */
   state = ST_TITLE;
   paint_title();
   __asm__("ei");                     /* interrupts live from here on */
 
   for (;;) {
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: button 1 = 1P, button 2 = 2P co-op ── */
+      /* ── GAME LOGIC (clay) - title: button 1 = 1P, button 2 = 2P co-op ── */
       wait_vblank();
       sfx_update();
       music_update();
@@ -545,7 +545,7 @@ void main(void) {
     if (state == ST_OVER) {
       /* Freeze the final frame; button 1 or 2 returns to the title. */
       wait_vblank();
-      if (over_pending) {            /* deferred draw — now we're in vblank */
+      if (over_pending) {            /* deferred draw - now we're in vblank */
         over_pending = 0;
         text_draw(11, 11, "GAME OVER");
         draw_hud();                  /* show the (possibly new) hi-score */
@@ -568,12 +568,12 @@ void main(void) {
      * vblank; logic runs while the VDP draws the field.
      *
      * BUDGET FOOTGUN: everything between wait_vblank() and wait_split()
-     * must finish before the line IRQ at line 23 — vblank (70 lines) + the
+     * must finish before the line IRQ at line 23 - vblank (70 lines) + the
      * HUD strip (23) ≈ 21k cycles. The SAT upload eats ~7k of that. An
      * unconditional draw_hud() here (10 software 16-bit divisions for the
      * digits) blew the budget EVERY frame: the seam slipped to a later
      * reload of the line counter and the top of the starfield rendered
-     * unscrolled in jittery stripes. Hence the dirty flag — the HUD only
+     * unscrolled in jittery stripes. Hence the dirty flag - the HUD only
      * redraws on the frame after the score/lives actually changed. */
     wait_vblank();
     sms_sat_upload();                /* shadow SAT staged at end of last frame */
@@ -583,7 +583,7 @@ void main(void) {
     }
     sfx_update();
     music_update();
-    wait_split();                    /* the line-interrupt split — every frame */
+    wait_split();                    /* the line-interrupt split - every frame */
 
     /* ── GAME LOGIC (clay) from here down ── */
     pad  = sms_joypad_read();
@@ -655,7 +655,7 @@ void main(void) {
       spawn_enemy();
     }
 
-    /* Stage the SAT shadow NOW (RAM only — cheap, any time); the actual
+    /* Stage the SAT shadow NOW (RAM only - cheap, any time); the actual
      * VRAM upload waits for the next vblank at the top of the loop. */
     stage_sprites();
   }

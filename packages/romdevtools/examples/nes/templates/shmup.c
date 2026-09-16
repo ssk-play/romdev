@@ -1,18 +1,18 @@
-/* ── shmup.c — NES vertical shooter (complete example game) ──────────────────
+/* ── shmup.c - NES vertical shooter (complete example game) ──────────────────
  *
- * A COMPLETE, working game — title screen, 1P and 2P co-op modes, lives,
+ * A COMPLETE, working game - title screen, 1P and 2P co-op modes, lives,
  * score + persistent hi-score (battery SRAM), music + SFX, and the NES's
  * signature sprite-0-hit split (fixed HUD bar over a drifting starfield).
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented NES footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented NES footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — enemy patterns, scoring, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - enemy patterns, scoring, tuning, art: reshape freely.
  *
  * What depends on what:
- *   nes_runtime.{h,c} — rendering/input/sound/text/hi-score library.
- *   chr-ram-runtime.crt0.s — boot + NMI + iNES header (BATTERY bit feeds
+ *   nes_runtime.{h,c} - rendering/input/sound/text/hi-score library.
+ *   chr-ram-runtime.crt0.s - boot + NMI + iNES header (BATTERY bit feeds
  *     hiscore_load/save). Load-bearing; edit with TROUBLESHOOTING open.
  *
  * Frame budget (NTSC, 60fps): the whole update (2 ships × 6 bullets × 6
@@ -21,13 +21,13 @@
 
 #include "nes_runtime.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "NOVA SENTRY"
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Tile art. Each 8x8 tile = 16 bytes: 8 plane-0 rows then 8 plane-1 rows
- * (2bpp — plane0-only pixels use colour 1, both planes = colour 3). */
+ * (2bpp - plane0-only pixels use colour 1, both planes = colour 3). */
 static const uint8_t tile_blank[16] = { 0 };
 static const uint8_t tile_ship[16] = {
   0x18, 0x3C, 0x7E, 0xFF, 0xFF, 0x7E, 0x3C, 0x18,
@@ -41,7 +41,7 @@ static const uint8_t tile_enemy[16] = {
   0x81, 0x42, 0x24, 0xFF, 0xFF, 0x24, 0x42, 0x81,
   0,    0,    0,    0,    0,    0,    0,    0,
 };
-/* Starfield BG tiles (BACKGROUND pattern table $1000 — separate from the
+/* Starfield BG tiles (BACKGROUND pattern table $1000 - separate from the
  * sprite table at $0000; the runtime's PPUCTRL setup makes that split). */
 static const uint8_t tile_dust[16] = {
   0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA,
@@ -55,7 +55,7 @@ static const uint8_t tile_brite[16] = {
   0x00, 0x00, 0x10, 0x38, 0x10, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x10, 0x38, 0x10, 0x00, 0x00, 0x00,
 };
-/* A solid tile for the HUD bar — sprite 0 must overlap an OPAQUE BG pixel
+/* A solid tile for the HUD bar - sprite 0 must overlap an OPAQUE BG pixel
  * for the sprite-0 hit to fire (see the split idiom below). */
 static const uint8_t tile_hudbar[16] = {
   0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -79,8 +79,8 @@ static const uint8_t palette[32] = {
   0x0F, 0x2A, 0x1A, 0x0A,
 };
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * Object pools — fixed slots, no allocation (there is no heap worth having
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * Object pools - fixed slots, no allocation (there is no heap worth having
  * on a 1.79MHz CPU with 2KB of work RAM). */
 #define MAX_BULLETS 6
 #define MAX_ENEMIES 6
@@ -93,11 +93,11 @@ static const uint8_t palette[32] = {
 #define ENEMY_PAL    2
 #define START_LIVES  3
 /* HUD layout (mind the OVERSCAN: most NTSC displays/cores crop the top 8
- * scanlines, so nametable row 0 is invisible — never put text there):
- *   row 0 — blank (cropped by overscan)
- *   row 1 — HUD text (LV / SC / HI)
- *   row 2 — solid bar: the visual divider AND sprite 0's opaque anchor
- *   row 3+ — the scrolling playfield */
+ * scanlines, so nametable row 0 is invisible - never put text there):
+ *   row 0 - blank (cropped by overscan)
+ *   row 1 - HUD text (LV / SC / HI)
+ *   row 2 - solid bar: the visual divider AND sprite 0's opaque anchor
+ *   row 3+ - the scrolling playfield */
 #define HUD_ROWS     3
 
 static uint8_t bullet_active[MAX_BULLETS];
@@ -117,13 +117,13 @@ static uint8_t spawn_timer;
 static uint8_t scroll_x;         /* starfield drift (split-scrolled below HUD) */
 static uint16_t rng = 0xACE1;
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static uint8_t state;
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call) ── */
 static uint8_t random8(void) {
   uint16_t r = rng;
   r ^= r << 7;
@@ -170,36 +170,36 @@ static uint8_t hits(uint8_t ax, uint8_t ay, uint8_t bx, uint8_t by) {
   return (dx < 8) && (dy < 8);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * Sprite-0-hit split scroll — THE classic NES technique (the fixed
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * Sprite-0-hit split scroll - THE classic NES technique (the fixed
  * status bar over a scrolling field in countless NES classics). The PPU has ONE scroll for the whole
  * frame; to keep the HUD fixed while the playfield scrolls, you change the
  * scroll MID-FRAME, and sprite 0 is your timing signal:
  *
  *   1. Sprite 0 (the FIRST sprite staged each frame) sits inside the HUD,
  *      overlapping an OPAQUE background pixel (our solid HUD bar tile).
- *   2. The NMI commits scroll (0,0) at vblank — the HUD renders unscrolled.
+ *   2. The NMI commits scroll (0,0) at vblank - the HUD renders unscrolled.
  *   3. After ppu_wait_nmi(), spin on PPUSTATUS bit 6: it sets at the exact
  *      pixel where sprite 0's opaque pixel overlaps opaque background.
- *   4. THEN write the playfield scroll to PPUSCROLL — everything below the
+ *   4. THEN write the playfield scroll to PPUSCROLL - everything below the
  *      HUD renders with the new scroll.
  *
  * Requires: sprite 0 staged FIRST (oam_spr call order = OAM order), an
  *   opaque BG pixel under it, ppu_scroll(0,0) left as the frame scroll, and
  *   this poll running EVERY frame (miss a frame and the field jumps).
  * Mid-frame X-scroll needs only the two PPUSCROLL writes below. (Mid-frame
- *   Y needs the 4-write $2006/$2005 dance — see TROUBLESHOOTING before
+ *   Y needs the 4-write $2006/$2005 dance - see TROUBLESHOOTING before
  *   attempting; X covers the HUD-over-scrolling-field pattern.)
- * The spin costs a few scanlines of CPU each frame — budget for it. */
+ * The spin costs a few scanlines of CPU each frame - budget for it. */
 #define PPUSTATUS_REG (*(volatile uint8_t *)0x2002)
 #define PPUSCROLL_REG (*(volatile uint8_t *)0x2005)
 static void split_after_hud(void) {
   uint8_t timeout = 240;
   /* FOOTGUN: the hit flag from the frame JUST RENDERED stays set all the
-   * way through vblank — it only clears at the next pre-render line. We're
+   * way through vblank - it only clears at the next pre-render line. We're
    * called right after ppu_wait_nmi() (i.e. inside vblank), so polling for
    * "set" alone can exit INSTANTLY on the stale flag and the PPUSCROLL
-   * write lands during vblank — scrolling the WHOLE next frame, HUD
+   * write lands during vblank - scrolling the WHOLE next frame, HUD
    * included (a subtle shear that looks like HUD drift). The classic fix
    * is the two-phase poll: wait for the stale flag to CLEAR (pre-render),
    * then wait for THIS frame's hit to SET. */
@@ -215,7 +215,7 @@ static void split_after_hud(void) {
 }
 
 /* Stage sprite 0 = an 8x8 opaque block over the HUD BAR row (OAM y is
- * scanline-1, so y=16 renders scanlines 17-24 = nametable row 2 = the bar —
+ * scanline-1, so y=16 renders scanlines 17-24 = nametable row 2 = the bar -
  * opaque-on-opaque, so the hit fires INSIDE the bar and the scroll change
  * lands below it, never shearing the text row). Must be the FIRST oam_spr
  * call of the frame (OAM order = call order; the split needs index 0). */
@@ -223,7 +223,7 @@ static void stage_sprite0(void) {
   oam_spr(4, (HUD_ROWS - 1) * 8, TILE_BULLET, 1);
 }
 
-/* ── GAME LOGIC (clay) — HUD text (queued writes; NMI commits next vblank) ── */
+/* ── GAME LOGIC (clay) - HUD text (queued writes; NMI commits next vblank) ── */
 static void draw_hud(void) {
   text_draw_u16(0, 9, 1, score);
   text_draw_u16(0, 22, 1, hiscore);
@@ -236,9 +236,9 @@ static void draw_hud_labels(void) {
   text_draw(0, 16, 1, "HI");
 }
 
-/* ── GAME LOGIC (clay) — the title screen ──────────────────────────────────
+/* ── GAME LOGIC (clay) - the title screen ──────────────────────────────────
  * Painted with the PPU OFF (text_draw_unsafe = raw VRAM writes; the queued
- * variant would deadlock with rendering disabled — see TROUBLESHOOTING). */
+ * variant would deadlock with rendering disabled - see TROUBLESHOOTING). */
 static void paint_title(void) {
   uint8_t r, c;
   ppu_off();
@@ -262,7 +262,7 @@ static void paint_title(void) {
   ppu_on_all();
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void paint_field(void) {
   uint8_t r, c, tile;
   ppu_off();
@@ -305,7 +305,7 @@ static void start_game(uint8_t players) {
 static void game_over(void) {
   if (score > hiscore) {
     hiscore = score;
-    /* ── HARDWARE IDIOM (load-bearing) — persists via battery PRG-RAM at
+    /* ── HARDWARE IDIOM (load-bearing) - persists via battery PRG-RAM at
      * $6000; works because the crt0's iNES header sets the BATTERY bit.
      * See nes_runtime.c for the magic+checksum layout. ── */
     hiscore_save(hiscore);
@@ -314,7 +314,7 @@ static void game_over(void) {
   text_draw(0, 11, 14, "GAME OVER");
 }
 
-/* ── GAME LOGIC (clay) — per-player update ── */
+/* ── GAME LOGIC (clay) - per-player update ── */
 static void update_ship(uint8_t p) {
   uint8_t pad = pad_poll(p);
   if (!ship_alive[p]) return;
@@ -332,12 +332,12 @@ static void update_ship(uint8_t p) {
 void main(void) {
   uint8_t i, pad, prev_pad = 0;
 
-  /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
    * Init order: PPU off → CHR upload → palette → nametable (raw writes) →
    * OAM clear → rendering on. CHR/palette/nametable writes REQUIRE the PPU
    * off (raw $2007 traffic during rendering corrupts the address latch
    * mid-frame). The runtime's ppu_off/ppu_on_all pair owns the PPUCTRL/
-   * PPUMASK bits — don't poke those registers directly alongside it. */
+   * PPUMASK bits - don't poke those registers directly alongside it. */
   ppu_off();
   chr_ram_upload(0x0000, tile_blank,  16);
   chr_ram_upload(0x0010, tile_ship,   16);
@@ -351,13 +351,13 @@ void main(void) {
   palette_load(palette);
   sound_init();
 
-  hiscore = hiscore_load();   /* battery SRAM — 0 on first boot */
+  hiscore = hiscore_load();   /* battery SRAM - 0 on first boot */
   state = ST_TITLE;
   paint_title();
 
   for (;;) {
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: A = 1P, B = 2P co-op ── */
+      /* ── GAME LOGIC (clay) - title: A = 1P, B = 2P co-op ── */
       oam_clear();
       ppu_wait_nmi();
       sound_music_tick();
@@ -387,11 +387,11 @@ void main(void) {
 
     /* ── ST_PLAY ─────────────────────────────────────────────────────── */
 
-    /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
      * Stage ALL sprites BEFORE ppu_wait_nmi(). The NMI DMAs shadow OAM →
      * real OAM at the START of vblank, copying whatever shadow OAM holds AT
      * THAT MOMENT. Stage-then-wait; flipping it shows stale/empty sprites.
-     * Sprite 0 (the split marker) must be staged FIRST — OAM order is
+     * Sprite 0 (the split marker) must be staged FIRST - OAM order is
      * oam_spr call order, and the split idiom needs it at index 0. */
     oam_clear();
     stage_sprite0();
@@ -403,7 +403,7 @@ void main(void) {
       if (enemy_active[i]) oam_spr(enemy_x[i], enemy_y[i], TILE_ENEMY, ENEMY_PAL);
 
     ppu_wait_nmi();
-    split_after_hud();          /* the sprite-0 split — every frame */
+    split_after_hud();          /* the sprite-0 split - every frame */
     sound_music_tick();
 
     /* ── GAME LOGIC (clay) from here down ── */

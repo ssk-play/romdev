@@ -1,10 +1,10 @@
-// R54 — GB agent friction-feedback fixes (round 26).
+// R54 - GB agent friction-feedback fixes (round 26).
 //
 // Driven by agent friction feedback on the GB scaffold (15 specific
 // items). This test covers every item that has a runtime/code fix:
 //
 //   #1  patchGbHeader now fills $0134-$014C (cart type, ROM size, CGB
-//       flag, etc.) — not just logo + checksums. CGB flag defaults to
+//       flag, etc.) - not just logo + checksums. CGB flag defaults to
 //       $00 (DMG) on `.gb`, $80 (CGB-aware) on `.gbc`.
 //   #2  shadow_oam is pinned to $C100 with SDCC's `__at` so OAM DMA
 //       lands on the right page. Previously it floated to wherever
@@ -16,14 +16,14 @@
 //   #4  Preflight lint message text reflects the actual SDCC port
 //       (sm83 on GB/GBC, z80 on SMS/GG/MSX/Coleco/ZXSpectrum).
 //   #5  Bundled runtime files no longer use C99 inline for-loop
-//       counters — they pass their own lint now.
+//       counters - they pass their own lint now.
 //   #6  GB default.c is a DMG starter (uses BGP) and labeled GB,
 //       not "GBC starter using BCPS".
 //   #9  getRenderingContext sessionKey bug fixed (was throwing
 //       'sessionKey is not defined' on GB).
 //   #10 readMemory error messages are platform-aware and suggest the
 //       correct sibling region (gb_vram instead of generic video_ram).
-//   #11 inspectBackgroundMap wired for GB/GBC — returns a 256×256 PNG
+//   #11 inspectBackgroundMap wired for GB/GBC - returns a 256×256 PNG
 //       of the BG (or Window) plane.
 //   #12 SDCC_GOTCHAS.md documents the volatile-VRAM-store hazard.
 //   #13 wait_vblank now has a HALT-driven path via enable_vblank_irq().
@@ -91,7 +91,7 @@ test("R54 #1: patchGbHeader honours per-cart overrides (cartType / romSize / etc
 test("R54 #1: GB + GBC patch-header.js are byte-identical (mirror discipline)", async () => {
   const gb  = await readSrc("src/platforms/gb/lib/c/patch-header.js");
   const gbc = await readSrc("src/platforms/gbc/lib/c/patch-header.js");
-  assert.equal(gb, gbc, "GB and GBC patch-header.js must stay byte-identical — independent trees, mirrored content");
+  assert.equal(gb, gbc, "GB and GBC patch-header.js must stay byte-identical - independent trees, mirrored content");
 });
 
 // ─── #2 shadow_oam page alignment ──────────────────────────────────
@@ -107,7 +107,7 @@ test("R54 #2: shadow_oam in gb_runtime.c is pinned to $C100 with __at", async ()
   }
 });
 
-test("R54 #2: end-to-end — GB build links shadow_oam at $C100", { timeout: 120000 }, async () => {
+test("R54 #2: end-to-end - GB build links shadow_oam at $C100", { timeout: 120000 }, async () => {
   const { buildForPlatform } = await import("../src/toolchains/index.js");
   const rt_c = await readSrc("src/platforms/gb/lib/c/gb_runtime.c");
   const rt_h = await readSrc("src/platforms/gb/lib/c/gb_runtime.h");
@@ -188,7 +188,7 @@ test("R54 #6: GB default.c is a DMG starter using BGP (not labeled GBC, no BCPS 
     "GB default.c must not call itself a GBC starter");
   assert.match(src, /minimal Game Boy \(DMG\) starter/i,
     "GB default.c should label itself as a DMG starter");
-  // Strip comments before checking that BCPS isn't ACTIVELY USED — we
+  // Strip comments before checking that BCPS isn't ACTIVELY USED - we
   // allow the doc-comment to mention BCPS as a "don't do this" hint
   // but the code body itself must not write to it.
   const stripped = src
@@ -211,7 +211,7 @@ test("R54 #6: GBC default.c is distinctly the GBC starter (uses BCPS, calls out 
 test("R54 #9: getRenderingContextCore accepts sessionKey as a parameter", async () => {
   const { getRenderingContextCore } = await import("../src/mcp/tools/rendering-context.js");
   assert.equal(typeof getRenderingContextCore, "function", "export is present");
-  // We can't easily invoke it without a loaded host — just check the
+  // We can't easily invoke it without a loaded host - just check the
   // function signature destructures sessionKey. Read the source.
   const src = await readSrc("src/mcp/tools/rendering-context.js");
   assert.match(src, /getRenderingContextCore\(\s*\{\s*platform[^}]*sessionKey[^}]*\}/,
@@ -294,7 +294,7 @@ test("R54 #13: enable_vblank_irq + HALT-driven wait_vblank are wired in gb_runti
   }
 });
 
-test("R54 #13: end-to-end — GB ROM linking enable_vblank_irq compiles", { timeout: 120000 }, async () => {
+test("R54 #13: end-to-end - GB ROM linking enable_vblank_irq compiles", { timeout: 120000 }, async () => {
   const { buildForPlatform } = await import("../src/toolchains/index.js");
   const rt_c = await readSrc("src/platforms/gb/lib/c/gb_runtime.c");
   const rt_h = await readSrc("src/platforms/gb/lib/c/gb_runtime.h");
@@ -329,7 +329,7 @@ test("R54: GB + GBC runtime files stay byte-identical (independent trees, mirror
 // ─── #8 buildSourceWithDebug supports SDCC targets ─────────────────
 
 // ─── #14 GB audio + crt0-actually-links (the root cause we found
-//     while diagnosing #14 — pre-r54 the gb_crt0.s was passed as raw
+//     while diagnosing #14 - pre-r54 the gb_crt0.s was passed as raw
 //     .s text to sdld which silently rejected the malformed "rel" and
 //     fell back to SDCC's stock crt0. The custom init + IRQ vectors
 //     never linked → NR50/NR51 writes never made it to a powered APU.
@@ -348,7 +348,7 @@ test("R54 #14: gb_crt0.s is actually assembled + linked (init symbol present in 
   assert.equal(r.ok, true, `build failed at ${r.stage}: ${(r.log || "").slice(-500)}`);
   // The crt0's `init` symbol must appear in the map at $0150 (start of _CODE).
   const initLine = (r.symbols || "").split(/\r?\n/).find((l) => /\binit\b/.test(l) && !/init_static_/.test(l));
-  assert.ok(initLine, "gb_crt0.s's init symbol not in map — crt0 didn't link (sdld silently rejected the .s text)");
+  assert.ok(initLine, "gb_crt0.s's init symbol not in map - crt0 didn't link (sdld silently rejected the .s text)");
   // ROM bytes: entry at $0100 must be `00 c3 50 01` (nop; jp $0150 = init).
   // Pre-r54: $0100 was the linker pad ($FF) and only stock crt0 ran.
   assert.equal(r.binary[0x100], 0x00, "entry byte 0 must be NOP (gb_crt0.s entry point)");
@@ -432,7 +432,7 @@ test("R54 #15: screenshot after fresh loadMedia returns a clean DMG framebuffer 
   assert.equal(ss.width, 160, "GB screenshot should be 160px wide");
   assert.equal(ss.height, 144, "GB screenshot should be 144px tall");
   const png = PNG.sync.read(Buffer.from(ss.pngBase64, "base64"));
-  // Sample center pixel — should be a real DMG color (light grey-greenish-white).
+  // Sample center pixel - should be a real DMG color (light grey-greenish-white).
   // Pre-r54 / pre-crt0-fix, agents reported "pinkish pale" which suggests
   // either an uninitialized framebuffer or CGB-mode-rendering-a-DMG-ROM.
   // Real DMG default render is somewhere in the green-greyscale range; we
@@ -441,7 +441,7 @@ test("R54 #15: screenshot after fresh loadMedia returns a clean DMG framebuffer 
   const o = (cy * png.width + cx) * 4;
   const [pr, pg, pb] = [png.data[o], png.data[o+1], png.data[o+2]];
   const pinkish = pr > pg + 40 && pr > pb + 40;
-  assert.ok(!pinkish, `center pixel ${pr},${pg},${pb} looks pinkish — pre-r54 stale-framebuffer symptom`);
+  assert.ok(!pinkish, `center pixel ${pr},${pg},${pb} looks pinkish - pre-r54 stale-framebuffer symptom`);
 });
 
 test("R54 #14: buildZ80C auto-assembles .s crt0 source (no longer requires pre-assembled .rel)", async () => {

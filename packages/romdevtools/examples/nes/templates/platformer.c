@@ -1,27 +1,27 @@
-/* ── platformer.c — NES side-scrolling platformer (complete example game) ────
+/* ── platformer.c - NES side-scrolling platformer (complete example game) ────
  *
- * LEDGE LEAPER — a COMPLETE, working game: title screen, 1P mode and 2P
+ * LEDGE LEAPER - a COMPLETE, working game: title screen, 1P mode and 2P
  * ALTERNATING-TURNS mode (arcade-classic: players swap on death; each player
  * has their own score and own 3 lives; player 2 plays on CONTROLLER 2),
  * coins + distance scoring, persistent hi-score (battery SRAM), music +
  * SFX, and the NES's signature sprite-0-hit split: a fixed HUD strip over
  * a horizontally scrolling level.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented NES footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented NES footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — level layout, physics tuning, scoring, art: reshape
+ *   GAME LOGIC (clay) - level layout, physics tuning, scoring, art: reshape
  *     freely.
  *
  * What depends on what:
- *   nes_runtime.{h,c} — rendering/input/sound/text/hi-score library.
- *   chr-ram-runtime.crt0.s — boot + NMI + iNES header (BATTERY bit feeds
+ *   nes_runtime.{h,c} - rendering/input/sound/text/hi-score library.
+ *   chr-ram-runtime.crt0.s - boot + NMI + iNES header (BATTERY bit feeds
  *     hiscore_load/save). Load-bearing; edit with TROUBLESHOOTING open.
  *
  * The level: a 256-px-wide COLUMN MAP (ground height + one-way platforms +
  * pits) painted IDENTICALLY into both nametables, so the 8-bit X scroll
- * wraps seamlessly — an endless looping run of pits, platforms, coins and
+ * wraps seamlessly - an endless looping run of pits, platforms, coins and
  * spikes. Coins/spikes are sprites that drift with the scroll (world-
  * anchored while on screen, respawning at the right edge).
  *
@@ -33,13 +33,13 @@
 
 #include "nes_runtime.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "LEDGE LEAPER"
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Tile art. Each 8x8 tile = 16 bytes: 8 plane-0 rows then 8 plane-1 rows
- * (2bpp — plane0-only pixels use colour 1, both planes = colour 3). */
+ * (2bpp - plane0-only pixels use colour 1, both planes = colour 3). */
 static const uint8_t tile_blank[16] = { 0 };
 static const uint8_t tile_player_idle[16] = {
   0x3C, 0x7E, 0xFF, 0xFF, 0xFF, 0x7E, 0x66, 0x66,  /* round body + legs */
@@ -57,7 +57,7 @@ static const uint8_t tile_spike[16] = {
   0x00, 0x18, 0x18, 0x3C, 0x3C, 0x7E, 0x7E, 0xFF,  /* ground spike      */
   0,    0,    0,    0,    0,    0,    0,    0,
 };
-/* Sprite 0's marker block — fully OPAQUE (the sprite-0 hit fires on
+/* Sprite 0's marker block - fully OPAQUE (the sprite-0 hit fires on
  * opaque-sprite-over-opaque-BG, colour is irrelevant). Its palette below
  * makes it the same brown as the HUD bar, so it's invisible in the bar. */
 static const uint8_t tile_mark[16] = {
@@ -65,7 +65,7 @@ static const uint8_t tile_mark[16] = {
   0,    0,    0,    0,    0,    0,    0,    0,
 };
 
-/* BG tiles (BACKGROUND pattern table $1000 — separate from the sprite
+/* BG tiles (BACKGROUND pattern table $1000 - separate from the sprite
  * table at $0000; the runtime's PPUCTRL setup makes that split). */
 static const uint8_t bg_tile_cloud[16] = {
   0x00, 0x18, 0x3C, 0x7E, 0x7E, 0x00, 0x00, 0x00,  /* puffy cloud (idx1) */
@@ -79,7 +79,7 @@ static const uint8_t bg_tile_grass[16] = {
   0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  /* top 2 rows idx3   */
   0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,  /* rest idx2 (dirt)  */
 };
-/* A solid tile for the HUD bar — sprite 0 must overlap an OPAQUE BG pixel
+/* A solid tile for the HUD bar - sprite 0 must overlap an OPAQUE BG pixel
  * for the sprite-0 hit to fire (see the split idiom below). */
 static const uint8_t bg_tile_hudbar[16] = {
   0,    0,    0,    0,    0,    0,    0,    0,
@@ -92,7 +92,7 @@ static const uint8_t bg_tile_hudbar[16] = {
 
 static const uint8_t palette[32] = {
   /* BG: ALL FOUR sub-palettes identical (sky, cloud white, dirt brown,
-   * grass green). That makes stale attribute-table bits harmless — power-on
+   * grass green). That makes stale attribute-table bits harmless - power-on
    * CIRAM is garbage, and identical sub-palettes mean any attribute value
    * picks the same colours. We clear the attribute tables anyway (belt and
    * braces, see paint_field). */
@@ -100,21 +100,21 @@ static const uint8_t palette[32] = {
   0x21, 0x30, 0x17, 0x2A,
   0x21, 0x30, 0x17, 0x2A,
   0x21, 0x30, 0x17, 0x2A,
-  /* The universal backdrop ($3F00) is MIRRORED at $3F10 — sprite palette 0
+  /* The universal backdrop ($3F00) is MIRRORED at $3F10 - sprite palette 0
    * colour 0. palette_load writes all 32 bytes in order, so this byte is
    * the LAST write to the mirror and wins: keep it equal to the BG backdrop
    * (sky blue) or the whole sky changes colour. (Sprite colour 0 is
-   * transparent regardless — this never affects how sprites draw.) */
-  0x21, 0x16, 0x30, 0x27,  /* sp0: player — red body, white/orange trim   */
-  0x0F, 0x17, 0x17, 0x17,  /* sp1: sprite-0 marker — HUD-bar brown camo   */
-  0x0F, 0x16, 0x06, 0x30,  /* sp2: spikes — danger red                    */
-  0x0F, 0x28, 0x27, 0x30,  /* sp3: coins — gold                           */
+   * transparent regardless - this never affects how sprites draw.) */
+  0x21, 0x16, 0x30, 0x27,  /* sp0: player - red body, white/orange trim   */
+  0x0F, 0x17, 0x17, 0x17,  /* sp1: sprite-0 marker - HUD-bar brown camo   */
+  0x0F, 0x16, 0x06, 0x30,  /* sp2: spikes - danger red                    */
+  0x0F, 0x28, 0x27, 0x30,  /* sp3: coins - gold                           */
 };
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * The level — a 32-column map; world x = (screen x + scroll) mod 256.
- *   ground_row[c] — nametable row of the ground's grass top, 0xFF = pit.
- *   plat_row[c]   — row of a one-way floating platform, 0 = none.
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * The level - a 32-column map; world x = (screen x + scroll) mod 256.
+ *   ground_row[c] - nametable row of the ground's grass top, 0xFF = pit.
+ *   plat_row[c]   - row of a one-way floating platform, 0 = none.
  * Rows are nametable rows (y = row*8). Playfield rows are 3..29. */
 #define NO_GROUND 0xFF
 static const uint8_t ground_row[32] = {
@@ -141,20 +141,20 @@ static const uint8_t plat_row[32] = {
 #define COIN_PAL         3
 
 /* HUD layout (mind the OVERSCAN: most NTSC displays/cores crop the top 8
- * scanlines, so nametable row 0 is invisible — never put text there):
- *   row 0 — blank (cropped by overscan)
- *   row 1 — HUD text (P# / lives / SC / HI)
- *   row 2 — solid bar: the visual divider AND sprite 0's opaque anchor
- *   row 3+ — the scrolling playfield
+ * scanlines, so nametable row 0 is invisible - never put text there):
+ *   row 0 - blank (cropped by overscan)
+ *   row 1 - HUD text (P# / lives / SC / HI)
+ *   row 2 - solid bar: the visual divider AND sprite 0's opaque anchor
+ *   row 3+ - the scrolling playfield
  * The HUD strip always renders with scroll (0,0) from nametable 0, so HUD
- * text lives ONLY in nametable 0 — it can never scroll into view twice. */
+ * text lives ONLY in nametable 0 - it can never scroll into view twice. */
 #define HUD_ROWS    3
 #define START_LIVES 3
 
-/* ── GAME LOGIC (clay) — physics + tuning ── */
+/* ── GAME LOGIC (clay) - physics + tuning ── */
 #define GRAVITY_Q44    1    /* +1/16 px per frame per frame                */
 #define JUMP_VEL_Q44 (-40)  /* launch vy (Q4.4) → ~50 px / ~6 tile apex    */
-#define MAX_VY_Q44    80    /* terminal velocity, 5 px/frame — MUST stay   *
+#define MAX_VY_Q44    80    /* terminal velocity, 5 px/frame - MUST stay   *
                              * under 6: the landing probe's 6-px window    *
                              * can't catch a faster fall (tunnelling)      */
 #define MOVE_SPEED     2    /* px/frame walk + scroll speed                */
@@ -165,18 +165,18 @@ static const uint8_t plat_row[32] = {
 #define NUM_SPIKES     2
 
 static uint8_t  px;                 /* player screen x                     */
-static uint16_t py_q44;             /* player y, Q4.4 fixed point — gravity
+static uint16_t py_q44;             /* player y, Q4.4 fixed point - gravity
                                      * adds <1 px/frame near the jump apex,
                                      * so we need sub-pixel precision      */
 static int8_t   vy_q44;
 static uint8_t  on_ground;
-static uint8_t  scroll_x;           /* level scroll — uint8 wraps at 256 = *
+static uint8_t  scroll_x;           /* level scroll - uint8 wraps at 256 = *
                                      * exactly one level loop (seamless)   */
 static uint8_t  dist_sub;           /* sub-counter: 64 px scrolled = +1 pt */
 static uint8_t  coin_x[NUM_COINS], coin_y[NUM_COINS];
 static uint8_t  spike_x[NUM_SPIKES], spike_active[NUM_SPIKES];
 
-/* Players: index 0 = P1 (controller 1), 1 = P2 (controller 2 — alternating
+/* Players: index 0 = P1 (controller 1), 1 = P2 (controller 2 - alternating
  * turns, arcade-classic style). Each has own score + own lives; the HUD shows the
  * CURRENT player's numbers. */
 static uint8_t  two_player;
@@ -187,14 +187,14 @@ static uint16_t hiscore;
 static uint8_t  turn_pause;         /* freeze frames after a turn change   */
 static uint16_t rng = 0xC0DE;
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static uint8_t state;
 static uint8_t prev_pad;
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call) ── */
 static uint8_t random8(void) {
   uint16_t r = rng;
   r ^= r << 7;
@@ -208,30 +208,30 @@ static uint8_t dist8(uint8_t a, uint8_t b) {
   return (a > b) ? (a - b) : (b - a);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * Sprite-0-hit split scroll — THE classic NES technique (the fixed
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * Sprite-0-hit split scroll - THE classic NES technique (the fixed
  * status bar over a scrolling field in countless NES classics). The PPU has ONE scroll for the whole
  * frame; to keep the HUD fixed while the playfield scrolls, you change the
  * scroll MID-FRAME, and sprite 0 is your timing signal:
  *
  *   1. Sprite 0 (the FIRST sprite staged each frame) sits inside the HUD,
  *      overlapping an OPAQUE background pixel (our solid HUD bar tile).
- *   2. The NMI commits scroll (0,0) at vblank — the HUD renders unscrolled.
+ *   2. The NMI commits scroll (0,0) at vblank - the HUD renders unscrolled.
  *   3. After ppu_wait_nmi(), poll PPUSTATUS bit 6 in TWO phases: first wait
  *      for it to CLEAR (the stale flag from the previous frame survives all
  *      of vblank and only clears at the pre-render line), then wait for it
- *      to SET — the exact pixel where sprite 0's opaque pixel overlaps
+ *      to SET - the exact pixel where sprite 0's opaque pixel overlaps
  *      opaque background.
- *   4. THEN write the playfield scroll to PPUSCROLL — everything below the
+ *   4. THEN write the playfield scroll to PPUSCROLL - everything below the
  *      HUD renders with the new scroll.
  *
  * Requires: sprite 0 staged FIRST (oam_spr call order = OAM order), an
  *   opaque BG pixel under it, ppu_scroll(0,0) left as the frame scroll, and
  *   this poll running EVERY frame (miss a frame and the field jumps).
  * Mid-frame X-scroll needs only the two PPUSCROLL writes below. (Mid-frame
- *   Y needs the 4-write $2006/$2005 dance — see TROUBLESHOOTING before
+ *   Y needs the 4-write $2006/$2005 dance - see TROUBLESHOOTING before
  *   attempting; X covers the HUD-over-scrolling-field pattern.)
- * The two-phase spin burns from vblank start to the hit scanline — about
+ * The two-phase spin burns from vblank start to the hit scanline - about
  * 35 scanlines of CPU every frame. Budget for it: your game logic gets the
  * rest of the visible frame, which is plenty for a game this size. */
 #define PPUSTATUS_REG (*(volatile uint8_t *)0x2002)
@@ -239,10 +239,10 @@ static uint8_t dist8(uint8_t a, uint8_t b) {
 static void split_after_hud(void) {
   uint8_t timeout = 240;
   /* FOOTGUN: the hit flag from the frame JUST RENDERED stays set all the
-   * way through vblank — it only clears at the next pre-render line. We're
+   * way through vblank - it only clears at the next pre-render line. We're
    * called right after ppu_wait_nmi() (i.e. inside vblank), so polling for
    * "set" alone exits INSTANTLY on the stale flag and the PPUSCROLL write
-   * lands during vblank — scrolling the WHOLE next frame, HUD included
+   * lands during vblank - scrolling the WHOLE next frame, HUD included
    * (the shear is subtle: it looks like the HUD "drifting"). The classic
    * fix is the two-phase poll: wait for the stale flag to CLEAR (the
    * pre-render line), then wait for THIS frame's hit to SET. */
@@ -258,7 +258,7 @@ static void split_after_hud(void) {
 }
 
 /* Stage sprite 0 = an 8x8 opaque block over the HUD BAR row (OAM y is
- * scanline-1, so y=16 renders scanlines 17-24 = nametable row 2 = the bar —
+ * scanline-1, so y=16 renders scanlines 17-24 = nametable row 2 = the bar -
  * opaque-on-opaque, so the hit fires INSIDE the bar and the scroll change
  * lands below it, never shearing the text row). Must be the FIRST oam_spr
  * call of the frame (OAM order = call order; the split needs index 0). */
@@ -266,7 +266,7 @@ static void stage_sprite0(void) {
   oam_spr(4, (HUD_ROWS - 1) * 8, TILE_MARK, MARK_PAL);
 }
 
-/* ── GAME LOGIC (clay) — HUD text (queued writes; NMI commits next vblank) ── */
+/* ── GAME LOGIC (clay) - HUD text (queued writes; NMI commits next vblank) ── */
 static void draw_hud(void) {
   tile_set(0, 1, 1, (uint8_t)(0x41 + cur_player));   /* '1' or '2'        */
   tile_set(0, 3, 1, 0x40 + p_lives[cur_player]);     /* lives as a digit  */
@@ -287,9 +287,9 @@ static void digits_unsafe(uint16_t ppu_addr, uint16_t v) {
   for (i = 0; i < 5; i++) vram_unsafe_set(ppu_addr + i, (uint8_t)(0x40 + d[4 - i]));
 }
 
-/* ── GAME LOGIC (clay) — the title screen ──────────────────────────────────
+/* ── GAME LOGIC (clay) - the title screen ──────────────────────────────────
  * Painted with the PPU OFF (text_draw_unsafe = raw VRAM writes; the queued
- * variant would deadlock with rendering disabled — see TROUBLESHOOTING). */
+ * variant would deadlock with rendering disabled - see TROUBLESHOOTING). */
 static void paint_title(void) {
   uint16_t a = 0x2000;
   uint8_t r, c, t;
@@ -313,7 +313,7 @@ static void paint_title(void) {
   ppu_on_all();
 }
 
-/* ── GAME LOGIC (clay) — paint the level from the column map ───────────────
+/* ── GAME LOGIC (clay) - paint the level from the column map ───────────────
  * Painted into BOTH nametables (vertical mirroring puts NT0 + NT1 side by
  * side = a 512-px canvas). Identical copies + a 256-px-periodic level make
  * the uint8 scroll wrap PERFECTLY seamless: the visible window always shows
@@ -357,7 +357,7 @@ static void paint_field(void) {
   draw_hud_labels();
 }
 
-/* ── GAME LOGIC (clay) — the game-over results screen ── */
+/* ── GAME LOGIC (clay) - the game-over results screen ── */
 static void paint_over(void) {
   uint16_t a = 0x2000;
   uint16_t i;
@@ -378,7 +378,7 @@ static void paint_over(void) {
   ppu_on_all();
 }
 
-/* ── GAME LOGIC (clay) — coins + spikes (sprite objects in the world) ── */
+/* ── GAME LOGIC (clay) - coins + spikes (sprite objects in the world) ── */
 static const uint8_t coin_heights[4] = { 184, 160, 128, 152 };
 static void respawn_coin(uint8_t i) {
   coin_x[i] = (uint8_t)(232 + (random8() & 15));   /* enter at the right  */
@@ -396,7 +396,7 @@ static void try_spawn_spike(uint8_t i) {
   spike_active[i] = 1;
 }
 
-/* ── GAME LOGIC (clay) — start a turn / a run ── */
+/* ── GAME LOGIC (clay) - start a turn / a run ── */
 static void begin_turn(void) {
   px = 24;
   py_q44 = (uint16_t)(GROUND_TOP - 8) << 4;
@@ -408,7 +408,7 @@ static void begin_turn(void) {
   coin_x[1] = 152; coin_y[1] = 160;
   coin_x[2] = 216; coin_y[2] = 128;
   spike_x[0] = 136; spike_active[0] = 1;   /* both anchored on ground at  */
-  spike_x[1] = 224; spike_active[1] = 1;   /* scroll 0 — see ground_row   */
+  spike_x[1] = 224; spike_active[1] = 1;   /* scroll 0 - see ground_row   */
   turn_pause = 48;                         /* "P1/P2 ready" breather      */
   prev_pad = 0xFF;                         /* swallow held buttons across *
                                             * the turn change             */
@@ -433,7 +433,7 @@ static void game_over(void) {
   if (two_player && p_score[1] > best) best = p_score[1];
   if (best > hiscore) {
     hiscore = best;
-    /* ── HARDWARE IDIOM (load-bearing) — persists via battery PRG-RAM at
+    /* ── HARDWARE IDIOM (load-bearing) - persists via battery PRG-RAM at
      * $6000; works because the crt0's iNES header sets the BATTERY bit.
      * See nes_runtime.c for the magic+checksum layout. ── */
     hiscore_save(hiscore);
@@ -442,7 +442,7 @@ static void game_over(void) {
   paint_over();
 }
 
-/* ── GAME LOGIC (clay) — death + alternating-turn handoff ── */
+/* ── GAME LOGIC (clay) - death + alternating-turn handoff ── */
 static void kill_player(void) {
   uint8_t other;
   sound_play_noise(12, 12, 14);
@@ -458,9 +458,9 @@ static void kill_player(void) {
   begin_turn();
 }
 
-/* ── GAME LOGIC (clay) — landing probe against the column map ──────────────
+/* ── GAME LOGIC (clay) - landing probe against the column map ──────────────
  * One-way platforms, classic NES style: only catch the player while FALLING
- * through a narrow window at the surface. The window is 6 px tall —
+ * through a narrow window at the surface. The window is 6 px tall -
  * top-1 (the standing snap parks feet at top, and gravity's sub-pixel
  * trickle doesn't move the integer Y every frame; without the -1 slack the
  * player "stands" with on_ground=0 most frames, so jumps only register on
@@ -485,12 +485,12 @@ void main(void) {
   uint8_t i, pad, delta, y8, feet, c0, c1, top, killed;
   uint8_t player_y;
 
-  /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
    * Init order: PPU off → CHR upload → palette → nametable (raw writes) →
    * OAM clear → rendering on. CHR/palette/nametable writes REQUIRE the PPU
    * off (raw $2007 traffic during rendering corrupts the address latch
    * mid-frame). The runtime's ppu_off/ppu_on_all pair owns the PPUCTRL/
-   * PPUMASK bits — don't poke those registers directly alongside it. */
+   * PPUMASK bits - don't poke those registers directly alongside it. */
   ppu_off();
   chr_ram_upload(0x0000, tile_blank,       16);
   chr_ram_upload(0x0010, tile_player_idle, 16);
@@ -506,13 +506,13 @@ void main(void) {
   palette_load(palette);
   sound_init();
 
-  hiscore = hiscore_load();   /* battery SRAM — 0 on first boot */
+  hiscore = hiscore_load();   /* battery SRAM - 0 on first boot */
   state = ST_TITLE;
   paint_title();
 
   for (;;) {
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: A = 1P, B = 2P alternating turns ── */
+      /* ── GAME LOGIC (clay) - title: A = 1P, B = 2P alternating turns ── */
       oam_clear();
       ppu_wait_nmi();
       sound_music_tick();
@@ -540,11 +540,11 @@ void main(void) {
 
     /* ── ST_PLAY ─────────────────────────────────────────────────────── */
 
-    /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
      * Stage ALL sprites BEFORE ppu_wait_nmi(). The NMI DMAs shadow OAM →
      * real OAM at the START of vblank, copying whatever shadow OAM holds AT
      * THAT MOMENT. Stage-then-wait; flipping it shows stale/empty sprites.
-     * Sprite 0 (the split marker) must be staged FIRST — OAM order is
+     * Sprite 0 (the split marker) must be staged FIRST - OAM order is
      * oam_spr call order, and the split idiom needs it at index 0. */
     player_y = (uint8_t)(py_q44 >> 4);
     oam_clear();
@@ -559,7 +559,7 @@ void main(void) {
       if (spike_active[i]) oam_spr(spike_x[i], SPIKE_Y, TILE_SPIKE, SPIKE_PAL);
 
     ppu_wait_nmi();
-    split_after_hud();          /* the sprite-0 split — every frame */
+    split_after_hud();          /* the sprite-0 split - every frame */
     sound_music_tick();
 
     if (turn_pause) {           /* freeze gameplay, keep the frame honest */
@@ -568,9 +568,9 @@ void main(void) {
     }
 
     /* ── GAME LOGIC (clay) from here down ──────────────────────────────
-     * Input — the CURRENT player's controller (alternating turns: P2 is
+     * Input - the CURRENT player's controller (alternating turns: P2 is
      * on controller 2). Past SCROLL_WALL the world scrolls instead of the
-     * player (the camera never scrolls back — the classic one-way camera). */
+     * player (the camera never scrolls back - the classic one-way camera). */
     pad = pad_poll(cur_player);
     delta = 0;
     if (pad & PAD_RIGHT) {
@@ -617,7 +617,7 @@ void main(void) {
       continue;
     }
 
-    /* Landing — probe the two level columns under the player's feet. */
+    /* Landing - probe the two level columns under the player's feet. */
     if (vy_q44 >= 0) {
       feet = y8 + 8;
       c0 = (uint8_t)(px + scroll_x) >> 3;

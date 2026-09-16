@@ -1,4 +1,4 @@
-; SNES — safe NMI/VBlank handler skeleton.
+; SNES - safe NMI/VBlank handler skeleton.
 ;
 ; The 65816's NMI is ALWAYS native-mode + 16-bit-A/X when used from a
 ; native-mode program. Two non-obvious gotchas this snippet handles:
@@ -21,7 +21,7 @@
 ;    won't re-fire NMI correctly on some hardware.
 ;
 ; 4. **Vblank-ready flag**. Main code's "wait for vblank" loop should
-;    test a software flag set BY the NMI, not poll $4212 directly —
+;    test a software flag set BY the NMI, not poll $4212 directly -
 ;    polling races with the NMI fire and you'll miss vblanks.
 ;
 ; This skeleton: pushes A/X/Y/D/B + P, sets 16-bit registers + bank $00,
@@ -72,6 +72,6 @@ nmi:
 ;   wait_vblank:
 ;     wai
 ;     lda vblank_ready
-;     beq wait_vblank       ; spurious wake — try again
+;     beq wait_vblank       ; spurious wake - try again
 ;     stz vblank_ready
 ;     ; ... your per-frame logic here ...

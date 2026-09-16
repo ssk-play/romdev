@@ -1,9 +1,9 @@
-// decompile.js — drive the Ghidra decompiler WASM (romdev-analysis-decompiler)
+// decompile.js - drive the Ghidra decompiler WASM (romdev-analysis-decompiler)
 // to turn a function into C pseudocode. Runs the decompiler's REPL one-shot
 // through the isolated worker pool: mount the SLEIGH home + the ROM image,
 // feed `load file <langid> <rom>; map function <addr>; decompile; print C`.
 //
-// The ROM is loaded as a RAW binary at VMA 0 — so the address passed must be a
+// The ROM is loaded as a RAW binary at VMA 0 - so the address passed must be a
 // FILE OFFSET into the image we hand it, not a banked CPU address. Callers that
 // have a CPU address use the disasm mappers to slice the right bank first; for
 // the common flat/first-bank case the file offset equals the CPU address minus

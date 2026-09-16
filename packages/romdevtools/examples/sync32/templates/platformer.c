@@ -1,11 +1,11 @@
-/* ── platformer.c — sync32 side-scrolling platformer (complete example game) ──────────────
+/* ── platformer.c - sync32 side-scrolling platformer (complete example game) ──────────────
  *
- * A COMPLETE, working game — title screen, scoring, persistent hi-score
- * (save slot 0) — on monteslu's RP2350 console.
+ * A COMPLETE, working game - title screen, scoring, persistent hi-score
+ * (save slot 0) - on monteslu's RP2350 console.
  *
  * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game. Markers:
- *   HARDWARE IDIOM (load-bearing) — how the sync32 ABI actually works.
- *   GAME LOGIC (clay) — tuning, art, rules: reshape freely.
+ *   HARDWARE IDIOM (load-bearing) - how the sync32 ABI actually works.
+ *   GAME LOGIC (clay) - tuning, art, rules: reshape freely.
  *
  * WHAT MAKES sync32 DIFFERENT: there is NO PPU. No tilemap, no OAM, no VRAM,
  * no banking, no scanline timing. A game is `game_main(api)` handed a struct
@@ -13,14 +13,14 @@
  *
  * TWO TRAPS worth knowing before you edit:
  *   1. `api->rect()` takes an RGB565 COLOUR; sheet pixels are palette INDICES.
- *      Passing 0 to rect() draws black — and index 0 is the transparent key.
+ *      Passing 0 to rect() draws black - and index 0 is the transparent key.
  *   2. Sheet art must sit inside the cell the blit reads. `sprite(sh, sx, ...,
  *      w, ...)` reads columns sx..sx+w-1; anything drawn outside is silently
  *      clipped and the sprite just does not appear.
  *
  * Frame budget (60Hz, 2 500 000 cycles at a 150MHz-equivalent clock): this
  * game does not come close. sync32 gives far more headroom than any 8-bit
- * target here — spend it on gameplay.
+ * target here - spend it on gameplay.
  */
 
 #include "sync32.h"
@@ -30,13 +30,13 @@
 
 /* ── HARDWARE IDIOM (load-bearing): rect()/clear() SNAP TO THE PALETTE ───────
  * `api->clear(rgb565)` and `api->rect(..., rgb565)` take a colour, but the
- * canvas is 8-bit INDEXED — so the console maps your colour to the NEAREST
+ * canvas is 8-bit INDEXED - so the console maps your colour to the NEAREST
  * entry in the 256-slot palette and stores that index. A colour you never put
  * in the palette does not render as itself; it snaps to whatever is closest,
  * which is why a "grey road" can come out blue.
  *
  * So: every colour a game DRAWS WITH must also live in the palette. The
- * entries below are registered in build_palette() for exactly that reason —
+ * entries below are registered in build_palette() for exactly that reason -
  * add yours there too, or accept the nearest match.
  */
 
@@ -88,7 +88,7 @@ static void draw_text(const sync32_api_t *api, const char *t, int x, int y, int 
 
 /* ── HARDWARE IDIOM: persistence ─────────────────────────────────────────────
  * `save_read`/`save_write` take a SLOT index, not a filename. A short read
- * means "nothing saved yet" — not an error. */
+ * means "nothing saved yet" - not an error. */
 static void hiscore_load(const sync32_api_t *api, uint32_t *hi) {
     uint32_t v = 0;
     *hi = (api->save_read(0, &v, sizeof(v)) == (int)sizeof(v)) ? v : 0;
@@ -170,7 +170,7 @@ static void build_palette(const sync32_api_t *api) {
     pal[IDX_BRICK] = RGB(0x9A, 0x5A, 0x38);
     pal[IDX_COIN]  = RGB(0xFF, 0xD1, 0x3B);
     pal[IDX_EDGE]  = RGB(0x5A, 0x34, 0x20);
-    /* Colours the game DRAWS WITH must be IN the palette — rect()/clear()
+    /* Colours the game DRAWS WITH must be IN the palette - rect()/clear()
      * snap to the nearest entry, so an unregistered colour renders as
      * something else entirely. */
     pal[8] = COL_SKY;
@@ -246,7 +246,7 @@ void game_main(const sync32_api_t *api) {
             g.vy += GRAVITY;
             if (g.vy > 9.0f) g.vy = 9.0f;
 
-            /* horizontal sweep, then vertical — the classic order that stops
+            /* horizontal sweep, then vertical - the classic order that stops
              * a fast fall from tunnelling through a floor tile */
             g.x += g.vx;
             {

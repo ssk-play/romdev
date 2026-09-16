@@ -9,18 +9,18 @@ cycle-level control or are touching VIC-II / SID registers directly).
 Files
 -----
 
-- **c64_registers.h** — symbolic names for VIC-II ($D000-$D02E), SID
+- **c64_registers.h** - symbolic names for VIC-II ($D000-$D02E), SID
   ($D400-$D41C), CIA1/2 ($DC00/$DD00) registers. `#include` from C; ca65
   imports it as well.
-- **vic_init.s** — boot-time setup: black-out the screen, set border + bg
+- **vic_init.s** - boot-time setup: black-out the screen, set border + bg
   colors, switch char-ROM/RAM banking.
-- **sprite_table.s** — load 8 sprite pixel-data blocks + position + enable
+- **sprite_table.s** - load 8 sprite pixel-data blocks + position + enable
   + color. The classic "render moving sprites" recipe.
-- **read_joystick.s** — read joystick port 2 (the usual game port) from
+- **read_joystick.s** - read joystick port 2 (the usual game port) from
   CIA1 $DC00 into a zp byte. Includes the "fire is bit 4" trap.
-- **sid_play.s** — start a SID voice (waveform + ADSR + gate). Pair with
+- **sid_play.s** - start a SID voice (waveform + ADSR + gate). Pair with
   setting frequency from main loop for arpeggios / sound effects.
-- **basic_stub.s** — the canonical 12-byte BASIC stub at $0801 that just
+- **basic_stub.s** - the canonical 12-byte BASIC stub at $0801 that just
   does `SYS 2061` (jumps to your machine code at $080D). Lets your program
   start with `LOAD"NAME",8,1` then `RUN`.
 
@@ -41,12 +41,12 @@ Foot-guns
    one of 4 × 16 KB banks of main RAM. Default = bank 0 ($0000-$3FFF),
    which puts screen RAM at $0400 and char ROM at $1000 (via mirror).
 3. **Color RAM is 4-bit only.** $D800-$DBE7 stores the foreground color
-   nibble for each text cell — only the low 4 bits are used; high bits
+   nibble for each text cell - only the low 4 bits are used; high bits
    read back as garbage.
 4. **The IRQ vector at $FFFE points through $0314/$0315 by default**
    (KERNAL interrupt thunk). To install your own raster IRQ, write your
    handler addr to $0314/$0315.
 5. **Sprite pixel data lives in RAM, not VIC.** $D000-$D02E only stores
    X/Y/color/enable. The actual 64-byte pixel block per sprite is at
-   `screen_ram[$3F8 + sprite_index] × 64` — write that address to point
+   `screen_ram[$3F8 + sprite_index] × 64` - write that address to point
    at your sprite data.

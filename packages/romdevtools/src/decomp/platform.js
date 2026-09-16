@@ -1,4 +1,4 @@
-// platform.js — what the matching loop needs to know per splat platform, in
+// platform.js - what the matching loop needs to know per splat platform, in
 // ONE place: endianness (how ROM/rodata words are read), the assembler flags
 // for the target object, the binutils prefixes to look for, the ROM header
 // reader, and how a captured compile invocation maps to a compiler kind, an
@@ -6,7 +6,7 @@
 //
 // n64 is the proven profile (IDO 5.3). psx/psp/ps2 are the
 // other splat layouts: the code paths are the same MIPS ones, parameterized
-// here, but no PS1 checkout has been run through them yet — the capability
+// here, but no PS1 checkout has been run through them yet - the capability
 // manifest says so and `import` marks such a project `platformVerified:false`.
 import path from "node:path";
 

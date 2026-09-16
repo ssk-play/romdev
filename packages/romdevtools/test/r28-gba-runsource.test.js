@@ -1,4 +1,4 @@
-// R28 — end-to-end mgba core wiring.
+// R28 - end-to-end mgba core wiring.
 //
 // Confirms that a Tonc ROM built by our toolchain actually loads + runs
 // under the bundled mgba_libretro core. Regression guard against the
@@ -20,7 +20,7 @@ const SFX_C = readFileSync(path.join(LIB_DIR, "gba_sfx.c"), "utf-8");
 
 test("R28 GBA mgba core is registered + resolvable", () => {
   const r = resolveCore("gba");
-  assert.ok(r, "resolveCore('gba') returned null — mgba_libretro.{js,wasm} missing from src/cores/wasm/?");
+  assert.ok(r, "resolveCore('gba') returned null - mgba_libretro.{js,wasm} missing from src/cores/wasm/?");
   assert.equal(r.platform, "gba");
   assert.equal(r.coreName, "mgba");
   assert.match(r.displayName, /mGBA/);

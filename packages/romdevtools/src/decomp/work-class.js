@@ -1,11 +1,11 @@
-// work-class.js — the ONE place that decides what KIND of work a remaining
+// work-class.js - the ONE place that decides what KIND of work a remaining
 // function is.
 //
 // `progress` already separated game / library / handwritten-asm correctly while
 // `plan` collapsed them into a single queue: 181 "remaining functions" that
 // mixed game C targets with libultra routines, entry code, exception handlers
-// and cache primitives. That contradicts the project's own stated policy —
-// handwritten assembly is excluded from the decompilation denominator — and
+// and cache primitives. That contradicts the project's own stated policy -
+// handwritten assembly is excluded from the decompilation denominator - and
 // makes the queue impossible to read. Worse, the two tools could drift, because
 // each had its own classifier.
 //
@@ -21,7 +21,7 @@
 //                         accounting, NOT in an automatic C-recovery queue.
 //   rsp-source            RSP microcode. A different ISA and a different
 //                         toolchain; never a CPU decompilation target.
-//   asset-data            data/rodata/bss and bin ranges — not functions at all,
+//   asset-data            data/rodata/bss and bin ranges - not functions at all,
 //                         tracked by the completion ledger rather than here.
 //
 // Plain JS ESM + JSDoc.
@@ -43,7 +43,7 @@ export const DEFAULT_QUEUE_CLASSES = /** @type {WorkClass[]} */ (["game-matching
 
 export const WORK_CLASS_POLICY = Object.freeze({
   "game-matching-c": "the decompilation target; counts in the denominator",
-  "libultra-known-source": "match against published libultra sources first — decompiling by hand is the fallback, not the first move",
+  "libultra-known-source": "match against published libultra sources first - decompiling by hand is the fallback, not the first move",
   "handwritten-asm-retain": "policy: stays assembly. Counts in completion accounting, never an automatic C-recovery task",
   "rsp-source": "RSP microcode: different ISA and toolchain, not a CPU decompilation target",
   "asset-data": "data/rodata/bss/bin: tracked by the completion ledger, not by the function queue",
@@ -53,7 +53,7 @@ export const WORK_CLASS_POLICY = Object.freeze({
  * Build a classifier for one project.
  *
  * Returns `(objectPath, symbolName?) => WorkClass`. Classification is by the
- * splat subsegment type and the object path — never by guessing from a name,
+ * splat subsegment type and the object path - never by guessing from a name,
  * because a name is not evidence.
  *
  * @param {{segments: Array<{name:string,subsegments:Array<{name:string,type:string}>}>}} splatMap
@@ -74,7 +74,7 @@ export function makeWorkClassifier(splatMap, manifest) {
   // ONE NAME, SEVERAL SUBSEGMENTS. A single translation unit appears once per
   // section: "sys/sys_utils" is listed as `c`, `.rodata` AND `.bss`. A plain
   // Map.set therefore keeps whichever came LAST (.rodata here), and every one
-  // of those objects then classified as data — misfiling 152 real game
+  // of those objects then classified as data - misfiling 152 real game
   // functions as asset-data and emptying the queue entirely.
   //
   // The CODE-bearing type is the one that decides what kind of work an object

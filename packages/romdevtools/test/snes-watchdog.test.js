@@ -1,4 +1,4 @@
-// SNES (snes9x / 65816) callSubroutine instruction WATCHDOG — the fix for the
+// SNES (snes9x / 65816) callSubroutine instruction WATCHDOG - the fix for the
 // "callSubroutine hung" black box. A routine that loops FOREVER spins inside one
 // retro_run frame, so the host's per-frame cap can't catch it. The core's
 // instruction watchdog force-stops at the budget and returns
@@ -7,7 +7,7 @@
 // NOTE: the host's callSubroutine sentinel-return is m68k-shaped (it pushes a
 // 4-byte BE return + reads SP via reg-id 18); on the 65816 the RTS/RTL return
 // width differs, so a NORMAL routine's clean sentinel-return isn't asserted here
-// (documented host-layer limitation — see snes-re-primitives.test.js). What this
+// (documented host-layer limitation - see snes-re-primitives.test.js). What this
 // test proves is the CORE watchdog: a routine that never returns trips it instead
 // of hanging. We drive callSubroutine into the live main loop (which never RTSes
 // back to the sentinel) and confirm the watchdog stops it.
@@ -35,7 +35,7 @@ async function startClient() {
 const toJSON = (res) => { assert.equal(res.isError, undefined, "isError: " + JSON.stringify(res)); return JSON.parse(res.content[0].text); };
 
 // Writes an incrementing counter to low WRAM $0010 (mirrors $7E0010) each frame.
-// The main while(1) loop never returns — driving callSubroutine into it must trip
+// The main while(1) loop never returns - driving callSubroutine into it must trip
 // the watchdog (run the instruction budget without returning), not hang.
 const SRC = `
 #include <snes.h>
@@ -75,7 +75,7 @@ test("SNES watchdog: a non-returning routine trips the watchdog, no hang (snes9x
 
   // The WATCHDOG: drive callSubroutine into the main loop. It never RTSes back to
   // the sentinel, so the run must terminate via the watchdog (returned:false,
-  // watchdog:true) with a finalPC — never hang.
+  // watchdog:true) with a finalPC - never hang.
   const wd = toJSON(await client.callTool({
     name: "cpu",
     arguments: { op: "call",  pc: writerPC, maxFrames: 30, maxInstructions: 200000, sandbox: true },

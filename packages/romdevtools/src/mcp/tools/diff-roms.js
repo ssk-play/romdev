@@ -1,4 +1,4 @@
-// diffRoms — compare two ROMs of the same platform, return per-region
+// diffRoms - compare two ROMs of the same platform, return per-region
 // change summary with mapper-aware CPU address translation.
 //
 // Why this is more than `cmp -l`: `cmp` reports octal file offsets and
@@ -43,16 +43,16 @@ function regionMapForRom(platform, data) {
 }
 
 /**
- * SMS / Game Gear cart region map. Most carts use the Sega mapper —
+ * SMS / Game Gear cart region map. Most carts use the Sega mapper -
  * the cartridge header lives at $7FF0-$7FFF (last 16 bytes of the first
- * 32 KB bank). No fixed CHR/PRG split — code + tile data + tilemaps
+ * 32 KB bank). No fixed CHR/PRG split - code + tile data + tilemaps
  * live anywhere the developer wants. We tag the header so diffs there
  * are obvious.
  */
 function regionMapSms(data, _platform) {
   const regions = [];
   // Header lives at $7FF0 IF the file is at least 32 KB. Some homebrew
-  // skips the header entirely (just runs from $0000) — flag with kind
+  // skips the header entirely (just runs from $0000) - flag with kind
   // "code" then.
   if (data.length >= 0x8000) {
     const magic = String.fromCharCode(data[0x7FF0], data[0x7FF1], data[0x7FF2], data[0x7FF3],
@@ -115,7 +115,7 @@ function regionMapGenesis(data) {
 }
 
 /**
- * Atari 2600 cart region map. Bare cart image — no header. 2K/4K/8K/16K/
+ * Atari 2600 cart region map. Bare cart image - no header. 2K/4K/8K/16K/
  * 32K carts are common; bank switching ($F8/$E0/etc) is handled by the
  * mapper at runtime, not in the file. Tag the last 6 bytes as the
  * vector table.
@@ -205,7 +205,7 @@ function cpuAddressFor(platform, data, fileOffset, regions) {
       if (region.region === "CHR") {
         const offInChr = fileOffset - region.fileStart;
         // CHR is at PPU $0000+, addressed via PPU, but most useful for
-        // ROM hackers as "tile index" — each tile is 16 bytes.
+        // ROM hackers as "tile index" - each tile is 16 bytes.
         const tile = Math.floor(offInChr / 16);
         return { region: region.region, kind: region.kind, cpu: null, ppu: offInChr, tile };
       }
@@ -273,10 +273,10 @@ function cpuAddressFor(platform, data, fileOffset, regions) {
     case "sms":
     case "gg": {
       // SMS sega mapper: file offset 0..$3FFF maps 1:1 to CPU $0000-$3FFF
-      // (slot 0 — typically bank 0 fixed). File offset $4000..$7FFF maps
+      // (slot 0 - typically bank 0 fixed). File offset $4000..$7FFF maps
       // to CPU $4000-$7FFF (slot 1, swappable but bank 1 by default).
       // Above $8000, file offset corresponds to slot 2 (CPU $8000-$BFFF,
-      // 16 KB bank-switched) — we report the slot-2 CPU address with the
+      // 16 KB bank-switched) - we report the slot-2 CPU address with the
       // bank index so the agent can compute.
       if (fileOffset < 0x4000) {
         return { region: region.region, kind: region.kind, cpu: fileOffset };

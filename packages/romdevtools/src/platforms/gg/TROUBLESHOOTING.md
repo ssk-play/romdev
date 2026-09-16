@@ -1,7 +1,7 @@
-# Game Gear — troubleshooting
+# Game Gear - troubleshooting
 
 > **A build failed? Read `issues[]` FIRST.** Every build/compile call returns
-> `issues: [{file, line, col, severity, message, stage}]` — the structured error
+> `issues: [{file, line, col, severity, message, stage}]` - the structured error
 > list. It almost always names the exact line to fix. Read that before matching a
 > symptom below or touching your source. Fall back to the raw `log` only if
 > `issues[]` is empty but `ok:false`.
@@ -12,7 +12,7 @@ When something's broken. Read MENTAL_MODEL.md first
 ## "ROM runs but content is off the screen"
 
 GG's visible viewport is **160×144 centered in a 256×192 framebuffer**.
-Anything you draw outside `(48, 24)..(207, 167)` is in the border —
+Anything you draw outside `(48, 24)..(207, 167)` is in the border -
 visible in headless emulator screenshots (gpgx shows the whole frame)
 but invisible on real hardware.
 
@@ -25,7 +25,7 @@ visible center.
 
 GG splits the START button onto a GG-specific port (`$00` bit 7,
 active low), separate from the D-pad/A/B which are on `$DC` like
-SMS. `gg_joypad_read()` already merges them — START shows up in bit 7
+SMS. `gg_joypad_read()` already merges them - START shows up in bit 7
 of the returned byte (`JOY_START` mask).
 
 If you copied an SMS example that uses PAUSE-as-START semantics
@@ -36,7 +36,7 @@ swap to JOY_START.
 
 The GG button map is **inverted** vs the libretro names (same genesis_plus_gx
 core as SMS). Button 1 (main fire) is libretro **b**, button 2 is libretro **a**
-— so `input({op:'set', a:true})` presses button **2**, not button 1 (`JOY_B1`).
+- so `input({op:'set', a:true})` presses button **2**, not button 1 (`JOY_B1`).
 
 Fix:
 - Button 1 (`JOY_B1`) → `input({op:'set', ports:[{b:true}]})` or `{west:true}`
@@ -61,9 +61,9 @@ PORT_GG_PSG_STEREO = 0xFF;  /* all 4 channels to both speakers */
 (0xFF = bits 0-3 enable channels 0-3 on the right speaker, bits 4-7
 enable on the left.)
 
-## "Palette looks wrong — colors too saturated/wrong shade"
+## "Palette looks wrong - colors too saturated/wrong shade"
 
-GG palette is **4-4-4 BGR** (12 bits per entry) — twice as deep as
+GG palette is **4-4-4 BGR** (12 bits per entry) - twice as deep as
 SMS's 2-2-2. If you ported SMS palette bytes directly, you're feeding
 6-bit values into a 12-bit register and getting the wrong shade.
 
@@ -89,19 +89,19 @@ GG only has one controller. The SMS examples use `sms_joypad_read_p2`
 for the two-controller patterns (Pong, 2P shmup). When porting, drop
 the P2 read + force `p2 = 0` so the AI fallback always engages.
 
-The bundled GG `sports.c` already does this — copy that pattern when
+The bundled GG `sports.c` already does this - copy that pattern when
 porting other SMS multiplayer code.
 
 ## "TMR SEGA" header / ROM boots in the wrong video mode
 
 The build pipeline now stamps the 16-byte header at `$7FF0` automatically
 ("TMR SEGA" + checksum + the region/size byte at `$7FFF`) and pads every
-image to 32 KB — you never hand-write it for romdev builds.
+image to 32 KB - you never hand-write it for romdev builds.
 
 The byte that matters is `$7FFF`: **high nibble = region, low nibble = ROM
 size**. romdev writes `$7C` (GG international, 32 KB) on `.gg` builds.
 If you patch a ROM by hand and leave an SMS region nibble there (`$4C` =
-SMS export), gpgx boots the `.gg` file in **SMS compatibility mode** —
-256×192 timing, SMS palette depth — and everything renders dark and
+SMS export), gpgx boots the `.gg` file in **SMS compatibility mode** -
+256×192 timing, SMS palette depth - and everything renders dark and
 mis-cropped even though your code is fine. Check `$7FFF` first when a GG
 ROM suddenly looks like an SMS ROM.

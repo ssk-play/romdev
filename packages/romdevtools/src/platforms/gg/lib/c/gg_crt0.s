@@ -1,7 +1,7 @@
-;; Game Gear crt0 for SDCC. Byte-identical to sms_crt0.s — GG uses the
+;; Game Gear crt0 for SDCC. Byte-identical to sms_crt0.s - GG uses the
 ;; same Z80 boot model as SMS: same vector table at $0000, same IRQ
 ;; mode 1 vector at $0038, same NMI at $0066 (the GG's pause-equivalent
-;; is the START button on port $00, NOT NMI — but NMI is still vectored
+;; is the START button on port $00, NOT NMI - but NMI is still vectored
 ;; for safety).
 ;;
 ;; Why this exists separately from sms_crt0.s: every project under
@@ -10,7 +10,7 @@
 ;; running. Don't read from sms/lib at build time.
 ;;
 ;; Replaces SDCC's stock z80 crt0 (which assumes a host runtime that
-;; handles I/O via rst $08 — not what a GG cartridge needs). This one
+;; handles I/O via rst $08 - not what a GG cartridge needs). This one
 ;; boots cleanly into a real cartridge: vector table at $0000, sets
 ;; SP to $DFF0, calls main().
 ;;
@@ -42,7 +42,7 @@
         ;; `ret` stomped the jp's high target byte -> boot jumped into
         ;; garbage. di+im 1+jp = 6 bytes; SP setup moved to _boot below.
         di                          ; interrupts off until we're ready
-        im      1                   ; mode 1 — IRQs jump to $0038
+        im      1                   ; mode 1 - IRQs jump to $0038
         jp      _boot               ; continue past the vector table
 
 ;; ─── RST handlers (default = return) ──────────────────────────────
@@ -69,16 +69,16 @@
 ;; GG hits this on vblank IF VDP R1 bit 5 is set. Default = clear the
 ;; VDP status flag and return. User code that wants a real ISR can
 ;; install one by writing to (vdp_isr_ptr) and a `ld hl,(vdp_isr_ptr) /
-;; jp (hl)` shim — but for now a bare ei/reti keeps things simple.
+;; jp (hl)` shim - but for now a bare ei/reti keeps things simple.
         .org    0x0038
         push    af
-        in      a, (#0xBF)          ; read VDP status — clears IRQ flag
+        in      a, (#0xBF)          ; read VDP status - clears IRQ flag
         pop     af
         ei
         reti
 
 ;; ─── NMI vector at $0066 ──────────────────────────────────────────
-;; GG has no Pause button — START is read from port $00 bit 7 instead.
+;; GG has no Pause button - START is read from port $00 bit 7 instead.
 ;; NMI is vectored for safety (some homebrew loaders trigger it).
         .org    0x0066
         retn
@@ -99,11 +99,11 @@ _boot:
 
         ;; AREA ORDERING IS LOad-BEARING. `_INITIALIZER` (the ROM image of
         ;; every value-initialised `static` global) MUST be declared in the
-        ;; ROM group here — BEFORE the `_DATA` RAM block. If it isn't, sdld
+        ;; ROM group here - BEFORE the `_DATA` RAM block. If it isn't, sdld
         ;; places `_INITIALIZER` in RAM right after `_INITIALIZED`, so the
         ;; gsinit copy below copies uninitialised RAM onto itself and every
         ;; `static uint8_t x = 5;` boots as 0. (Bug found 2026-06-08; see the
-        ;; matching note in sms_crt0.s — both z80 crt0s were missing this.)
+        ;; matching note in sms_crt0.s - both z80 crt0s were missing this.)
         .area   _HOME
         .area   _INITIALIZER
         .area   _CODE

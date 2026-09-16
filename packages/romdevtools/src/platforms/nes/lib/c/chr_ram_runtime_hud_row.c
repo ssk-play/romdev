@@ -1,4 +1,4 @@
-/* chr_ram_runtime_hud_row.c — BG-layer HUD: score + label at row 2.
+/* chr_ram_runtime_hud_row.c - BG-layer HUD: score + label at row 2.
  *
  * Demonstrates the queued-VRAM-writes pattern for updating BG
  * during gameplay. Use as the starting point for any game that
@@ -12,7 +12,7 @@
  *
  * Footguns this avoids:
  *
- * 1. HUD at row 2, not row 0. Framebuffer is 256×224 — top 8 px
+ * 1. HUD at row 2, not row 0. Framebuffer is 256×224 - top 8 px
  *    (nametable row 0, PPU $2000-$201F) are cropped by overscan.
  *    Always position visible BG at rows 2-27.
  *
@@ -21,7 +21,7 @@
  *    NOT 0x0000 (that's the sprite pattern table).
  *
  * 3. Updates use tile_set() which queues into vram_queue. The NMI
- *    handler flushes the queue during vblank — writes during
+ *    handler flushes the queue during vblank - writes during
  *    rendering would corrupt the PPUADDR latch.
  *
  * 4. Decimal-digit rendering goes high-to-low (left-to-right on
@@ -62,7 +62,7 @@ static void draw_score(uint8_t x, uint16_t value) {
   uint8_t tens     = (uint8_t)((value / 10)  % 10);
   uint8_t ones     = (uint8_t)(value % 10);
   /* Tiles 0x10..0x19 hold digits 0..9 in BG pattern table.
-   * tile_set queues — NMI flushes during vblank. */
+   * tile_set queues - NMI flushes during vblank. */
   tile_set(0, x,     2, (uint8_t)(0x10 + hundreds));
   tile_set(0, x + 1, 2, (uint8_t)(0x10 + tens));
   tile_set(0, x + 2, 2, (uint8_t)(0x10 + ones));
@@ -81,7 +81,7 @@ void main(void) {
 
   palette_load(palette);
 
-  /* Initial score render — queued, will flush at next NMI. Since
+  /* Initial score render - queued, will flush at next NMI. Since
    * rendering is OFF now, the queued writes happen in the first
    * NMI after ppu_on_all (which is when NMI fires for the first time). */
   draw_score(/* col */ 14, score);

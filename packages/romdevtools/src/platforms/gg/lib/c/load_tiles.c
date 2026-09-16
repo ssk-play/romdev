@@ -1,4 +1,4 @@
-/* SMS tile loader — upload bytes to VRAM at any destination.
+/* SMS tile loader - upload bytes to VRAM at any destination.
  *
  * SMS tiles are 32 bytes each (4bpp interleaved). VRAM is 16 KB at
  * $0000-$3FFF. Tile N lives at VRAM offset (N * 32).

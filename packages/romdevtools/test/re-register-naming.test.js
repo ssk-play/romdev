@@ -1,4 +1,4 @@
-// re-register-naming.test.js — B2: name hardware-register MMIO in decompiler
+// re-register-naming.test.js - B2: name hardware-register MMIO in decompiler
 // output. Ghidra emits raw memory refs like `xRAM2001` for $2001; the post-pass
 // rewrites those whose address is a known platform register to the register
 // NAME (PPUMASK), and prepends a one-line legend of the substitutions.
@@ -23,7 +23,7 @@ test("B2: NES PPU/APU registers are named in the C output", () => {
 });
 
 test("B2: an unknown address is left untouched", () => {
-  // $0300 is plain RAM on the NES — NOT a register — so it must stay as-is.
+  // $0300 is plain RAM on the NES - NOT a register - so it must stay as-is.
   const c = "void fn(void) { xRAM0300 = 1; return; }\n";
   const out = nameHardwareRegisters(c, "nes");
   assert.equal(out, c, "no known register → code unchanged, no legend added");

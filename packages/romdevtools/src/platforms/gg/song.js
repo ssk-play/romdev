@@ -1,8 +1,8 @@
-// Game Gear (SN76489 PSG) song compiler — a simple note/duration song → the
+// Game Gear (SN76489 PSG) song compiler - a simple note/duration song → the
 // music_note_t table the bundled driver (lib/c/gg_music.c + gg_music.h) plays.
 //
 // This is NOT a port of an external tool: there's no single canonical Game Gear
-// "song compiler" — the playable format is whatever OUR driver reads. gg_music's
+// "song compiler" - the playable format is whatever OUR driver reads. gg_music's
 // engine walks an array of `music_note_t` rows, one per note, advancing one note
 // per call to music_update() (once per 60 Hz frame). Each row is:
 //
@@ -20,12 +20,12 @@
 //
 //   divider = round( 3579545 / (32 * freq_hz) )     // NTSC PSG clock 3.579545 MHz
 //
-// (3579545 / 32 = 111860.78 — the chip's max tone update rate.) Higher divider =
+// (3579545 / 32 = 111860.78 - the chip's max tone update rate.) Higher divider =
 // LOWER pitch. The divider is 10-bit, so valid range is 1..1023; 0 means rest
 // (the engine silences the channel). divider==1 is the highest tone the chip can
 // make (~111.86 kHz, inaudible); musically useful values sit in ~107..1023.
 //
-// Input: a compact song — an array of {note, dur} (or shorthand strings). The note
+// Input: a compact song - an array of {note, dur} (or shorthand strings). The note
 // is a scientific-pitch name ("C4", "A#3", "G-5") or a raw divider ({div: 254}).
 // We resolve names to Hz via equal temperament around A4=440 (configurable), then
 // to a divider via the formula above. Output: the 3-byte-per-row table + the
@@ -109,7 +109,7 @@ export function noteToDivider(name, opts = {}) {
  *   One entry per note. `{note:"C4", dur:18}` resolves the divider from the name;
  *   `{div:254, dur:18}` uses a raw 10-bit divider. A bare string "C4" or "C4:18"
  *   is shorthand (default duration from `song.defaultDur`). A `null`/`"rest"`
- *   entry (or `{note:"rest"}`) emits divider 0 — the engine silences the channel
+ *   entry (or `{note:"rest"}`) emits divider 0 - the engine silences the channel
  *   for that row's duration, which is a true musical rest on this driver.
  * @param {number} [song.a4Hz=440]  concert-A reference for equal temperament.
  * @param {number} [song.clock=PSG_CLOCK]  PSG clock (Hz); NTSC GG/SMS = 3579545.
@@ -152,7 +152,7 @@ export function compileSong(song) {
     let label;
     if (div == null) {
       if (note == null || note === 'rest' || note === null) {
-        div = 0; // true rest — driver silences the channel
+        div = 0; // true rest - driver silences the channel
         label = 'rest';
       } else {
         div = noteToDivider(note, { a4Hz, clock });

@@ -1,7 +1,7 @@
-// re-bank-aware.test.js — A1 bank-aware NES decompile image construction.
+// re-bank-aware.test.js - A1 bank-aware NES decompile image construction.
 //
 // Rizin maps an iNES PRG as one flat $8000-based segment, so a function in bank
-// 3 reports a flat VA like $1Cxxx. Decompiling that flat image is bank-blind —
+// 3 reports a flat VA like $1Cxxx. Decompiling that flat image is bank-blind -
 // a cross-bank JSR lands on the wrong bytes (empirically 11/12 top functions on
 // a banked cart decompiled to halt_baddata before this fix). buildNesBankImage
 // recovers the bank from the flat VA and lays out a real 32KB CPU window (that

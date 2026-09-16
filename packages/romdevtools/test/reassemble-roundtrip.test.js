@@ -1,15 +1,15 @@
-// build({output:'reassemble'}) — the UNIFORM byte-exact round-trip.
+// build({output:'reassemble'}) - the UNIFORM byte-exact round-trip.
 //
 // disasm({target:'project'}) now writes a reassemble.json manifest + an
 // original.rom template for EVERY platform. build({output:'reassemble', path})
 // reads them, ASSEMBLES each region .asm with the platform's native assembler,
 // splices the result into a copy of the original at its file offset, and returns
 // a byte-identical ROM. This is the one-call "cmp before commit" rebuild the
-// disassemble/annotate skills need — and unlike rebuild.json it works across all
+// disassemble/annotate skills need - and unlike rebuild.json it works across all
 // CPU families, not just the cc65-native subset.
 //
 // This suite drives the REAL registered disasm + build handlers end-to-end on a
-// synthetic ROM per CPU family (fast — no SDK builds) plus the real nestest.nes
+// synthetic ROM per CPU family (fast - no SDK builds) plus the real nestest.nes
 // fixture, and asserts the rebuilt ROM equals the original byte-for-byte. It also
 // covers the edit path (a same-length region edit rebuilds a modified-but-valid
 // ROM) and the refusal path (a length-changing edit is reported, not silently
@@ -72,7 +72,7 @@ async function roundtrip(dir, name, orig, platform) {
   return { proj, re, projDir, orig };
 }
 
-// ── one CPU family per test (synthetic ROMs — no SDK builds) ─────────────────
+// ── one CPU family per test (synthetic ROMs - no SDK builds) ─────────────────
 
 test("SNES (65816/ca65): reassemble is byte-identical", { timeout: 120000 }, async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "romdev-reasm-snes-"));
@@ -178,7 +178,7 @@ test("edit path: a same-length region edit rebuilds a modified-but-valid ROM (by
     // while the edit path was fine. Any `.byte` operand will do: the point is
     // that a same-length edit rebuilds to a valid, non-identical ROM.
     // The region may floor to `.byte` data OR decode to instructions depending
-    // on the decoder — both are valid outputs and this test is about the EDIT
+    // on the decoder - both are valid outputs and this test is about the EDIT
     // path, not about which one happens today. So edit the first hex operand
     // of either form, keeping the same length.
     // Match a hex operand of ANY width: a `.byte` is 2 digits, an absolute
@@ -188,7 +188,7 @@ test("edit path: a same-length region edit rebuilds a modified-but-valid ROM (by
       .find((m) => !/\.org\s+$/.test(asm.slice(Math.max(0, m.index - 8), m.index)));
     assert.ok(hex, `no hex operand to edit in the region asm:\n${asm.slice(0, 400)}`);
     // Keep the same digit count so the rebuild stays the same length, and
-    // change only the LOW nibble so exactly ONE byte differs — a 16-bit operand
+    // change only the LOW nibble so exactly ONE byte differs - a 16-bit operand
     // edited wholesale would move two bytes and the count assertion below is
     // deliberately strict about that.
     const digits = hex[1];
@@ -253,7 +253,7 @@ test("ROM data can't be committed: disasm writes a .gitignore for original.rom",
   const dir = await mkdtemp(path.join(os.tmpdir(), "romdev-reasm-gitignore-"));
   try {
     const projDir = path.join(dir, "proj");
-    // Pre-existing .gitignore (Jay's case: repo already had `*.sfc`) — must be
+    // Pre-existing .gitignore (Jay's case: repo already had `*.sfc`) - must be
     // preserved + appended-to, not clobbered or duplicated.
     await mkdir(projDir, { recursive: true });
     await writeFile(path.join(projDir, ".gitignore"), "*.sfc\n");
@@ -290,7 +290,7 @@ test("padding is honest: an all-$FF fill bank is flagged, not reported ~100% rea
     assert.ok(fill, "a fill region must be present");
     assert.equal(fill.readablePercent, null, "a fill region's readablePercent must be null, never a bogus %");
     assert.equal(fill.fillByte, "$FF", "the fill byte must be reported");
-    // The avg must reflect CODE only — not skewed by the padding bank.
+    // The avg must reflect CODE only - not skewed by the padding bank.
     const code0 = proj.regions.find((r) => !r.fill);
     assert.ok(code0.readablePercent != null, "the code bank keeps a real readablePercent");
   } finally { await rm(dir, { recursive: true, force: true }); }
@@ -301,7 +301,7 @@ test("padding is honest: an all-$FF fill bank is flagged, not reported ~100% rea
 test("background job: start returns immediately, poll returns the full result when done", { timeout: 180000 }, async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "romdev-reasm-bg-"));
   try {
-    // 4-bank SNES ROM — enough to exercise the start/poll/done lifecycle.
+    // 4-bank SNES ROM - enough to exercise the start/poll/done lifecycle.
     const b = () => bank(0x8000, [0xAD, 0x05, 0x02, 0x8D, 0x05, 0x02, 0x4C, 0x00, 0x80], 0xEA);
     const orig = concat(b(), b(), b(), b());
     const romPath = path.join(dir, "game.sfc");
@@ -309,7 +309,7 @@ test("background job: start returns immediately, poll returns the full result wh
     const projDir = path.join(dir, "proj");
     const disasm = toolHandler(registerDisasmTools, "disasm");
 
-    // START — must return immediately with a running job, NOT the full payload.
+    // START - must return immediately with a running job, NOT the full payload.
     const start = parse(await disasm({ target: "project", path: romPath, outputDir: projDir, platform: "snes", background: true }));
     assert.equal(start.status, "running", "background start must report status:'running'");
     assert.ok(start.jobId, "must return a jobId to poll");
@@ -349,7 +349,7 @@ test("background poll errors clearly: unknown job / missing dir", { timeout: 300
 
 // Large flat Genesis region is CHUNKED so it doesn't monopolize a worker for
 // minutes (field report: a ~500KB Genesis disasm "locked up the whole MCP
-// server" — one flat region + a superlinear heal loop = ~5 min sync). Chunks
+// server" - one flat region + a superlinear heal loop = ~5 min sync). Chunks
 // parallelize and each heal loop stays bounded; the rebuild is still byte-exact.
 test("Genesis: a large flat ROM splits into chunk regions and round-trips byte-exact", { timeout: 240000 }, async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "romdev-reasm-genchunk-"));

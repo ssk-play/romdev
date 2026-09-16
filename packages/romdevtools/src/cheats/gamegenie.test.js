@@ -1,5 +1,5 @@
 // Reference-vector tests for the Game Genie decoders. Each vector is a
-// PUBLISHED, authoritative decode — if one of these ever fails, the decoder
+// PUBLISHED, authoritative decode - if one of these ever fails, the decoder
 // drifted and would emit WRONG addresses (worse than no label), so these are
 // the trust anchors for the whole cheat-DB feature.
 
@@ -53,14 +53,14 @@ test("Genesis Game Genie: verbatim Genesis-Plus-GX decode_cheat", () => {
 
 /*
  * Ground truth for GB is gambatte's `Cartridge::applyGameGenie`, not a
- * third-party reference doc — gambatte is the core romdev actually ships, so
+ * third-party reference doc - gambatte is the core romdev actually ships, so
  * a decode it disagrees with names an address the emulator never patches.
  *
  * The previous version of this test asserted the devrs.com worked example
  * ("0A1B9F" → $49F1). gambatte reads the HYPHENATED string (the libretro layer
  * passes the code through verbatim: `if (c.find('-') != npos) setGameGenie(c)`)
  * and computes $01B9 for the same code. The old decoder matched the doc and
- * disagreed with the core on EVERY published 9-digit code — wrong address and
+ * disagreed with the core on EVERY published 9-digit code - wrong address and
  * wrong compare, with only `value` (the leading two digits) correct.
  */
 test("Game Boy Game Genie: matches gambatte's decode (the shipping core)", () => {
@@ -87,7 +87,7 @@ test("Game Boy Game Genie: 9-digit form carries a compare byte", () => {
   assert.ok(r && typeof r.compare === "number", "9-digit decodes a compare");
 });
 
-// ── Encoders (cheat CREATION) — the inverse, round-trip verified ──────────
+// ── Encoders (cheat CREATION) - the inverse, round-trip verified ──────────
 const eq = (a, b) => a.address === b.address && a.value === b.value &&
   ((a.compare == null && b.compare == null) || a.compare === b.compare);
 
@@ -95,7 +95,7 @@ const eq = (a, b) => a.address === b.address && a.value === b.value &&
 // structurally cannot catch a mis-spelled emission: our decoder branches on
 // length and masks bit 3 of the third letter, so decode(encode(x)) === x
 // held for every case while every emitted 8-letter code differed from its
-// canonical published spelling by exactly that bit — the 8-char length
+// canonical published spelling by exactly that bit - the 8-char length
 // marker Galoob sets (30,531 of 30,532 published 8-letter codes in romdev's
 // own bundled DB have it set).
 test("encodeNesGameGenie emits the published spelling (8-char length marker set)", () => {
@@ -197,7 +197,7 @@ test("SNES Game Genie descrambles (snes9x alphabet), round-trips", async () => {
   const { decodeSnesGameGenie, encodeSnesGameGenie } = await import("romdev-core-host/gamegenie.js");
   const d = decodeSnesGameGenie("D3E6-E4A4");
   assert.ok(d && d.address != null);
-  // It's a SCRAMBLE, not raw hex — must not equal the naive hex slice.
+  // It's a SCRAMBLE, not raw hex - must not equal the naive hex slice.
   assert.notEqual(d.address, 0xd3e6e4);
   // Round-trip.
   const code = encodeSnesGameGenie(d);
@@ -228,7 +228,7 @@ test("decodeCode dispatches by platform and falls back on raw", () => {
   assert.deepEqual(decodeCode("00C7:FF", "nes"), { address: 0x00c7, value: 0xff });
   // Letter code routes to the platform decoder.
   assert.deepEqual(decodeCode("SXIOPO", "nes"), { address: 0x91d9, value: 0xad });
-  // gbc shares the GB decoder (gambatte's layout — see the GB test above).
+  // gbc shares the GB decoder (gambatte's layout - see the GB test above).
   assert.deepEqual(decodeCode("0A1B9F", "gbc"), { address: 0x01b9, value: 0x0a });
   // A letter code on a platform with no decoder → null (skipped, not guessed).
   assert.equal(decodeCode("SXIOPO", "snes"), null);

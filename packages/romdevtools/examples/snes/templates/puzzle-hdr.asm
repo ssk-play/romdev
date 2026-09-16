@@ -1,14 +1,14 @@
-;==LoRom== puzzle hdr.asm — PROJECT OVERRIDE of PVSnesLib's stock header
+;==LoRom== puzzle hdr.asm - PROJECT OVERRIDE of PVSnesLib's stock header
 ;
 ; Why this file exists: the stock include/hdr.asm declares CARTRIDGETYPE $00
 ; (ROM only) and SRAMSIZE $00. The SNES cart header is the ONLY place battery
-; SRAM gets declared — snes9x (and real flash carts) size the save RAM from
+; SRAM gets declared - snes9x (and real flash carts) size the save RAM from
 ; these two bytes. Delete this file and the build still succeeds, the game
 ; still runs, and saves silently stop existing: sram_read16/sram_write16 hit
 ; open bus at $70:0000 and the hi-score never survives a power cycle.
 ;
 ; Everything except CARTRIDGETYPE/SRAMSIZE/NAME is byte-identical to the
-; stock header — the memory map and vectors MUST match what PVSnesLib's
+; stock header - the memory map and vectors MUST match what PVSnesLib's
 ; crt0/libs were assembled against, or wlalink places sections inconsistently.
 
 .MEMORYMAP                      ; Begin describing the system architecture.
@@ -21,7 +21,7 @@
 .ENDME
 
 .ROMBANKSIZE $8000              ; 32 KByte ROM banks
-.ROMBANKS 8                     ; 2 Mbits (256 KB) — matches PVSnesLib stock
+.ROMBANKS 8                     ; 2 Mbits (256 KB) - matches PVSnesLib stock
 
 .SNESHEADER
   ID "SNES"

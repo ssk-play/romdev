@@ -1,10 +1,10 @@
-// region-platform-gate.test.js — a region name from the WRONG platform must
+// region-platform-gate.test.js - a region name from the WRONG platform must
 // be refused, not silently resolved against the loaded core.
 //
 // Region ids are per-platform by design: the cores bake them in and two
 // platforms deliberately reuse the same number for different buffers
 // (ROMDEV_MEMORY_NES_NTMAPLINES and ROMDEV_MEMORY_SNES_OAM are both 0x110).
-// That is safe at runtime because only one core is ever loaded — but the read
+// That is safe at runtime because only one core is ever loaded - but the read
 // path used to resolve by id without checking the platform, so on a SNES core
 // `memory({region:'nes_ntmaplines'})` returned snes_oam's bytes with no error.
 //
@@ -38,7 +38,7 @@ test("capabilities keeps NES and SNES region namespaces disjoint", () => {
 test("every platform declares a non-empty region list the gate can check", () => {
   // The gate deliberately stays out of the way when a platform declares no
   // regions (it cannot know what is legal). That is a safety valve, not a
-  // licence for a platform to opt out — so assert the tier-1 set is populated.
+  // licence for a platform to opt out - so assert the tier-1 set is populated.
   for (const platform of ["nes", "snes", "genesis", "gb", "gbc", "sms"]) {
     const regions = CAPABILITIES[platform]?.memoryRegions;
     assert.ok(Array.isArray(regions) && regions.length > 0,
@@ -48,7 +48,7 @@ test("every platform declares a non-empty region list the gate can check", () =>
   }
 });
 
-test("the colliding ids really are shared — the gate is the only defence", async () => {
+test("the colliding ids really are shared - the gate is the only defence", async () => {
   // If someone "fixes" the ids to be globally unique, this fails and points at
   // the reason not to: the numbers are baked into the compiled cores, so
   // renumbering the JS alone makes the host ask a core for ids it does not

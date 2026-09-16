@@ -1,4 +1,4 @@
-; SNES — canonical reset routine.
+; SNES - canonical reset routine.
 ;
 ; Switches the 65816 from emulation mode into native mode, sets up the
 ; stack, clears registers, forces blank, disables NMI/HDMA. Every SNES
@@ -23,9 +23,9 @@ reset:
   rep #$10       ; keep X/Y 16-bit
 
   lda #$80
-  sta $2100      ; INIDISP — forced blank, brightness 0
-  stz $4200      ; NMITIMEN — NMI off, auto-joypad off
-  stz $420C      ; HDMAEN — all HDMA channels off
+  sta $2100      ; INIDISP - forced blank, brightness 0
+  stz $4200      ; NMITIMEN - NMI off, auto-joypad off
+  stz $420C      ; HDMAEN - all HDMA channels off
 
   ; Caller should next clear direct page, upload assets via DMA, then
   ; turn screen on + enable NMI.

@@ -1,9 +1,9 @@
-/* psx.h — PS1 (R3000) helper lib with a software 3D pipeline, for romdev.
+/* psx.h - PS1 (R3000) helper lib with a software 3D pipeline, for romdev.
  *
- * A minimal-but-real 3D engine + GPU/pad helpers — what the PlayStation is FOR.
+ * A minimal-but-real 3D engine + GPU/pad helpers - what the PlayStation is FOR.
  * Fixed-point (16.16) vector math, a camera (position + yaw/pitch), perspective
  * projection, and painter-sorted flat-shaded triangles/quads drawn through the
- * GPU. No GTE/SDK dependency — pure C math, so the same pipeline ports to N64.
+ * GPU. No GTE/SDK dependency - pure C math, so the same pipeline ports to N64.
  *
  * Build: build({ platform:"ps1", language:"c" }). Output is a PS-EXE the HLE BIOS
  * loads at 0x80010000; main() loops forever. Color is BGR (GPU native); RGB() packs.
@@ -65,7 +65,7 @@ void psx_model(fix tx, fix ty, fix tz, fix yaw);
    culled. Z-buffered by draw order (call back-to-front, or use psx_sort). */
 void psx_tri3d(Vec3 a, Vec3 b, Vec3 c, unsigned int bgr);
 void psx_quad3d(Vec3 a, Vec3 b, Vec3 c, Vec3 d, unsigned int bgr);
-/* no-back-face-cull variants — for ground planes / floors (ambiguous winding). */
+/* no-back-face-cull variants - for ground planes / floors (ambiguous winding). */
 void psx_tri3d_nc(Vec3 a, Vec3 b, Vec3 c, unsigned int bgr);
 void psx_quad3d_nc(Vec3 a, Vec3 b, Vec3 c, Vec3 d, unsigned int bgr);
 /* returns the average camera-space Z of 3/4 model verts (for manual sorting). */
@@ -73,7 +73,7 @@ fix psx_depth3(Vec3 a, Vec3 b, Vec3 c);
 fix psx_depth4(Vec3 a, Vec3 b, Vec3 c, Vec3 d);
 
 /* ── misc ── */
-fix psx_sin(fix a);   /* a in 16.16 turns? no — a in fix radians-ish (see psx.c) */
+fix psx_sin(fix a);   /* a in 16.16 turns? no - a in fix radians-ish (see psx.c) */
 fix psx_cos(fix a);
 unsigned int psx_rand(void);
 void psx_srand(unsigned int seed);

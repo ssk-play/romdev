@@ -1,4 +1,4 @@
-// mips-elf-gcc — WASM toolchain wrappers for N64 / PS1 C builds.
+// mips-elf-gcc - WASM toolchain wrappers for N64 / PS1 C builds.
 //
 // The full pipeline:
 //   runCc1mips({source, headers, options, endian}) → MIPS assembly text (.s)
@@ -8,7 +8,7 @@
 //
 // 0.81.0: the 4 stages come from the shared makeGccToolchain() factory
 // (common/gcc-toolchain.js); this file is just the MIPS config + thin re-exports.
-// Unlike the other arches, MIPS is bi-endian (N64 big, PS1 little) — its cc1 and
+// Unlike the other arches, MIPS is bi-endian (N64 big, PS1 little) - its cc1 and
 // as/ld want DIFFERENT endian flag spellings (cc1: -mel/-meb; as/ld: -EL/-EB), so
 // the flags are functions of `endian` (default "big" for N64). MIPS32, ABI o32, -G0.
 //

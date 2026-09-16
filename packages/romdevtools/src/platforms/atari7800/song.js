@@ -1,4 +1,4 @@
-// Atari 7800 (TIA) song compiler — note/duration song → the exact 3-byte-per-row
+// Atari 7800 (TIA) song compiler - note/duration song → the exact 3-byte-per-row
 // note table the BUNDLED driver (lib/c/atari7800_music.c) plays.
 //
 // This is NOT a port of an external tool: the TIA has no canonical "song format".
@@ -27,7 +27,7 @@
 // To play a note we pick the distortion mode (caller's choice, default 4 melody /
 // 6 bass) and snap to the AUDF in 0..31 whose frequency is closest (in cents) to
 // the requested note. Because there are only 32 dividers per mode and the spacing
-// is harmonic (1/(AUDF+1)) not equal-tempered, the snap is APPROXIMATE — see the
+// is harmonic (1/(AUDF+1)) not equal-tempered, the snap is APPROXIMATE - see the
 // `approxCents` field returned per row, and the module note at the bottom.
 
 /** Semitone index within an octave for each note letter (C=0). */
@@ -43,7 +43,7 @@ export const DIST_BASS = 6; // div-by-31, lower register
 /**
  * Parse a scientific-pitch note name ("C4", "A#3", "Gb5", "C-4") to an absolute
  * semitone number where C0 = 0, C4 = 48 (so A4 = 57). Copied from the SNES
- * compiler — these are independent files by design.
+ * compiler - these are independent files by design.
  * @param {string} name
  * @returns {number} absolute semitone index
  */
@@ -166,7 +166,7 @@ function compileVoice(rows, defaultDist, defaultFrames, arrayName) {
 
   // Sentinel { 0, 0, 0 } → loop to index 0 (matches the driver's frames==0 check).
   bytes.push(0, 0, 0);
-  cLines.push('  0, 0, 0    /* sentinel — loop */');
+  cLines.push('  0, 0, 0    /* sentinel - loop */');
 
   const cSource = `static const uint8_t ${arrayName}[] = {\n${cLines.join('\n')}\n};\n`;
   return { bytes, cSource, rows: rows.length, snapped };
@@ -178,15 +178,15 @@ function compileVoice(rows, defaultDist, defaultFrames, arrayName) {
  * Single-voice (default): pass `{ rows: [...] }` and you get the melody table.
  * Two-voice: pass `{ rows: [...], bass: [...] }` and you get both `melody_notes`
  * and `bass_notes` concatenated in `bytes` (melody first), plus a combined
- * `cSource` with both arrays — drop-in replacements for the two arrays in
+ * `cSource` with both arrays - drop-in replacements for the two arrays in
  * atari7800_music.c.
  *
  * Each row is one of:
- *   "C5"           — note, default frames
- *   "C5:30"        — note + frames (frames after the colon)
- *   {note:"C5", frames:30, distortion?:4}   — full form; distortion overrides the voice default
- *   {audf:14, frames:30, distortion:4}      — raw AUDF (skips note→pitch snapping)
- *   {note:"rest", frames:15}                — approximated (driver has no true rest)
+ *   "C5"           - note, default frames
+ *   "C5:30"        - note + frames (frames after the colon)
+ *   {note:"C5", frames:30, distortion?:4}   - full form; distortion overrides the voice default
+ *   {audf:14, frames:30, distortion:4}      - raw AUDF (skips note→pitch snapping)
+ *   {note:"rest", frames:15}                - approximated (driver has no true rest)
  *
  * @param {object} song
  * @param {Array<object|string>} song.rows         melody voice (distortion 4 by default)

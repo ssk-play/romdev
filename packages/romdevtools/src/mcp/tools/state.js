@@ -9,13 +9,13 @@ import { notifyActiveBezel } from "../active-bezel.js";
 
 // Resolve a state-file `path`. An ABSOLUTE path is used as-is. A RELATIVE path
 // is resolved against the LOADED ROM's directory (the agent's mental model is
-// "save states live next to my ROM") — NOT the server's CWD, which is opaque to
+// "save states live next to my ROM") - NOT the server's CWD, which is opaque to
 // the caller and was a silent ENOENT footgun (v0.15.0 feedback #1). Falls back
 // to CWD only when no ROM path is known (e.g. ROM loaded from base64).
 export function resolveStatePath(p, host) {
   if (!p || path.isAbsolute(p)) return p;
   const media = host?.status?.mediaPath;
-  // mediaPath is "<memory…>" for base64 loads — not a real dir; skip those.
+  // mediaPath is "<memory...>" for base64 loads - not a real dir; skip those.
   if (media && !media.startsWith("<") && path.isAbsolute(media)) {
     return path.resolve(path.dirname(media), p);
   }
@@ -32,14 +32,14 @@ function stateDiffSnapshots(key) {
 
 // ── *Core functions: one per state operation. The `state` tool routes to them. ──
 
-/** op:'save' — snapshot to an in-memory slot and/or a disk blob. */
+/** op:'save' - snapshot to an in-memory slot and/or a disk blob. */
 /**
  * The cheat sidecar path for a state file: `rig.state` -> `rig.state.cheats.json`.
  *
  * A SIDECAR rather than a field inside the blob, deliberately. A rig's cheat
  * requirements currently live in CLAUDE.md prose, so a `.state` shared between
  * sessions silently needs knowledge that does not travel with it. Recording them
- * makes the rig self-describing — but the states already on disk are working
+ * makes the rig self-describing - but the states already on disk are working
  * assets people have invested in, and changing the blob format would put every
  * one of them at risk of a loader that reads the new bytes wrong. A separate
  * file cannot corrupt anything: old states keep loading untouched, and a state
@@ -62,7 +62,7 @@ function requireSavestateSupport(op, host) {
   throw new Error(
     `state({op:'${op}'}): whole-machine savestates are not supported on '${host.status.platform}' ` +
     `(wasmcart has no CPU/address space to snapshot). Use state({op:'exportSram'/'importSram'}) to ` +
-    `save/restore the cart's own SRAM-equivalent save data instead — and note SRAM now survives a ` +
+    `save/restore the cart's own SRAM-equivalent save data instead - and note SRAM now survives a ` +
     `loadMedia of the same cart path within this session automatically (in-process cache; use ` +
     `exportSram to write it to disk for real cross-session persistence).`);
 }
@@ -82,7 +82,7 @@ async function saveStateCore({ name, path: outPath, recordCheats = true }, sessi
         await writeFile(resolvedOut, blob);
         done.push(`${blob.length} bytes → ${resolvedOut}`);
 
-        // Only write a sidecar when there is something to record — an empty one
+        // Only write a sidecar when there is something to record - an empty one
         // would be noise next to every state file in a repo.
         if (recordCheats && typeof host.listActiveCheats === "function") {
           const active = host.listActiveCheats();
@@ -106,15 +106,15 @@ async function saveStateCore({ name, path: outPath, recordCheats = true }, sessi
         ...(cheatsRecorded ? { cheatsRecorded, cheatsPath } : {}),
         note: `Saved ${done.join(" + ")}.` + (outPath ? " Restore across sessions with state({op:'load', path}) after loading the same ROM." : "") +
           (cheatsRecorded
-            ? ` The cheat sidecar travels WITH the state — keep them together (commit both) so the rig stays self-describing; state({op:'load'}) reports it and reapplyCheats:true re-arms them.`
+            ? ` The cheat sidecar travels WITH the state - keep them together (commit both) so the rig stays self-describing; state({op:'load'}) reports it and reapplyCheats:true re-arms them.`
             : ""),
       };
 }
 
-/** op:'export' — copy an EXISTING in-memory slot to disk without touching the host. */
+/** op:'export' - copy an EXISTING in-memory slot to disk without touching the host. */
 async function exportStateCore({ fromSlot, path: outPath }, sessionKey) {
       const host = getHost(sessionKey);
-      const blob = host.getStateBlob(fromSlot); // throws if the slot is missing — no host disturbance
+      const blob = host.getStateBlob(fromSlot); // throws if the slot is missing - no host disturbance
       const resolvedOut = resolveStatePath(outPath, host);
       await mkdir(path.dirname(resolvedOut), { recursive: true });
       await writeFile(resolvedOut, blob);
@@ -129,10 +129,10 @@ async function exportStateCore({ fromSlot, path: outPath }, sessionKey) {
       };
 }
 
-/** op:'load' — restore from an in-memory slot OR a disk blob. */
+/** op:'load' - restore from an in-memory slot OR a disk blob. */
 /**
  * Liveness probe (0.102.0): a state captured at a paused/transitional moment
- * can have its dispatchers not running — everything watched from it looks
+ * can have its dispatchers not running - everything watched from it looks
  * dead. Probe by stepping a few frames and checking that the PC moves and the
  * framebuffer changes, then RE-RESTORE the exact state so the probe is
  * side-effect-free. Skippable with probeLiveness:false (frame-exact flows).
@@ -164,13 +164,13 @@ function probeStateLiveness(host, reload) {
       alive, framesProbed: FRAMES, pcVaried, framebufferChanged,
       ...(alive ? {} : {
         note: "PROBE: the CPU PC never moved and the framebuffer never changed over " + FRAMES +
-          " frames — this state looks FROZEN (captured mid-pause/transition; dispatchers not running). " +
+          " frames - this state looks FROZEN (captured mid-pause/transition; dispatchers not running). " +
           "Code you watch from here may never execute. Advance to a live moment and re-save, or " +
           "confirm with a breakpoint on a routine you know runs constantly (NMI, main loop). " +
           "(The probe re-restored the state; your session is at the exact loaded moment.)",
       }),
     };
-  } catch { return null; } // best-effort — never fail the load over the probe
+  } catch { return null; } // best-effort - never fail the load over the probe
 }
 
 async function loadStateCore({ name, path: inPath, render = true, probeLiveness = true, reapplyCheats = false }, sessionKey) {
@@ -182,7 +182,7 @@ async function loadStateCore({ name, path: inPath, render = true, probeLiveness 
       // Snapshot BEFORE the load, which is what clears them.
       //
       // `cheatsCleared:N` already reported this fact at the right moment, in the
-      // right tool — and it still bit, because knowing a cheat was cleared does
+      // right tool - and it still bit, because knowing a cheat was cleared does
       // not stop you forgetting to re-arm it three calls later while reasoning
       // about something else. One report cost a 200-frame run and a screenshot
       // that came back GAME OVER. So the tool does the obvious follow-up rather
@@ -214,7 +214,7 @@ async function loadStateCore({ name, path: inPath, render = true, probeLiveness 
           const raw = await readFile(cheatSidecarPath(resolvedIn), "utf8");
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed?.cheats) && parsed.cheats.length) cheatsFromSidecar = parsed.cheats;
-        } catch { /* no sidecar (the normal case) — nothing to say */ }
+        } catch { /* no sidecar (the normal case) - nothing to say */ }
       }
 
       // Re-arm AFTER the liveness probe, which re-restores the state and would
@@ -260,17 +260,17 @@ async function loadStateCore({ name, path: inPath, render = true, probeLiveness 
         // this state expects a cheat rather than discovering it via GAME OVER.
         ...(cheatsFromSidecar ? { cheatsRecordedWithState: cheatsFromSidecar.map((c) => c.code) } : {}),
         // Only worth saying when there is something to re-arm and the caller
-        // didn't ask for it — the case where a run is about to be wasted.
+        // didn't ask for it - the case where a run is about to be wasted.
         ...(!reapplyCheats && (cheatsCleared || cheatsFromSidecar)
           ? { cheatsClearedHint: (cheatsFromSidecar
               ? `This state was SAVED with ${cheatsFromSidecar.length} cheat(s) active (${cheatsFromSidecar.map((c) => c.code).join(", ")}) and they are NOT applied. `
               : `${cheatsCleared} cheat(s) were cleared by this load and are NOT active. `) +
-              "Pass reapplyCheats:true to have them restored automatically — reading this field and re-arming three calls later is exactly what gets forgotten." }
+              "Pass reapplyCheats:true to have them restored automatically - reading this field and re-arming three calls later is exactly what gets forgotten." }
           : {}),
       };
 }
 
-/** op:'list' — named in-memory slots. */
+/** op:'list' - named in-memory slots. */
 function listStatesCore(_args, sessionKey) {
   return { states: getHost(sessionKey).listStates() };
 }
@@ -279,7 +279,7 @@ function listStatesCore(_args, sessionKey) {
 //   - libretro cores: a NAMED region ("save_ram") read/written via
 //     host.regionSize/readMemory/writeMemory(region, ...).
 //   - wasmcart: no named regions at all (readMemory/writeMemory there take a
-//     raw heap OFFSET, a different signature entirely) — but the cart's own
+//     raw heap OFFSET, a different signature entirely) - but the cart's own
 //     save area IS live and readable through host.getSaveData()/setSaveData().
 // Routing every platform through the libretro region API made wasmcart look
 // like "no battery save RAM" (size 0) even with a cart holding real save
@@ -312,7 +312,7 @@ function noSramError(op, host, size) {
   if (shape === "none") {
     return new Error(
       `state({op:'${op}'}): this host ('${host.status.platform}') implements neither the libretro ` +
-      `save-RAM region API nor wasmcart's getSaveData — there is no supported way to reach SRAM here.`);
+      `save-RAM region API nor wasmcart's getSaveData - there is no supported way to reach SRAM here.`);
   }
   return new Error(
     `state({op:'${op}'}): the loaded ROM has no battery save RAM ` +
@@ -321,7 +321,7 @@ function noSramError(op, host, size) {
     `are disk-based). Use state({op:'save', path}) for a full-machine savestate instead.`);
 }
 
-/** op:'exportSram' — write the cartridge's battery SAVE RAM to a .sav file.
+/** op:'exportSram' - write the cartridge's battery SAVE RAM to a .sav file.
  * This is the actual save-game file (distinct from a whole-machine savestate):
  * the bytes a real cart keeps on its battery. Empty on a no-battery cart. */
 async function exportSramCore({ path: outPath }, sessionKey) {
@@ -341,11 +341,11 @@ async function exportSramCore({ path: outPath }, sessionKey) {
     platform: host.status.platform,
     note: "Wrote the cartridge's battery SAVE RAM (the .sav save-game file). Restore with " +
       "state({op:'importSram', path}) after loading the same ROM. This is the SAVE FILE, " +
-      "not a savestate — edit it offline (it's raw SRAM) or inject one a player made elsewhere.",
+      "not a savestate - edit it offline (it's raw SRAM) or inject one a player made elsewhere.",
   };
 }
 
-/** op:'importSram' — load a .sav file back into the cartridge's battery SAVE RAM. */
+/** op:'importSram' - load a .sav file back into the cartridge's battery SAVE RAM. */
 async function importSramCore({ path: inPath }, sessionKey) {
   const host = getHost(sessionKey);
   const shape = sramShape(host);
@@ -354,12 +354,12 @@ async function importSramCore({ path: inPath }, sessionKey) {
   const resolved = resolveStatePath(inPath, host);
   const blob = new Uint8Array(await readFile(resolved));
   if (blob.length !== size) {
-    // Size mismatch is the classic wrong-game/wrong-region footgun — surface it,
+    // Size mismatch is the classic wrong-game/wrong-region footgun - surface it,
     // but allow a smaller blob (zero-pad) since some dumps trim trailing zeros.
     if (blob.length > size) {
       throw new Error(
         `state({op:'importSram'}): .sav is ${blob.length} bytes but this cart's SAVE RAM is ${size} ` +
-        `— too large (wrong game/region?). Refusing to truncate.`);
+        `- too large (wrong game/region?). Refusing to truncate.`);
     }
   }
   if (shape === "wasmcart") host.setSaveData(blob);
@@ -378,7 +378,7 @@ async function importSramCore({ path: inPath }, sessionKey) {
   };
 }
 
-/** op:'exportDisk' — write the LIVE mounted C64 .d64 disk image to a file.
+/** op:'exportDisk' - write the LIVE mounted C64 .d64 disk image to a file.
  * The C64 analogue of exportSram: a game saves by writing files to its disk, and
  * this snapshots the whole disk (incl. any saves the game wrote). C64/VICE only. */
 async function exportDiskCore({ path: outPath, unit = 8 }, sessionKey) {
@@ -397,14 +397,14 @@ async function exportDiskCore({ path: outPath, unit = 8 }, sessionKey) {
     ...(resolved !== outPath ? { resolvedPath: resolved } : {}),
     bytes: blob.length,
     unit,
-    note: "Wrote the LIVE 1541 disk image (.d64) — the C64 save medium. Re-load it later " +
+    note: "Wrote the LIVE 1541 disk image (.d64) - the C64 save medium. Re-load it later " +
       "with loadMedia({platform:'c64', path}) (it autostarts), or push it back into a " +
       "running session with state({op:'importDisk', path}). This captures any files the " +
       "game wrote to disk.",
   };
 }
 
-/** op:'importDisk' — write a .d64 file back into the LIVE mounted C64 disk image. */
+/** op:'importDisk' - write a .d64 file back into the LIVE mounted C64 disk image. */
 async function importDiskCore({ path: inPath, unit = 8 }, sessionKey) {
   const host = getHost(sessionKey);
   if (!host.diskImageSupported || !host.diskImageSupported()) {
@@ -414,7 +414,7 @@ async function importDiskCore({ path: inPath, unit = 8 }, sessionKey) {
   const resolved = resolveStatePath(inPath, host);
   const blob = new Uint8Array(await readFile(resolved));
   if (blob.length !== 174848) {
-    throw new Error(`state({op:'importDisk'}): '${resolved}' is ${blob.length} bytes — not a ` +
+    throw new Error(`state({op:'importDisk'}): '${resolved}' is ${blob.length} bytes - not a ` +
       `standard 174848-byte 35-track .d64. Only that format round-trips through the live drive.`);
   }
   const n = host.importDiskImage(blob, unit);
@@ -429,7 +429,7 @@ async function importDiskCore({ path: inPath, unit = 8 }, sessionKey) {
   };
 }
 
-/** op:'putDiskFile' — write ONE PRG file into the LIVE mounted C64 disk (inject a save). */
+/** op:'putDiskFile' - write ONE PRG file into the LIVE mounted C64 disk (inject a save). */
 async function putDiskFileCore({ path: inPath, name, unit = 8 }, sessionKey) {
   const host = getHost(sessionKey);
   if (!host.diskImageSupported || !host.diskImageSupported()) {
@@ -454,7 +454,7 @@ async function putDiskFileCore({ path: inPath, name, unit = 8 }, sessionKey) {
   };
 }
 
-/** op:'dump' — raw libretro blob to disk for forensic inspection (+ optional findHex). */
+/** op:'dump' - raw libretro blob to disk for forensic inspection (+ optional findHex). */
 async function dumpStateCore({ path: outPath, findHex, maxMatches = 32 }, sessionKey) {
       const host = getHost(sessionKey);
       const blob = host.serializeState();
@@ -464,7 +464,7 @@ async function dumpStateCore({ path: outPath, findHex, maxMatches = 32 }, sessio
         path: outPath,
         bytes: blob.length,
         platform: host.status.platform,
-        note: "Raw libretro save-state blob. Use `xxd`, `hexdump -C`, or re-call with findHex to inspect. The blob's structure is core-specific — typically a header followed by concatenated subsystem dumps (CPU regs, RAM, VRAM, etc.).",
+        note: "Raw libretro save-state blob. Use `xxd`, `hexdump -C`, or re-call with findHex to inspect. The blob's structure is core-specific - typically a header followed by concatenated subsystem dumps (CPU regs, RAM, VRAM, etc.).",
       };
       if (findHex) {
         const cleaned = findHex.replace(/[\s_]/g, "");
@@ -489,14 +489,14 @@ async function dumpStateCore({ path: outPath, findHex, maxMatches = 32 }, sessio
       return result;
 }
 
-/** op:'diff' — whole-machine save-state diff (snapOrDiff:'snapshot'|'diff'). */
+/** op:'diff' - whole-machine save-state diff (snapOrDiff:'snapshot'|'diff'). */
 function diffStateCore({ name = "default", snapOrDiff }, sessionKey) {
       const host = getHost(sessionKey);
       const store = stateDiffSnapshots(sessionKey);
       if (snapOrDiff === "snapshot") {
         const blob = host.serializeState();
         store.set(name, Uint8Array.from(blob));
-        return { name, mode: "snapshot", size: blob.length, note: "State baseline captured — trigger your event, then state({op:'diff', name, snapOrDiff:'diff'})." };
+        return { name, mode: "snapshot", size: blob.length, note: "State baseline captured - trigger your event, then state({op:'diff', name, snapOrDiff:'diff'})." };
       }
       const base = store.get(name);
       if (!base) throw new Error(`state({op:'diff'}): no state snapshot named '${name}'. Call with snapOrDiff:'snapshot' first.`);
@@ -512,7 +512,7 @@ function diffStateCore({ name = "default", snapOrDiff }, sessionKey) {
         sizeChanged,
         baselineSize: base.length,
         currentSize: now.length,
-        note: "State blobs are core-internal — for the actual changed RAM addresses use memory({op:'snapshot'/'diff'}).",
+        note: "State blobs are core-internal - for the actual changed RAM addresses use memory({op:'snapshot'/'diff'}).",
       };
 }
 
@@ -521,35 +521,35 @@ export function registerStateTools(server, z, sessionKey) {
     "state",
     "Save-state lifecycle for the emulator. `op`: 'save' | 'load' | 'list' | 'export' | 'dump' | 'diff'.\n" +
     "'save': `name` = fast in-memory slot (LOST on server restart / new session), `path` = disk blob that SURVIVES " +
-    "across sessions — reload via op:'load'. Multi-session RE: save once at the state you care about, reload it " +
+    "across sessions - reload via op:'load'. Multi-session RE: save once at the state you care about, reload it " +
     "every session instead of re-running loadMedia + hundreds of stepFrames.\n" +
-    "'load': restore from a `name` slot OR a `path` blob. A state captures RAM/CPU/PPU/APU — NOT the ROM — so it's " +
+    "'load': restore from a `name` slot OR a `path` blob. A state captures RAM/CPU/PPU/APU - NOT the ROM - so it's " +
     "ROM-CONTENT-INDEPENDENT: a state saved on the stock ROM reloads into a rebuilt/patched ROM of the same core → " +
     "clean A/B patch test. KNOW: (1) `render:true` (default) steps one frame so the next screenshot isn't stale/" +
     "blank (works even while PAUSED); set false to stay at the exact restored instant. (2) `frameCount` is NOT " +
-    "rewound — it keeps counting. (3) a restore REMOVES active cheats (`cheatsCleared:N`).\n" +
+    "rewound - it keeps counting. (3) a restore REMOVES active cheats (`cheatsCleared:N`).\n" +
     "'export': copy an EXISTING slot's bytes to disk WITHOUT touching the host (persist a playtest-hotkey save; no " +
-    "pause/resume). 'dump': raw libretro blob to disk for forensic inspection — the blob often contains internal " +
+    "pause/resume). 'dump': raw libretro blob to disk for forensic inspection - the blob often contains internal " +
     "memory the region API doesn't expose (SPC700 ARAM, Z80 RAM); `findHex` greps it for a sentinel you wrote. " +
-    "'list': named in-memory slots. 'diff': whole-machine 'did ANYTHING change?' (coarser than memory diff) — " +
+    "'list': named in-memory slots. 'diff': whole-machine 'did ANYTHING change?' (coarser than memory diff) - " +
     "snapOrDiff:'snapshot' captures, 'diff' compares.",
     {
-      op: z.enum(["save", "load", "list", "export", "dump", "diff", "exportSram", "importSram", "exportDisk", "importDisk", "putDiskFile", "autoSnapshot", "recoverSnapshot"]).describe("autoSnapshot arms/disarms a periodic background save so an unprompted SERVER RESTART costs a minute instead of the session (recoverSnapshot restores the newest one). save/load a savestate (whole machine — load also LIVENESS-PROBES the restored state and flags one captured mid-pause/transition whose dispatchers aren't running, side-effect-free); list slots; export a slot to disk; dump the raw blob; diff the whole machine. SRAM (the cartridge BATTERY SAVE FILE, distinct from a savestate): exportSram writes the .sav, importSram loads one back. C64 DISK (VICE; the C64 save medium is a floppy, not battery SRAM): exportDisk writes the live .d64, importDisk pushes a .d64 back into the running drive, putDiskFile injects one PRG file into the live disk."),
+      op: z.enum(["save", "load", "list", "export", "dump", "diff", "exportSram", "importSram", "exportDisk", "importDisk", "putDiskFile", "autoSnapshot", "recoverSnapshot"]).describe("autoSnapshot arms/disarms a periodic background save so an unprompted SERVER RESTART costs a minute instead of the session (recoverSnapshot restores the newest one). save/load a savestate (whole machine - load also LIVENESS-PROBES the restored state and flags one captured mid-pause/transition whose dispatchers aren't running, side-effect-free); list slots; export a slot to disk; dump the raw blob; diff the whole machine. SRAM (the cartridge BATTERY SAVE FILE, distinct from a savestate): exportSram writes the .sav, importSram loads one back. C64 DISK (VICE; the C64 save medium is a floppy, not battery SRAM): exportDisk writes the live .d64, importDisk pushes a .d64 back into the running drive, putDiskFile injects one PRG file into the live disk."),
       name: z.string().min(1).optional().describe("op=save/load: in-memory slot name. op=diff: snapshot label (default 'default'). op=putDiskFile: file name on the disk (≤16 chars; default = source basename)."),
       unit: z.number().int().min(8).max(11).default(8).describe("op=exportDisk/importDisk/putDiskFile (C64): drive unit (default 8)."),
       path: z.string().optional().describe("op=save: also write the blob here (survives restarts). op=load: restore from this disk blob. op=export/dump: write the blob here (required). A RELATIVE path resolves against the loaded ROM's directory (NOT the server CWD); an absolute path is used as-is. The result echoes `resolvedPath` when they differ."),
       enabled: z.boolean().optional().describe("op=autoSnapshot: true to arm periodic snapshots, false to disarm."),
-      intervalSeconds: z.number().int().min(5).max(3600).optional().describe("op=autoSnapshot: how often to capture, in seconds (default 60, minimum 5). Snapshots are taken LAZILY — the check runs when a tool call is already touching the host and does nothing if the interval hasn't elapsed, so there is no background timer and nothing fires while the session is idle."),
+      intervalSeconds: z.number().int().min(5).max(3600).optional().describe("op=autoSnapshot: how often to capture, in seconds (default 60, minimum 5). Snapshots are taken LAZILY - the check runs when a tool call is already touching the host and does nothing if the interval hasn't elapsed, so there is no background timer and nothing fires while the session is idle."),
       dir: z.string().optional().describe("op=autoSnapshot/recoverSnapshot: where snapshots live (default a session-scoped dir under the OS temp dir). Deliberately separate from your named slots so an auto-snapshot can never clobber a rig you built by hand."),
-      recordCheats: z.boolean().default(true).describe("op=save (with `path`): if any cheats are active, record them in a `<path>.cheats.json` SIDECAR so the rig describes its own requirements instead of relying on a note in prose. A shared .state otherwise needs knowledge that doesn't travel with it. The .state bytes are unchanged — old states keep loading, and no sidecar is written when no cheats are active. Keep the two files together (commit both); state({op:'load'}) reports the sidecar and reapplyCheats:true re-arms from it."),
+      recordCheats: z.boolean().default(true).describe("op=save (with `path`): if any cheats are active, record them in a `<path>.cheats.json` SIDECAR so the rig describes its own requirements instead of relying on a note in prose. A shared .state otherwise needs knowledge that doesn't travel with it. The .state bytes are unchanged - old states keep loading, and no sidecar is written when no cheats are active. Keep the two files together (commit both); state({op:'load'}) reports the sidecar and reapplyCheats:true re-arms from it."),
       // load
       render: z.boolean().default(true).describe("op=load: step one frame after restoring so the framebuffer reflects it (fixes the stale-screenshot footgun). false = stay at the exact restored instant."),
-      probeLiveness: z.boolean().default(true).describe("op=load: probe that the restored state is LIVE (step 4 frames: does the PC move / framebuffer change?), then RE-RESTORE the exact state — net-zero side effects. A state captured mid-pause/transition has its dispatchers stopped and everything watched from it looks dead; the probe says so up front. false = skip (saves 4 emulated frames of work)."),
-      reapplyCheats: z.boolean().default(false).describe("op=load: snapshot the active cheats BEFORE the load and re-apply them after, reporting `cheatsReapplied`. A restore always clears cheats, and `cheatsCleared:N` says so — but knowing it does not stop you forgetting to re-arm three calls later, which costs a whole run and a screenshot that comes back GAME OVER. Use this on any rig whose recipe includes a cheat (invincibility, a freeze) so the load can't silently disarm it."),
+      probeLiveness: z.boolean().default(true).describe("op=load: probe that the restored state is LIVE (step 4 frames: does the PC move / framebuffer change?), then RE-RESTORE the exact state - net-zero side effects. A state captured mid-pause/transition has its dispatchers stopped and everything watched from it looks dead; the probe says so up front. false = skip (saves 4 emulated frames of work)."),
+      reapplyCheats: z.boolean().default(false).describe("op=load: snapshot the active cheats BEFORE the load and re-apply them after, reporting `cheatsReapplied`. A restore always clears cheats, and `cheatsCleared:N` says so - but knowing it does not stop you forgetting to re-arm three calls later, which costs a whole run and a screenshot that comes back GAME OVER. Use this on any rig whose recipe includes a cheat (invincibility, a freeze) so the load can't silently disarm it."),
       // export
       fromSlot: z.string().min(1).optional().describe("op=export: in-memory slot to copy to disk (required)."),
       // dump
-      findHex: z.string().optional().describe("op=dump: even-length hex byte-pattern to grep the blob for (ws/underscores ok, no 0x prefix) — returns every offset. Locate sentinel bytes you wrote."),
+      findHex: z.string().optional().describe("op=dump: even-length hex byte-pattern to grep the blob for (ws/underscores ok, no 0x prefix) - returns every offset. Locate sentinel bytes you wrote."),
       maxMatches: z.number().int().min(1).max(1000).default(32).describe("op=dump: cap on returned offsets when findHex is set."),
       // diff
       snapOrDiff: z.enum(["snapshot", "diff"]).optional().describe("op=diff: 'snapshot' captures the current state as baseline; 'diff' compares to it."),
@@ -568,7 +568,7 @@ export function registerStateTools(server, z, sessionKey) {
           return jsonContent({
             ...r,
             note: r.enabled
-              ? `Auto-snapshot ARMED (every ${r.intervalSeconds}s, into ${r.dir}). Captures happen lazily on tool calls that already touch the host — no background timer, nothing while idle, and a failure is recorded rather than thrown so it can never break the call it was protecting. After a server restart, state({op:'recoverSnapshot'}) restores the newest one; catalog({op:'status'}) reports its age. Two files rotate, so a restart DURING a write can't leave you with only a truncated snapshot.`
+              ? `Auto-snapshot ARMED (every ${r.intervalSeconds}s, into ${r.dir}). Captures happen lazily on tool calls that already touch the host - no background timer, nothing while idle, and a failure is recorded rather than thrown so it can never break the call it was protecting. After a server restart, state({op:'recoverSnapshot'}) restores the newest one; catalog({op:'status'}) reports its age. Two files rotate, so a restart DURING a write can't leave you with only a truncated snapshot.`
               : "Auto-snapshot disarmed.",
           });
         }
@@ -577,7 +577,7 @@ export function registerStateTools(server, z, sessionKey) {
           if (!found) {
             return jsonContent({
               recovered: false,
-              note: "No auto-snapshot found. Arm it with state({op:'autoSnapshot', enabled:true}) — it only helps for restarts that happen AFTER it's armed. Recovery for this session is a fresh loadMedia.",
+              note: "No auto-snapshot found. Arm it with state({op:'autoSnapshot', enabled:true}) - it only helps for restarts that happen AFTER it's armed. Recovery for this session is a fresh loadMedia.",
             });
           }
           const host = getHost(sessionKey);
@@ -591,7 +591,7 @@ export function registerStateTools(server, z, sessionKey) {
             ageSeconds: found.ageSeconds,
             platform: host.status.platform,
             cheatsCleared,
-            note: `Restored the auto-snapshot taken ${found.ageSeconds}s ago. The ROM must already be loaded (loadMedia) — a state blob is not a ROM. ` +
+            note: `Restored the auto-snapshot taken ${found.ageSeconds}s ago. The ROM must already be loaded (loadMedia) - a state blob is not a ROM. ` +
               (cheatsCleared ? `${cheatsCleared} cheat(s) were cleared by the restore; re-apply them. ` : "") +
               "Anything done after that snapshot is gone: it bounds the loss, it doesn't erase it.",
           });

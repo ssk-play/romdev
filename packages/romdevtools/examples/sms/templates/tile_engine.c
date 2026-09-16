@@ -1,9 +1,9 @@
-/* ── tile_engine.c — SMS tile-map starter ───────────────────────────
+/* ── tile_engine.c - SMS tile-map starter ───────────────────────────
  *
  * 32×24 tile world drawn on the SMS BG plane with a walking player
  * sprite + AABB collision against solid tile indices.
  *
- * SMS BG name table is at VRAM $3800 — 32 cells wide × 28 rows × 2
+ * SMS BG name table is at VRAM $3800 - 32 cells wide × 28 rows × 2
  * bytes per cell. Only 24 rows are visible in mode 4. Each name-table
  * entry packs: tile_index (10 bits across two bytes) + h/v flip +
  * palette + priority.
@@ -42,10 +42,10 @@ static const uint8_t palette[32] = {
 };
 
 static const uint8_t bg_tiles[32 * 2] = {
-  /* T_OPEN — blank */
+  /* T_OPEN - blank */
   0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
   0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
-  /* T_WALL — bordered block */
+  /* T_WALL - bordered block */
   0xFF,0x00,0x00,0x00, 0x81,0x00,0x00,0x00,
   0x81,0x00,0x00,0x00, 0x81,0x00,0x00,0x00,
   0x81,0x00,0x00,0x00, 0x81,0x00,0x00,0x00,

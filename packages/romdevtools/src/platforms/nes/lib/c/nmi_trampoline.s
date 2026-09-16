@@ -1,4 +1,4 @@
-; nmi_trampoline.s — paste together with nmi_handler.c.
+; nmi_trampoline.s - paste together with nmi_handler.c.
 ;
 ; Replaces the chr-ram preset crt0's default `nmi: rti` stub by
 ; exporting `nmi` here and calling into the C-side handler. ALSO

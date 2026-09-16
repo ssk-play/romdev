@@ -1,4 +1,4 @@
-; SNES — CGRAM (palette RAM) upload.
+; SNES - CGRAM (palette RAM) upload.
 ;
 ; CGRAM is 512 bytes = 256 colors × 2 bytes BGR555 little-endian.
 ; Layout: byte 0 is the universal backdrop. Bytes 0..15 = BG palette 0
@@ -16,11 +16,11 @@
 ;
 ; Example: write 16 BG colors from a table at `bg_palette_data`:
 ;
-;   stz $2121           ; CGADD — start at CGRAM index 0
+;   stz $2121           ; CGADD - start at CGRAM index 0
 ;   ldx #$0000
 ; .loop:
 ;   lda bg_palette_data, x
-;   sta $2122           ; CGDATA — write byte; pair counts as one color
+;   sta $2122           ; CGDATA - write byte; pair counts as one color
 ;   inx
 ;   cpx #(bg_palette_end-bg_palette_data)
 ;   bne .loop

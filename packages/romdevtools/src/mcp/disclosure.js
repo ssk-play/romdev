@@ -37,7 +37,7 @@
  * @param {any} server the McpServer
  * @param {any} z zod
  * @param {Category[]} categories all loadable categories
- * @param {string} sessionKey per-MCP-session host scope key — forwarded
+ * @param {string} sessionKey per-MCP-session host scope key - forwarded
  *   to each category's register fn so tool handlers can call
  *   getHost(sessionKey) and friends.
  */
@@ -58,7 +58,7 @@ export function createDisclosure(server, z, categories, sessionKey) {
    * Crawl a Zod schema node and return {type, optional, description, enum?}.
    * Handles ZodMiniObject (def.shape), optionals, defaults, enums, and the
    * basic primitives (string/number/boolean/array/object). Returns "unknown"
-   * for shapes we don't recognize — better than crashing the discovery flow.
+   * for shapes we don't recognize - better than crashing the discovery flow.
    */
   function summarizeZod(node) {
     if (!node) return { type: "unknown" };
@@ -117,7 +117,7 @@ export function createDisclosure(server, z, categories, sessionKey) {
   }
 
   /**
-   * Load a category. Idempotent — calling twice is fine. Returns the
+   * Load a category. Idempotent - calling twice is fine. Returns the
    * tool schemas the agent can now use immediately (no wait for
    * tools/list_changed).
    * @param {string} name
@@ -157,7 +157,7 @@ export function createDisclosure(server, z, categories, sessionKey) {
     return skippedDupes;
   }
 
-  /** Like describe() but only returns {name, description} — keeps the
+  /** Like describe() but only returns {name, description} - keeps the
    * loadCategory response small. Agents pull full schemas via
    * describeTool on demand. */
   function describeBrief(name) {
@@ -165,7 +165,7 @@ export function createDisclosure(server, z, categories, sessionKey) {
     if (!t) return null;
     return {
       name,
-      // Truncate description to ~200 chars — enough to know what the tool
+      // Truncate description to ~200 chars - enough to know what the tool
       // is for, not enough to blow the response cap when 60+ tools load.
       description: (t.description ?? "").slice(0, 200),
     };

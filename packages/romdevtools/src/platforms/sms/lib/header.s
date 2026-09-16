@@ -6,13 +6,13 @@
 ; your ROM runs on real cartridges.
 ;
 ; Layout:
-;   $7FF0..$7FF7  "TMR SEGA"           — magic string
-;   $7FF8..$7FF9  reserved             — 0x00 0x00
-;   $7FFA..$7FFB  checksum (LE word)   — sum of bytes $0000-$7FEF
-;   $7FFC..$7FFE  product code         — 5 nibbles BCD (low at $7FFC,
+;   $7FF0..$7FF7  "TMR SEGA"           - magic string
+;   $7FF8..$7FF9  reserved             - 0x00 0x00
+;   $7FFA..$7FFB  checksum (LE word)   - sum of bytes $0000-$7FEF
+;   $7FFC..$7FFE  product code         - 5 nibbles BCD (low at $7FFC,
 ;                                         high nibble of $7FFE = high digit)
-;   $7FFE high   version               — 4-bit revision number
-;   $7FFF        region | rom_size     — bits 7-4 = region, bits 3-0 = size
+;   $7FFE high   version               - 4-bit revision number
+;   $7FFF        region | rom_size     - bits 7-4 = region, bits 3-0 = size
 ;
 ; Region codes:
 ;   3 = SMS Japan, 4 = SMS Export, 5 = GG Japan, 6 = GG Export, 7 = GG Int'l
@@ -23,7 +23,7 @@
         .org $7FF0
         .ascii "TMR SEGA"
         .db $00, $00
-        ; Checksum slot — most assemblers won't compute this for you;
+        ; Checksum slot - most assemblers won't compute this for you;
         ; either patch it post-build (sums of bytes $0000-$7FEF) or use
         ; the BIOS-skip approach (most emulators don't enforce).
         .db $00, $00

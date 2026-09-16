@@ -6,7 +6,7 @@
 // project-dir builder now applies a per-platform RECIPE (projectBuildRecipe +
 // readProjectDir) so it matches a hand-written build. This test locks that in:
 // every covered scaffold must BUILD from its dir. (Render correctness is
-// separate — this is the "first build doesn't choke" guarantee that keeps weak
+// separate - this is the "first build doesn't choke" guarantee that keeps weak
 // agents from rage-installing their own toolchains.)
 
 import { test } from "node:test";

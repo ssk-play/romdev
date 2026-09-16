@@ -1,7 +1,7 @@
 // Core registry. Maps platform IDs to their libretro WASM core.
 //
 // The shipped core wasm lives in the per-platform binary packages
-// (romdev-core-* / romdev-platform-*) — NOT in this package. `resolveCore`
+// (romdev-core-* / romdev-platform-*) - NOT in this package. `resolveCore`
 // resolves each platform from the `pkg` named in its CORES entry. The local
 // `src/cores/wasm/` dir is a gitignored BUILD-STAGING area: `scripts/build-*.sh`
 // emit there, and it serves as a dev fallback when you're working in-tree
@@ -16,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /** Build-staging dir for `.js` + `.wasm` core pairs (gitignored; dev fallback
- *  only — the shipped wasm resolves from the satellite packages). */
+ *  only - the shipped wasm resolves from the satellite packages). */
 export const CORES_DIR = path.resolve(__dirname, "wasm");
 
 /**
@@ -27,14 +27,14 @@ export const CORES_DIR = path.resolve(__dirname, "wasm");
  *   `romdev-core-*` = a standalone core (often shared: gpgx serves genesis/sms/
  *   gg, gambatte serves gb/gbc). `romdev-platform-*` = a core bundled WITH the
  *   dedicated toolchain nothing else uses (snes9x+asar+wla, mGBA+arm-gcc,
- *   stella+dasm) — they ship together because only that platform needs them.
+ *   stella+dasm) - they ship together because only that platform needs them.
  * @property {string} displayName
  * @property {string} [aka]        comma-separated synonyms accepted in resolvers
  */
 
 /**
  * The single source of truth for every platform's core: its filename stem, the
- * package that ships it, and display metadata — all in one record so there's no
+ * package that ships it, and display metadata - all in one record so there's no
  * second map to keep in sync.
  * @type {Record<string, CoreInfo>}
  */
@@ -55,7 +55,7 @@ export const CORES = {
   msx: { platform: "msx", coreName: "bluemsx", pkg: "romdev-core-bluemsx", displayName: "MSX / MSX2 (blueMSX)", aka: "msx2" },
   gametank: { platform: "gametank", coreName: "gametank", pkg: "romdev-core-gametank", displayName: "GameTank (Clyde Shaffer)", aka: "gtr" },
   // FAKE-08 = open-source (MIT) PICO-8 player, NOT Lexaloffle's PICO-8, no BIOS. Runs
-  // .p8 (Lua source) + .p8.png carts at 128×128. It's a Lua VM, not a real CPU — the
+  // .p8 (Lua source) + .p8.png carts at 128×128. It's a Lua VM, not a real CPU - the
   // capability descriptor marks cpuState/disasm/memory-region tools not-applicable; the
   // .p8 Lua source IS the readable "disassembly".
   pico8: { platform: "pico8", coreName: "fake08", pkg: "romdev-core-fake08", displayName: "PICO-8 (FAKE-08)", aka: "p8,fake08" },
@@ -70,18 +70,18 @@ export const CORES = {
   // is unaffected.
   // parallel_n64 renders the RDP on the REAL GPU through glide64 (GL HLE) → native-gles
   // (the host's WebGL2 bridge), same path as Flycast. The host forces the glide64 plugin
-  // via a core option. NOT software RDP (angrylion) — that was the old headless build.
+  // via a core option. NOT software RDP (angrylion) - that was the old headless build.
   n64: { platform: "n64", coreName: "parallel_n64", pkg: "romdev-core-parallel-n64", displayName: "Nintendo 64 (ParaLLEl N64, glide64 GL)", hwRender: true },
   // beetle_psx_hw = mednafen PSX with the GLES3/WebGL2 HARDWARE renderer → rendered on
   // the real GPU through native-gles (like glide64-N64 + Flycast-DC). Ships with OpenBIOS
   // EMBEDDED (PCSX-Redux, MIT-licensed, region-free) so there's no copyrighted Sony
-  // firmware to ship and no BIOS file to supply — the GPU PS1 path with an open BIOS.
+  // firmware to ship and no BIOS file to supply - the GPU PS1 path with an open BIOS.
   ps1: { platform: "ps1", coreName: "beetle_psx_hw", pkg: "romdev-core-beetle-psx-hw", displayName: "Sony PlayStation (Beetle PSX HW, OpenBIOS)", aka: "psx,playstation", hwRender: true },
   // Flycast = full Dreamcast emulator, GLES3/WebGL2 HW-render (PowerVR2 is GPU-first,
   // no software framebuffer path) → driven through the native-gles/webgl-node bridge
-  // like the GL N64 build. HLE BIOS (reios) on by default — no firmware to ship.
+  // like the GL N64 build. HLE BIOS (reios) on by default - no firmware to ship.
   // noderawfs: the flycast WASM is built with -s NODERAWFS=1, so its filesystem IS
-  // Node's real fs — libchdr fopens/seeks the disc image off DISK on demand instead
+  // Node's real fs - libchdr fopens/seeks the disc image off DISK on demand instead
   // of the host loading the whole (up to ~1GB) CHD into the WASM heap (which OOM'd a
   // 1GB max-heap on a full-size commercial disc). The host passes the REAL path
   // and skips the malloc+FS.writeFile for these cores. See LibretroHost.loadMedia.
@@ -96,7 +96,7 @@ function resolveCoreFromPackage(pkg, coreName) {
     const jsPath = path.join(dir, "wasm", `${coreName}_libretro.js`);
     const wasmPath = path.join(dir, "wasm", `${coreName}_libretro.wasm`);
     if (existsSync(jsPath) && existsSync(wasmPath)) return { jsPath, wasmPath };
-  } catch { /* package not resolvable — fall through to the dev-staging dir */ }
+  } catch { /* package not resolvable - fall through to the dev-staging dir */ }
   return null;
 }
 

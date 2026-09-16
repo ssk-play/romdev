@@ -1,4 +1,4 @@
-// pvsneslib.test.js — R18 idiomatic SNES C path through buildSnesC.
+// pvsneslib.test.js - R18 idiomatic SNES C path through buildSnesC.
 //
 // Builds a small `#include <snes.h>` program through the full PVSnesLib
 // link path: tcc-65816 → wla-65816 → wlalink + 4 bundled .obj files.
@@ -34,7 +34,7 @@ test("buildSnesC pvsneslib mode: links #include <snes.h> + consoleDrawText to a 
   // Note: the smoke test for the full include + link path uses headers
   // map for data.asm so the unresolved tilfont/palfont references resolve.
   // (We can't pass data.asm as a sibling .asm source directly through
-  // buildSnesC's surface today — that's a follow-up enhancement.)
+  // buildSnesC's surface today - that's a follow-up enhancement.)
   const r = await buildSnesC({
     source: HELLO_PVSNESLIB,
     // Inline-define the data symbols in main.c instead of a sibling .asm
@@ -44,7 +44,7 @@ test("buildSnesC pvsneslib mode: links #include <snes.h> + consoleDrawText to a 
     pvsneslib: true,
   });
   // The link will fail with "unresolved tilfont/palfont" because our test
-  // C source doesn't define them — we expect that. The point of this test
+  // C source doesn't define them - we expect that. The point of this test
   // is to confirm the tcc + wla + pvsneslib-link chain runs end-to-end
   // with the bundled .obj files. The user-data-asm wiring follows.
   // If link fails ONLY on tilfont/palfont, the pipeline is healthy.
@@ -66,7 +66,7 @@ test("buildSnesC pvsneslib mode: links #include <snes.h> + consoleDrawText to a 
 
 test("buildSnesC pvsneslib mode (default): bare main with no PVSnesLib API still compiles", async () => {
   // Even without using <snes.h>, the default pvsneslib path should still
-  // compile a bare main() — the runtime is wired but unused.
+  // compile a bare main() - the runtime is wired but unused.
   const r = await buildSnesC({
     source: "int main(void) { return 0; }",
   });
@@ -75,7 +75,7 @@ test("buildSnesC pvsneslib mode (default): bare main with no PVSnesLib API still
   // toolchain crash).
   if (!r.ok) {
     // PVSnesLib's libc references some symbols (consoleInit) that crt0
-    // calls unconditionally — a bare main might link-fail. That's fine
+    // calls unconditionally - a bare main might link-fail. That's fine
     // for the minimum path; the test below proves pvsneslib:false works
     // for bare main.
     return;
@@ -126,7 +126,7 @@ palfont:
 });
 
 test("buildSnesC compiles + links multiple C files (genre scaffolds ship main.c + snes_sfx.c)", { timeout: 120000 }, async () => {
-  // main.c calls a function defined in a SECOND C TU — both must compile to
+  // main.c calls a function defined in a SECOND C TU - both must compile to
   // separate .obj and link. (Was previously rejected; the genre scaffolds rely
   // on this. The SCAFFOLDS themselves #include the sibling, but the builder must
   // also support real multi-TU so the dir-build recipe has a correct fallback.)

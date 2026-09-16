@@ -1,4 +1,4 @@
-// gba_iosupport.c — minimal libsysbase for GBA.
+// gba_iosupport.c - minimal libsysbase for GBA.
 //
 // newlib's stdio (printf/iprintf/puts/...) bottoms out in the reentrant
 // syscalls _write_r/_read_r/_close_r/etc. devkitPro routes those through a
@@ -6,7 +6,7 @@
 // (libtonc's tte_init_con / libgba's consoleInit) installs a devoptab whose
 // write_r renders text to the screen, so `iprintf("...")` Just Works.
 //
-// The full devkitPro libsysbase carries a whole VFS (dirs, stat, sockets, …).
+// The full devkitPro libsysbase carries a whole VFS (dirs, stat, sockets, ...).
 // A GBA homebrew only needs the stdout/stderr write path, so this is the
 // minimal, fully-from-source implementation of exactly that:
 //   - storage for devoptab_list[] (+ a default null device on every slot)
@@ -27,7 +27,7 @@
 // ── Default "null" device ────────────────────────────────────────────────
 // Used for every fd until a real device is installed. Reads return EOF (0),
 // writes silently succeed (so a program that prints before consoleInit() does
-// not crash — it just goes nowhere, matching devkitPro behavior).
+// not crash - it just goes nowhere, matching devkitPro behavior).
 static ssize_t null_write_r(struct _reent *r, void *fd, const char *p, size_t len) {
   (void)r; (void)fd; (void)p; return (ssize_t)len;
 }

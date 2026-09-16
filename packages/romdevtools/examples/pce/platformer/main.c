@@ -1,27 +1,27 @@
-/* ── main.c — PC Engine side-scrolling platformer (complete example game) ─────
+/* ── main.c - PC Engine side-scrolling platformer (complete example game) ─────
  *
- * A COMPLETE, working game — title screen, 1P mode and 2P ALTERNATING-TURNS
+ * A COMPLETE, working game - title screen, 1P mode and 2P ALTERNATING-TURNS
  * mode (arcade-classic: players swap on death; each player has their own
  * score and own 3 lives; player 2 plays on the SECOND pad), coins + distance
- * scoring, in-session hi-score (a bare HuCard can't save — see the hi-score
+ * scoring, in-session hi-score (a bare HuCard can't save - see the hi-score
  * note below), music + SFX, and TWO of
  * the PC Engine's signature features working together:
  *   - HARDWARE BG SCROLL: a world wider than one screen scrolled with the
  *     VDC's BXR register (zero per-frame tilemap rewrites once a column is
- *     painted) — the smoothest, cheapest scroll of any 8-bit machine.
+ *     painted) - the smoothest, cheapest scroll of any 8-bit machine.
  *   - LARGE MULTI-CELL SPRITES: the hero is a 32x32 HuC6270 sprite from ONE
- *     SATB entry (four 16x16 cells, 4-aligned pattern) — the kind of big,
+ *     SATB entry (four 16x16 cells, 4-aligned pattern) - the kind of big,
  *     readable character the NES needs 4+ hardware sprites to draw.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented PCE footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented PCE footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — level layout, physics tuning, scoring, art: reshape
+ *   GAME LOGIC (clay) - level layout, physics tuning, scoring, art: reshape
  *     freely.
  *
  * What depends on what:
- *   pce_hw.h / pce_video.c / pce_input.c / pce_sound.c — the helper lib
+ *   pce_hw.h / pce_video.c / pce_input.c / pce_sound.c - the helper lib
  *     (VDC/VCE/PSG register dances + joypad). The HARDWARE IDIOM markers in
  *     pce_video.c say which parts are load-bearing.
  *   cc65's pce crt0 + pce.lib are auto-linked; the 'rom32k' linker preset
@@ -30,7 +30,7 @@
  * 2P, honestly: the stock PC Engine has ONE controller port; 2P needs a
  * TurboTap. The geargrafx core implements the TurboTap and the romdev host
  * now force-ENABLES it (PLATFORM_CORE_OPTIONS pce: geargrafx_turbotap), so a
- * second pad's input reaches the game on pad slot 2 — verified by driving
+ * second pad's input reaches the game on pad slot 2 - verified by driving
  * port-1 input and seeing P2 move. So this game ships REAL 2P alternating
  * turns. (On real hardware the player plugs a TurboTap and a second pad.)
  *
@@ -38,49 +38,49 @@
  * two-column ground probe + (3 coins + 2 spikes) of AABB + a 256-word SATB
  * copy in vblank + at most one streamed BAT column fit comfortably in one
  * frame. Hardware scroll (BXR) is free; rewriting the whole tilemap per frame
- * would NOT fit — column streaming is why this scrolls smoothly.
+ * would NOT fit - column streaming is why this scrolls smoothly.
  */
 #include <pce.h>
 #include <stdint.h>   /* int16_t/int32_t for sub-pixel physics + camera */
 #include <joystick.h> /* JOY_2 + joy_read for the 2nd pad (TurboTap port 1) */
 #include "pce_hw.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "GLADE DASH"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * VRAM map (WORD addresses — the VDC is a 16-bit-word machine; an 8x8 tile is
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * VRAM map (WORD addresses - the VDC is a 16-bit-word machine; an 8x8 tile is
  * 16 words, a 16x16 sprite cell is 64). Sprites and BG tiles share one 64KB
  * VRAM, so lay it out ONCE and keep the SATB out of pattern space:
- *   $0000  BAT (32x32 background map — matches vdc_init's VDC_MWR setting)
+ *   $0000  BAT (32x32 background map - matches vdc_init's VDC_MWR setting)
  *   $1000  font glyphs (38 tiles: blank, 0-9, A-Z, dash)
  *   $1400  BG scenery tiles (sky, dirt, grass, slab, hud band)
  *   $1800  16x16 sprite cells: coin, spike
- *   $1900  PLAYER pattern cells — 4-ALIGNED cell index (32x32 large sprite)
+ *   $1900  PLAYER pattern cells - 4-ALIGNED cell index (32x32 large sprite)
  *   $7F00  shadow SATB destination (satb_dma copies it here, VDC reads it) */
 #define BAT_VRAM      0x0000
 #define FONT_VRAM     0x1000
-#define SKY_VRAM      0x1400   /* solid colour 1 — sky                       */
-#define DIRT_VRAM     0x1410   /* solid colour 2 — ground body               */
+#define SKY_VRAM      0x1400   /* solid colour 1 - sky                       */
+#define DIRT_VRAM     0x1410   /* solid colour 2 - ground body               */
 #define GRASS_VRAM    0x1420   /* colour-3 lip over colour-2 body            */
 #define SLAB_VRAM     0x1430   /* colour-3 thin one-way platform             */
-#define HUDBAND_VRAM  0x1440   /* solid colour 2 — band behind the HUD text  */
+#define HUDBAND_VRAM  0x1440   /* solid colour 2 - band behind the HUD text  */
 #define COIN_VRAM     0x1800   /* 16x16 sprite cell                          */
 #define SPIKE_VRAM    0x1840   /* 16x16 sprite cell                          */
-#define PLAYER_VRAM   0x1900   /* 4 cells (TL,TR,BL,BR) — 4-aligned (see idiom) */
+#define PLAYER_VRAM   0x1900   /* 4 cells (TL,TR,BL,BR) - 4-aligned (see idiom) */
 
 #define BAT_ENTRY(pal, vram)  ((u16)(((pal) << 12) | ((vram) >> 4)))
 
 /* Sprite pattern codes = VRAM >> 6 (the 16x16 cell index). */
 #define COIN_PAT     (COIN_VRAM >> 6)
 #define SPIKE_PAT    (SPIKE_VRAM >> 6)
-#define PLAYER_PAT   (PLAYER_VRAM >> 6)         /* 0x64 — multiple of 4        */
+#define PLAYER_PAT   (PLAYER_VRAM >> 6)         /* 0x64 - multiple of 4        */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * SATB slot plan (slot order is also priority: LOWER slot wins overlaps on
  * the HuC6270):
- *   0      player (a 32x32 large sprite — ONE SATB entry)
+ *   0      player (a 32x32 large sprite - ONE SATB entry)
  *   1-3    coins
  *   4-5    spikes
  * Everything else stays parked off-screen. */
@@ -95,13 +95,13 @@
 #define PAL_COIN     1
 #define PAL_SPIKE    2
 
-/* ── GAME LOGIC (clay) — the world ───────────────────────────────────────────
+/* ── GAME LOGIC (clay) - the world ───────────────────────────────────────────
  * A 96-cell (768px) world, wider than the 256px screen. The BAT is a 32x32
  * virtual map that WRAPS at 256px, so a wider world needs COLUMN STREAMING:
  * each time the camera crosses an 8px boundary we rewrite the BAT column about
  * to scroll into view with the next world column's tiles. Rows are 8px:
- *   ground_row[c] — BAT row of the grass top, 0xFF = pit.
- *   plat_row[c]   — BAT row of a one-way slab, 0 = none.
+ *   ground_row[c] - BAT row of the grass top, 0xFF = pit.
+ *   plat_row[c]   - BAT row of a one-way slab, 0 = none.
  * Playfield rows are 3..27 (rows 0-2 sit under the HUD). */
 #define WORLD_COLS   96
 #define WORLD_W      (WORLD_COLS * 8)
@@ -142,10 +142,10 @@ static const u8 plat_row[WORLD_COLS] = {
 
 typedef struct { int16_t x, y; u8 alive; } Obj;
 
-/* ── GAME LOGIC (clay) — physics + tuning (Q4.4 fixed point: 16 = 1 px) ── */
+/* ── GAME LOGIC (clay) - physics + tuning (Q4.4 fixed point: 16 = 1 px) ── */
 #define GRAVITY      10
-#define JUMP_VEL   (-104)         /* ~36px apex (~4.5 tiles) — clears a pit  */
-#define MAX_VY       64           /* terminal 4 px/frame — MUST stay under 5:
+#define JUMP_VEL   (-104)         /* ~36px apex (~4.5 tiles) - clears a pit  */
+#define MAX_VY       64           /* terminal 4 px/frame - MUST stay under 5:
                                    * the landing probe's +4 window can't      *
                                    * catch a faster fall (tunnelling)         */
 #define MOVE         34           /* px/16 per frame walk + scroll speed     */
@@ -155,7 +155,7 @@ typedef struct { int16_t x, y; u8 alive; } Obj;
 #define START_LIVES  3
 
 static int16_t px;                /* player screen x (px)                     */
-static int16_t py_q44;            /* player y, Q4.4 — gravity adds <1 px/frame
+static int16_t py_q44;            /* player y, Q4.4 - gravity adds <1 px/frame
                                    * near the apex; integer y would stick     */
 static int16_t vy_q44;
 static u8      on_ground;
@@ -164,7 +164,7 @@ static u8      dist_sub;          /* sub-counter: 64 px scrolled = +1 point   */
 static Obj     coins[NUM_COINS];
 static Obj     spikes[NUM_SPIKES];
 
-/* Players: index 0 = P1 (pad 1), 1 = P2 (pad 2 — alternating turns). Each has
+/* Players: index 0 = P1 (pad 1), 1 = P2 (pad 2 - alternating turns). Each has
  * own score + own lives; the HUD shows the CURRENT player's numbers. */
 static u8  two_player;
 static u8  cur_player;
@@ -179,7 +179,7 @@ static u8  sfx_timer;
 static u8  hud_dirty;
 static u8  anim_frame;            /* player walk-cycle phase                  */
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
@@ -188,7 +188,7 @@ static u8 state;
 static u16 tile_buf[16];          /* scratch for one 8x8 tile                 */
 static u16 spr_buf[64];           /* scratch for one 16x16 sprite cell        */
 
-/* ── GAME LOGIC (clay) — 5x7 glyph font: blank, 0-9, A-Z, dash ──────────────
+/* ── GAME LOGIC (clay) - 5x7 glyph font: blank, 0-9, A-Z, dash ──────────────
  * Each glyph is 7 rows of 5 bits (bit4 = leftmost). upload_font() expands
  * them into 8x8 1-plane tiles; drawn with BG sub-palette 1 (white). */
 #define G_BLANK 0
@@ -220,10 +220,10 @@ static const u8 FONT5x7[NUM_GLYPHS][7] = {
     {0x00,0x00,0x00,0x1F,0x00,0x00,0x00},
 };
 
-/* ── GAME LOGIC (clay) — the 32x32 hero, two walk frames (32 rows × 32 bits).
+/* ── GAME LOGIC (clay) - the 32x32 hero, two walk frames (32 rows × 32 bits).
  * Two u16 per row (cols 0-15, cols 16-31). body = colour 1 (plane0), the
  * face/cap accents = colour 3 (planes 0+1, a subset of body). A round forest
- * sprite (think a bounding critter) — big and readable, the PCE's strength. */
+ * sprite (think a bounding critter) - big and readable, the PCE's strength. */
 static const u16 hero_body_a[64] = {
     0x0000,0x0000, 0x0000,0x0000, 0x0007,0xE000, 0x001F,0xF800,
     0x003F,0xFC00, 0x007F,0xFE00, 0x00FF,0xFF00, 0x01FF,0xFF80,
@@ -244,7 +244,7 @@ static const u16 hero_body_b[64] = {
     0x003F,0xFC00, 0x001F,0xF800, 0x003C,0x3C00, 0x0038,0x1C00,
     0x0070,0x0E00, 0x00E0,0x0700, 0x01C0,0x0380, 0x0380,0x01C0,
 };
-/* eyes/cap accent (colour 3) — same for both frames, near the top of the head */
+/* eyes/cap accent (colour 3) - same for both frames, near the top of the head */
 static const u16 hero_face[64] = {
     0x0000,0x0000, 0x0000,0x0000, 0x0000,0x0000, 0x0000,0x0000,
     0x0000,0x0000, 0x0000,0x0000, 0x0000,0x0000, 0x0030,0x0C00,
@@ -256,7 +256,7 @@ static const u16 hero_face[64] = {
     0x0000,0x0000, 0x0000,0x0000, 0x0000,0x0000, 0x0000,0x0000,
 };
 
-/* ── GAME LOGIC (clay) — 16x16 sprite masks (16 rows × 16 bits, bit15 left) ── */
+/* ── GAME LOGIC (clay) - 16x16 sprite masks (16 rows × 16 bits, bit15 left) ── */
 static const u16 coin_mask[16] = {
     0x0000, 0x07E0, 0x1FF8, 0x3C3C, 0x381C, 0x73CE, 0x77EE, 0x77EE,
     0x77EE, 0x77EE, 0x73CE, 0x381C, 0x3C3C, 0x1FF8, 0x07E0, 0x0000
@@ -266,7 +266,7 @@ static const u16 spike_mask[16] = {
     0x0FF0, 0x0FF0, 0x1FF8, 0x1FF8, 0x3FFC, 0x7FFE, 0xFFFF, 0xFFFF
 };
 
-/* ── GAME LOGIC (clay) — tile/sprite builders ────────────────────────────── */
+/* ── GAME LOGIC (clay) - tile/sprite builders ────────────────────────────── */
 static void make_solid_tile(u16 *t, u8 ci) {
     u8 r;
     u8 p0 = (ci & 1) ? 0xFF : 0x00;
@@ -321,18 +321,18 @@ static void upload_font(void) {
     }
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * LARGE-SPRITE PATTERN LAYOUT — the half of the big-hero trick that lives in
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * LARGE-SPRITE PATTERN LAYOUT - the half of the big-hero trick that lives in
  * VRAM. A 32x32 HuC6270 sprite is FOUR 16x16 cells (64 words each) stored
  * consecutively in TL, TR, BL, BR order, and its SATB pattern code must be
  * 4-ALIGNED (the hardware ignores the low 2 bits and adds them back as
- * column/row). Get the order wrong and the hero renders scrambled — four
+ * column/row). Get the order wrong and the hero renders scrambled - four
  * recognizable quarters in the wrong places. The other half of the trick
  * (the SATB attribute bits) is in push_sprites() below.
  *
  * `body` selects the walk frame (hero_body_a / hero_body_b). `face` is the
  * colour-3 accent shared by both. We upload BOTH frames' worth of cells when
- * the walk phase flips — cheap (256 words) and only on phase change.
+ * the walk phase flips - cheap (256 words) and only on phase change.
  *
  * requires: PLAYER_VRAM >> 6 a multiple of 4; 4 consecutive free cells
  *           (256 words) at PLAYER_VRAM; set_sprite_ex() from pce_video.c. */
@@ -348,7 +348,7 @@ static void upload_hero(const u16 *body) {
                 body_bits = body[y * 2 + cc];
                 face_bits = hero_face[y * 2 + cc];
                 /* body pixels = colour 1 (plane0); face accents = colour 3
-                 * (planes 0+1) — the accent is a subset of the body.        */
+                 * (planes 0+1) - the accent is a subset of the body.        */
                 spr_buf[row]      = body_bits;
                 spr_buf[row + 16] = face_bits;
             }
@@ -370,7 +370,7 @@ static void upload_art(void) {
     upload_hero(hero_body_a);
 }
 
-/* ── GAME LOGIC (clay) — BAT text + level paint ─────────────────────────────── */
+/* ── GAME LOGIC (clay) - BAT text + level paint ─────────────────────────────── */
 static void put_glyph(u8 col, u8 row, u8 glyph) {
     u16 e = BAT_ENTRY(1, (u16)(FONT_VRAM + glyph * 16));  /* pal 1 = white    */
     vram_set_write_addr((u16)(BAT_VRAM + row * 32 + col));
@@ -395,8 +395,8 @@ static void draw_num5(u8 col, u8 row, u16 v) {
     for (i = 0; i < 5; ++i) put_glyph((u8)(col + i), row, (u8)(G_DIGIT + d[4 - i]));
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * HARDWARE BG SCROLL via BXR + COLUMN STREAMING — the PCE's smoothest trick.
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * HARDWARE BG SCROLL via BXR + COLUMN STREAMING - the PCE's smoothest trick.
  * The BAT is a 32x32 (256px) virtual map that WRAPS, and the VDC's R7 (BXR)
  * shifts the whole background horizontally with ZERO CPU per pixel. For a
  * world WIDER than 256px we stream: as the camera advances, each BAT column
@@ -406,7 +406,7 @@ static void draw_num5(u8 col, u8 row, u16 v) {
  * THE HUD CAVEAT: BXR scrolls the ENTIRE background, including the top rows.
  * The PCE has no hardware "window" plane (the Genesis trick), and no built-in
  * raster split (the SMS/NES trick) in this minimal lib. So we keep the HUD
- * readable by drawing it into the BAT rows 0-2 EVERY column we stream — the
+ * readable by drawing it into the BAT rows 0-2 EVERY column we stream - the
  * HUD text scrolls with the world, but because it's repainted into each fresh
  * column it appears continuous across the whole top of the screen. A fancier
  * fork can add a raster IRQ to reset BXR mid-frame for a truly fixed HUD; see
@@ -443,7 +443,7 @@ static void paint_column(int16_t worldCol) {
     }
 }
 
-/* Repaint the first 32 columns (one screen) from scratch — used when (re)entering
+/* Repaint the first 32 columns (one screen) from scratch - used when (re)entering
  * the level so the visible window is correct before the first scroll. */
 static void paint_screen_from(int16_t firstCol) {
     int16_t c;
@@ -483,7 +483,7 @@ static void draw_hud_numbers(void) {
  * This was researched and corrected: earlier versions wrote the hi-score to
  * BRAM ("backup RAM", bank $F7) and claimed it persisted across power cycles.
  * That is NOT honest for a HuCard game. On REAL hardware a plain HuCard plugged
- * into a base PC Engine / TurboGrafx-16 has NO backup RAM at all — BRAM exists
+ * into a base PC Engine / TurboGrafx-16 has NO backup RAM at all - BRAM exists
  * ONLY when a peripheral is attached: the CD-ROM² System (2KB kept by a
  * supercapacitor), the Tennokoe Bank HuCard, or the Memory Base 128. No
  * commercial HuCard self-saved; they used PASSWORDS. (The often-cited Populous
@@ -492,7 +492,7 @@ static void draw_hud_numbers(void) {
  * "worked" in emulation in a way the real machine never would.
  *
  * So this game keeps an IN-SESSION hi-score only (like the honest 2600/Lynx
- * examples) — it survives game-overs within a power-on, resets to 0 on a cold
+ * examples) - it survives game-overs within a power-on, resets to 0 on a cold
  * boot. To make it ACTUALLY persist on real hardware you would target a
  * peripheral: write to BRAM only after detecting one (and go through the System
  * Card BIOS's 'HUBM' directory for CD saves), or move the game to a CD-ROM²
@@ -502,10 +502,10 @@ static u16 hiscore_load(void) {
 }
 
 static void hiscore_save(u16 v) {
-    (void)v;           /* in-session only — nowhere to persist on real HW */
+    (void)v;           /* in-session only - nowhere to persist on real HW */
 }
 
-/* ── GAME LOGIC (clay) — music: a 2-channel tune ticked once per frame ──────
+/* ── GAME LOGIC (clay) - music: a 2-channel tune ticked once per frame ──────
  * PSG channel plan: 5 = melody, 4 = bass, 2/3 = SFX (tones cut by sfx_timer).
  * PCE frequency regs are DIVIDERS: pitch ≈ 3.58MHz / (32 × value), so a
  * BIGGER number is a LOWER note. Note indices into NOTE_DIV below. */
@@ -560,7 +560,7 @@ static void music_tick(void) {
     if (music_timer >= 9) music_timer = 0;
 }
 
-/* ── GAME LOGIC (clay) — helpers ──────────────────────────────────────────── */
+/* ── GAME LOGIC (clay) - helpers ──────────────────────────────────────────── */
 static u8 random8(void) {
     u16 r = rng;
     r ^= r << 7;
@@ -576,17 +576,17 @@ static u8 dist8(int16_t a, int16_t b) {
     return (d > 255) ? 255 : (u8)d;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * SPRITE STAGING + THE SATB DMA. The VDC never reads your RAM: sprites live
  * in its INTERNAL sprite attribute table, refreshed by a DMA you schedule by
  * writing R19 (satb_dma() does the copy + the R19 write; the transfer itself
  * happens at the next vblank). So the per-frame contract is:
  *   waitvsync() → restage EVERY slot → satb_dma()
- * Stage during vblank — satb_dma() also streams 256 words through the VWR
+ * Stage during vblank - satb_dma() also streams 256 words through the VWR
  * port, and doing that mid-display tears sprite pattern fetches.
  *
- * THE HERO (a PCE signature): ONE 32x32 SATB entry — SPR_CGX_32|SPR_CGY_32 in
- * the attribute word — for a big, readable character. CGX goes 32, CGY goes
+ * THE HERO (a PCE signature): ONE 32x32 SATB entry - SPR_CGX_32|SPR_CGY_32 in
+ * the attribute word - for a big, readable character. CGX goes 32, CGY goes
  * 32 (or 64 for a 32x64 tower from a single entry). The NES needs 4 hardware
  * sprites (and the per-scanline budget) for the same thing.
  *
@@ -595,7 +595,7 @@ static void push_sprites(void) {
     u8 i;
     int16_t player_y = (int16_t)(py_q44 >> 4);
     int16_t sx = (int16_t)(px - 8);            /* center the 32-wide sprite   */
-    /* hero (slot 0) — 32x32 large sprite; blink during the turn breather */
+    /* hero (slot 0) - 32x32 large sprite; blink during the turn breather */
     if (state == ST_PLAY && (turn_pause == 0 || (turn_pause & 4)))
         set_sprite_ex(SLOT_PLAYER, (u16)sx, (u16)player_y, PLAYER_PAT, PAL_PLAYER,
                       SPR_CGX_32 | SPR_CGY_32);
@@ -616,7 +616,7 @@ static void push_sprites(void) {
     }
 }
 
-/* ── GAME LOGIC (clay) — coins + spikes (sprite objects in the world) ── */
+/* ── GAME LOGIC (clay) - coins + spikes (sprite objects in the world) ── */
 static const int16_t coin_heights[4] = { 176, 152, 120, 144 };
 static void respawn_coin(u8 i) {
     coins[i].x = (int16_t)(SCREEN_W + 8 + (random8() & 31));   /* enter right */
@@ -637,11 +637,11 @@ static void try_spawn_spike(u8 i) {
     spikes[i].alive = 1;
 }
 
-/* ── GAME LOGIC (clay) — landing probe against the column map ──────────────
+/* ── GAME LOGIC (clay) - landing probe against the column map ──────────────
  * One-way platforms, arcade-classic style: only catch the player while
  * FALLING through a narrow window at the surface: top-1 (the standing snap
  * parks feet exactly at top, and gravity's sub-pixel trickle doesn't move the
- * integer y every frame — without the -1 slack the player "stands" with
+ * integer y every frame - without the -1 slack the player "stands" with
  * on_ground=0 most frames, so jumps only register on lucky frames) through
  * top+4 (so a fast fall can't step over it). */
 static int16_t land_top(int16_t c, int16_t feet) {
@@ -661,7 +661,7 @@ static int16_t land_top(int16_t c, int16_t feet) {
     return 0;
 }
 
-/* ── GAME LOGIC (clay) — screen painters (full repaint per state change) ── */
+/* ── GAME LOGIC (clay) - screen painters (full repaint per state change) ── */
 static void paint_title(void) {
     paint_flat_sky();
     draw_text((u8)((32 - (sizeof(GAME_TITLE) - 1)) / 2), 7, GAME_TITLE);
@@ -686,7 +686,7 @@ static void paint_over(void) {
     draw_text(8, 21, "RUN - TITLE");
 }
 
-/* ── GAME LOGIC (clay) — start a turn / a run ── */
+/* ── GAME LOGIC (clay) - start a turn / a run ── */
 static void begin_turn(void) {
     u8 i;
     px = 24;
@@ -734,7 +734,7 @@ static void game_over(void) {
     state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay) — death + alternating-turn handoff ── */
+/* ── GAME LOGIC (clay) - death + alternating-turn handoff ── */
 static void kill_player(void) {
     u8 other;
     psg_tone(3, 0x500, 31);                   /* death rumble                 */
@@ -751,7 +751,7 @@ static void kill_player(void) {
     begin_turn();
 }
 
-/* ── GAME LOGIC (clay) — the per-frame play update ────────────────────────── */
+/* ── GAME LOGIC (clay) - the per-frame play update ────────────────────────── */
 static void update_play(void) {
     u8 i;
     int16_t delta, y8, feet, c0, c1, top, sx;
@@ -761,7 +761,7 @@ static void update_play(void) {
     if (turn_pause) { --turn_pause; return; }
 
     /* horizontal move; past SCROLL_WALL the world scrolls instead of the
-     * player (the camera never scrolls back — the classic one-way camera). */
+     * player (the camera never scrolls back - the classic one-way camera). */
     delta = 0;
     if (pad & PCE_JOY_RIGHT) {
         if (px < SCROLL_WALL) px = (int16_t)(px + (MOVE >> 4) + 1);
@@ -783,7 +783,7 @@ static void update_play(void) {
     camCol = (int16_t)(camX >> 3);
     while (camCol > lastCamCol) { lastCamCol++; paint_column((int16_t)(lastCamCol + 31)); }
 
-    /* smooth pixel scroll via the BG X register — the whole point */
+    /* smooth pixel scroll via the BG X register - the whole point */
     vdc_set_reg(VDC_BXR, (u16)camX);
 
     /* world objects drift left as the level scrolls (world-anchored) */
@@ -818,7 +818,7 @@ static void update_play(void) {
     /* fell into a pit (below the screen) → lose the turn */
     if (y8 >= 216) { kill_player(); return; }
 
-    /* landing — probe the two world columns under the player's feet (feet =
+    /* landing - probe the two world columns under the player's feet (feet =
      * sprite bottom; the 32px sprite's feet are ~16px below its top y). */
     if (vy_q44 >= 0) {
         feet = (int16_t)(y8 + 16);
@@ -868,9 +868,9 @@ void main(void) {
 
     _pce_keep[0] = 0;   /* see the EMPTY-BSS TRAP note in pce_hw.h */
 
-    /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
      * Init order: palette → VRAM uploads → BAT paint → joypad → display ON.
-     * disp_enable() also sets the VBlank IRQ bit — without it waitvsync()
+     * disp_enable() also sets the VBlank IRQ bit - without it waitvsync()
      * never returns and the game freezes on its first frame. */
     /* BG sub-pal 0: scenery. BG sub-pal 1: HUD/text (white). */
     vce_set_color(0,   PCE_RGB(1, 2, 5));   /* backdrop: dusk blue            */
@@ -886,7 +886,7 @@ void main(void) {
 
     upload_art();
 
-    hiscore = hiscore_load();   /* always 0 — no persistence on a bare HuCard */
+    hiscore = hiscore_load();   /* always 0 - no persistence on a bare HuCard */
     state = ST_TITLE;
     paint_title();
     music_set(ST_TITLE);
@@ -908,7 +908,7 @@ void main(void) {
             if (sfx_timer == 0) { psg_off(2); psg_off(3); }
         }
 
-        /* ── HARDWARE IDIOM (load-bearing) — 2P input via the TurboTap.
+        /* ── HARDWARE IDIOM (load-bearing) - 2P input via the TurboTap.
          * pce_joy_read() reads pad 1 (slot 0). For pad 2 we read cc65's
          * JOY_2 directly and translate it like pce_input.c does, so the
          * CURRENT player's pad drives the game during their alternating turn.

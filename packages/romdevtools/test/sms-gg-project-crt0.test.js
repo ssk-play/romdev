@@ -1,11 +1,11 @@
-// SMS/GG project-dir builds MUST link the bundled (or in-dir) crt0 — the
+// SMS/GG project-dir builds MUST link the bundled (or in-dir) crt0 - the
 // RetroDECK "every SMS/GG scaffold is a black screen" bug.
 //
 // build({output:'project'}) used to SKIP the dir's *_crt0.s on the belief that
 // "buildForPlatform auto-injects the bundled crt0". It does not (only the
 // output:'rom'/'run' MCP handlers auto-inject), so every project-path SMS/GG
-// build linked SDCC's STOCK z80 crt0 — whose boot sequence is
-// `ld a,#2 / rst $08 / halt` — and main() never ran: black screen at boot on
+// build linked SDCC's STOCK z80 crt0 - whose boot sequence is
+// `ld a,#2 / rst $08 / halt` - and main() never ran: black screen at boot on
 // every emulator/hardware, while output:'run' verifications stayed green via
 // the other code path. The fix routes an in-dir *_crt0.s through the crt0
 // channel and falls back to the bundled crt0 when the dir has none.
@@ -13,7 +13,7 @@
 // The assertion is on the ROM's first byte: our crt0 boots with `di` (0xF3);
 // the stock crt0's first byte is `ld a,#2` (0x3E). Also pins the TMR SEGA
 // header + the platform-correct region nibble ($4C SMS export / $7C GG
-// international — an SMS region on a .gg flips gpgx into SMS-compat mode).
+// international - an SMS region on a .gg flips gpgx into SMS-compat mode).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -25,7 +25,7 @@ import { buildProjectCore } from "../src/mcp/tools/toolchain.js";
 
 function parse(res) { return JSON.parse(res.content.find((c) => c.type === "text").text); }
 
-// Minimal C program — no runtime helpers needed; we only assert BOOT bytes.
+// Minimal C program - no runtime helpers needed; we only assert BOOT bytes.
 const MAIN_C = `void main(void){ volatile unsigned char x = 1; while(1){ x++; } }\n`;
 
 async function buildBareProject(platform) {
@@ -44,13 +44,13 @@ async function buildBareProject(platform) {
 
 function assertBootsOurCrt0(rom, platform, expectedRegion) {
   assert.equal(rom[0], 0xF3,
-    `${platform}: ROM byte 0 should be DI (0xF3) from the bundled crt0 — ` +
+    `${platform}: ROM byte 0 should be DI (0xF3) from the bundled crt0 - ` +
     `got 0x${rom[0].toString(16)} (0x3E = SDCC stock crt0 = never calls main, black screen)`);
   assert.equal(rom.length >= 0x8000, true, `${platform}: ROM must be padded to >=32KB for the header`);
   const magic = String.fromCharCode(...rom.slice(0x7FF0, 0x7FF8));
   assert.equal(magic, "TMR SEGA", `${platform}: TMR SEGA header missing at $7FF0`);
   assert.equal(rom[0x7FFF], expectedRegion,
-    `${platform}: region/size byte should be $${expectedRegion.toString(16).toUpperCase()} — ` +
+    `${platform}: region/size byte should be $${expectedRegion.toString(16).toUpperCase()} - ` +
     `got $${rom[0x7FFF].toString(16).toUpperCase()}`);
 }
 

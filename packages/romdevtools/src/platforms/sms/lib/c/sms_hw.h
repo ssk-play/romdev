@@ -7,7 +7,7 @@
  *     PORT_VDP_CTRL = 0x80;       // out ($BF), a   ; reg-write prefix
  *     uint8_t status = PORT_VDP_CTRL;  // in a, ($BF)
  *
- * Include this from your main.c. The declarations are __sfr — they don't
+ * Include this from your main.c. The declarations are __sfr - they don't
  * allocate storage, just bind a name to a port number. Multiple translation
  * units including this header is safe.
  */
@@ -17,8 +17,8 @@
 #include <stdint.h>
 
 /* ─── VDP ───────────────────────────────────────────────────────── */
-__sfr __at 0xBE PORT_VDP_DATA;   /* data port — read VRAM/CRAM, write VRAM/CRAM/REG */
-__sfr __at 0xBF PORT_VDP_CTRL;   /* control port — address-set + register write */
+__sfr __at 0xBE PORT_VDP_DATA;   /* data port - read VRAM/CRAM, write VRAM/CRAM/REG */
+__sfr __at 0xBF PORT_VDP_CTRL;   /* control port - address-set + register write */
 
 /* ─── PSG / counters ────────────────────────────────────────────── */
 __sfr __at 0x7E PORT_V_COUNTER;  /* read = V-counter */
@@ -36,7 +36,7 @@ __sfr __at 0x3F PORT_IO_CTRL;
 __sfr __at 0x00 PORT_GG_INPUT;
 __sfr __at 0x06 PORT_GG_PSG_STEREO;
 
-/* ─── Joypad bit masks (active LOW on the port — invert after read) ── */
+/* ─── Joypad bit masks (active LOW on the port - invert after read) ── */
 #define JOY_UP    0x01
 #define JOY_DOWN  0x02
 #define JOY_LEFT  0x04

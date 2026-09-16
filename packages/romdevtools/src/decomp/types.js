@@ -1,4 +1,4 @@
-// types.js — persistent type evidence. Every generate/compare adds what it
+// types.js - persistent type evidence. Every generate/compare adds what it
 // learned about a base's field layout: the offset, the access WIDTH taken
 // from the asm (lb/lh/lw/ld/lwc1/ldc1 and their stores), the sign when the
 // load says so, and where the evidence came from. Confirmed types (the
@@ -32,7 +32,7 @@ export async function recordTypeEvidence(project, fn, { hypotheses = [], asmText
   let rec = { symbol: fn.symbol, tu: fn.source?.tu ?? null, updatedAt: null, bases: {} };
   if (fs.existsSync(file)) { try { rec = JSON.parse(await readFile(file, "utf8")); } catch {} }
   const asmEv = asmText ? accessEvidence(asmText) : [];
-  // Map m2c argument names to registers by position (arg0=a0 …) so widths can be attached.
+  // Map m2c argument names to registers by position (arg0=a0 ...) so widths can be attached.
   const argReg = { arg0: "a0", arg1: "a1", arg2: "a2", arg3: "a3" };
   for (const h of hypotheses) {
     const base = h.base;

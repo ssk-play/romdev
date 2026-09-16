@@ -1,4 +1,4 @@
-; Game Boy OAM DMA — single-cycle 160-byte copy from WRAM to OAM.
+; Game Boy OAM DMA - single-cycle 160-byte copy from WRAM to OAM.
 ;
 ; The OAM DMA routine MUST live in HRAM ($FF80-$FFFE) because:
 ;   - During DMA, the CPU can only execute from HRAM (the main bus is
@@ -34,7 +34,7 @@ oam_dma_setup::
 
 ; Source code that gets copied to HRAM.
 OamDmaSource:
-  ldh [$46], a          ; trigger DMA — A holds high byte of source
+  ldh [$46], a          ; trigger DMA - A holds high byte of source
   ld a, $28             ; 40 × 4 byte sprite × ~1 cycle each ≈ 160 µs
 .wait
   dec a

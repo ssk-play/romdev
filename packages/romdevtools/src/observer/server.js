@@ -1,4 +1,4 @@
-// observer/server.js — attach the /livestream socket.io endpoint + static
+// observer/server.js - attach the /livestream socket.io endpoint + static
 // HTML to an existing express + node:http server.
 //
 // Wire from src/mcp/server.js after building the express app + creating
@@ -8,7 +8,7 @@
 //   attachObserver(app, httpServer, ...extraServers);
 //
 // Browser opens http://localhost:7331/livestream (or 127.0.0.1) and gets the
-// SPA. Socket.io is attached to EVERY listener on the default /socket.io path —
+// SPA. Socket.io is attached to EVERY listener on the default /socket.io path -
 // the server binds both the IPv4 (127.0.0.1) and IPv6 (::1) loopback stacks,
 // and `localhost` resolves to either depending on the OS. Attaching socket.io
 // to only the primary listener 404'd the /socket.io requests whenever the
@@ -35,10 +35,10 @@ const __dirname = path.dirname(__filename);
 export function attachObserver(app, ...httpServers) {
   const servers = httpServers.filter(Boolean);
   // Serve the static SPA. Read+send the HTML directly rather than res.sendFile
-  // — sendFile's internal `send` throws NotFoundError on the absolute package
+  // - sendFile's internal `send` throws NotFoundError on the absolute package
   // path under npm/npx installs (404 even though the file is right there).
   // Inject the package version (the same single-source-of-truth read the MCP
-  // serverInfo uses) so the page always shows the running server's version —
+  // serverInfo uses) so the page always shows the running server's version -
   // never hardcoded, never drifting from the published package.
   const version = (() => {
     try {
@@ -54,10 +54,10 @@ export function attachObserver(app, ...httpServers) {
   app.get("/livestream/", serveHtml);
 
   // Socket.io on the primary server, then ATTACHED to every other listener too
-  // (io.attach is additive). No auth — loopback only.
+  // (io.attach is additive). No auth - loopback only.
   // maxHttpBufferSize is a STATED choice, not socket.io's silent 1MB default.
   // A live `event` carrying one full-size composite PNG can exceed 1MB on its
-  // own, and the default doesn't error visibly — it closes the connection, the
+  // own, and the default doesn't error visibly - it closes the connection, the
   // client reconnects, and the page looks like it's hanging. The ring is
   // byte-bounded (bus.js RING_MAX_BYTES) so replay stays well under this;
   // loopback-only, so a generous ceiling costs nothing.

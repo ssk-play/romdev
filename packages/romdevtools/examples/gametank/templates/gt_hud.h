@@ -1,7 +1,7 @@
-/* ── gt_hud.h — box-drawn HUD digits for the romdev GameTank examples ─────────
+/* ── gt_hud.h - box-drawn HUD digits for the romdev GameTank examples ─────────
  *
  * The SDK's text_print_string() draws a FONT that's baked by the Node asset
- * pipeline (a .bmp loaded into GRAM) — not available on romdev's bare single-bank
+ * pipeline (a .bmp loaded into GRAM) - not available on romdev's bare single-bank
  * path. So these examples render score/lives digits as small `gt_rect`
  * segments (a 7-seg-style 3x5 cell). Pure SDK draw-queue API, no assets.
  *

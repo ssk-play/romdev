@@ -17,13 +17,13 @@ const CC65_TARGET = {
   atari7800: "atari7800",
   lynx: "lynx",
   pce: "pce",
-  // GameTank has no built-in cc65 target — it links bare via `-t none` + the
+  // GameTank has no built-in cc65 target - it links bare via `-t none` + the
   // bundled single-bank preset cfg/crt0/vectors (presets/gametank/).
   gametank: "none",
 };
 
 /** cc65 platforms whose CPU is NOT implied by a built-in target. The built-in
- *  targets (lynx/pce/…) set the CPU themselves; `-t none` defaults to plain 6502,
+ *  targets (lynx/pce/...) set the CPU themselves; `-t none` defaults to plain 6502,
  *  so GameTank (a real W65C02S) MUST be told `--cpu 65c02` for cc65 codegen +
  *  `--cpu W65C02` for ca65, or it silently emits 6502 code on a 65C02. */
 const CC65_CPU = {
@@ -31,7 +31,7 @@ const CC65_CPU = {
 };
 
 /** Exact ROM sizes for cc65 platforms whose mapper is size-keyed (no header).
- *  GameTank detects EEPROM32K by a flat 32 KB image — pad to exactly 32768. */
+ *  GameTank detects EEPROM32K by a flat 32 KB image - pad to exactly 32768. */
 const CC65_ROM_SIZE = {
   gametank: 32768,
 };
@@ -46,7 +46,7 @@ const CC65_ROM_SIZE = {
  *
  * Adding a new language for a platform = add a row here + ship the
  * toolchain wasm. The `available: false` entries declare future
- * intent but don't yet ship a toolchain — listPlatforms surfaces them
+ * intent but don't yet ship a toolchain - listPlatforms surfaces them
  * so the discoverability story is honest.
  *
  * @type {Record<string, Record<string, { toolchain: string, available: boolean, note?: string }>>}
@@ -54,7 +54,7 @@ const CC65_ROM_SIZE = {
 const LANGUAGE_TOOLCHAIN = {
   atari2600: {
     asm:    { toolchain: "dasm",         available: true },
-    basic:  { toolchain: "batariBasic",  available: false, note: "BASIC for 2600 via batariBasic — not bundled. bB's transpiler is written in Perl, which we don't ship as WASM. A port to C or JS would be a multi-day project. For now, write 2600 games in 6507 asm via dasm — the bundled example games (default, paddle, single_screen) show the canonical race-the-beam pattern, and an LLM agent writes 2600 asm fluently." },
+    basic:  { toolchain: "batariBasic",  available: false, note: "BASIC for 2600 via batariBasic - not bundled. bB's transpiler is written in Perl, which we don't ship as WASM. A port to C or JS would be a multi-day project. For now, write 2600 games in 6507 asm via dasm - the bundled example games (default, paddle, single_screen) show the canonical race-the-beam pattern, and an LLM agent writes 2600 asm fluently." },
   },
   nes: {
     asm: { toolchain: "cc65",  available: true },
@@ -82,27 +82,27 @@ const LANGUAGE_TOOLCHAIN = {
   },
   snes: {
     asm: { toolchain: "asar",       available: true },
-    c:   { toolchain: "tcc816+wladx", available: true, note: "C for SNES via tcc-65816 + wla-65816 + wlalink. The PVSnesLib runtime IS bundled (built from source) and auto-linked — #include <snes.h> gives you consoleDrawText, setMode, oamSet, WaitForVBlank, etc. out of the box. `examples({op:'fork'})` gives you a complete working PVSnesLib C project. Pass options.pvsneslib:false for the bare-main minimum-viable path." },
+    c:   { toolchain: "tcc816+wladx", available: true, note: "C for SNES via tcc-65816 + wla-65816 + wlalink. The PVSnesLib runtime IS bundled (built from source) and auto-linked - #include <snes.h> gives you consoleDrawText, setMode, oamSet, WaitForVBlank, etc. out of the box. `examples({op:'fork'})` gives you a complete working PVSnesLib C project. Pass options.pvsneslib:false for the bare-main minimum-viable path." },
   },
   genesis: {
     asm: { toolchain: "vasm68k",      available: true },
-    c:   { toolchain: "m68k-elf-gcc", available: true, note: "C for Genesis via gcc 14.2.0 + binutils + newlib, all compiled to WASM. The SGDK runtime IS bundled (built from source) and auto-linked — sprite engine, VDP, controller, PSG/Z80 sound, resource helpers all work; #include <genesis.h>. `examples({op:'fork'})` gives you a complete working SGDK C project (the recommended path). Pass options.sgdk:false for the bare-gcc minimum-viable path." },
+    c:   { toolchain: "m68k-elf-gcc", available: true, note: "C for Genesis via gcc 14.2.0 + binutils + newlib, all compiled to WASM. The SGDK runtime IS bundled (built from source) and auto-linked - sprite engine, VDP, controller, PSG/Z80 sound, resource helpers all work; #include <genesis.h>. `examples({op:'fork'})` gives you a complete working SGDK C project (the recommended path). Pass options.sgdk:false for the bare-gcc minimum-viable path." },
   },
   gba: {
-    c: { toolchain: "arm-none-eabi-gcc", available: true, note: "C for GBA via gcc 14.2.0 + binutils + newlib + libtonc 1.4.5 (default) OR libgba 0.5.4 (opt-in via runtime:\"libgba\"), all compiled to WASM (R24 + R28). #include <tonc.h> + tte_write/tte_printf works out of the box — that's the canonical Tonc-tutorial API every published GBA C resource uses. Caveat: tte_iohook (libtonc) and console.c (libgba) — the libsysbase-backed iprintf bridges — are NOT bundled. Use tte_printf directly, which is what the Tonc tutorial actually does." },
+    c: { toolchain: "arm-none-eabi-gcc", available: true, note: "C for GBA via gcc 14.2.0 + binutils + newlib + libtonc 1.4.5 (default) OR libgba 0.5.4 (opt-in via runtime:\"libgba\"), all compiled to WASM (R24 + R28). #include <tonc.h> + tte_write/tte_printf works out of the box - that's the canonical Tonc-tutorial API every published GBA C resource uses. Caveat: tte_iohook (libtonc) and console.c (libgba) - the libsysbase-backed iprintf bridges - are NOT bundled. Use tte_printf directly, which is what the Tonc tutorial actually does." },
   },
   sms:    { c: { toolchain: "sdcc", available: true }, asm: { toolchain: "sdcc", available: true } },
   gg:     { c: { toolchain: "sdcc", available: true }, asm: { toolchain: "sdcc", available: true } },
   spc700: { asm: { toolchain: "asar", available: true } },
   pce: {
-    c:   { toolchain: "cc65", available: true, note: "C for PC Engine via cc65's huc6280 target — crt0 + pce.lib (VDC/VCE/PSG/joypad helpers) auto-linked. #include <pce.h>." },
+    c:   { toolchain: "cc65", available: true, note: "C for PC Engine via cc65's huc6280 target - crt0 + pce.lib (VDC/VCE/PSG/joypad helpers) auto-linked. #include <pce.h>." },
     asm: { toolchain: "cc65", available: true },
   },
   sync32: {
-    c: { toolchain: "arm-none-eabi-gcc", available: true, note: "C for sync32 (monteslu's RP2350 console) — freestanding Cortex-M33 via the WASM arm-none-eabi gcc (-mcpu=cortex-m33 -mthumb -mfloat-abi=hard -mfpu=fpv5-sp-d16), linked against the SDK's crt0 + ram.ld/xip.ld and packed into a .s32 with its 64-byte header. #include \"sync32.h\" for the console API; a freestanding stdint.h is provided. `mode:'ram'|'xip'`, `title`/`id`/`video`/`api` fill the cart header. No libraries are linked (the SDK is freestanding), and the whole pipeline is WASM — no native gcc, no Python. Output is a launchable .s32; for a game with resources, pack the folder form with the SDK's s32pack." },
+    c: { toolchain: "arm-none-eabi-gcc", available: true, note: "C for sync32 (monteslu's RP2350 console) - freestanding Cortex-M33 via the WASM arm-none-eabi gcc (-mcpu=cortex-m33 -mthumb -mfloat-abi=hard -mfpu=fpv5-sp-d16), linked against the SDK's crt0 + ram.ld/xip.ld and packed into a .s32 with its 64-byte header. #include \"sync32.h\" for the console API; a freestanding stdint.h is provided. `mode:'ram'|'xip'`, `title`/`id`/`video`/`api` fill the cart header. No libraries are linked (the SDK is freestanding), and the whole pipeline is WASM - no native gcc, no Python. Output is a launchable .s32; for a game with resources, pack the folder form with the SDK's s32pack." },
   },
   gametank: {
-    c:   { toolchain: "cc65", available: true, note: "C for GameTank (Clyde Shaffer's open W65C02S console) via cc65 `--cpu 65c02` + a bundled single-bank 32KB preset (crt0 + linker cfg + vectors), pass linkerConfig:'single-bank'. #include \"gametank.h\" for the blitter/DMA/banking/gamepad registers ($4000-$4007 blitter, $2007 dma_flags, $2005 bank_reg, $2008/9 gamepads). Bare path — color-fill the 128x128 framebuffer via the blitter; the full SDK gfx/audio/text runtime + 2MB multi-bank flash pipeline is not bundled (Tier B, deferred). Output is a flat 32KB .gtr (EEPROM32K, size-keyed mapper)." },
+    c:   { toolchain: "cc65", available: true, note: "C for GameTank (Clyde Shaffer's open W65C02S console) via cc65 `--cpu 65c02` + a bundled single-bank 32KB preset (crt0 + linker cfg + vectors), pass linkerConfig:'single-bank'. #include \"gametank.h\" for the blitter/DMA/banking/gamepad registers ($4000-$4007 blitter, $2007 dma_flags, $2005 bank_reg, $2008/9 gamepads). Bare path - color-fill the 128x128 framebuffer via the blitter; the full SDK gfx/audio/text runtime + 2MB multi-bank flash pipeline is not bundled (Tier B, deferred). Output is a flat 32KB .gtr (EEPROM32K, size-keyed mapper)." },
     asm: { toolchain: "cc65", available: true },
   },
   msx: {
@@ -110,20 +110,20 @@ const LANGUAGE_TOOLCHAIN = {
     asm: { toolchain: "sdcc", available: true },
   },
   ps1: {
-    c: { toolchain: "mips-elf-gcc", available: true, note: "C for PS1 via gcc 14.2.0 + binutils + newlib (mips-elf, little-endian R3000), compiled to WASM. The bare path: a minimal crt0 sets the stack + clears .bss + calls main(); the output is a PS-EXE the HLE BIOS loads (load at 0x80010000). No SDK (PSn00bSDK) yet — bring your own GPU/SPU register writes, or use this for logic. write to GPU ports 0x1F801810/0x1F801814." },
+    c: { toolchain: "mips-elf-gcc", available: true, note: "C for PS1 via gcc 14.2.0 + binutils + newlib (mips-elf, little-endian R3000), compiled to WASM. The bare path: a minimal crt0 sets the stack + clears .bss + calls main(); the output is a PS-EXE the HLE BIOS loads (load at 0x80010000). No SDK (PSn00bSDK) yet - bring your own GPU/SPU register writes, or use this for logic. write to GPU ports 0x1F801810/0x1F801814." },
   },
   n64: {
-    c: { toolchain: "mips-elf-gcc", available: true, note: "C for N64 via gcc 14.2.0 + binutils + newlib (mips-elf, big-endian R4300), compiled to WASM. Bare path: minimal crt0 (stack + .bss + main()) → flat code image at 0x80000400. NOTE: a fully bootable N64 ROM needs the IPL3 bootcode + a libdragon-style header (libdragon SDK forthcoming) — this path exercises the toolchain + is the basis for the SDK." },
+    c: { toolchain: "mips-elf-gcc", available: true, note: "C for N64 via gcc 14.2.0 + binutils + newlib (mips-elf, big-endian R4300), compiled to WASM. Bare path: minimal crt0 (stack + .bss + main()) → flat code image at 0x80000400. NOTE: a fully bootable N64 ROM needs the IPL3 bootcode + a libdragon-style header (libdragon SDK forthcoming) - this path exercises the toolchain + is the basis for the SDK." },
   },
   dreamcast: {
-    c: { toolchain: "sh-elf-gcc", available: true, note: "C for Dreamcast via gcc 14.2.0 + binutils + newlib (sh-elf, little-endian SH-4, m4-single-only FP), compiled to WASM. Bare path: a minimal crt0 sets the stack + clears .bss + calls main(); the output is an ELF that Flycast's reios HLE BIOS boots DIRECTLY (no GD-ROM/CDI image, no firmware). No KallistiOS yet — bring up the PowerVR2 framebuffer yourself: program FB_R_CTRL/FB_R_SIZE/FB_R_SOF1 + SPG for 640x480 RGB565 at VRAM 0xA5000000, then write pixels (see the dc.h helper). With flycast_emulate_framebuffer on, a plain pixel-writing program presents — no TA list needed." },
+    c: { toolchain: "sh-elf-gcc", available: true, note: "C for Dreamcast via gcc 14.2.0 + binutils + newlib (sh-elf, little-endian SH-4, m4-single-only FP), compiled to WASM. Bare path: a minimal crt0 sets the stack + clears .bss + calls main(); the output is an ELF that Flycast's reios HLE BIOS boots DIRECTLY (no GD-ROM/CDI image, no firmware). No KallistiOS yet - bring up the PowerVR2 framebuffer yourself: program FB_R_CTRL/FB_R_SIZE/FB_R_SOF1 + SPG for 640x480 RGB565 at VRAM 0xA5000000, then write pixels (see the dc.h helper). With flycast_emulate_framebuffer on, a plain pixel-writing program presents - no TA list needed." },
   },
 };
 
 /**
  * Default language per platform. The choice reflects what's fastest /
  * smallest / best-matched to LLM fluency. Every platform that has a bundled
- * C compiler + runtime defaults to C — that's the canonical, productive path
+ * C compiler + runtime defaults to C - that's the canonical, productive path
  * and what `examples({op:'fork'})` projects use (cc65 for NES/C64/Atari7800/
  * Lynx, SDCC for GB/GBC/SMS/GG, gcc+SGDK for Genesis, tcc+PVSnesLib for SNES,
  * gcc+libtonc for GBA). Platforms whose only bundled toolchain is an assembler
@@ -179,7 +179,7 @@ export function rankIssues(issues) {
  * Public API for the platforms tool to discover the language matrix.
  * Returns `{defaultLanguage, languages: [{language, toolchain, available, note?}]}`.
  * Returns null for platforms with no language entries (shouldn't
- * happen for any supported platform — fallback safety).
+ * happen for any supported platform - fallback safety).
  */
 export function getLanguageOptions(platform) {
   const langs = LANGUAGE_TOOLCHAIN[platform];
@@ -240,7 +240,7 @@ const MSX_ROM_BASE = 0x4000;
 
 /**
  * Fill the SNES internal checksum ($FFDE) + complement ($FFDC). The SNES
- * has no boot-ROM gate, so this isn't needed to run on bare hardware — but
+ * has no boot-ROM gate, so this isn't needed to run on bare hardware - but
  * emulators and flashcarts read it (some flashcarts use it to tell LoROM
  * from HiROM), so a zeroed checksum can cause RetroArch / flashcart load
  * failures or mapper mis-detection. Mirrors pvsneslib's snestools algorithm.
@@ -257,10 +257,10 @@ const MSX_ROM_BASE = 0x4000;
  */
 function finalizeSnesRom(bin) {
   // Need at least a 32KB LoROM to have a header.
-  if (!bin || bin.length < 0x8000) return { bin, note: "too small for a SNES header — checksum skipped" };
+  if (!bin || bin.length < 0x8000) return { bin, note: "too small for a SNES header - checksum skipped" };
   // Pad to the next power of two (min 32KB). asar already pads; pvsneslib's
   // C output does NOT (e.g. 35136 bytes), and flashcarts/emulators expect a
-  // power-of-2 image — and the simple sum-all-bytes checksum below is only
+  // power-of-2 image - and the simple sum-all-bytes checksum below is only
   // correct for power-of-2 sizes. So pad first, then checksum.
   let padNote = "";
   if ((bin.length & (bin.length - 1)) !== 0) {
@@ -310,12 +310,12 @@ function finalizeSnesRom(bin) {
 /**
  * Decide which language a build should use when the caller didn't pass one.
  * Explicit `language` always wins. Otherwise we infer ONLY from a POSITIVE
- * signal — a C filename (`sources` key ending .c/.h/.cpp) or unambiguous C
+ * signal - a C filename (`sources` key ending .c/.h/.cpp) or unambiguous C
  * content (`#include`, a `/* *​/` block comment, `int/void main(`) ⇒ "c"; an
  * asm filename or a clear asm tell (leading `;` comment, `.org`/`dc.x`/`equ`/
  * `arch` directives, `$`-hex with no C tokens) ⇒ "asm". When nothing points
  * either way we return `undefined` and leave the historical dispatch alone
- * (which falls to the platform's first/asm toolchain) — so this is a strict
+ * (which falls to the platform's first/asm toolchain) - so this is a strict
  * IMPROVEMENT, never a behavior change for inputs that already worked.
  *
  * This fixes the genesis foot-gun: `runSource({platform:"genesis", source:
@@ -343,9 +343,9 @@ function resolveEffectiveLanguage(args) {
   if (names.some((n) => /\.(c|h|cpp|cc|cxx)$/i.test(n))) return langs.c?.available ? "c" : undefined;
   if (names.length && names.every((n) => /\.(s|asm)$/i.test(n))) return langs.asm?.available ? "asm" : undefined;
 
-  // 2) Single-source content sniff — a LAST resort when no filename is known.
+  // 2) Single-source content sniff - a LAST resort when no filename is known.
   //    Require an unambiguous C tell that can't appear in an asm `;` comment.
-  //    (We deliberately do NOT trust a `/* */` block — asm doc-comments embed
+  //    (We deliberately do NOT trust a `/* */` block - asm doc-comments embed
   //    them as prose, e.g. "buildSource({ source: /* this file */ })".) A C
   //    preprocessor directive must be the first non-space on its line, which a
   //    `;`-commented asm line never satisfies.
@@ -376,14 +376,14 @@ function looksLikeCSource(src) {
 export async function buildForPlatform(args) {
   // Resolve an omitted language from source filenames/content when there's a
   // clear signal. Without this, genesis/gba/etc. silently fell to their FIRST
-  // (asm) toolchain instead of `defaultLanguage` — so a bare
+  // (asm) toolchain instead of `defaultLanguage` - so a bare
   // `runSource({platform:"genesis", source:cCode})` assembled C as 68k.
   args = { ...args, language: resolveEffectiveLanguage(args) };
 
   // ---- language axis: validate before dispatching to toolchain ----
   // When specified, we check that the (platform, language) pair is supported
   // AND available; reject with a structured error if not. (When still omitted
-  // — no positive signal — the per-platform dispatch below applies its own
+  // - no positive signal - the per-platform dispatch below applies its own
   // historical default.)
   if (args.language) {
     const langs = LANGUAGE_TOOLCHAIN[args.platform];
@@ -403,7 +403,7 @@ export async function buildForPlatform(args) {
         `Default for this platform is '${PLATFORM_DEFAULT_LANGUAGE[args.platform]}'; omit the language parameter to use it.`
       );
     }
-    // entry.available === true — continue with existing dispatch.
+    // entry.available === true - continue with existing dispatch.
     // The dispatch is keyed on platform alone today; future expansion
     // would route within a platform by language. For now the asserted
     // language matches what the platform's single toolchain produces,
@@ -448,7 +448,7 @@ export async function buildForPlatform(args) {
     // contents + any companion support sources (custom crt0, etc.).
     // Caller passes either a preset name or the .cfg contents directly;
     // the build pipeline does NOT auto-select presets based on source
-    // contents — every byte that compiles must be visible to the caller.
+    // contents - every byte that compiles must be visible to the caller.
     const { resolveLinkerConfig } = await import("./cc65/preset-resolver.js");
     const { cfg, supportSources, headers: presetHeaders } = await resolveLinkerConfig(args.platform, args.linkerConfig);
 
@@ -472,7 +472,7 @@ export async function buildForPlatform(args) {
       sources,
       target: cc65Target,
       [anyC ? "headers" : "includes"]: anyC ? mergedHeaders : args.includes,
-      // ca65 .include files (e.g. an SDK's modules_enabled.inc) — distinct from C
+      // ca65 .include files (e.g. an SDK's modules_enabled.inc) - distinct from C
       // headers; the C path's per-TU ca65 pass needs them, and they weren't being
       // forwarded. A platform with a multi-file asm-backed SDK (GameTank) needs this.
       ...(args.asmIncludes ? { asmIncludes: args.asmIncludes } : {}),
@@ -511,11 +511,11 @@ export async function buildForPlatform(args) {
   }
 
   if (args.platform === "gb" || args.platform === "gbc") {
-    // Default is C (sdcc sm83 port) — matches how LLMs naturally think
+    // Default is C (sdcc sm83 port) - matches how LLMs naturally think
     // about game logic, same default we use on NES/SMS. Pass
     // `language:"asm"` to route through RGBDS for hand-tuned binaries.
     // C-mode requires the sm83 SDCC port libs (share/sdcc/lib/sm83/*)
-    // — built by scripts/build-sdcc.sh.
+    // - built by scripts/build-sdcc.sh.
     if (args.language === "asm") {
       const r = await buildGB({
         source: args.source,
@@ -548,7 +548,7 @@ export async function buildForPlatform(args) {
     // MIPS C: the bare gcc+newlib+libgcc path (no SDK yet). cc1→as→ld→objcopy
     // through the mips-elf-gcc WASM toolchain; PS1 (R3000, little-endian) wraps the
     // image in a PS-EXE the HLE BIOS loads; N64 (R4300, big-endian) emits a flat
-    // .bin (real N64 boot needs libdragon — forthcoming). language defaults to "c".
+    // .bin (real N64 boot needs libdragon - forthcoming). language defaults to "c".
     const { buildMipsC } = await import("./mips-c/mips-c.js");
     const r = await buildMipsC({
       source: args.source,
@@ -601,12 +601,12 @@ export async function buildForPlatform(args) {
     // R24 + R28: language:"c" routes through the arm-none-eabi gcc +
     // binutils WASM toolchain (cc1-arm → as → ld → objcopy). Three
     // runtime modes:
-    //   - "libtonc" (default) — Tonc tutorial-aligned. `#include <tonc.h>`,
+    //   - "libtonc" (default) - Tonc tutorial-aligned. `#include <tonc.h>`,
     //     TTE for text, tonccpy/toncset, OBJ_ATTR sprite API.
-    //   - "libgba"            — devkitPro's official SDK. `#include <gba.h>`.
-    //   - "none"              — bare gcc + newlib only.
+    //   - "libgba"            - devkitPro's official SDK. `#include <gba.h>`.
+    //   - "none"              - bare gcc + newlib only.
     // Legacy `libgba: true|false` flag still accepted for R24 callers.
-    // language defaults to "c" since no asm path is wired yet — saves
+    // language defaults to "c" since no asm path is wired yet - saves
     // every caller from having to spell it out.
     if (args.language === "c" || args.language == null) {
       const { buildGbaC } = await import("romdev-platform-gba");
@@ -614,10 +614,10 @@ export async function buildForPlatform(args) {
         source: args.source,
         sources: args.sources,
         headers: args.includes,
-        binaryIncludes: args.binaryIncludes,  // R34 — soundbank.bin et al.
+        binaryIncludes: args.binaryIncludes,  // R34 - soundbank.bin et al.
         runtime: args.runtime,    // explicit wins
         libgba:  args.libgba,     // legacy R24 flag (undef passes through)
-        maxmod:  args.maxmod,     // R33 — opt-in maxmod music link
+        maxmod:  args.maxmod,     // R33 - opt-in maxmod music link
         rebuildSdk: args.rebuildSdk, // compile SDK from source vs seed
       });
       return {
@@ -625,7 +625,7 @@ export async function buildForPlatform(args) {
         binary: r.binary,
         listing: "",
         // GNU ld map (name→address) so symbols({op:'resolve'/...}) works on GBA
-        // too — same as Genesis/m68k. buildGbaC returns it from runArmLd.
+        // too - same as Genesis/m68k. buildGbaC returns it from runArmLd.
         symbols: r.symbols ?? "",
         log: r.log,
         issues: parseBuildLog(r.log),
@@ -635,7 +635,7 @@ export async function buildForPlatform(args) {
         ...(r.crash ? { crash: r.crash } : {}),
       };
     }
-    // GBA without language:"c" — no asm fallback yet; surface the error
+    // GBA without language:"c" - no asm fallback yet; surface the error
     throw new Error("gba: only language:\"c\" supported today; asm path not yet wired");
   }
 
@@ -667,7 +667,7 @@ export async function buildForPlatform(args) {
         binary: r.ok && r.binary ? finalizeGenesisRom(r.binary) : r.binary,
         listing: "",
         // The m68k-elf-ld map (symbol → final address) when the link produced
-        // one — used by buildSourceWithDebug / addressToSymbol for Genesis.
+        // one - used by buildSourceWithDebug / addressToSymbol for Genesis.
         symbols: r.symbols ?? "",
         log: r.log,
         issues: parseBuildLog(r.log),
@@ -680,7 +680,7 @@ export async function buildForPlatform(args) {
 
     // Default (language:"asm" or undefined): vasm68k path.
     // vasm68k is single-source. Accept either `source` (preferred) or
-    // `sources` (multi-file shortcut) — when given the latter, pick a
+    // `sources` (multi-file shortcut) - when given the latter, pick a
     // canonical entry-point and write the rest into includes so the
     // entry can `incsrc "other.s"` them.
     //
@@ -710,7 +710,7 @@ export async function buildForPlatform(args) {
       options: args.options,
     });
     const vasmOk = r.exitCode === 0 && r.binary !== null;
-    // If vasm68k FAILED on what is obviously C source, say so — don't let the
+    // If vasm68k FAILED on what is obviously C source, say so - don't let the
     // agent read "missing reset vector / identifier expected" and conclude
     // "Genesis wants hand-written asm." (Belt-and-suspenders: the language
     // resolver above already routes C to gcc; this only fires if someone forced
@@ -719,13 +719,13 @@ export async function buildForPlatform(args) {
     if (!vasmOk && looksLikeCSource(source)) {
       log = "[romdev] This source looks like C but was assembled as 68000 by vasm68k, " +
         "which is why you're seeing 'identifier expected' / 'missing reset vector'. " +
-        "Genesis C builds through m68k-elf-gcc + SGDK — pass language:\"c\" (or give the " +
+        "Genesis C builds through m68k-elf-gcc + SGDK - pass language:\"c\" (or give the " +
         "file a .c name). You do NOT need to write 68k assembly.\n\n" + r.log;
     }
     return {
       ok: vasmOk,
       // Same SGDK-style finalize (pad + $18E checksum) for hand-written
-      // asm ROMs — they hit the exact same strict-core load failure.
+      // asm ROMs - they hit the exact same strict-core load failure.
       binary: vasmOk && r.binary ? finalizeGenesisRom(r.binary) : r.binary,
       listing: "",
       symbols: "",
@@ -849,18 +849,18 @@ export async function buildForPlatform(args) {
     };
   }
 
-  // Z80 family (SMS, GG) — sdcc.
+  // Z80 family (SMS, GG) - sdcc.
   const sdccPort = SDCC_PORTS[args.platform];
   if (sdccPort) {
     const sources = args.sources ?? { "main.c": args.source };
-    // GB/GBC: _CODE goes at $0150 — the area $0000-$014F is reserved for
+    // GB/GBC: _CODE goes at $0150 - the area $0000-$014F is reserved for
     // the cartridge header + reset vectors which the custom crt0 provides.
-    // MSX: _CODE goes at $4010 — a cartridge maps at $4000-$BFFF and the first
+    // MSX: _CODE goes at $4010 - a cartridge maps at $4000-$BFFF and the first
     // 16 bytes are the ROM header ("AB" + INIT vector) the crt0 emits.
-    // SMS/GG: _CODE goes at $0100 — $0000-$00FF belongs to the crt0's ABS
+    // SMS/GG: _CODE goes at $0100 - $0000-$00FF belongs to the crt0's ABS
     // _HEADER area (reset + RST/IRQ/NMI vectors + _boot). The old default of
     // $0000 linked _CODE ON TOP of the vector table: makebin emitted gsinit
-    // at $0000 and the di/im 1/SP-init/ISR vectors were GONE — it booted in a
+    // at $0000 and the di/im 1/SP-init/ISR vectors were GONE - it booted in a
     // BIOS-less emulator by accident (gsinit happened to sit at the reset
     // vector) but had no working IRQ/NMI/pause handling and was one EI away
     // from jumping into garbage on real hardware.
@@ -882,7 +882,7 @@ export async function buildForPlatform(args) {
     // so agents see actionable warnings before SDCC's misleading parser
     // errors. See src/platforms/gb/lib/c/SDCC_GOTCHAS.md.
     //
-    // Pass `port` so message text says the right port — SDCC sm83 on GB/GBC,
+    // Pass `port` so message text says the right port - SDCC sm83 on GB/GBC,
     // SDCC z80 on SMS/GG. Pre-r26 it always said
     // "SDCC sm83" regardless of the actual port (a copy-paste bug).
     const { lintSources } = await import("./sdcc/preflight-lint.js");
@@ -897,13 +897,13 @@ export async function buildForPlatform(args) {
       dataLoc: args.dataLoc,
       libraries: args.libraries,
       crt0,
-      // MSX cartridges map at $4000 — produce a $4000-based page image so the
+      // MSX cartridges map at $4000 - produce a $4000-based page image so the
       // "AB" header lands at offset 0 (not offset $4000 of a $0000-based image).
       romBase: args.platform === "msx" ? MSX_ROM_BASE : undefined,
     });
     let binary = r.binary;
     // GB/GBC via SDCC: the C path produces a raw .gb with an UNPATCHED
-    // header — no Nintendo logo at $0104, no header checksum at $014D. The
+    // header - no Nintendo logo at $0104, no header checksum at $014D. The
     // boot ROM on real Game Boy hardware (and strict emulators) LOCKS UP on
     // that. The asm path runs rgbfix; the C path didn't, so a C-built GB ROM
     // ran fine in our lenient WASM gambatte but white-screened / hung on
@@ -913,14 +913,14 @@ export async function buildForPlatform(args) {
     if (binary && r.exitCode === 0 && (args.platform === "gb" || args.platform === "gbc")) {
       // -v: valid logo + header/global checksums. -p 0xFF: pad. -C: CGB-only
       // ($0143=$C0) for .gbc. CRITICAL: also set the cartridge-type ($0147)
-      // and RAM-size ($0149) bytes — without -m/-r, -v leaves them at the
+      // and RAM-size ($0149) bytes - without -m/-r, -v leaves them at the
       // linker's garbage pad (e.g. type $3C), and emulators/hardware reject
       // an unknown MBC type with "retro_load_game failed". -m 0x00 = ROM ONLY
-      // (no mapper), -r 0x00 = no cart RAM — correct for plain 32KB builds.
+      // (no mapper), -r 0x00 = no cart RAM - correct for plain 32KB builds.
       //
       // Battery-cart passthrough (0.29.0 examples): a crt0 may DECLARE the
       // cart in the header window (the GB equivalent of the NES crt0's iNES
-      // BATTERY bit — see the gbc lib gb_crt0.s, which emits $0147=$03 /
+      // BATTERY bit - see the gbc lib gb_crt0.s, which emits $0147=$03 /
       // $0149=$02 for MBC1+RAM+BATTERY so hi-scores persist in SAVE_RAM).
       // If the linked image carries a KNOWN battery-MBC type byte with a
       // sane RAM size, pass those through to rgbfix instead of stomping
@@ -940,7 +940,7 @@ export async function buildForPlatform(args) {
       const fix = await runRgbfix({ rom: binary, options: fixOpts });
       if (fix.exitCode === 0 && fix.binary) {
         binary = fix.binary;
-        // rgbfix has no "force DMG" flag — without -c/-C it leaves $0143 at
+        // rgbfix has no "force DMG" flag - without -c/-C it leaves $0143 at
         // whatever the linker padded ($FF here). $FF has bit 7 set, so a
         // DMG (.gb) ROM would wrongly trip CGB mode → BGP/OBP writes ignored
         // → white screen on a CGB-capable emulator. Force $0143 = $00 for
@@ -955,19 +955,19 @@ export async function buildForPlatform(args) {
         }
         r.log += "\n--- rgbfix (auto header fix) ---\n" + (fix.log || "(ok)");
       } else {
-        r.log += "\n--- rgbfix FAILED (header left unpatched — may not boot on hardware) ---\n" + (fix.log || "");
+        r.log += "\n--- rgbfix FAILED (header left unpatched - may not boot on hardware) ---\n" + (fix.log || "");
       }
     }
     // SMS/GG: if the ROM carries a "TMR SEGA" header at $7FF0, fill its
     // checksum word at $7FFA. The export (US/EU) SMS BIOS verifies it and
-    // shows "SOFTWARE ERROR" if it's wrong — our header.s ships a $00,$00
+    // shows "SOFTWARE ERROR" if it's wrong - our header.s ships a $00,$00
     // placeholder, so a real Master System (and RetroDECK with the SMS BIOS)
     // rejected it. Checksum = sum of bytes $0000..$7FEF (everything before
     // the header), stored little-endian. GG BIOS doesn't check, but writing
     // it is harmless. Only touches ROMs that actually have the header.
     if (binary && r.exitCode === 0 && (args.platform === "sms" || args.platform === "gg")) {
       // Pad to a full 32KB bank FIRST. sdld emits up to the highest used
-      // address, so a small program can come out under $8000 — which (a)
+      // address, so a small program can come out under $8000 - which (a)
       // skipped this whole header block before (the header guard required
       // 32KB) and (b) odd-size ROMs misbehave on real mappers/flashcarts.
       if (binary.length < 0x8000) {
@@ -980,7 +980,7 @@ export async function buildForPlatform(args) {
       // Region nibble is PLATFORM-SPECIFIC and load-bearing: 4 = SMS export,
       // 7 = GG international. A .gg ROM stamped with an SMS region (3/4) makes
       // Genesis Plus GX (RetroArch/RetroDECK's SMS+GG core) boot it in "GG
-      // running SMS software" COMPATIBILITY mode — wrong video mode + wrong
+      // running SMS software" COMPATIBILITY mode - wrong video mode + wrong
       // CRAM format for a native-GG program → black/garbled screen on the
       // user's device while our BIOS-less host looked fine. Size nibble $C =
       // 32KB checksum range ($0000-$7FEF).
@@ -998,7 +998,7 @@ export async function buildForPlatform(args) {
         binary[hdr + 12] = 0x00; binary[hdr + 13] = 0x00; // product code lo
         binary[hdr + 14] = 0x00;                          // product/version
       }
-      // Always stamp the platform-correct region/size — a crt0-provided header
+      // Always stamp the platform-correct region/size - a crt0-provided header
       // with an SMS region on a .gg build has the same compat-mode problem.
       binary[hdr + 15] = regionSize;
       // Checksum = sum of bytes $0000..$7FEF (everything before the header),
@@ -1055,7 +1055,7 @@ export async function buildForPlatform(args) {
 
   if (args.platform === "pico8") {
     // PICO-8 "build" = PACKAGE a .p8 cart (plain-text sections), NOT compile to machine
-    // code — the Lua is source. Accept bare Lua (`source`/`lua`) wrapped into a valid .p8,
+    // code - the Lua is source. Accept bare Lua (`source`/`lua`) wrapped into a valid .p8,
     // or a complete .p8 passed through. Optional data sections (gfx/map/sfx/music) via
     // `sections`. The "binary" IS the .p8 text bytes, which FAKE-08 loads + runs directly.
     const { packP8 } = await import("./pico8/pack.js");
@@ -1095,7 +1095,7 @@ export async function buildForPlatform(args) {
     // sync32 carts are freestanding Cortex-M33 C. The compiler is the same
     // WASM arm-none-eabi toolchain the GBA platform ships (different -mcpu),
     // and the SDK's crt0/linker script/headers come from
-    // romdev-platform-sync32 — so a cart builds from source text with no
+    // romdev-platform-sync32 - so a cart builds from source text with no
     // native gcc, no Python and no sibling checkout.
     const { buildSync32 } = await import("./sync32/sync32.js");
     const { loadSdk } = await import("romdev-platform-sync32");
@@ -1106,7 +1106,7 @@ export async function buildForPlatform(args) {
       sources: args.sources,
       // Resources a game reads through the disk API. With `data`, the cart is
       // packed as the ARCHIVE form (main.s32e + info.txt + the files, tarred)
-      // rather than a bare executable — a game with resources needs its
+      // rather than a bare executable - a game with resources needs its
       // namespace to travel with it (ABI 3.2-3.4).
       data: args.data,
       icon: args.icon,

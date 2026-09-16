@@ -1,4 +1,4 @@
-// PPU decoder unit tests — exercise the tile-bitplane math with a tiny
+// PPU decoder unit tests - exercise the tile-bitplane math with a tiny
 // synthetic tile, plus verify the pattern-table renderer against a real
 // fceumm load.
 

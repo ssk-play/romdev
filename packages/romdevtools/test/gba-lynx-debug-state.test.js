@@ -20,7 +20,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 test("GBA: patched mgba exposes cpu/io/palette/oam regions + getCPUState decodes ARM7", { timeout: 180000 }, async () => {
   const core = resolveCore("gba");
-  assert.ok(core, "resolveCore('gba') returned null — mgba wasm missing?");
+  assert.ok(core, "resolveCore('gba') returned null - mgba wasm missing?");
 
   // A minimal ROM that sets a known DISPCNT (mode 0, BG0 on) so the rendering
   // context has something deterministic to read.
@@ -56,7 +56,7 @@ int main(void) {
   assert.ok("execPc" in cpu, "missing pipeline-adjusted execPc");
   assert.match(cpu.cpu, /arm7tdmi/);
   assert.ok(cpu.cpsr && cpu.cpsr.startsWith("0x"), "cpsr not hex");
-  // SP should be in IWRAM ($3000000-$3007FFF) or EWRAM — a sane stack, not 0.
+  // SP should be in IWRAM ($3000000-$3007FFF) or EWRAM - a sane stack, not 0.
   assert.ok(cpu.registers.SP > 0x2000000, `SP looks wrong: 0x${cpu.registers.SP.toString(16)}`);
 
   // DISPCNT we set: BG mode 0, BG0 + OBJ enabled.
@@ -75,16 +75,16 @@ int main(void) {
 
 // The gba_lua_sdk defect report (internal-gbalua/ROMDEV_MEMORY_REGION_DEFECT.md):
 // upstream mgba-libretro returned GB_SIZE_WORKING_RAM (32768) for SYSTEM_RAM
-// UNCONDITIONALLY while the data pointer was GBA EWRAM — so `system_ram` on GBA
+// UNCONDITIONALLY while the data pointer was GBA EWRAM - so `system_ram` on GBA
 // was the first 32KB of EWRAM wearing IWRAM's size, and IWRAM (the C stack +
 // libtonc/maxmod .bss, everything at $0300xxxx) was unreadable. Reads returned
 // real-but-wrong bytes (silent zeros), sending the agent down false trails.
 test("GBA: system_ram is full EWRAM (256KB) and gba_iwram reads the LIVE stack/.bss", { timeout: 180000 }, async () => {
   const core = resolveCore("gba");
-  assert.ok(core, "resolveCore('gba') returned null — mgba wasm missing?");
+  assert.ok(core, "resolveCore('gba') returned null - mgba wasm missing?");
   const main = `
 #include <tonc.h>
-int counter = 1;           /* .data — in IWRAM on this toolchain */
+int counter = 1;           /* .data - in IWRAM on this toolchain */
 int main(void) {
     irq_init(NULL);
     irq_add(II_VBLANK, NULL);
@@ -99,10 +99,10 @@ int main(void) {
   await host.loadMedia({ platform: "gba", bytes: r.binary, virtualName: "iwram.gba" });
   for (let i = 0; i < 120; i++) host.stepFrames(1);
 
-  // system_ram must be EWRAM's REAL size (the upstream size bug returned 32768)…
+  // system_ram must be EWRAM's REAL size (the upstream size bug returned 32768)...
   const sysRam = host.readMemory("system_ram", 0, 16);
   assert.equal(sysRam.length, 16);
-  // …and readable PAST the old bogus 32KB limit.
+  // ...and readable PAST the old bogus 32KB limit.
   assert.doesNotThrow(() => host.readMemory("system_ram", 0x20000, 16),
     "EWRAM read at offset 0x20000 must not RangeError (size was wrongly 32768)");
 
@@ -112,8 +112,8 @@ int main(void) {
   const low = host.readMemory("gba_iwram", 0x0000, 0x1000);  // .data/.bss
   const topNonzero = top.some((b) => b !== 0);
   const lowNonzero = low.some((b) => b !== 0);
-  assert.ok(topNonzero || lowNonzero, "IWRAM reads all zeros — the silent-zeros defect is back");
-  // SP (from the CPU snapshot) points into IWRAM — the exact repro from the report.
+  assert.ok(topNonzero || lowNonzero, "IWRAM reads all zeros - the silent-zeros defect is back");
+  // SP (from the CPU snapshot) points into IWRAM - the exact repro from the report.
   const cpu = getCPUState(host, "gba");
   if (cpu.registers.SP >= 0x03000000 && cpu.registers.SP < 0x03008000) {
     const spOff = cpu.registers.SP - 0x03000000;
@@ -129,7 +129,7 @@ before(async () => { lynxRom = await buildExampleRom("lynx"); });
 
 test("Lynx: patched handy exposes cpu/hw regions + getCPUState decodes 65C02", { timeout: 60000 }, async () => {
   const core = resolveCore("lynx");
-  assert.ok(core, "resolveCore('lynx') returned null — handy wasm missing?");
+  assert.ok(core, "resolveCore('lynx') returned null - handy wasm missing?");
 
   const host = new LibretroHost();
   await host.loadCore(core.jsPath, core.wasmPath);

@@ -1,4 +1,4 @@
-/* Dreamcast RACING demo — a pseudo-3D road that curves + scrolls toward a horizon,
+/* Dreamcast RACING demo - a pseudo-3D road that curves + scrolls toward a horizon,
  * with a car at the bottom that drifts side to side. Self-animating (no input).
  * Renders on the PowerVR2 framebuffer. */
 #include "dc.h"

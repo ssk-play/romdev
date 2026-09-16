@@ -1,41 +1,41 @@
-/* ── sports.c — Game Boy Advance versus court game (complete game) ────────────
+/* ── sports.c - Game Boy Advance versus court game (complete game) ────────────
  *
- * RALLY ROVER — a COMPLETE, working game: press-start title, 1P vs a beatable
+ * RALLY ROVER - a COMPLETE, working game: press-start title, 1P vs a beatable
  * CPU on a netted court (Pong lineage), first-to-5 match flow with a result
  * screen, a PRNG rally "spin" so an idle match provably ENDS, music + SFX, and
  * a persistent RECORD in cartridge SRAM (longest win streak vs the CPU). The
- * court and sprites are VIVID — the GBA's 15-bit palette gives 32768 colours,
+ * court and sprites are VIVID - the GBA's 15-bit palette gives 32768 colours,
  * so the two paddles read as a blue team and a red team over a green court
  * with a bright dashed net, not flat blocks on black.
  *
  * The game: your paddle (left, blue) moves UP/DOWN; the CPU paddle (right, red)
  * chases the ball at half your top speed, so a steep edge-deflection outruns
- * it — that's exactly how you beat it. Win a point when the ball passes the
+ * it - that's exactly how you beat it. Win a point when the ball passes the
  * far paddle; first to 5 takes the match. Win without losing and your streak
  * grows; the longest streak persists across power cycles.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented GBA footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented GBA footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — court art, ball physics, CPU skill, scoring: reshape
+ *   GAME LOGIC (clay) - court art, ball physics, CPU skill, scoring: reshape
  *     freely.
  *
  * What depends on what:
- *   gba_sfx.{h,c} — PSG sound: sfx_tone/sfx_noise one-shots + the music loop
- *     (sfx_music_tick once per frame — forget it and the game is silent).
- *   libtonc (the build links it) — VBlankIntrWait/key_poll/TTE/tonccpy.
+ *   gba_sfx.{h,c} - PSG sound: sfx_tone/sfx_noise one-shots + the music loop
+ *     (sfx_music_tick once per frame - forget it and the game is silent).
+ *   libtonc (the build links it) - VBlankIntrWait/key_poll/TTE/tonccpy.
  *
  * HANDHELD, SO SINGLE-PLAYER ONLY (honest note): 2P versus on the GBA means a
- * link cable between two units — a second emulator instance this environment
+ * link cable between two units - a second emulator instance this environment
  * can't provide. So RALLY ROVER is 1P vs a beatable CPU, not split-screen
- * versus. (Contrast the NES/Genesis sports templates, which ARE 2P versus —
- * two controllers on one machine — AND a 1P-vs-CPU mode.)
+ * versus. (Contrast the NES/Genesis sports templates, which ARE 2P versus -
+ * two controllers on one machine - AND a 1P-vs-CPU mode.)
  *
  * WHY THE PRNG MATTERS (a teaching point shared with the NES sports template):
  * the GBA is fully deterministic. Without a noise source, the CPU's fixed
  * ball-chase and the fixed wall/paddle bounces lock into an identical rally
- * cycle that NEVER ends — the ball orbits the court forever and no point is
+ * cycle that NEVER ends - the ball orbits the court forever and no point is
  * ever scored. random8() adds a ±1 "spin" to every paddle return, so rallies
  * always drift, break symmetry, and an idle match reaches 5-0 on its own.
  */
@@ -43,19 +43,19 @@
 #include <tonc.h>
 #include "gba_sfx.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "RALLY ROVER"
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Court geometry + match rules. The court interior is bounded top/bottom by
  * rail tiles; paddles and the ball stay between COURT_TOP and COURT_BOT (pixel
  * rows). Paddles are 24 px tall (3 stacked 8x8 sprites), 8 px wide. */
 #define COURT_TOP   16           /* first pixel row below the top rail        */
 #define COURT_BOT   144          /* first pixel row of the bottom rail        */
 #define PADDLE_H    24           /* 3 stacked 8x8 sprites                      */
-#define PADDLE_X1   16           /* P1 — left side (you)                      */
-#define PADDLE_X2   216          /* CPU — right side                         */
+#define PADDLE_X1   16           /* P1 - left side (you)                      */
+#define PADDLE_X2   216          /* CPU - right side                         */
 #define BALL_SIZE   8
 #define COURT_W     240
 #define WIN_SCORE   5            /* first to 5 takes the match                */
@@ -88,13 +88,13 @@ static const u32 tile_ball[8] = {
     0x11111111, 0x11111111, 0x01111110, 0x00111100,
 };
 
-/* ── GAME LOGIC (clay) — BG court tiles (regular Mode-0 4bpp BG tiles).
+/* ── GAME LOGIC (clay) - BG court tiles (regular Mode-0 4bpp BG tiles).
  * Each 8x8 4bpp tile is 8 u32 rows; each nibble is a palette index within the
  * BG palbank we use (bank 0). Index 0 = transparent → shows the backdrop. */
 #define BG_FLOOR 1   /* court surface (two-green dither so it isn't flat)    */
 #define BG_RAIL  2   /* top/bottom court rails                              */
 #define BG_NET   3   /* dashed centre net                                  */
-#define BG_PIP   4   /* score pip (a lit cell — see the score-pip idiom)    */
+#define BG_PIP   4   /* score pip (a lit cell - see the score-pip idiom)    */
 
 static const u32 bg_tile_floor[8] = {   /* two-green checker, no flat colour  */
     0x11221122, 0x11221122, 0x22112211, 0x22112211,
@@ -113,12 +113,12 @@ static const u32 bg_tile_pip[8] = {     /* a lit score pip (filled diamond)   */
     0x44444444, 0x04444440, 0x00444400, 0x00044000,
 };
 
-/* ── GAME LOGIC (clay — reshape freely) — game state (plain BSS; the GBA has
+/* ── GAME LOGIC (clay - reshape freely) - game state (plain BSS; the GBA has
  * 256 KB of EWRAM + 32 KB of IWRAM).
  * NOTE for headless verification: unlike the Genesis template (whose work-RAM
  * globals are readable by symbol name), the GBA libretro core exposes NO
  * IWRAM/EWRAM region, so a headless agent reads game state from what's ON
- * HARDWARE — OAM (the paddles + ball), the BG0 tilemap (the court + the SCORE
+ * HARDWARE - OAM (the paddles + ball), the BG0 tilemap (the court + the SCORE
  * PIPS, see the score-pip idiom), and save_ram (the record). Keep game globals
  * static and surface anything the harness must read onto hardware. */
 #define ST_TITLE 0
@@ -132,11 +132,11 @@ static s16 bdx, bdy;            /* ball velocity (px/frame)                  */
 static u8  score_p1, score_cpu; /* 0..WIN_SCORE                              */
 static u8  serve_timer;         /* freeze frames between points              */
 static u8  streak;              /* current win streak vs CPU (RAM)           */
-static u16 record;              /* battery-backed best streak — see SRAM idiom*/
+static u16 record;              /* battery-backed best streak - see SRAM idiom*/
 static u8  new_record;          /* result screen shows NEW RECORD            */
 static u8  win_who;             /* 1 = you took the match, 0 = CPU did       */
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (a handful of ARM instructions).
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (a handful of ARM instructions).
  * THE LOAD-BEARING DETAIL of a deterministic versus game: see the file header.
  * Ticked once per play frame so two identical board states a few frames apart
  * still diverge, and added as ±1 spin to every paddle return so rallies END. */
@@ -150,23 +150,23 @@ static u8 random8(void) {
     return (u8)r;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * PERSISTENT SRAM at 0x0E000000. Two footguns, both fatal-but-silent:
- *   1. The SRAM bus is 8 BITS WIDE. Byte reads/writes only — a u16/u32
+ *   1. The SRAM bus is 8 BITS WIDE. Byte reads/writes only - a u16/u32
  *      access doesn't fault, it just reads the same byte mirrored (and a
  *      wide write stores one byte), so your data "almost" round-trips and
  *      then the checksum never matches. Every access below is via vu8.
  *   2. Emulators and flashcarts detect the SAVE TYPE by scanning the ROM
  *      image for a marker string. Without "SRAM_V" in the ROM, mGBA gives
  *      the cart NO save memory at all and writes to 0x0E000000 vanish.
- *      The aligned, (used)-attributed const below plants that marker —
+ *      The aligned, (used)-attributed const below plants that marker -
  *      delete it and persistence dies even though this code is untouched.
- * Layout: 'V' 'X' record-lo record-hi checksum (xor ^ 0xA5) — magic+checksum
+ * Layout: 'V' 'X' record-lo record-hi checksum (xor ^ 0xA5) - magic+checksum
  * so a fresh (0xFF-filled) cart reads as "no record" instead of garbage.
  * PERSISTENCE CHOICE: a raw hi-score is meaningless for a versus game (every
- * match ends 5-x), so we persist the LONGEST WIN STREAK vs the CPU — the stat
+ * match ends 5-x), so we persist the LONGEST WIN STREAK vs the CPU - the stat
  * a returning player actually chases.
- * requires: nothing else — self-contained; safe to transplant whole. */
+ * requires: nothing else - self-contained; safe to transplant whole. */
 #define SRAM_BYTE ((volatile u8 *)0x0E000000)
 __attribute__((used, aligned(4))) static const char sram_type_marker[] = "SRAM_V113";
 
@@ -187,10 +187,10 @@ static void record_save(u16 v) {
     SRAM_BYTE[4] = (u8)((u8)v ^ (u8)(v >> 8) ^ 0xA5);
 }
 
-/* ── GAME LOGIC (clay) — TTE text helpers ────────────────────────────────────
+/* ── GAME LOGIC (clay) - TTE text helpers ────────────────────────────────────
  * Draw right-aligned decimal digits at pixel (x,y) WITHOUT tte_printf. The
  * bundled libtonc's tte_printf with a %d conversion is broken (it routes
- * through a vsnprintf path that isn't wired in this build — it garbles
+ * through a vsnprintf path that isn't wired in this build - it garbles
  * output AND wedges the loop when called per-frame, GBA-1). We build the
  * string ourselves and use tte_write, which processes the #{P:x,y} position
  * command but does NO format conversion → safe every frame. */
@@ -211,14 +211,14 @@ static void draw_num(int x, int y, unsigned v, int digits) {
     tte_write(buf);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * THE COURT IS BACKGROUND TILES on BG0 (Mode 0, a REGULAR text BG). A 32x32
  * map (BG_REG_32x32) is one screenblock; each map entry is a u16: tile id
  * (10 bits) + hflip/vflip + a 4-bit palbank. SE_BUILD(tile, palbank, hf, vf)
  * packs it. Footguns this dodges:
  *   - VRAM IGNORES BYTE WRITES (a u8 store duplicates the byte into both
  *     halves of the 16-bit lane). We only ever write whole u16 SE entries
- *     (via set_cell) and tonccpy() tile data — both VRAM-safe.
+ *     (via set_cell) and tonccpy() tile data - both VRAM-safe.
  *   - TTE owns BG1 (CBB 2 / SBB 30). Keep this map (SBB 28) and our tile
  *     graphics (CBB 0) clear of those blocks or text and court corrupt each
  *     other.
@@ -228,14 +228,14 @@ static void set_cell(int tx, int ty, u16 tile) {
     court_map[ty * 32 + tx] = SE_BUILD(tile, 0, 0, 0);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * SCORE PIPS — the headless-readable score. GBA C globals are NOT host-readable
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * SCORE PIPS - the headless-readable score. GBA C globals are NOT host-readable
  * (the libretro core exposes no IWRAM/EWRAM region), so a verify harness can't
  * read score_p1/score_cpu by symbol. To keep the score machine-checkable WITHOUT
  * a symbol map, each point is ALSO surfaced onto hardware as a BG "pip" tile in
  * a fixed HUD row: P1's pips grow left-to-right from tx=4, the CPU's grow
  * right-to-left from tx=27. A harness counts BG_PIP tiles (id 4) in row 0 of
- * screenblock 28 to read the exact score — no globals needed. This is the same
+ * screenblock 28 to read the exact score - no globals needed. This is the same
  * "decode state from what's on hardware, not from a symbol" discipline the GBA
  * puzzle/platformer templates use for the board and the falling piece.
  * requires: court_map (BG0 SBB 28), BG_PIP tile uploaded, called on every
@@ -267,7 +267,7 @@ static void paint_court(void) {
     paint_pips();
 }
 
-/* ── GAME LOGIC (clay) — serve: ball to centre, toward the chosen side ── */
+/* ── GAME LOGIC (clay) - serve: ball to centre, toward the chosen side ── */
 static void serve_ball(u8 to_left) {
     bx = COURT_W / 2 - BALL_SIZE / 2;
     by = (COURT_TOP + COURT_BOT) / 2 - BALL_SIZE / 2;
@@ -276,7 +276,7 @@ static void serve_ball(u8 to_left) {
     serve_timer = 30;                              /* half-second breather */
 }
 
-/* ── GAME LOGIC (clay) — HUD / screens (TTE on BG1, priority 0) ── */
+/* ── GAME LOGIC (clay) - HUD / screens (TTE on BG1, priority 0) ── */
 static void draw_hud_labels(void) {
     tte_erase_screen();
     tte_write("#{P:8,1}YOU");
@@ -316,7 +316,7 @@ static void enter_over(void) {
         if (streak > record) {
             record = streak;
             new_record = 1;
-            record_save(record);         /* byte-wise SRAM write — see idiom   */
+            record_save(record);         /* byte-wise SRAM write - see idiom   */
         }
         tte_write("#{P:84,56}YOU WIN");
     } else {                             /* CPU took the match                */
@@ -330,7 +330,7 @@ static void enter_over(void) {
     sfx_tone(2, win_who ? 1750 :  900, 12);
 }
 
-/* ── GAME LOGIC (clay) — one point scored ── */
+/* ── GAME LOGIC (clay) - one point scored ── */
 static void score_point(u8 for_p1) {
     if (for_p1) ++score_p1; else ++score_cpu;
     sfx_noise(8);
@@ -340,7 +340,7 @@ static void score_point(u8 for_p1) {
     serve_ball(for_p1);                  /* loser of the point serves outward  */
 }
 
-/* ── GAME LOGIC (clay) — paddle hit: deflect by where the ball struck.
+/* ── GAME LOGIC (clay) - paddle hit: deflect by where the ball struck.
  * Centre = flat-ish, edges = steep. Max |bdy| is 2; the CPU moves at 1, so an
  * edge hit is exactly how a human beats it. A ±1 random "spin" on every return
  * keeps rallies from repeating and guarantees an idle match ENDS (see header). */
@@ -354,7 +354,7 @@ static void deflect(s16 paddle_y) {
     sfx_tone(1, 1500, 3);
 }
 
-/* ── GAME LOGIC (clay) — one ST_PLAY tick. Edge cases handled: the ball is
+/* ── GAME LOGIC (clay) - one ST_PLAY tick. Edge cases handled: the ball is
  * frozen during the post-point serve pause; the CPU moves at half the player's
  * top speed with a dead zone so it's beatable; collisions are direction-gated
  * so the ball can't double-hit a paddle. May end the match (point → first-to-5).
@@ -364,11 +364,11 @@ static void update_play(void) {
 
     random8();                           /* tick the noise source every frame  */
 
-    /* You — UP/DOWN, 3 px/frame (key_held = continuous hold). */
+    /* You - UP/DOWN, 3 px/frame (key_held = continuous hold). */
     if (key_held(KEY_UP)   && p1y > COURT_TOP)            p1y -= 3;
     if (key_held(KEY_DOWN) && p1y < COURT_BOT - PADDLE_H) p1y += 3;
 
-    /* CPU — chases the ball centre at 1 px/frame (a third of your speed) with a
+    /* CPU - chases the ball centre at 1 px/frame (a third of your speed) with a
      * small dead zone. Beatable by design: steep deflections outrun it. */
     target = by + BALL_SIZE / 2 - PADDLE_H / 2;
     if (cpuy + 2 < target && cpuy < COURT_BOT - PADDLE_H) cpuy += 1;
@@ -404,9 +404,9 @@ static void update_play(void) {
     if (bx > COURT_W - 4)     score_point(1);   /* past CPU → you score        */
 }
 
-/* ── GAME LOGIC (clay) — stage the sprites: 3+3 paddle tiles + the ball.
+/* ── GAME LOGIC (clay) - stage the sprites: 3+3 paddle tiles + the ball.
  * Off-screen / inactive slots park at y=200. The paddles carry their TEAM
- * colour via the OBJ PALBANK (bank 0 = blue you, bank 1 = red CPU) — one tile,
+ * colour via the OBJ PALBANK (bank 0 = blue you, bank 1 = red CPU) - one tile,
  * two coloured paddles. ── */
 static OBJ_ATTR obj_buffer[128];
 static void stage_sprites(void) {
@@ -427,12 +427,12 @@ static void stage_sprites(void) {
 }
 
 int main(void) {
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
      * Init order: tiles/palettes → oam_init → irq_init + II_VBLANK → TTE init
      * → DISPCNT last. VBlankIntrWait() HANGS FOREVER without the vblank IRQ
      * registered (the #1 "frozen on frame 1" cause), and enabling DISPCNT
      * layers before their tiles/maps exist flashes garbage. TTE owns BG1
-     * (CBB 2 / SBB 30) — keep other layers off those blocks.
+     * (CBB 2 / SBB 30) - keep other layers off those blocks.
      * requires: nothing prior; this IS the boot. */
 
     /* BG palette (bank 0). Vivid court: two greens for the floor dither, a
@@ -444,7 +444,7 @@ int main(void) {
     pal_bg_mem[3] = RGB15(28, 30, 31);   /* rail + net (near-white)           */
     pal_bg_mem[4] = RGB15(31, 26, 6);    /* score pip (hot gold)              */
 
-    /* BG tile graphics → char-block 0 (TTE uses CBB 2 — kept clear). */
+    /* BG tile graphics → char-block 0 (TTE uses CBB 2 - kept clear). */
     tonccpy(&tile_mem[0][BG_FLOOR], bg_tile_floor, sizeof(bg_tile_floor));
     tonccpy(&tile_mem[0][BG_RAIL],  bg_tile_rail,  sizeof(bg_tile_rail));
     tonccpy(&tile_mem[0][BG_NET],   bg_tile_net,   sizeof(bg_tile_net));
@@ -476,7 +476,7 @@ int main(void) {
     REG_BG1CNT |= BG_PRIO(0);
     REG_DISPCNT = DCNT_MODE0 | DCNT_BG0 | DCNT_BG1 | DCNT_OBJ | DCNT_OBJ_1D;
 
-    record = record_load();            /* cartridge SRAM — 0 on first boot     */
+    record = record_load();            /* cartridge SRAM - 0 on first boot     */
     streak = 0;
     enter_title();
 

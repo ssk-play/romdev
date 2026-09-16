@@ -5,7 +5,7 @@
 //
 // It did exactly that on wasmcart and jsgame carts: pause()/resume() existed
 // only on LibretroHost, and `h.status.paused ? h.resume() : h.pause()` was
-// unguarded — with no `paused` field the ternary always took the pause branch,
+// unguarded - with no `paused` field the ternary always took the pause branch,
 // so it threw on the FIRST press, every time.
 //
 // These tests pin both halves of the fix: the hosts implement the pause
@@ -38,7 +38,7 @@ for (const [name, make] of [
 ]) {
   test(`${name}: implements the pause contract the playtest hotkey calls`, () => {
     const h = make();
-    assert.equal(typeof h.pause, "function", "pause() must exist — the P hotkey calls it unconditionally");
+    assert.equal(typeof h.pause, "function", "pause() must exist - the P hotkey calls it unconditionally");
     assert.equal(typeof h.resume, "function", "resume() must exist");
     // The ternary reads this field; without it pause/resume can never toggle.
     assert.equal("paused" in h.status, true, "status.paused must exist");
@@ -65,7 +65,7 @@ test("wasmcart: pause actually FREEZES the cart, not just avoids the crash", asy
   assert.equal(host.status.paused, true);
 
   // The playtest loop calls stepFrames every tick; a paused host must ignore it
-  // (LibretroHost.stepFrames returns 0 while paused — same contract here).
+  // (LibretroHost.stepFrames returns 0 while paused - same contract here).
   const stepped = host.stepFrames(10);
   assert.equal(stepped, 0, "stepFrames returns 0 while paused");
   assert.equal(host.status.frameCount, frozenAt, "frameCount does not advance while paused");

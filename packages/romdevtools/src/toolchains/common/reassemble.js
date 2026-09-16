@@ -10,7 +10,7 @@
 //     (gbz80 objects can't be ld-linked, so as + `.org` + objcopy)
 //
 // objdump and `as` share GNU syntax, so the GNU CPUs need NO instruction
-// translation — objdump's lines feed straight back into `as`. The byte-exact
+// translation - objdump's lines feed straight back into `as`. The byte-exact
 // guarantee is the heal loop: assemble, diff vs the original, pin any
 // mismatching/rejected line to a `.byte` of its exact bytes, retry. Always
 // byte-exact; readability = how many lines stayed instructions.
@@ -39,13 +39,13 @@ function parseLine(line) {
     return { label: both[1], code: both[2].trim(), addr: parseInt(both[3], 16), bytes };
   }
   // Assembler STATE directives that emit no bytes but MUST be preserved for the
-  // reassembly to be correct — chiefly the 65816 width directives `.a8/.a16/
+  // reassembly to be correct - chiefly the 65816 width directives `.a8/.a16/
   // .i8/.i16` (and `.setcpu`), which tell ca65 the accumulator/index size so
   // `lda #imm` etc. get the right operand width. Dropping them silently
   // mis-encodes everything after a width switch.
   const dir = line.match(/^\s*(\.(?:setcpu|a8|a16|i8|i16|smart)\b.*)$/i);
   if (dir) return { directive: dir[1].trim() };
-  return {}; // comment/blank — skip
+  return {}; // comment/blank - skip
 }
 
 /** First differing byte index, or -1 if equal up to min length. */
@@ -73,10 +73,10 @@ export const CPU_FAMILY = {
   gb: "sm83", gbc: "sm83",
   genesis: "m68k", megadrive: "m68k", md: "m68k",
   gba: "arm",
-  // PC Engine's HuC6280 is a 65C02 superset — the 6502-family da65/ca65 path
+  // PC Engine's HuC6280 is a 65C02 superset - the 6502-family da65/ca65 path
   // reassembles it (da65 also has an explicit --cpu huc6280 mode for decode).
   pce: "6502",
-  // GameTank's W65C02S is a 65C02 superset — same 6502-family da65/ca65 path.
+  // GameTank's W65C02S is a 65C02 superset - same 6502-family da65/ca65 path.
   // 65C02-only opcodes da65 doesn't decode floor to `.byte` (still byte-exact).
   gametank: "6502",
 };
@@ -94,7 +94,7 @@ export async function reassembleForPlatform(a) {
   const family = CPU_FAMILY[platform];
   if (!family) throw new Error(`reassembleForPlatform: no reassembly path for platform '${platform}'`);
 
-  // ── disassemble (NATIVE binutils objdump — no hand-rolled decoders) ──
+  // ── disassemble (NATIVE binutils objdump - no hand-rolled decoders) ──
   // 6502/65816 use da65 (cc65's real disassembler); everything else uses the
   // matching binutils objdump. normalizeObjdump emits romdev's house format
   // (`<insn> ; ADDR bytes`) the heal loop's parseLine consumes.
@@ -110,7 +110,7 @@ export async function reassembleForPlatform(a) {
     //      code lines recognized → everything floored. (regex fixed in parseDa65Code.)
     //   2. On 65816, `.a8/.i8` width state set by a `rep/sep` desynced the whole
     //      region (M/X). reassembleCc65Spans tracks width per instruction.
-    // FAST too — each span is small, so its heal loop is cheap, versus one
+    // FAST too - each span is small, so its heal loop is cheap, versus one
     // superlinear 32KB heal (that measured 300s for 21%). See reassembleCc65Spans.
     if (Array.isArray(codeSpans) && codeSpans.length) {
       return reassembleCc65Spans(bytes, startAddress, codeSpans, family);
@@ -121,7 +121,7 @@ export async function reassembleForPlatform(a) {
   }
   // ALL non-6502 CPUs: disassemble with native objdump, reassemble with the
   // matching native binutils `as`/`ld`/`objcopy`. objdump output IS GNU-as
-  // syntax, so there's no translation — keep its lines verbatim and pin only the
+  // syntax, so there's no translation - keep its lines verbatim and pin only the
   // instructions `as` rejects (absolute branch/PC-relative forms) to `.byte`.
   // NO hand-rolled decoders anywhere.
   const { runObjdump } = await import("../objdump.js");
@@ -144,7 +144,7 @@ export async function reassembleForPlatform(a) {
     throw new Error(`reassembleForPlatform: no reassembly path for family '${family}'`);
   }
   // NOTE: the GNU families do NOT use a code-span map. objdump does a full LINEAR
-  // sweep — it already decodes EVERY byte as an instruction, including code the
+  // sweep - it already decodes EVERY byte as an instruction, including code the
   // analysis engine's function detection would miss (verified: a routine not in
   // any rizin function still decodes). So there's no `.byte` blob hiding real
   // code here, and the speculative gap recovery that the cc65/da65 path needs
@@ -166,7 +166,7 @@ export async function reassembleForPlatform(a) {
  * @returns same shape as reassembleForPlatform
  */
 async function reassembleGnuNative(disasm, startAddress, original, tools, family) {
-  // tools: { runAs, runLd, runObjcopy, fmtLines, asArgs? } — the matching
+  // tools: { runAs, runLd, runObjcopy, fmtLines, asArgs? } - the matching
   // binutils chain for this CPU. asArgs (e.g. for z80's -march=gbz80) ride
   // through to the assembler call (the z80 wrapper bakes march in itself).
   const { runAs, runLd, runObjcopy, fmtLines = "" } = tools;
@@ -211,7 +211,7 @@ async function reassembleGnuNative(disasm, startAddress, original, tools, family
     if (tools.noLink) {
       // z80/gbz80: `as` resolves all in-file labels (one source file, no cross-
       // refs), and ld rejects gbz80 objects ("instruction sets incompatible").
-      // Skip ld — objcopy the assembled object straight to binary. Correct
+      // Skip ld - objcopy the assembled object straight to binary. Correct
       // section addresses come from the `.org startAddress` the source carries.
       elf = a.object;
     } else {
@@ -243,10 +243,10 @@ async function reassembleGnuNative(disasm, startAddress, original, tools, family
       }
       // Assembled but bytes differ (and/or length changed). Compare each line's
       // bytes at its ABSOLUTE offset (p.addr - startAddress), NOT an accumulated
-      // cursor — the linker anchors every line at its real address, so a single
+      // cursor - the linker anchors every line at its real address, so a single
       // line that `as` re-encoded to a different length doesn't desync the rest
       // (the cursor-accumulation approach drifted on the first length-changer and
-      // pinned everything after it — the bug that floored literal-heavy ARM).
+      // pinned everything after it - the bug that floored literal-heavy ARM).
       // Pin EVERY mismatching instruction this pass so it converges in a few.
       let pinnedHere = false;
       for (let li = 0; li < lines.length; li++) {
@@ -259,7 +259,7 @@ async function reassembleGnuNative(disasm, startAddress, original, tools, family
       }
       if (!pinnedHere) {
         // Bytes all matched at their addresses but totals still differ (length
-        // mismatch with no per-line diff — e.g. a re-encode that shifted later
+        // mismatch with no per-line diff - e.g. a re-encode that shifted later
         // lines). Pin the next unpinned code line to make progress.
         const n = codeIdx.find((i) => !forced.has(i));
         if (n == null) break;
@@ -281,9 +281,9 @@ async function reassembleGnuNative(disasm, startAddress, original, tools, family
   // Floor: clean all-`.byte` (proven byte-exact, no labels to perturb layout).
   // Mirror build()'s `.org` for the no-link (z80/gbz80) path: without it,
   // objcopy emits the section from file offset 0, and assemble()'s
-  // `bin.slice(startAddress, …)` then returns bytes that are `startAddress`-short
-  // (empty for a $4000/$8000-based region) — so any non-zero-org region (MSX
-  // $4010, GB bank1 $4000, …) silently fails the floor. The linked path sets the
+  // `bin.slice(startAddress, ...)` then returns bytes that are `startAddress`-short
+  // (empty for a $4000/$8000-based region) - so any non-zero-org region (MSX
+  // $4010, GB bank1 $4000, ...) silently fails the floor. The linked path sets the
   // origin via the link script, so it must NOT carry a redundant `.org`.
   const rows = [".section .text", ".global _start"];
   if (tools.noLink) rows.push(`.org 0x${startAddress.toString(16)}`);
@@ -292,12 +292,12 @@ async function reassembleGnuNative(disasm, startAddress, original, tools, family
   const r = await assemble(rows.join("\n") + "\n");
   const ok = r.ok && r.bytes.length === original.length && firstDiff(original, r.bytes) < 0;
   return { family, source: rows.join("\n") + "\n", bytes: ok ? r.bytes : null, ok, total: totalCode, dcLines: totalCode,
-    readablePercent: 0, note: ok ? "byte-exact (data-only floor — some instructions didn't round-trip)" : "could not reach byte-exact" };
+    readablePercent: 0, note: ok ? "byte-exact (data-only floor - some instructions didn't round-trip)" : "could not reach byte-exact" };
 }
 
 // Recognize a da65 `--comments 4` code line and pull {addr, bytes} out of its
 // `; ADDR BB BB ..` comment. The byte group is single-space-separated hex pairs
-// followed by an ASCII gutter (2+ spaces then the rendering) or EOL — so we stop
+// followed by an ASCII gutter (2+ spaces then the rendering) or EOL - so we stop
 // at a double-space, NOT at `$` (anchoring to `$` matches nothing → the 0%
 // readability floor bug). Labels/comments/directives are not code.
 const DA65_CODE_RE = /^\s*\S.*?\s*;\s*([0-9A-Fa-f]{4,8})\s+((?:[0-9A-Fa-f]{2}(?: [0-9A-Fa-f]{2})*))(?:\s{2,}|\s*$)/;
@@ -313,8 +313,8 @@ function parseDa65Code(line) {
 // width (uppercase X = 8-bit, lowercase x = 16-bit). Post-reset = "MX".
 export const addrmode = (m, x) => (m ? "M" : "m") + (x ? "X" : "x");
 
-// 65816 instruction base length (bytes) per opcode, measured at 8-bit M/X —
-// derived authoritatively from da65 (decode `op 00 00 00 00…` and read the byte
+// 65816 instruction base length (bytes) per opcode, measured at 8-bit M/X -
+// derived authoritatively from da65 (decode `op 00 00 00 00...` and read the byte
 // count). The width-dependent opcodes below get +1 when their operand width is
 // 16-bit. Everything else is fixed-length, so this table + the width set is a
 // complete linear length decoder.
@@ -328,7 +328,7 @@ const X_IMM = new Set([0xA0, 0xA2, 0xC0, 0xE0]);
  * Linear 65816 width walk: track M/X per instruction across the span (following
  * rep/sep) and split it into MAXIMAL width-homogeneous ranges. Each range's
  * ADDRMODE is exact, so da65 decodes every immediate at its true width in ONE
- * pass — the residual `and #$00FF`-read-as-`and #$FF`+`brk` desyncs the earlier
+ * pass - the residual `and #$00FF`-read-as-`and #$FF`+`brk` desyncs the earlier
  * rep/sep-only segmenter missed (a 16-bit width set several instructions back)
  * are gone. `.byte`/data inside a rizin span will mis-walk, but that floors to
  * byte-exact `.byte` in the heal loop anyway.
@@ -368,7 +368,7 @@ export function widthRanges(bytes, m8, x8) {
 /**
  * Disassemble a 65816 span with M/X WIDTH TRACKING through literal `rep`/`sep`.
  *
- * da65's info-file ADDRMODE is a fixed ENTRY seed — it does NOT follow an
+ * da65's info-file ADDRMODE is a fixed ENTRY seed - it does NOT follow an
  * in-stream `rep #$30` / `sep #$20`, so every sized immediate after a width
  * change mis-decodes (a `lda #$0000` reads as `lda #$00` + a spurious op) and
  * desyncs the rest of the span. Fix: walk the span in width-HOMOGENEOUS
@@ -378,7 +378,7 @@ export function widthRanges(bytes, m8, x8) {
  * continue the remainder at the new width. One da65 call per segment; the
  * results are concatenated into a single da65-shaped listing.
  *
- * Entry width defaults to 8-bit A / 8-bit X,Y (post-reset) — correct for a boot
+ * Entry width defaults to 8-bit A / 8-bit X,Y (post-reset) - correct for a boot
  * routine and a safe default elsewhere (a mid-function span whose real entry is
  * 16-bit will re-sync at its first rep/sep; any residual mis-decode still floors
  * to byte-exact `.byte` in the heal loop).
@@ -389,7 +389,7 @@ export function widthRanges(bytes, m8, x8) {
  * @param {{m8?:boolean, x8?:boolean}} [entry] ENTRY width (true = 8-bit). Defaults
  *   to post-reset 8-bit/8-bit. A function entered in 16-bit mode from its caller
  *   needs the real entry width or its leading immediates mis-size until the first
- *   rep/sep re-syncs — healSpan infers this by trying all four and scoring.
+ *   rep/sep re-syncs - healSpan infers this by trying all four and scoring.
  * @returns {Promise<string>} da65 `--comments 4` listing for the whole span
  */
 async function da65SpanWidthTracked(spanBytes, spanAddr, runDa65, entry = {}) {
@@ -397,7 +397,7 @@ async function da65SpanWidthTracked(spanBytes, spanAddr, runDa65, entry = {}) {
   // Full linear width walk → maximal width-homogeneous ranges (a real per-
   // instruction M/X dataflow, not just rep/sep segmentation). One da65 call with
   // every range seeded to its exact ADDRMODE, so every immediate decodes at its
-  // true width — including one whose width was set by a rep several instructions
+  // true width - including one whose width was set by a rep several instructions
   // and branches back.
   const ranges = widthRanges(spanBytes, m8, x8);
   const info = ranges.map((r) => {
@@ -420,7 +420,7 @@ async function da65SpanWidthTracked(spanBytes, spanAddr, runDa65, entry = {}) {
  *   - 65816: M/X width is tracked per instruction (da65SpanWidthTracked) + entry
  *     width is inferred; the whole reason this path exists (the readability floor
  *     was an M/X desync). 6502 has no width state, so it skips both.
- * Cross-family (both 6502 and 65816): SPECULATIVE GAP RECOVERY — a small gap
+ * Cross-family (both 6502 and 65816): SPECULATIVE GAP RECOVERY - a small gap
  * sandwiched between two code spans is very likely a routine the analysis engine
  * missed (entered only via a branch, never a `jsr`/`jsl`), so it's decoded and
  * kept when it round-trips byte-exact. That's platform-independent and now
@@ -441,10 +441,10 @@ async function reassembleCc65Spans(original, startAddress, spans, family) {
   // Heal one contiguous CODE span to byte-exact ca65 source. da65 decodes it as
   // code (its own info Code RANGE); any line ca65 rejects (bare wdm/cop/brk, a
   // data mis-decode inside the span) is pinned to `.byte`. Small spans → few
-  // passes. Returns { asm, readable, total } — asm has NO `.setcpu`/`.org`
+  // passes. Returns { asm, readable, total } - asm has NO `.setcpu`/`.org`
   // (the stitcher supplies those once for the whole region).
   const healSpan = async (spanBytes, spanAddr) => {
-    // ENTRY-WIDTH INFERENCE (65816 only — 6502 has no M/X state). For 6502, one
+    // ENTRY-WIDTH INFERENCE (65816 only - 6502 has no M/X state). For 6502, one
     // plain per-span da65 call (its info file marks the whole span TYPE Code).
     if (family !== "65816") {
       const r = await runDa65({ bytes: spanBytes, startAddress: spanAddr, cpu: "6502",
@@ -455,11 +455,11 @@ async function reassembleCc65Spans(original, startAddress, spans, family) {
       return finishSpan(asm6502, spanBytes, spanAddr);
     }
     // da65SpanWidthTracked follows rep/sep WITHIN the span,
-    // but the ENTRY width is a guess — a function entered in 16-bit mode from its
+    // but the ENTRY width is a guess - a function entered in 16-bit mode from its
     // caller (no leading rep/sep to re-sync) mis-sizes its opening immediates: a
     // `ldx #$0000` (A2 00 00) at 8-bit entry decodes as `ldx #$00` + `brk` + a
     // shifted stream. Try candidate entry widths and pick the one with the FEWEST
-    // misdecode symptoms (stray `brk`/`cop`/`wdm`/`stp` — vanishingly rare in real
+    // misdecode symptoms (stray `brk`/`cop`/`wdm`/`stp` - vanishingly rare in real
     // code, so they're the desync fingerprint). Post-reset 8/8 first (correct for
     // the common case + boot); only probe wider entries if 8/8 looks desynced, to
     // keep the fast path fast.
@@ -482,7 +482,7 @@ async function reassembleCc65Spans(original, startAddress, spans, family) {
   // BOTH the 6502 and 65816 span paths (only the disassembly step differs above).
   const finishSpan = async (asm, spanBytes, spanAddr) => {
     // Keep only the body lines (drop da65's `.setcpu`; equates/labels/width dirs
-    // stay — the stitcher dedups equates region-wide).
+    // stay - the stitcher dedups equates region-wide).
     const lines = asm.split(/\r?\n/).filter((l) => !/^\s*\.setcpu\b/.test(l));
     const meta = lines.map(parseDa65Code);
     const forced = new Set();
@@ -504,7 +504,7 @@ async function reassembleCc65Spans(original, startAddress, spans, family) {
     // Bound heal effort. A span that needs MANY pins is really mis-classified
     // data (rizin over-claimed a data blob as a function); grinding it one pin
     // per re-assembly is the slow path (a 500-line junk span = 500 assemblies).
-    // So bail to a clean `.byte` dump once too many lines are pinned — cheaper
+    // So bail to a clean `.byte` dump once too many lines are pinned - cheaper
     // AND more honest (a 40%-pinned "function" isn't readable code anyway). The
     // pass cap is a hard ceiling; the pin-ratio bail is the usual early exit.
     const cap = Math.min(total + 8, 60);
@@ -564,13 +564,13 @@ async function reassembleCc65Spans(original, startAddress, spans, family) {
   // Build the full segment list: the rizin code spans PLUS the gaps between them.
   // A SMALL gap sandwiched BETWEEN two code spans is very likely reachable code
   // rizin's function detection missed (e.g. a main dispatch loop entered only via
-  // `brl`, never `call`ed). Decode those speculatively — healSpan keeps the
+  // `brl`, never `call`ed). Decode those speculatively - healSpan keeps the
   // instruction decode if it round-trips byte-exact, else the pin-ratio bail
   // floors it to `.byte` fast (Jay's "decode speculatively, keep when it
   // round-trips"). A LARGE gap, or a leading/trailing gap, is almost always bulk
-  // data (graphics/tables) — decoding it is slow and pointless, so emit it as
+  // data (graphics/tables) - decoding it is slow and pointless, so emit it as
   // raw `.byte` directly. Byte-exactness holds either way.
-  const SPEC_GAP_MAX = 0x400; // 1KB — big enough for a missed routine, small enough to stay fast
+  const SPEC_GAP_MAX = 0x400; // 1KB - big enough for a missed routine, small enough to stay fast
   const dataRows = (relStart, relEnd) => {
     const rows = [];
     for (let i = relStart; i < relEnd; i += 16) rows.push("\t.byte " + Array.from(original.slice(i, Math.min(relEnd, i + 16))).map(hex2).join(","));
@@ -599,7 +599,7 @@ async function reassembleCc65Spans(original, startAddress, spans, family) {
       ? healSpan(original.slice(s.start, s.end), startAddress + s.start)
       : Promise.resolve({ equates: [], body: dataRows(s.start, s.end), readable: 0, total: 0, isData: true })));
   // Dedup equates region-wide. da65 equates a target label to a FIXED address
-  // (`L2992D := $2992D`), so identical names always carry the same value — a
+  // (`L2992D := $2992D`), so identical names always carry the same value - a
   // plain by-name dedup is safe. But a name that is ALSO defined as an in-body
   // `Lxxxx:` label (da65 labels a target that lands at the start of a decoded
   // line) would double-define → emit the equate ONLY for names never defined by
@@ -628,7 +628,7 @@ async function reassembleCc65Spans(original, startAddress, spans, family) {
     // Readability is measured over the rizin CODE spans only (the code we set out
     // to disassemble). A speculatively-decoded gap that recovered real code adds
     // to `readable` as a bonus; a gap that floored to `.byte` does NOT inflate
-    // `total` (it was never claimed as code) — so the percentage stays honest:
+    // `total` (it was never claimed as code) - so the percentage stays honest:
     // it reflects how much identified code is readable, not diluted by data
     // gaps we optimistically probed.
     if (!segments[i].gap) { readable += healed[i].readable; total += healed[i].total; }
@@ -638,7 +638,7 @@ async function reassembleCc65Spans(original, startAddress, spans, family) {
   const cfg = `MEMORY{M:start $${startAddress.toString(16)},size $${original.length.toString(16)},type ro,file %O,fill yes,fillval $FF;}\nSEGMENTS{CODE:load M,type ro;}\n`;
   // Assemble; any `Lxxxx` da65 referenced but that no surviving label defines
   // (target mid-instruction, or in a floored span) comes back "undefined". Every
-  // such name IS an address literal (`L940F` = $940F) — synthesize the equate
+  // such name IS an address literal (`L940F` = $940F) - synthesize the equate
   // and retry. A couple of repair rounds resolves the whole dangling set.
   let src = out.join("\n") + "\n";
   const definedNames = new Set([...equateSet.keys(), ...labelDefs]);
@@ -652,12 +652,12 @@ async function reassembleCc65Spans(original, startAddress, spans, family) {
       break;
     }
     // Collect undefined `Lxxxx` symbols from the ca65 log and equate them.
-    // Strip ANSI colour codes first — ca65 wraps the symbol name in them
-    // (`Symbol ‘\x1b[92mL940F\x1b[97m’ is undefined`), which would otherwise
+    // Strip ANSI colour codes first - ca65 wraps the symbol name in them
+    // (`Symbol '\x1b[92mL940F\x1b[97m' is undefined`), which would otherwise
     // split the quote from the name and defeat the match.
     const plainLog = (ca?.log || "").replace(/\x1b\[[0-9;]*m/g, "");
     let added = false;
-    for (const m of plainLog.matchAll(/Symbol\s+['‘’]?(L([0-9A-Fa-f]+))['‘’]?\s+is undefined/g)) {
+    for (const m of plainLog.matchAll(/Symbol\s+[''']?(L([0-9A-Fa-f]+))[''']?\s+is undefined/g)) {
       const name = m[1];
       if (definedNames.has(name)) continue;
       definedNames.add(name);
@@ -675,14 +675,14 @@ async function reassembleCc65Spans(original, startAddress, spans, family) {
     return { family: "65816", source: src, bytes, ok: true, total, dcLines: total - readable,
       readablePercent: total ? Math.round(100 * readable / total) : 100 };
   }
-  // Stitched whole-region assembly failed (a cross-span label/width edge) — fall
+  // Stitched whole-region assembly failed (a cross-span label/width edge) - fall
   // back to the proven whole-region native heal so we still ship byte-exact.
   const r = await runDa65({ bytes: original, startAddress, cpu: "65816", options: ["--comments", "4"], codeSpans: spans });
   return reassembleCc65Native(r.asm, startAddress, original, "65816");
 }
 
 /**
- * Reassemble cc65 (6502/65816) families by using da65's output AS-IS — it's
+ * Reassemble cc65 (6502/65816) families by using da65's output AS-IS - it's
  * already valid cc65 with its own equate/label structure. We inject `.org`
  * after `.setcpu` (the proven byte-exact recipe) and heal by replacing any
  * da65 CODE line that doesn't reassemble to its own bytes with a `.byte` of
@@ -699,7 +699,7 @@ async function reassembleCc65Native(disasm, startAddress, original, family) {
   // da65's `--comments 4` line shape is:
   //   `  <insn>   ; <ADDR> <BB BB ..>   <ascii-gutter>`
   // i.e. the raw bytes are followed by a right-aligned ASCII rendering of those
-  // bytes (`x`, `.`, `B.`). The byte group is therefore NOT at end-of-line — it's
+  // bytes (`x`, `.`, `B.`). The byte group is therefore NOT at end-of-line - it's
   // followed by padding + the gutter. Anchoring the byte capture to `$` (as an
   // earlier version did) matches ZERO code lines, so every instruction reads as
   // non-code → codeLineCount 0 → the heal loop can't tell code from data and the
@@ -727,7 +727,7 @@ async function reassembleCc65Native(disasm, startAddress, original, family) {
 
   // build() injects one `.org` line after `.setcpu`, so a ca65 error at source
   // line N maps to disasm line N-1 IF it's past the injection, else N. We map by
-  // matching the reported line's text back to a meta code line instead — robust
+  // matching the reported line's text back to a meta code line instead - robust
   // to any line-shifting. Pre-index code lines by their trimmed da65 text.
   const codeByText = new Map();
   lines.forEach((line, i) => { if (meta[i].code) { const t = line.trim(); if (!codeByText.has(t)) codeByText.set(t, i); } });
@@ -744,8 +744,8 @@ async function reassembleCc65Native(disasm, startAddress, original, family) {
     }
     if (!out) {
       // ca65/ld failed. Pin EVERY code line ca65 flagged this pass (da65 emits a
-      // handful of instructions ca65 won't re-accept — bare `wdm`, some implied/
-      // stack forms — and data mis-decoded inside a rizin span). Pinning one at a
+      // handful of instructions ca65 won't re-accept - bare `wdm`, some implied/
+      // stack forms - and data mis-decoded inside a rizin span). Pinning one at a
       // time would blow the 80-pass budget and floor a mostly-good region; pin
       // them all at once so the loop converges in a few passes.
       let pinnedAny = false;
@@ -755,7 +755,7 @@ async function reassembleCc65Native(disasm, startAddress, original, family) {
         if (idx != null && !forced.has(idx)) { forced.add(idx); pinnedAny = true; }
       }
       if (pinnedAny) continue;
-      // Couldn't map any error line to a code line — fall back to pinning the
+      // Couldn't map any error line to a code line - fall back to pinning the
       // first not-yet-pinned code line so the loop still makes progress.
       const next = meta.findIndex((m, i) => m.code && !forced.has(i));
       if (next < 0) break;
@@ -781,7 +781,7 @@ async function reassembleCc65Native(disasm, startAddress, original, family) {
   // Guaranteed floor: a CLEAN all-`.byte` dump of the original bytes (no da65
   // equates/labels/width-directives to desync). This is byte-exact on every
   // cc65 target we tested (incl. 65816, where mixing pinned `.byte` with live
-  // instructions can break `.a8`/`.i8` width state — so when the incremental
+  // instructions can break `.a8`/`.i8` width state - so when the incremental
   // heal can't converge, we emit pure data). Lower readability, but correct.
   {
     const rows = [`\t.setcpu "${cpuTag}"`, `\t.org $${startAddress.toString(16).toUpperCase()}`];
@@ -802,8 +802,8 @@ async function reassembleCc65Native(disasm, startAddress, original, family) {
 // reassembleForPlatform above DISASSEMBLES bytes and heals them back. But
 // build({output:'reassemble'}) rebuilds from region .asm files that
 // disasm({target:'project'}) already emitted (and that an agent may have
-// EDITED). Those files are the platform's native dialect already — ca65 for
-// 6502/65816, GNU-as for m68k/arm/z80/sm83 — so we just ASSEMBLE them; no
+// EDITED). Those files are the platform's native dialect already - ca65 for
+// 6502/65816, GNU-as for m68k/arm/z80/sm83 - so we just ASSEMBLE them; no
 // disassemble, no heal loop. `assembleRegionText` is that half: source text +
 // its origin/length → the produced bytes (or null + log on error). It reuses
 // the SAME per-family as/ld/objcopy/ca65/ld65 calls the heal path uses, so a
@@ -811,7 +811,7 @@ async function reassembleCc65Native(disasm, startAddress, original, family) {
 
 /**
  * Assemble one region's .asm source (possibly hand-edited) back to raw bytes,
- * using the platform's native assembler chain. No disassembly, no heal loop —
+ * using the platform's native assembler chain. No disassembly, no heal loop -
  * the source is already the right dialect.
  * @param {Object} a
  * @param {string} a.platform
@@ -832,7 +832,7 @@ export async function assembleRegionText(a) {
     // The emitted .asm carries `.setcpu`/`.org` from the heal path; if a hand-
     // edited file dropped them, ca65 still needs the CPU + origin, so ensure both.
     let src = asmText;
-    let prependedLines = 0; // lines we add ahead of the user's file — callers
+    let prependedLines = 0; // lines we add ahead of the user's file - callers
                             // subtract this so reported line numbers match THEIR file
     if (!/^\s*\.setcpu\b/m.test(src)) { src = `\t.setcpu "${cpuTag}"\n` + src; prependedLines++; }
     if (!/^\s*\.org\b/m.test(src)) {
@@ -866,11 +866,11 @@ export async function assembleRegionText(a) {
   const { runAs, runLd, runObjcopy, fmtLines = "", noLink, march } = tools;
   const ld = `${fmtLines}ENTRY(_start)\nSECTIONS {\n  .text 0x${startAddress.toString(16)} : SUBALIGN(1) {\n    *(.text*) *(.rodata*) *(.data*)\n  }\n  /DISCARD/ : { *(.ARM.attributes) *(.comment) *(.note*) }\n}\n`;
 
-  // GNU `as` for these CPUs does NOT treat `;` as a comment — `;` is a statement
-  // separator. The emitted .asm uses `;` two ways: a LEADING `; …` metadata header
+  // GNU `as` for these CPUs does NOT treat `;` as a comment - `;` is a statement
+  // separator. The emitted .asm uses `;` two ways: a LEADING `; ...` metadata header
   // block, and a TRAILING `; ADDR` address comment on each `.byte`/instruction
   // line (from dataRegionSource + normalizeObjdump). Strip BOTH: drop the leading
-  // comment-only lines, then cut any trailing `; …` off every remaining line.
+  // comment-only lines, then cut any trailing `; ...` off every remaining line.
   let gnuSrc;
   {
     const lines = asmText.split(/\r?\n/);

@@ -1,4 +1,4 @@
-/* ── hello_sprite.c — GBC starter (works on plain GB too) ──────────
+/* ── hello_sprite.c - GBC starter (works on plain GB too) ──────────
  *
  * A complete, tested, boots-from-cold game-loop skeleton:
  *   - Turns the LCD off safely (handles "LCD already off at boot")
@@ -8,7 +8,7 @@
  *   - Reads d-pad each vblank and moves the sprite
  *   - Uses shadow_oam + oam_dma_flush so writes are clean
  *
- * Edit FROM this baseline rather than building from scratch — the
+ * Edit FROM this baseline rather than building from scratch - the
  * boot order below is the GBC pitfall that costs new ports the most
  * time (see TROUBLESHOOTING.md "screen is blank").
  */
@@ -33,19 +33,19 @@ static const uint8_t tile_data[16] = {
 /* CGB object palette 0 in BGR555. Color 0 must be transparent for sprites,
  * but the value is still written (the hardware ignores it). */
 static const uint16_t obj_palette[4] = {
-  0x7FFF,  /* color 0 — transparent (any value) */
-  0x001F,  /* color 1 — red */
-  0x03E0,  /* color 2 — green */
-  0x7C00,  /* color 3 — blue */
+  0x7FFF,  /* color 0 - transparent (any value) */
+  0x001F,  /* color 1 - red */
+  0x03E0,  /* color 2 - green */
+  0x7C00,  /* color 3 - blue */
 };
 
-/* CGB BG palette 0 — purple/violet so the backdrop is visibly NOT a
+/* CGB BG palette 0 - purple/violet so the backdrop is visibly NOT a
  * DMG green tint. Confirms the CGB-mode header flip is working. */
 static const uint16_t bg_palette[4] = {
-  0x2010,  /* color 0 — dark purple backdrop */
+  0x2010,  /* color 0 - dark purple backdrop */
   0x3018,  /* color 1 */
   0x4020,  /* color 2 */
-  0x6B5A,  /* color 3 — light highlight */
+  0x6B5A,  /* color 3 - light highlight */
 };
 
 void main(void) {
@@ -68,14 +68,14 @@ void main(void) {
    * Slot 0 ($8000) is reserved for "blank" by convention so we don't
    * accidentally render garbage tiles that point to it.
    *
-   * Use memcpy_vram (bundled in gb_runtime.c) — a raw byte-copy loop
+   * Use memcpy_vram (bundled in gb_runtime.c) - a raw byte-copy loop
    * into VRAM can be optimized away by SDCC and leave VRAM empty. See
    * TROUBLESHOOTING.md "VRAM stays empty / sprite never appears". */
   memcpy_vram((uint8_t *)0x8010, tile_data, 16);
 
   /* ── 2b. Fill the BG tilemap so the screen isn't an empty backdrop. ──
    * With LCDC_TILE_DATA_LO ($8000 addressing) BG tile index 1 == our tile
-   * at $8010 — so we tile the whole 32×32 BG map with it. Pointer-walk write
+   * at $8010 - so we tile the whole 32×32 BG map with it. Pointer-walk write
    * (NOT bg_map[k]=1, which SDCC sm83 miscompiles into VRAM). */
   bg_map = (uint8_t *)0x9800;
   for (j = 0; j < 32u * 32u; j++) *bg_map++ = 1;
@@ -86,7 +86,7 @@ void main(void) {
    * Setting OCPS = 0x80 means "palette 0, color 0, low byte, then
    * auto-advance". 8 byte writes = 4 colors × 2 bytes (BGR555).
    *
-   * On DMG, OCPS/OCPD don't exist — the writes are silently dropped
+   * On DMG, OCPS/OCPD don't exist - the writes are silently dropped
    * and DMG uses OBP0 instead, which lcd_init_default already set. */
   OCPS = 0x80;
   for (i = 0; i < 4; i++) {
@@ -94,7 +94,7 @@ void main(void) {
     OCPD = (uint8_t)((obj_palette[i] >> 8) & 0xFF); /* high byte */
   }
 
-  /* BG palette 0 — same auto-incrementing protocol on BCPS/BCPD. */
+  /* BG palette 0 - same auto-incrementing protocol on BCPS/BCPD. */
   BCPS = 0x80;
   for (i = 0; i < 4; i++) {
     BCPD = (uint8_t)(bg_palette[i] & 0xFF);
@@ -103,7 +103,7 @@ void main(void) {
 
   /* ── 4. Build initial OAM ────────────────────────────────────────
    * Clear all 40 slots, write our sprite into slot 0, then flush the
-   * shadow OAM to hardware BEFORE the LCD turns on — otherwise the very
+   * shadow OAM to hardware BEFORE the LCD turns on - otherwise the very
    * first displayed frame reads stale/zero OAM and the sprite is missing
    * (or flat) for a frame. See TROUBLESHOOTING.md "first frame is blank". */
   oam_clear();
@@ -115,7 +115,7 @@ void main(void) {
    * BG is on now that we filled the BG map in step 2b. */
   LCDC = LCDC_LCD_ON | LCDC_BG_ON | LCDC_OBJ_ON | LCDC_TILE_DATA_LO;
 
-  /* ── 6. APU on — let the player beep ──────────────────────────── */
+  /* ── 6. APU on - let the player beep ──────────────────────────── */
   sound_init();
 
   /* ── 7. Game loop ────────────────────────────────────────────────

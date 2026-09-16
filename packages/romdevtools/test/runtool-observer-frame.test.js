@@ -1,5 +1,5 @@
 // REGRESSION: the HTTP/skill execution path (runTool) must surface the observer
-// sidebands that the MCP observer middleware handles — otherwise frame({op:'verify'})
+// sidebands that the MCP observer middleware handles - otherwise frame({op:'verify'})
 // (and screenshot({path:...}), and watch/breakpoint tools) emit NO frame to the
 // /livestream when driven over REST, even though they do over MCP. This was a
 // real, user-reported bug: "verify still not emitting images to livestream UI."

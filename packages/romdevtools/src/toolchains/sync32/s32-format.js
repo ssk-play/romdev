@@ -91,7 +91,7 @@ export function packS32({ image, elf, mode = "ram", title = "untitled", id = "00
   if (entryOffset < 0 || entryOffset >= image.length) {
     throw new Error(
       `entry _start=0x${entry.toString(16)} is outside the ${mode} image ` +
-      `(base 0x${base.toString(16)}, ${image.length} bytes) — wrong linker script for this mode?`
+      `(base 0x${base.toString(16)}, ${image.length} bytes) - wrong linker script for this mode?`
     );
   }
   if (icon && icon.length !== 512) throw new Error(`icon must be 512 bytes (16x16 RGB565), got ${icon.length}`);

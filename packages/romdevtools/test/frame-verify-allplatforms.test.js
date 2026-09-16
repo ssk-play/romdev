@@ -1,4 +1,4 @@
-// frame({op:'verify'}) — the no-vision "is the game actually rendering / alive?"
+// frame({op:'verify'}) - the no-vision "is the game actually rendering / alive?"
 // health check. MUST work across ALL platforms: the pixel scan is platform-
 // agnostic, and pickRenderFlags normalizes each platform's render-enable decode.
 // This builds a `default` scaffold for every platform, runs it, and asserts
@@ -63,8 +63,8 @@ for (const [platform, template] of PLATFORMS) {
 
       // 2. after running, verify produces a well-formed, INTERNALLY CONSISTENT
       //    verdict on every platform (the cross-platform contract). We don't
-      //    require verified:true here — some default scaffolds legitimately
-      //    render blank, and verify correctly flags those (that's the feature) —
+      //    require verified:true here - some default scaffolds legitimately
+      //    render blank, and verify correctly flags those (that's the feature) -
       //    we require the verdict to be sound, not a false positive/negative.
       const v = await computeVerify(host, 600, key);
 
@@ -84,7 +84,7 @@ for (const [platform, template] of PLATFORMS) {
           assert.ok(v.pixels.distinctColors <= 1, `${platform}: blankScreen claimed but ${v.pixels.distinctColors} colors`);
         }
         if (checks.includes("nearlyBlank")) {
-          // Threshold mirrors NEARLY_BLANK_DOMINANT (0.92) in frame.js — a screen
+          // Threshold mirrors NEARLY_BLANK_DOMINANT (0.92) in frame.js - a screen
           // where one color fills >=92% reads as blank to a human even though
           // something rendered.
           assert.ok(v.pixels.dominantPct >= 92, `${platform}: nearlyBlank claimed but dominant=${v.pixels.dominantPct}%`);

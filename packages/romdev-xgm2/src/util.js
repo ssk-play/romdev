@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.tool.Util — byte get/set, align, string parsing.
+// Port of sgdk.xgm2tool.tool.Util - byte get/set, align, string parsing.
 // All multi-byte values are LITTLE-ENDIAN (XGM2/VGM convention).
 //
 // Java `byte` is signed; we operate on Uint8Array (0..255) and mask with & 0xFF
@@ -113,7 +113,7 @@ export function arrayEquals(a, b, size) {
   return true;
 }
 
-/** Heuristic from Util.isDiffRate — >10% apart counts as a different rate. */
+/** Heuristic from Util.isDiffRate - >10% apart counts as a different rate. */
 export function isDiffRate(rate1, rate2) {
   if (rate1 === rate2) return false;
   const r1 = Math.max(100, rate1);
@@ -124,10 +124,10 @@ export function isDiffRate(rate1, rate2) {
 
 /**
  * Linear-interpolation resampler for 8-bit SIGNED PCM (Java Util.resample_old,
- * the JVM-free path — we use this so there's no javax.sound dependency). Input
+ * the JVM-free path - we use this so there's no javax.sound dependency). Input
  * and output are signed bytes stored in a Uint8Array (two's complement). `align`
  * pads the output to a multiple of `align` with 0x80 (silence in this codec's
- * signed domain is 0, but the Java pad uses 0x80 — kept identical).
+ * signed domain is 0, but the Java pad uses 0x80 - kept identical).
  */
 export function resamplePcm8(data, offset, len, inputRate, outputRate, alignTo) {
   const out = [];

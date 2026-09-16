@@ -7,7 +7,7 @@ MCP tool.
 
 | File | What it does |
 | --- | --- |
-| `reset.s` | Standard reset handler — disable IRQs, clear RAM, wait two vblanks, place OAM off-screen. Call your init at the end. |
+| `reset.s` | Standard reset handler - disable IRQs, clear RAM, wait two vblanks, place OAM off-screen. Call your init at the end. |
 | `wait_vblank.s` | Polls `$2002` bit 7 until vblank. Use during setup. |
 | `read_pad.s` | Reads controller 1 into `keydown`. Counted 8-iteration loop (safe). Also computes `keynew` for one-shot triggers. |
 | `oam_dma.s` | Transfers shadow OAM at `$0200` to the PPU. Call from NMI. |

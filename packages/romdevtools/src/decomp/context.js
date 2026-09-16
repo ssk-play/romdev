@@ -1,4 +1,4 @@
-// context.js — the reusable type context for candidate generation: the real
+// context.js - the reusable type context for candidate generation: the real
 // translation unit preprocessed with the build's own include paths and
 // defines, GLOBAL_ASM pragmas stripped, cached by a dependency hash (TU +
 // every header it pulls in + the compile fingerprint) so a header edit

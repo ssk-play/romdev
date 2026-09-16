@@ -1,4 +1,4 @@
-// sync32 art encoders — the simplest target format in the tree, and the one
+// sync32 art encoders - the simplest target format in the tree, and the one
 // every agent porting to the console hand-rolled (a ~500-line quantizer with
 // its own median cut, 2026-09-05) because encodeArt refused the platform.
 //
@@ -6,7 +6,7 @@
 // palette. No bitplanes, no column-major sprite order, no attribute cells, no
 // per-row colour limits. Two rules shape everything here:
 //
-//   * index 0 is the global transparent key for sprite() — never a colour.
+//   * index 0 is the global transparent key for sprite() - never a colour.
 //   * a per-level palette swap wants BANKED quantization: shared art (player,
 //     objects) keeps fixed slots, terrain/background banks are overlaid per
 //     level. So the caller chooses `baseIndex` + `maxColors` and the encoder
@@ -110,7 +110,7 @@ function widestAxis(box) {
  * @param {Uint8Array|Buffer} pngBytes
  * @param {{maxColors?: number, baseIndex?: number, alphaKey?: number, palette?: number[]}} [opts]
  *   maxColors: colours in the bank (default 255 - baseIndex + 1 capped at 255)
- *   baseIndex: first palette slot the bank occupies (default 1 — index 0 is transparent)
+ *   baseIndex: first palette slot the bank occupies (default 1 - index 0 is transparent)
  *   palette:   an existing bank (RGB565 values) to index against instead of quantizing
  * @returns {{width:number, height:number, pixels:Uint8Array, palette:number[], baseIndex:number, colors:number, transparentPixels:number, paletteBytes:Uint8Array}}
  */
@@ -160,7 +160,7 @@ export function encodeIndexed(pngBytes, opts = {}) {
  * Dedupe an indexed image into 8x8 chr cells + a map. The framebuffer console
  * has no tilemap hardware, but a 320x240 background stored flat is 76 800
  * bytes against a 311 296-byte image budget; deduped to chr+map it is ~11 KB
- * — the reason every port re-implements this.
+ * - the reason every port re-implements this.
  * @param {Uint8Array} pixels
  * @param {number} width
  * @param {number} height

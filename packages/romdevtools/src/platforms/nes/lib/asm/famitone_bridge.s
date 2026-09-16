@@ -1,4 +1,4 @@
-; famitone_bridge.s — tiny C-callable bridge around FamiTone2's asm entry
+; famitone_bridge.s - tiny C-callable bridge around FamiTone2's asm entry
 ; points. Exposes three cc65 __fastcall__ functions:
 ;
 ;   void __fastcall__ famitone_init(const uint8_t *music_data);

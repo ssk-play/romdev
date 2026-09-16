@@ -1,9 +1,9 @@
 /*
- * auto-snapshot — an opt-in periodic save state, so an unprompted server restart
+ * auto-snapshot - an opt-in periodic save state, so an unprompted server restart
  * costs a minute instead of a session.
  *
- * v0.103.0 feedback item 2, ask (b). Ask (a) — pid/uptime in
- * catalog({op:'status'}) — lets a session DETECT that the server restarted under
+ * v0.103.0 feedback item 2, ask (b). Ask (a) - pid/uptime in
+ * catalog({op:'status'}) - lets a session DETECT that the server restarted under
  * it. This is the half that means the detection isn't just bad news: with a
  * recent snapshot on disk the recovery point is "the last minute" rather than
  * "fresh boot".
@@ -25,7 +25,7 @@
  *   TIME-BASED, CHECKED LAZILY. No timer, no background work: the check runs
  *   when a tool call is already touching the host, and does nothing if the
  *   interval hasn't elapsed. A setInterval would fire while the process is idle
- *   (pointless — nothing changed) and could land mid-frame during someone else's
+ *   (pointless - nothing changed) and could land mid-frame during someone else's
  *   deterministic run.
  *
  *   SEPARATE FILES from the user's own slots. Writes go to a session-scoped temp

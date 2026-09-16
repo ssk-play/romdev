@@ -1,10 +1,10 @@
-// genesis-c.js — Sega Genesis C build pipeline.
+// genesis-c.js - Sega Genesis C build pipeline.
 //
 // Orchestrates the full chain through the worker pool:
-//   cc1.wasm  — C source → m68k assembly
-//   as.wasm   — assembly → .o ELF object
-//   ld.wasm   — link user .o + sega.o + libmd.a + libgcc → .elf
-//   objcopy.wasm — strip ELF down to raw .bin Genesis ROM
+//   cc1.wasm  - C source → m68k assembly
+//   as.wasm   - assembly → .o ELF object
+//   ld.wasm   - link user .o + sega.o + libmd.a + libgcc → .elf
+//   objcopy.wasm - strip ELF down to raw .bin Genesis ROM
 //
 // Each WASM tool runs in a fresh worker (R12 subprocess isolation), so
 // a crash in one stage doesn't take out the server.
@@ -12,28 +12,28 @@
 // ENV INJECTION (0.95.0, browser IDEs): pass `env` to run the identical
 // pipeline in a non-node host (a Web Worker). All seams optional; omitting
 // `env` gives the node behavior (worker pool + fs share reads):
-//   env.runTool  — the 4 gcc tool runs (see common/gcc-toolchain.js ToolJob);
+//   env.runTool  - the 4 gcc tool runs (see common/gcc-toolchain.js ToolJob);
 //                  the host owns WASM instantiation + MEMFS mounting.
-//   env.loadGlue — sjasm/bintos module factories (see sjasm/sjasm.js).
-//   env.share    — the share/genesis/lib tree as a {relPath: string|Uint8Array}
+//   env.loadGlue - sjasm/bintos module factories (see sjasm/sjasm.js).
+//   env.share    - the share/genesis/lib tree as a {relPath: string|Uint8Array}
 //                  manifest (stage it with common/share-fs.js
-//                  buildShareManifest so key ORDER matches node — order
+//                  buildShareManifest so key ORDER matches node - order
 //                  feeds compile order → ar member order → ROM bytes).
-//   env.hash     — async {name:text}→hex digest for the SDK seed check
+//   env.hash     - async {name:text}→hex digest for the SDK seed check
 //                  (browser: crypto.subtle; required when env is given).
-//   env.sdkCache — optional {get(key), put(key,bytes)} rebuild cache.
-// NO top-level node imports here — node bits load lazily on the default
+//   env.sdkCache - optional {get(key), put(key,bytes)} rebuild cache.
+// NO top-level node imports here - node bits load lazily on the default
 // paths only, so a browser bundle can load this module untouched.
 //
 // Two runtime modes:
 //
-//   sgdk: true  (default)  — idiomatic Genesis homebrew. Links against
+//   sgdk: true  (default)  - idiomatic Genesis homebrew. Links against
 //     the bundled SGDK runtime (libmd.a + sega.s crt0 + md.ld linker
 //     script + full SGDK header tree). #include <genesis.h> works out
 //     of the box; agents get VDP_drawText, SYS_doVBlankProcess,
 //     SPR_addSprite, the canonical SGDK API every Genesis tutorial uses.
 //
-//   sgdk: false (minimum-viable) — bare gcc + newlib + libgcc only.
+//   sgdk: false (minimum-viable) - bare gcc + newlib + libgcc only.
 //     User writes everything against direct VDP register addresses.
 //     Useful for educational / minimal builds. Bundles original-code
 //     sega.s + genesis.ld instead of SGDK's.
@@ -49,7 +49,7 @@ import { mapShare, dirShare } from "../common/share-fs.js";
 
 /** Node default: resolve THIS package's share/genesis/lib and wrap it. The
  *  Genesis C library tree (SGDK + minimal runtime) ships in this package's
- *  share/ so a standalone consumer — e.g. the mdlua SDK — imports
+ *  share/ so a standalone consumer - e.g. the mdlua SDK - imports
  *  buildGenesisC from "romdev-toolchain-m68k-gcc" and drags in nothing else.
  *  Primary resolution is package self-reference; the fallback is this file's
  *  own package root (build/genesis-c/ → two up). */
@@ -84,7 +84,7 @@ async function buildCtx(env) {
     ? (typeof env.share.text === "function" ? env.share : mapShare(env.share))
     : await defaultShare();
   // Seed + rebuild-cache io, addressed by share-RELATIVE paths (so the seed
-  // hash is machine-independent — hashing absolute paths broke the seed check
+  // hash is machine-independent - hashing absolute paths broke the seed check
   // every time the tree moved). writeSeed (the seed generator) is node-only.
   const io = {
     readSeed: async (rel) => { try { return await share.bytes(rel); } catch { return null; } },
@@ -118,7 +118,7 @@ function shareCache(share) {
 
 /** Read every SGDK source file (src/ + res/) into a {relpath: text} map for
  *  hashing the seed. Keys are share-RELATIVE (stable across machines and tree
- *  moves — hashing absolute paths broke the seed check on every move). */
+ *  moves - hashing absolute paths broke the seed check on every move). */
 async function readSgdkSources(share) {
   const out = {};
   for (const prefix of ["sgdk/src", "sgdk/res"]) {
@@ -157,12 +157,12 @@ async function compileSgdkRuntime({ share, tools, z80 }, baseHeaders, cc1Options
     const sub = rel.slice(SRC.length + 1);
     const base = sub.split("/").pop();
     const norm = sub.replace(/\\/g, "/");
-    // Skip optional extensions (ext/) — they pull in deps we don't vendor and
+    // Skip optional extensions (ext/) - they pull in deps we don't vendor and
     // aren't part of the core libmd that genesis.h exposes.
     const isExt = norm.startsWith("ext/") || norm.includes("/ext/");
     if (/\.(h|inc|i80)$/i.test(base)) { localHeaders[sub] = await share.text(rel); continue; }
     if (isExt) continue;
-    // boot/sega.s is the crt0/header glue — the main build assembles it
+    // boot/sega.s is the crt0/header glue - the main build assembles it
     // separately (Stage D) with the generated rom_header.bin sibling, so it's
     // NOT part of the runtime archive. Skip both sega.s and rom_header.c here.
     if (/(^|\/)sega\.s$/i.test(norm) || /(^|\/)rom_header\.c$/i.test(norm)) continue;
@@ -197,7 +197,7 @@ async function compileSgdkRuntime({ share, tools, z80 }, baseHeaders, cc1Options
   for (const d of s80Files) {
     // Only the core sound drivers under snd/ are part of libmd. Optional
     // extensions (e.g. ext/minimusic) ship .z80 deps we don't vendor and
-    // aren't #included by any SGDK .c — skip them.
+    // aren't #included by any SGDK .c - skip them.
     if (!d.sub.replace(/\\/g, "/").startsWith("snd/")) continue;
     const name = d.sub.split("/").pop().replace(/\.s80$/i, "");
     const sj = await runSjasm({ source: allSrc[d.sub], includes: z80Includes });
@@ -218,7 +218,7 @@ async function compileSgdkRuntime({ share, tools, z80 }, baseHeaders, cc1Options
     const libresH = await share.text("sgdk/res/libres.h");
     baseHeaders["res/libres.h"] = libresH;
     baseHeaders["libres.h"] = libresH;
-  } catch { /* no libres — degraded */ }
+  } catch { /* no libres - degraded */ }
 
   // ── 2. compile every SGDK .c ────────────────────────────────────
   const cHeaders = { ...baseHeaders, ...localHeaders };
@@ -234,7 +234,7 @@ async function compileSgdkRuntime({ share, tools, z80 }, baseHeaders, cc1Options
   // SGDK's hand-written .s use cpp macros (e.g. `func`/`endfunc` in asm_mac.i)
   // + `//` comments, so they're "assembler-with-cpp": preprocess via cc1 -E
   // (with __ASSEMBLER__ + SGDK headers) THEN assemble. The bintos-generated
-  // driver .s and libres.s are plain GAS — assemble directly.
+  // driver .s and libres.s are plain GAS - assemble directly.
   const cppThenAs = async (text, label) => {
     const pp = await runCc1m68k({ source: text, headers: cHeaders, options: [...cc1Options, "-D__ASSEMBLER__=1", "-E"] });
     if (pp.exitCode !== 0 || !pp.asmSource) return { err: `sgdk cpp(${label})`, log: pp.log };
@@ -278,12 +278,12 @@ async function compileSgdkRuntime({ share, tools, z80 }, baseHeaders, cc1Options
  * @param {Record<string, string>} [args.headers] virtual C headers
  * @param {Record<string, Uint8Array>} [args.binaryIncludes] sibling binary
  *   files (Uint8Array bytes). Visible to user .s files via `.incbin "name"`
- *   — used to embed pre-compiled audio blobs (e.g. XGM2 music .xgc) into
+ *   - used to embed pre-compiled audio blobs (e.g. XGM2 music .xgc) into
  *   the final ROM as labeled byte arrays.
  * @param {string[]} [args.cc1Options]
  * @param {boolean} [args.sgdk=true] link against bundled SGDK runtime
  *   (default). Pass false for the minimum-viable bare-main path.
- * @param {Object} [args.env] injected environment (browser hosts) — see header
+ * @param {Object} [args.env] injected environment (browser hosts) - see header
  * @returns {Promise<{ok:boolean, binary:Uint8Array|null, log:string, exitCode:number, stage:string, runtime:string}>}
  */
 export async function buildGenesisC(args) {
@@ -300,7 +300,7 @@ export async function buildGenesisC(args) {
 }
 
 /**
- * SGDK link path — idiomatic Genesis C homebrew.
+ * SGDK link path - idiomatic Genesis C homebrew.
  *
  * Pipeline:
  *   1. cc1 user.c → user.s  (with SGDK headers in -I path + SGDK_GCC defined)
@@ -324,12 +324,12 @@ async function buildWithSgdk({ tools, z80, share, io, sources, headers, binaryIn
     ...cc1Options,
   ];
   // USER source gets warnings on so the agent SEES its bugs (unused vars,
-  // implicit decls, …) parsed into structured issues[]. The SGDK runtime is
-  // compiled WITHOUT these (sgdkCc1Options) — we can't fix SDK warnings and they'd
+  // implicit decls, ...) parsed into structured issues[]. The SGDK runtime is
+  // compiled WITHOUT these (sgdkCc1Options) - we can't fix SDK warnings and they'd
   // bury the agent's own. -Wno-unused-parameter avoids the common `(void)hard`
   // scaffold-param noise. -Wno-main: SGDK MANDATES `int main(bool hardReset)`
   // (sys.c declares it and calls main(TRUE)/main(FALSE)); GCC's -Wmain objects to
-  // the non-standard signature, but it's REQUIRED here, not a bug — so silence it.
+  // the non-standard signature, but it's REQUIRED here, not a bug - so silence it.
   const userCc1Options = [...sgdkCc1Options, "-Wall", "-Wextra", "-Wno-unused-parameter", "-Wno-main"];
 
   // ── Stage A: gather SGDK headers (visible to tcc via tcc-style flat mount) ──
@@ -355,7 +355,7 @@ async function buildWithSgdk({ tools, z80, share, io, sources, headers, binaryIn
     }
 
     // ── Stage B': assemble user .s sibling files directly ──
-    // User .s files may .incbin sibling binary blobs (e.g. xgm2 music) — pass
+    // User .s files may .incbin sibling binary blobs (e.g. xgm2 music) - pass
     // the same binaryIncludes map to each so the assembler can mount them.
     const asmFiles = Object.keys(sources).filter((n) => /\.(s|asm)$/i.test(n));
     for (const asmName of asmFiles) {
@@ -379,7 +379,7 @@ async function buildWithSgdk({ tools, z80, share, io, sources, headers, binaryIn
       (r) => r.binary, { logName: "objcopy (rom_header.o → .bin)" });
 
     // ── Stage D: assemble sega.s with the just-built rom_header.bin as a sibling ──
-    // sega.s `.incbin "out/rom_header.bin"` — we mount it at /work/out/rom_header.bin
+    // sega.s `.incbin "out/rom_header.bin"` - we mount it at /work/out/rom_header.bin
     // via the worker's binaryFile facility. runM68kAs's includes map only handles text,
     // so we need to extend the as call to accept binary siblings.
     //
@@ -393,7 +393,7 @@ async function buildWithSgdk({ tools, z80, share, io, sources, headers, binaryIn
       () => runM68kAs({
         source: segaSrc,
         binaryIncludes: { "out/rom_header.bin": rhObjcopy.binary },
-        // SGDK assembles sega.s with the same -DSGDK_GCC etc. flags as C — pass them
+        // SGDK assembles sega.s with the same -DSGDK_GCC etc. flags as C - pass them
         // via -Wa,--register-prefix-optional,--bitwise-or implicitly via cc1's driver.
         // Our as wrapper takes raw flags; the equivalent here is just --bitwise-or.
         options: ["--register-prefix-optional", "--bitwise-or"],
@@ -474,7 +474,7 @@ async function buildWithSgdk({ tools, z80, share, io, sources, headers, binaryIn
 /**
  * Post-build finalize, mirroring what SGDK's makefile does after link
  * (`sizebnd -sizealign 131072` + a checksum fix). Without this, our raw
- * objcopy output is unaligned and carries a $0000 checksum — gpgx-WASM
+ * objcopy output is unaligned and carries a $0000 checksum - gpgx-WASM
  * tolerates it, but stricter loaders (RetroArch's Genesis Plus GX,
  * BlastEm, flashcarts) reject or misbehave. Two steps:
  *
@@ -508,7 +508,7 @@ export function finalizeGenesisRom(bin) {
 
 /**
  * Minimum-viable Genesis C path (no SGDK). R20 stage-1 behavior.
- * Same code path as before — only this implementation handles the
+ * Same code path as before - only this implementation handles the
  * minimal sega.s / genesis.ld bundled under lib/c/.
  */
 async function buildMinimal(args) {
@@ -613,9 +613,9 @@ function normalizeGenesisSources(args) {
 /**
  * Walk SGDK's `include/` tree and return a `{name: contents}` map of every
  * `.h`/`.inc`/`.i` header. cc1 sees them via the worker pool's input-files
- * mount — same as the headers map the user provides.
+ * mount - same as the headers map the user provides.
  *
- * Cached per share instance — SGDK headers don't change at runtime.
+ * Cached per share instance - SGDK headers don't change at runtime.
  */
 async function loadSgdkHeaders(share) {
   const cache = shareCache(share);

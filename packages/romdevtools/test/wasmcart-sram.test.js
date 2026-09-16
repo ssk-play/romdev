@@ -4,7 +4,7 @@
 // wasmcart doesn't implement).
 //
 // Filed as internal-romdev/feedback/2026-08-19_wasmcart-sram-invisible-to-state-tool-and-lost-on-reload.md:
-// three bugs — exportSram/importSram reported "no battery save RAM" on a cart
+// three bugs - exportSram/importSram reported "no battery save RAM" on a cart
 // with live SRAM (regionSize doesn't exist on WasmcartHost, and the catch
 // swallowed that into a false "size 0"); state({op:'save'}) threw a raw
 // "host.saveState is not a function"; and SRAM never survived a reload
@@ -12,7 +12,7 @@
 // (the whole point of a save file) could never be exercised through romdev.
 //
 // Persistence is an in-process cache keyed by resolved cart path, NOT a
-// `<path>.sav` written to disk — that was the first implementation, and it
+// `<path>.sav` written to disk - that was the first implementation, and it
 // broke every OTHER wasmcart test in this suite: every loadMedia of the
 // tracked hello.wasc fixture left an untracked .sav next to it in the repo.
 // Explicit disk persistence is exportSram/importSram, unaffected by this.
@@ -67,7 +67,7 @@ test("wasmcart: SRAM survives destroy() + loadMedia on the same path (persistenc
   try {
     const host1 = new WasmcartHost();
     await host1.loadMedia({ platform: "wasmcart", path: dest });
-    // has_save=1 + a distinctive rect_x/rect_y/red_x/red_y/red_color payload —
+    // has_save=1 + a distinctive rect_x/rect_y/red_x/red_y/red_color payload -
     // this is what load_state() actually restores, unlike bytes[0..3] (the
     // play counter, which wc_init bumps every boot regardless of SRAM content).
     const marker = new Uint8Array(64);
@@ -75,9 +75,9 @@ test("wasmcart: SRAM survives destroy() + loadMedia on the same path (persistenc
     for (let i = 5; i < 17; i++) marker[i] = 0xAA;
     host1.setSaveData(marker);
     assert.deepEqual(Array.from(host1.getSaveData()).slice(4, 17), Array.from(marker).slice(4, 17));
-    host1.destroy(); // the only moment this host loses the live bytes — must cache here
+    host1.destroy(); // the only moment this host loses the live bytes - must cache here
 
-    // Fresh host, same cart path — the exact "quit and come back" the report
+    // Fresh host, same cart path - the exact "quit and come back" the report
     // says was previously impossible to exercise through romdev.
     const host2 = new WasmcartHost();
     await host2.loadMedia({ platform: "wasmcart", path: dest });
@@ -106,7 +106,7 @@ test("wasmcart: persistence never writes a file next to the cart", { timeout: 30
   // The first implementation of this fix wrote `<path>.sav` on every destroy(),
   // which polluted every OTHER test that loads a tracked fixture directly
   // (hello.wasc among them) with an untracked file. Persistence is an
-  // in-process cache instead — assert that invariant directly so a regression
+  // in-process cache instead - assert that invariant directly so a regression
   // back to disk-writes is caught here rather than as stray git-status noise.
   const { dir, dest } = await freshCartCopy();
   try {

@@ -1,4 +1,4 @@
-// env-injectable-build — proves the browser-IDE seam (0.95.0) is COMPLETE:
+// env-injectable-build - proves the browser-IDE seam (0.95.0) is COMPLETE:
 // with a fully injected env (runTool + share manifest + hash + sdkCache +
 // loadGlue), buildGbaC/buildGenesisC never touch their node defaults, and the
 // ROM comes out BYTE-IDENTICAL to the default node path. This is the same
@@ -8,7 +8,7 @@
 // The injected runTool here still executes the WASM via the worker pool
 // (we're in node), but it receives ONLY the logical ToolJob the browser
 // would get ({tool, glueFile, pkg, argv, inputFiles, outputFiles}) and
-// resolves the glue itself — exactly what a Web Worker host does with its
+// resolves the glue itself - exactly what a Web Worker host does with its
 // staged assets. The share manifest is materialized UP FRONT with
 // buildShareManifest (what a browser build step stages as static files);
 // after that the pipeline gets no filesystem access through the seam.

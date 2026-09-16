@@ -15,7 +15,7 @@ import { decodeGenesisM68k } from "./gpgx-state.js";
  * Decode the SNES 65816 CPU register block from a snes9x savestate.
  * Field order per src/snapshot.cpp SnapRegisters[]:
  *   PB(u8), DB(u8), P.W(u16), A.W(u16), D.W(u16), S.W(u16), X.W(u16),
- *   Y.W(u16), PCw(u16) — all uint16s big-endian per FreezeStruct.
+ *   Y.W(u16), PCw(u16) - all uint16s big-endian per FreezeStruct.
  *
  * @param {Uint8Array} state
  * @returns {ReturnType<typeof formatCpuState> | null}
@@ -128,7 +128,7 @@ function decodeSnes9xSPC(state) {
  *   [8]      uint8_t  Y
  *   [9]      uint8_t  S      (stack pointer; SP = 0x100 | S)
  *   [10]     uint8_t  P      (NV-BDIZC flag register)
- *   [11]     uint8_t  mooPI  (previous interrupt mask — fceumm internal)
+ *   [11]     uint8_t  mooPI  (previous interrupt mask - fceumm internal)
  *   [12]     uint8_t  jammed (illegal-opcode lock state)
  *   [13..15] padding
  *   [16..19] int32_t  count  (cycles remaining in slice)
@@ -212,15 +212,15 @@ function decode6502(bytes) {
     pc: PC,
     // Only the architectural 6502 registers go in `registers`. fceumm also
     // exposes core-internal latches/counters (data-bus latch, pending-IRQ
-    // bitmask, cycle counters) — those are NOT 6502 state and were easy to
+    // bitmask, cycle counters) - those are NOT 6502 state and were easy to
     // misread, so they live under `coreInternal`, clearly labeled.
     registers: { A, X, Y, S, P },
     coreInternal: {
-      DB,       // data-bus latch (last value on the bus) — emulator-internal
-      IRQlow,   // pending-IRQ source bitmask — emulator-internal
-      tcount,   // temporary cycle counter — emulator-internal
-      count,    // cycles remaining in the current slice — emulator-internal
-      note: "fceumm core-internal values, NOT architectural 6502 registers — don't read these as CPU state.",
+      DB,       // data-bus latch (last value on the bus) - emulator-internal
+      IRQlow,   // pending-IRQ source bitmask - emulator-internal
+      tcount,   // temporary cycle counter - emulator-internal
+      count,    // cycles remaining in the current slice - emulator-internal
+      note: "fceumm core-internal values, NOT architectural 6502 registers - don't read these as CPU state.",
     },
     flags: {
       N: !!(P & 0x80),
@@ -248,7 +248,7 @@ function decode6502(bytes) {
  *          20-23: hl  (H at 21, L at 20)
  *          24-27: ix
  *          28-31: iy
- *          32-35: wz  (memptr — internal)
+ *          32-35: wz  (memptr - internal)
  *          36-39: af2 (shadow)
  *          40-43: bc2
  *          44-47: de2
@@ -263,14 +263,14 @@ function decode6502(bytes) {
  *          59-62: nmi_state, nmi_pending, irq_state, after_ei
  *
  * F flag bits (Z80 standard): SZ5H3PNC
- *   bit 7 S  — sign
- *   bit 6 Z  — zero
- *   bit 5 Y  — undocumented
- *   bit 4 H  — half-carry
- *   bit 3 X  — undocumented
- *   bit 2 PV — parity/overflow
- *   bit 1 N  — add/subtract
- *   bit 0 C  — carry
+ *   bit 7 S  - sign
+ *   bit 6 Z  - zero
+ *   bit 5 Y  - undocumented
+ *   bit 4 H  - half-carry
+ *   bit 3 X  - undocumented
+ *   bit 2 PV - parity/overflow
+ *   bit 1 N  - add/subtract
+ *   bit 0 C  - carry
  *
  * @param {Uint8Array} bytes
  * @returns {CPUState}
@@ -323,7 +323,7 @@ function decodeZ80(bytes) {
       DE_shadow: de2,
       HL_shadow: hl2,
       I: i,
-      R: (r & 0x7F) | (r2 & 0x80),  // refresh — H bit from r2, low 7 from r
+      R: (r & 0x7F) | (r2 & 0x80),  // refresh - H bit from r2, low 7 from r
     },
     flags: {
       S: !!(f & 0x80),
@@ -370,12 +370,12 @@ export function getCPUState(host, platform, cpu = "main") {
   }
   if (platform === "genesis") {
     if (cpu === "z80") {
-      // gpgx runs ONE Z80 core for both SMS and Genesis — the global `Z80`
+      // gpgx runs ONE Z80 core for both SMS and Genesis - the global `Z80`
       // struct the patch snapshots for the `sms_z80_regs` region (id 0x133)
       // IS the Genesis sound Z80 when a Genesis ROM is loaded. So the same
       // region + decoder works here; no separate genesis_z80_regs needed.
       // (The Z80 is held in reset until the 68k releases it via $A11100/
-      // $A11200 — a freshly-booted ROM may show PC=0 / all-zero regs.)
+      // $A11200 - a freshly-booted ROM may show PC=0 / all-zero regs.)
       const bytes = host.readMemory("sms_z80_regs", 0, 63);
       return decodeZ80(bytes);
     }
@@ -430,7 +430,7 @@ export function getCPUState(host, platform, cpu = "main") {
     // from mem_ram[1], which is the underlying RAM cell. The EFFECTIVE
     // port value lives in vice's pport.data_out struct (not exposed yet)
     // and may differ from mem_ram[1] depending on DDR bits at mem_ram[0].
-    // Most agents care about the banking state — for that, the effective
+    // Most agents care about the banking state - for that, the effective
     // value matters more; we expose mem_ram[1] as a useful approximation.
     const ioPort = host.readMemory("system_ram", 1, 1)[0];
     return {
@@ -455,7 +455,7 @@ export function getCPUState(host, platform, cpu = "main") {
   }
   if (platform === "gb" || platform === "gbc") {
     // Patched gambatte exposes an 18-byte SM83 snapshot. Inline decoder
-    // — see src/platforms/gb/ppu.js#decodeSm83State for the doc'd layout.
+    // - see src/platforms/gb/ppu.js#decodeSm83State for the doc'd layout.
     const bytes = host.readMemory("gb_cpu_regs", 0, 18);
     const u16 = (off) => bytes[off] | (bytes[off + 1] << 8);
     const a = bytes[4], f = bytes[5];
@@ -586,7 +586,7 @@ export function getCPUState(host, platform, cpu = "main") {
   }
   if (platform === "gametank") {
     // The patched GameTank core exposes the LIVE W65C02S register file via
-    // romdev_getreg (regId: 0=A 1=X 2=Y 3=P 4=SP 16=PC) — no synthesized region
+    // romdev_getreg (regId: 0=A 1=X 2=Y 3=P 4=SP 16=PC) - no synthesized region
     // needed, read it directly. (At a watch/break HIT the frozen snapshot also
     // comes through romdev_regsnap_get like every other core.)
     const A = host.getReg(0), X = host.getReg(1), Y = host.getReg(2);

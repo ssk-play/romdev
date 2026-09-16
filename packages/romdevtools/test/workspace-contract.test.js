@@ -1,10 +1,10 @@
 // Workspace-contract guards. Born 2026-07-23, the day romdevtools 0.105.1
 // shipped importing `effectiveAspect` from romdev-core-runner while the
 // runner's version (and therefore the registry tarball an npx install
-// resolves) stayed at 0.1.1 — every fresh install died opening the playtest
+// resolves) stayed at 0.1.1 - every fresh install died opening the playtest
 // window on an import error the monorepo (workspace-linked) suite could not
-// see. Two of the three guards live here; the third — "package content
-// changed but its version already exists on the registry" — needs the
+// see. Two of the three guards live here; the third - "package content
+// changed but its version already exists on the registry" - needs the
 // registry and runs as a hard preflight inside publish-all.mjs instead.
 //
 //   1. Every named import from a workspace romdev-* package must resolve
@@ -12,7 +12,7 @@
 //      re-export the moment the suite runs, not at window-open time).
 //   2. Every exact pin on a workspace sibling must equal that sibling's
 //      in-tree version, and every range pin must still cover it (catches
-//      "bumped the package, forgot the repin" — the reverse miss).
+//      "bumped the package, forgot the repin" - the reverse miss).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -62,7 +62,7 @@ test("every named import from a workspace romdev-* package resolves", async () =
       const rootName = spec.startsWith("@")
         ? spec.split("/").slice(0, 2).join("/")
         : spec.split("/")[0];
-      if (!ws.has(rootName)) continue; // external dep — not this contract
+      if (!ws.has(rootName)) continue; // external dep - not this contract
       const names = m[1]
         .split(",")
         .map((s) => s.trim().split(/\s+as\s+/)[0].trim())
@@ -97,7 +97,7 @@ test("workspace sibling pins match the in-tree versions", () => {
         if (!inTree) continue; // external
         if (/^\d+\.\d+\.\d+$/.test(range)) {
           if (range !== inTree) {
-            problems.push(`${pkg.name} pins ${dep}@${range} but the workspace has ${inTree} — bump-and-repin`);
+            problems.push(`${pkg.name} pins ${dep}@${range} but the workspace has ${inTree} - bump-and-repin`);
           }
         } else if (/^\^\d+\.\d+\.\d+$/.test(range)) {
           const [rMaj, rMin, rPat] = range.slice(1).split(".").map(Number);
@@ -107,7 +107,7 @@ test("workspace sibling pins match the in-tree versions", () => {
             ? tMaj === 0 && tMin === rMin && tPat >= rPat
             : tMaj === rMaj && (tMin > rMin || (tMin === rMin && tPat >= rPat));
           if (!compatible) {
-            problems.push(`${pkg.name} depends on ${dep}@${range} but the workspace has ${inTree} — a fresh install resolves a DIFFERENT copy than the monorepo runs`);
+            problems.push(`${pkg.name} depends on ${dep}@${range} but the workspace has ${inTree} - a fresh install resolves a DIFFERENT copy than the monorepo runs`);
           }
         }
       }

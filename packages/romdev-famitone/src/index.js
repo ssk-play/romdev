@@ -1,4 +1,4 @@
-// romdev-famitone — pure-JS FamiTone2 music compiler for the NES.
+// romdev-famitone - pure-JS FamiTone2 music compiler for the NES.
 //
 // A faithful port of Shiru's `text2data` tool (nesdoug bug-fix fork): it parses
 // a FamiTracker `.txt` export and emits FamiTone2-format music data as ca65

@@ -14,7 +14,7 @@ test("z80 + gbz80 objdump are available (ship in romdev-toolchain-sdcc)", () => 
 
 test("z80 objdump decodes prefix opcodes WITH the (ix+d)/(iy+d) displacement", async () => {
   // ed b0 ldir | dd cb 05 46 bit 0,(ix+5) | fd 7e 05 ld a,(iy+5)
-  // The hand-rolled z80dasm dropped the +d on the FD form — objdump keeps it.
+  // The hand-rolled z80dasm dropped the +d on the FD form - objdump keeps it.
   const bytes = Uint8Array.from([0xED, 0xB0, 0xDD, 0xCB, 0x05, 0x46, 0xFD, 0x7E, 0x05]);
   const r = await runObjdump({ bytes, arch: "z80", startAddress: 0x100 });
   assert.equal(r.available, true);

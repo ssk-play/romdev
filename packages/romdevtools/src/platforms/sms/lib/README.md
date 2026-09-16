@@ -1,4 +1,4 @@
-# SMS / Game Gear — quickstart
+# SMS / Game Gear - quickstart
 
 The compressed version of "everything I had to learn the hard way
 building an SMS ROM with romdev."
@@ -10,17 +10,17 @@ clean C development path. `build({output:'rom', platform:"sms", source: <C>})`
 auto-injects the crt0 so your `main()` runs as the cartridge reset
 handler with a proper vector table + IM 1 + SP=$DFF0.
 
-C-side hardware access uses SDCC's `__sfr __at <port>` declarations —
+C-side hardware access uses SDCC's `__sfr __at <port>` declarations -
 see `c/sms_hw.h` for the standard port set. Reading the variable
 compiles to `in a,(port)`; writing compiles to `out (port),a`.
 
-ASM is also first-class — pass a `.s` source and it routes through
+ASM is also first-class - pass a `.s` source and it routes through
 sdasz80. The asm snippets below are the canonical implementations the
 C helpers wrap.
 
 ### SDCC 4.4.0 quirks
 
-SDCC sm83/z80 is **C89-only** — no inline `for (int i = 0; ...)`, no
+SDCC sm83/z80 is **C89-only** - no inline `for (int i = 0; ...)`, no
 mid-block declarations, no compound literals. The pre-flight linter
 catches these with the right file:line before SDCC's own (misleading)
 error messages get a chance to confuse you. See
@@ -31,7 +31,7 @@ The previously-documented "register-allocator crash family"
 parallel array writes, multi-array indexed reads, etc.) was diagnosed
 on 2026-05-25 as the emscripten 64 KB default stack overflowing past
 `__data_end` and zeroing out the static `sm83_regs[]` table. Fixed by
-bumping the WASM stack to 8 MB. Those patterns compile cleanly now —
+bumping the WASM stack to 8 MB. Those patterns compile cleanly now -
 no workarounds needed.
 
 ## Snippets shipped in this directory
@@ -58,7 +58,7 @@ as two bytes:
 - FIRST byte = the value
 - SECOND byte = `$80 | R` (high bit signals "register write")
 
-If you reverse them you'll set the VRAM address pointer instead — a
+If you reverse them you'll set the VRAM address pointer instead - a
 subtle bug that produces "the display works but later writes go to the
 wrong place." Always: `out ($BF), value` then `out ($BF), $80 | reg`.
 
@@ -72,7 +72,7 @@ the second byte:
 - `$C0` → CRAM write (the LOW byte first must be the CRAM offset)
 
 Mixing these is the most common cause of "I uploaded my palette but the
-screen is still black" — you probably wrote to VRAM by accident.
+screen is still black" - you probably wrote to VRAM by accident.
 
 ### 3. SAT terminator $D0
 
@@ -80,13 +80,13 @@ If any Y byte in the sprite attribute table is $D0, the VDP stops
 processing sprites at that index and renders only the ones before it.
 Hide unused sprites with `Y = $D0`, not by setting them off-screen.
 Setting `Y = $FF` won't terminate, just put the sprite somewhere
-invisible — you waste a sprite slot.
+invisible - you waste a sprite slot.
 
 ### 4. SMS palette is 6-bit, not 8-bit
 
 CRAM bytes are 2-2-2 BGR. So $3F is white (all channels max), $3 is
 pure red, $C is pure green, $30 is pure blue. Don't pass 0xFFFFFF and
-expect white — it'll truncate to $3F. Use `palette({source:'platformMaster', platform:"sms"})`
+expect white - it'll truncate to $3F. Use `palette({source:'platformMaster', platform:"sms"})`
 to see all 64 distinct colors and dither input art against them with
 imagemagick.
 
@@ -113,5 +113,5 @@ hand-authored palette tables need the platform-correct encoding.
 | R9 | BG Y scroll | 0 = no scroll |
 | R10 | Line IRQ counter | $FF = disabled |
 
-Decode the live values via `background({view:'renderState'})` — it returns the
+Decode the live values via `background({view:'renderState'})` - it returns the
 fully-shifted base addresses so you don't redo the math.

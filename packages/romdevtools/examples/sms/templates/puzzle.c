@@ -1,11 +1,11 @@
-/* ── puzzle.c — SMS falling-gem versus puzzle (complete example game) ─────────
+/* ── puzzle.c - SMS falling-gem versus puzzle (complete example game) ─────────
  *
- * GEODE GAMBIT — a COMPLETE, working game: title screen, 1P MARATHON mode
- * (levels speed the fall as you clear) and 2P SIMULTANEOUS VERSUS mode — two
+ * GEODE GAMBIT - a COMPLETE, working game: title screen, 1P MARATHON mode
+ * (levels speed the fall as you clear) and 2P SIMULTANEOUS VERSUS mode - two
  * 6x12 wells side by side, P1 on PORT A, P2 on PORT B, both falling at once,
  * where every cascade chain you score lays SIEGE to the other well: garbage
  * rows rise from the bottom of your rival's board. Score + persistent
- * hi-score (Sega-mapper cart RAM — see the honesty note at hiscore_save),
+ * hi-score (Sega-mapper cart RAM - see the honesty note at hiscore_save),
  * PSG music + SFX, and the SMS's signature LINE-INTERRUPT split: a fixed HUD
  * strip over the wells, timed by the VDP's programmable line counter.
  *
@@ -16,34 +16,34 @@
  * fall and cascades chain for multiplied score. First stack to reach the rim
  * loses.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented SMS footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented SMS footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — match rules, garbage, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - match rules, garbage, tuning, art: reshape freely.
  *
  * What depends on what:
  *   sms_hw.h / vdp_init.c / load_palette.c / load_tiles.c / sprite_table.c /
- *     joypad_read.c — the bundled VDP + input runtime (this file's externs).
- *   sms_sfx.{h,c} + sms_music.{h,c} — SN76489 PSG sound layers.
- *   sms_crt0.s — boot + vector table. Its $0038 IM-1 handler is the OTHER
+ *     joypad_read.c - the bundled VDP + input runtime (this file's externs).
+ *   sms_sfx.{h,c} + sms_music.{h,c} - SN76489 PSG sound layers.
+ *   sms_crt0.s - boot + vector table. Its $0038 IM-1 handler is the OTHER
  *     HALF of the line-interrupt idiom below: it acks the VDP (one status
  *     read clears BOTH the frame and line IRQ flags) and returns with
  *     ei/reti. Load-bearing; edit with TROUBLESHOOTING open.
  *
- * Frame budget (NTSC, 60fps) — and a TEACHING POINT vs the NES version of
+ * Frame budget (NTSC, 60fps) - and a TEACHING POINT vs the NES version of
  * this game (examples/nes/templates/puzzle.c): on the NES, board repaints
  * squeeze through a ~16-entry vblank queue, so a full-board repaint is
  * BUDGETED across 12 frames of dirty-row bitmask tricks. The SMS has no such
  * famine: the BOARD IS A BG TILEMAP, and a whole well (12 rows x 6 cells) is
- * 144 sms_set_tilemap_cell writes — well under a single vblank's VRAM
+ * 144 sms_set_tilemap_cell writes - well under a single vblank's VRAM
  * bandwidth. So when a lock dirties a board we just repaint the WHOLE well in
- * the next vblank (board_dirty flag) — no per-row drip, no queue. The only
+ * the next vblank (board_dirty flag) - no per-row drip, no queue. The only
  * thing we DO budget is the HUD's software 16-bit divisions (see the BUDGET
  * FOOTGUN at the main loop), exactly as the platformer/shmup do. Same genre,
- * two bandwidth worlds — fork accordingly.
+ * two bandwidth worlds - fork accordingly.
  *
- * SDCC FOOTGUN (bites every fork): uint8 loop bounds silently wrap —
+ * SDCC FOOTGUN (bites every fork): uint8 loop bounds silently wrap -
  * `for (uint8_t i = 0; i < 12 * 6; i++)` is fine (72 < 255), but a full-board
  * paint `for (uint8_t i = 0; i < 24 * 32; i++)` is an INFINITE loop (768 >
  * 255; SDCC even warns "comparison is always true"). Treat that warning as an
@@ -55,7 +55,7 @@
 #include "sms_music.h"
 #include <stdint.h>
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "GEODE GAMBIT"
 
@@ -73,7 +73,7 @@ extern void    sms_sprite_init(void);
 extern void    sms_sprite_set(uint8_t slot, uint8_t x, uint8_t y, uint8_t tile);
 extern void    sms_sat_upload(void);
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Palettes. SMS CRAM is 2-2-2 BGR (--BBGGRR): R bits 0-1, G bits 2-3,
  * B bits 4-5. White = 0x3F. BG colour 0 doubles as the backdrop/border. */
 static const uint8_t palette[32] = {
@@ -82,26 +82,26 @@ static const uint8_t palette[32] = {
   0x10, 0x03, 0x0C, 0x3F, 0x15, 0x30, 0x2A, 0x05,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   /* Sprites: 1 = ruby, 2 = emerald, 3 = sapphire (the falling trio's three
-   * colours). One shared sprite palette on SMS — per-"sprite" colour means
+   * colours). One shared sprite palette on SMS - per-"sprite" colour means
    * per-TILE colour indices, not per-sprite palettes. */
   0x00, 0x03, 0x0C, 0x30, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-/* ── GAME LOGIC (clay) — BG tile inventory (BG bank $0000) ───────────────────
+/* ── GAME LOGIC (clay) - BG tile inventory (BG bank $0000) ───────────────────
  * tile 0          = blank cabinet (colour 0)
  * tiles 1..37     = font: digits 0-9, A-Z, '-'  (uploaded 1bpp→4bpp below)
  * tiles 38..40    = gem colours 1/2/3 (ruby/emerald/sapphire) as BG tiles
  * tile 41         = well frame (steel grey)
- * tile 42         = empty well floor (dim — so the well reads as recessed)
- * tile 43         = solid HUD bar (colour 4) — the split seam hides in it */
+ * tile 42         = empty well floor (dim - so the well reads as recessed)
+ * tile 43         = solid HUD bar (colour 4) - the split seam hides in it */
 #define FONT_BASE  1
 #define BG_GEM_BASE 38                 /* +0/+1/+2 = gem colours 1/2/3        */
 #define BG_FRAME   41
 #define BG_FLOOR   42
 #define BG_HUDBAR  43
 
-/* 1bpp font (same glyph set as the NES/GB examples — 0-9, A-Z, '-').
+/* 1bpp font (same glyph set as the NES/GB examples - 0-9, A-Z, '-').
  * Stored 8 bytes/glyph; expanded to the SMS's 32-byte 4bpp tiles at upload
  * (see load_font below), so the ROM carries 296 bytes instead of 1184. */
 static const uint8_t font8[37][8] = {
@@ -145,51 +145,51 @@ static void load_font(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — gem + furniture tiles (4bpp, 32 bytes each).
+/* ── GAME LOGIC (clay) - gem + furniture tiles (4bpp, 32 bytes each).
  * KEY TRICK: the three gem tiles are the SAME rounded shape on different
- * colour planes — a cell changes colour by changing its TILE index, no
+ * colour planes - a cell changes colour by changing its TILE index, no
  * re-upload. Colour 1 = plane 0 only, colour 2 = plane 1 only, colour 3 =
  * planes 0+1. A bright corner pixel (colour 3 = planes 0+1) gives each gem a
  * glint so they don't read as flat squares. */
 static const uint8_t gem_furniture[32 * 6] = {
-  /* BG_GEM_BASE+0 — ruby (colour 1 fill, white glint top-left) */
+  /* BG_GEM_BASE+0 - ruby (colour 1 fill, white glint top-left) */
   0x3C,0x3C,0x00,0x00, 0x7E,0x42,0x00,0x00, 0xFF,0x81,0x00,0x00, 0xFF,0x00,0x00,0x00,
   0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0x7E,0x00,0x00,0x00, 0x3C,0x00,0x00,0x00,
-  /* BG_GEM_BASE+1 — emerald (colour 2 fill = plane 1, glint colour 3) */
+  /* BG_GEM_BASE+1 - emerald (colour 2 fill = plane 1, glint colour 3) */
   0x00,0x3C,0x00,0x00, 0x00,0x7E,0x00,0x00, 0x18,0xFF,0x00,0x00, 0x00,0xFF,0x00,0x00,
   0x00,0xFF,0x00,0x00, 0x00,0xFF,0x00,0x00, 0x00,0x7E,0x00,0x00, 0x00,0x3C,0x00,0x00,
-  /* BG_GEM_BASE+2 — sapphire (colour 5 fill = plane 0+2, glint colour 3) */
+  /* BG_GEM_BASE+2 - sapphire (colour 5 fill = plane 0+2, glint colour 3) */
   0x3C,0x00,0x3C,0x00, 0x42,0x00,0x7E,0x00, 0x81,0x18,0xFF,0x00, 0x00,0x00,0xFF,0x00,
   0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0x7E,0x00, 0x00,0x00,0x3C,0x00,
-  /* BG_FRAME — solid colour 6 (well-frame grey = planes 1+2) */
+  /* BG_FRAME - solid colour 6 (well-frame grey = planes 1+2) */
   0x00,0xFF,0xFF,0x00, 0x00,0xFF,0xFF,0x00, 0x00,0xFF,0xFF,0x00, 0x00,0xFF,0xFF,0x00,
   0x00,0xFF,0xFF,0x00, 0x00,0xFF,0xFF,0x00, 0x00,0xFF,0xFF,0x00, 0x00,0xFF,0xFF,0x00,
-  /* BG_FLOOR — empty well floor: colour 7 (planes 0+1+2) with a faint speck */
+  /* BG_FLOOR - empty well floor: colour 7 (planes 0+1+2) with a faint speck */
   0xFF,0xFF,0xFF,0x00, 0xFF,0xFF,0xFF,0x00, 0xFF,0xFF,0xFF,0x00, 0xEF,0xFF,0xFF,0x00,
   0xFF,0xFF,0xFF,0x00, 0xFF,0xFF,0xFF,0x00, 0xFF,0xFF,0xFF,0x00, 0xFF,0xFF,0xFF,0x00,
-  /* BG_HUDBAR — solid colour 4 (binary 100 → plane 2 only); seam hides here */
+  /* BG_HUDBAR - solid colour 4 (binary 100 → plane 2 only); seam hides here */
   0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00,
   0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00,
 };
 
-/* Sprite tiles (sprite bank $2000 — vdp_init's R6=0xFF baseline reads
+/* Sprite tiles (sprite bank $2000 - vdp_init's R6=0xFF baseline reads
  * sprite patterns from $2000, so upload there, not $0000). The falling trio's
  * cells are SPRITES (they move every frame); locked gems are BG tiles. Same
  * three colours as the BG gems above. */
 static const uint8_t sprite_tiles[32 * 3] = {
-  /* T_SPR+0 — ruby (colour 1) */
+  /* T_SPR+0 - ruby (colour 1) */
   0x3C,0x3C,0x00,0x00, 0x7E,0x42,0x00,0x00, 0xFF,0x81,0x00,0x00, 0xFF,0x00,0x00,0x00,
   0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0x7E,0x00,0x00,0x00, 0x3C,0x00,0x00,0x00,
-  /* T_SPR+1 — emerald (colour 2 = plane 1) */
+  /* T_SPR+1 - emerald (colour 2 = plane 1) */
   0x00,0x3C,0x00,0x00, 0x00,0x7E,0x00,0x00, 0x18,0xFF,0x00,0x00, 0x00,0xFF,0x00,0x00,
   0x00,0xFF,0x00,0x00, 0x00,0xFF,0x00,0x00, 0x00,0x7E,0x00,0x00, 0x00,0x3C,0x00,0x00,
-  /* T_SPR+2 — sapphire (colour 3 = planes 0+1; sprite palette index 3) */
+  /* T_SPR+2 - sapphire (colour 3 = planes 0+1; sprite palette index 3) */
   0x3C,0x3C,0x00,0x00, 0x42,0x7E,0x00,0x00, 0x81,0xFF,0x00,0x00, 0x00,0xFF,0x00,0x00,
   0x00,0xFF,0x00,0x00, 0x00,0xFF,0x00,0x00, 0x00,0x7E,0x00,0x00, 0x00,0x3C,0x00,0x00,
 };
 #define T_SPR 0                        /* sprite tile of gem colour 1         */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Board geometry. Cells are 8x8 (one BG tile), 6 wide x 12 tall. The 32-cell
  * name table is 256 px wide; a single well is 8 cells (frame + 6 + frame), so
  * two wells fit side by side with a centre gutter for the 2P split board.
@@ -204,19 +204,19 @@ static const uint8_t sprite_tiles[32 * 3] = {
 
 /* HUD layout: row 0 = text, row 1 = blank, row 2 = solid bar. The bar row is
  * both the visual divider AND where the split seam hides. R0's leftmost-column
- * blank (bit 5) makes screen column 0 invisible — HUD text starts at col 1. */
+ * blank (bit 5) makes screen column 0 invisible - HUD text starts at col 1. */
 #define HUD_ROWS 3
 #define HUD_PX   (HUD_ROWS * 8)
 
 #define VS_FALL_DELAY 24                /* 2P: fixed gravity (frames per row)  */
 #define GARBAGE_CAP   4                 /* max garbage rows per attack         */
 
-/* ── GAME LOGIC (clay) — game state.
+/* ── GAME LOGIC (clay) - game state.
  * The hot ones are deliberately NON-static: they then appear in the sdld map
  * (build symbols) at $Cxxx in work RAM, so a headless agent can resolve them
  * by name and read/poke live state (parse the map → system_ram offset =
  * addr-0xC000). The SMS has 8KB of work RAM ($C000-$DFFF), so these plain
- * arrays cost nothing — no NES scratch-page gymnastics. */
+ * arrays cost nothing - no NES scratch-page gymnastics. */
 uint8_t  grid[2][GRID_H][GRID_W];       /* the two wells (P2's unused in 1P)  */
 int8_t   piece_x[2];                    /* falling trio: column 0..5          */
 int8_t   piece_y[2];                    /* row of its TOP cell (<0 above rim) */
@@ -242,7 +242,7 @@ static uint16_t rng = 0xACE1;
 #define ST_PLAY  1
 #define ST_OVER  2
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call) ── */
 static uint8_t random8(void) {
   uint16_t r = rng;
   r ^= r << 7;
@@ -252,12 +252,12 @@ static uint8_t random8(void) {
   return (uint8_t)r;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * LINE-INTERRUPT SPLIT — the SMS's signature trick (fixed status bar over the
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * LINE-INTERRUPT SPLIT - the SMS's signature trick (fixed status bar over the
  * playfield, palette splits, water effects). The VDP has ONE scroll register
  * pair for the whole frame; to keep the HUD strip pinned at the top while the
  * playfield renders below it, we DON'T scroll here (a puzzle board doesn't
- * move) — but we still take the line IRQ at the bar so the idiom is wired and
+ * move) - but we still take the line IRQ at the bar so the idiom is wired and
  * ready, and so the per-frame timing (vblank → line IRQ → game logic) matches
  * the platformer/shmup exactly. Where the NES needs the sprite-0-hit HACK
  * (park a sprite, busy-poll a status bit, burn scanlines spinning), the SMS
@@ -270,29 +270,29 @@ static uint8_t random8(void) {
  *
  * Both IRQs land on the Z80's IM-1 vector at $0038. The crt0's handler does
  * the canonical minimal handshake:  push af / in a,($BF) / pop af / ei / reti
- * — reading the status port ACKS the VDP (clears BOTH pending flags; skip the
+ * - reading the status port ACKS the VDP (clears BOTH pending flags; skip the
  * read and the IRQ line stays asserted = interrupt storm), and EI must
  * precede RETI or interrupts stay off forever after the first one.
  *
  * Because the handler does no work, the MAIN loop synchronizes with HALT: the
  * Z80 sleeps until the next interrupt, then reads the V-counter (port $7E) to
- * learn WHICH one woke us — line IRQs fire during the active area (V < 0xC0),
+ * learn WHICH one woke us - line IRQs fire during the active area (V < 0xC0),
  * the frame IRQ fires at vblank (V ≥ 0xC0).
  *
  *   wait_vblank():  sleep until the frame IRQ → do per-frame VRAM work.
  *   wait_split():   sleep until the line IRQ at the last bar line → past it,
  *                   the playfield renders. (If you ADD a scrolling background
- *                   under the wells, this is where you'd write R8 — see the
+ *                   under the wells, this is where you'd write R8 - see the
  *                   shmup/platformer templates for the R8 = scroll write.)
  *
- * FOOTGUN — you cannot poll once IRQs are on: a status-port poll spins on the
+ * FOOTGUN - you cannot poll once IRQs are on: a status-port poll spins on the
  * same port the ISR reads. The ISR always wins the race, eats the flag, and
  * the poll loop hangs forever. HALT + V-counter is the IRQ-era replacement.
  *
  * Requires: R10 programmed, IE1 + IE0 enabled, EI executed once after
  * display-on, the crt0's ack-only ISR, and wait_vblank/wait_split called
  * EVERY frame in this order. R10 reloads after each underflow, so the line
- * IRQ re-fires every HUD_PX lines all the way down the frame — the later
+ * IRQ re-fires every HUD_PX lines all the way down the frame - the later
  * wakes harmlessly interrupt game logic (the ISR acks them) and we re-halt
  * inside the NEXT wait_vblank(). */
 #define SPLIT_LINE (HUD_PX - 1)
@@ -308,7 +308,7 @@ static void wait_split(void) {
   do { __asm__("halt"); } while (PORT_V_COUNTER >= 0xC0);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * hi-score in Sega-mapper cart RAM. The Sega mapper's control register at
  * $FFFC: bit 3 maps the cart's 8KB battery RAM into $8000-$BFFF (bank slot
  * 2). Map → copy → unmap; keep the window short so stray pointer bugs can't
@@ -316,13 +316,13 @@ static void wait_split(void) {
  * cart (all $FF) reads back as "no save" instead of a garbage hi-score.
  *
  * NOTE the $FFFC address: it's IN the WRAM mirror ($C000-$DFFF mirrors at
- * $E000-$FFFF), so this write also lands in WRAM at $DFFC — the mapper just
+ * $E000-$FFFF), so this write also lands in WRAM at $DFFC - the mapper just
  * snoops the bus. That's why the crt0 parks SP at $DFF0: the bytes above it
  * ($DFFC-$FFFF) belong to the mapper registers' shadow.
  *
  * HONESTY (verified against the bundled gpgx core): gpgx only instantiates
  * the Sega mapper for ROMs LARGER than 48KB, and this build pipeline emits
- * 32KB ROMs — so in-emulator the $8000 window stays open-bus (reads $FF), the
+ * 32KB ROMs - so in-emulator the $8000 window stays open-bus (reads $FF), the
  * magic check fails, and the game falls back to the WRAM hi-score (in-session
  * only). The code below is still the correct real-hardware idiom and lights up
  * unchanged on a >48KB build or a cart with battery RAM: the load path is
@@ -353,7 +353,7 @@ static uint16_t hiscore_load(void) {
   return v;
 }
 
-/* ── GAME LOGIC (clay) — text via the font tiles ─────────────────────────────
+/* ── GAME LOGIC (clay) - text via the font tiles ─────────────────────────────
  * These write the name table directly, so call them only during vblank (or
  * with the display off): VRAM access during active display races the VDP's
  * own fetches and drops/garbles bytes on real hardware. */
@@ -375,7 +375,7 @@ static void draw_u16(uint8_t row, uint8_t col, uint16_t v) {
     sms_set_tilemap_cell(row, (uint8_t)(col + i), (uint8_t)(FONT_BASE + d[4 - i]), 0);
 }
 
-/* ── GAME LOGIC (clay) — HUD: row 0 (columns start at 1 — R0 left-column blank
+/* ── GAME LOGIC (clay) - HUD: row 0 (columns start at 1 - R0 left-column blank
  * hides column 0). 1P: SC sssss  HI hhhhh  LV n.  2P: P1 sssss  HI  P2 sssss. */
 static void draw_hud(void) {
   uint8_t c;
@@ -397,15 +397,15 @@ static void draw_hud(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — cell colour → BG tile (empty shows the dim floor). */
+/* ── GAME LOGIC (clay) - cell colour → BG tile (empty shows the dim floor). */
 static uint8_t bg_tile_for(uint8_t col) {
   return col ? (uint8_t)(BG_GEM_BASE - 1 + col) : BG_FLOOR;
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — whole-well repaint. Each dirtied well is
+/* ── HARDWARE IDIOM (load-bearing) - whole-well repaint. Each dirtied well is
  * repainted ENTIRELY in the next vblank: 12 rows × 6 cells = 72 cell writes,
  * trivially inside a vblank's VRAM budget (the per-cell PERF FOOTGUN the shmup
- * found applies to FULL-SCREEN repaints, not a 72-cell well — and these only
+ * found applies to FULL-SCREEN repaints, not a 72-cell well - and these only
  * fire on a lock/clear, not every frame). Contrast the NES version, which
  * must drip ONE board row per frame through a 16-entry queue. ── */
 static void repaint_well(uint8_t p) {
@@ -416,8 +416,8 @@ static void repaint_well(uint8_t p) {
                            bg_tile_for(grid[p][r][c]), 0);
 }
 
-/* ── GAME LOGIC (clay) — screen painters (DISPLAY OFF: free VRAM access, clean
- * cut). While the display is off the frame IRQ doesn't fire — so no halt-based
+/* ── GAME LOGIC (clay) - screen painters (DISPLAY OFF: free VRAM access, clean
+ * cut). While the display is off the frame IRQ doesn't fire - so no halt-based
  * waits in here, or you hang forever. */
 static void paint_frame_chrome(uint8_t p) {
   uint8_t r, tx = well_tx[p];
@@ -475,10 +475,10 @@ static void paint_play(void) {
   sms_vdp_display_on();
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Match scan: mark every straight run of 3+ same-coloured gems in all 4
- * directions (a cell can belong to several runs — the mask de-dupes), and
- * return how many cells matched. Runs flat-out on the Z80 over 72 cells — no
+ * directions (a cell can belong to several runs - the mask de-dupes), and
+ * return how many cells matched. Runs flat-out on the Z80 over 72 cells - no
  * need to smear it across frames like the cc65 NES version. */
 static const int8_t DIRS4[4][2] = { {0,1}, {1,0}, {1,1}, {1,-1} };
 
@@ -529,10 +529,10 @@ static void apply_gravity(uint8_t p) {
   }
 }
 
-/* Forward decls — game_over/garbage_insert/spawn_piece reference each other. */
+/* Forward decls - game_over/garbage_insert/spawn_piece reference each other. */
 static void game_over(void);
 
-/* ── GAME LOGIC (clay) — clear matches, drop survivors, chain cascades.
+/* ── GAME LOGIC (clay) - clear matches, drop survivors, chain cascades.
  * Returns the chain depth (0 = the lock matched nothing). */
 static uint8_t resolve_board(uint8_t p) {
   uint8_t n, r, c, chain;
@@ -548,7 +548,7 @@ static uint8_t resolve_board(uint8_t p) {
     amt = (uint16_t)n * 10;
     if (chain > 1) amt *= chain;             /* cascades pay multiplied */
     if (score[p] < 65000) score[p] += amt;
-    /* clear chime — pitch rises with chain depth (smaller divider = higher
+    /* clear chime - pitch rises with chain depth (smaller divider = higher
      * note on the PSG). Voice 0 doubles as an sfx voice over the music. */
     sfx_tone(0, (uint16_t)(360 - ((uint16_t)chain << 5)), 10);
     apply_gravity(p);
@@ -562,8 +562,8 @@ static uint8_t resolve_board(uint8_t p) {
   return chain;
 }
 
-/* ── GAME LOGIC (clay) — VERSUS attack: garbage rows rise from the bottom of
- * the victim's well (random gems with one gap — matchable, so a skilled
+/* ── GAME LOGIC (clay) - VERSUS attack: garbage rows rise from the bottom of
+ * the victim's well (random gems with one gap - matchable, so a skilled
  * victim digs out). The victim's stack rising means the falling trio shifts
  * up one to stay board-aligned; if the top row is already occupied, the
  * victim tops out and loses. ── */
@@ -609,7 +609,7 @@ static void spawn_piece(uint8_t p) {
   if (!can_place(p, piece_x[p], piece_y[p])) { loser = p; game_over(); }
 }
 
-/* ── GAME LOGIC (clay) — land the trio, resolve, attack, respawn. ── */
+/* ── GAME LOGIC (clay) - land the trio, resolve, attack, respawn. ── */
 static void lock_piece(uint8_t p) {
   int8_t i, y;
   uint8_t chain;
@@ -629,7 +629,7 @@ static void lock_piece(uint8_t p) {
   spawn_piece(p);
 }
 
-/* ── GAME LOGIC (clay) — per-player input + gravity. Edge-triggered moves
+/* ── GAME LOGIC (clay) - per-player input + gravity. Edge-triggered moves
  * (one cell per press), held DOWN soft-drops, button 1 cycles the trio's
  * colours (the classic trio "rotate"), button 2 hard-drops. P2 reads PORT B. ── */
 static void update_player(uint8_t p) {
@@ -666,11 +666,11 @@ static void update_player(uint8_t p) {
   }
 }
 
-/* ── GAME LOGIC (clay) — stage this frame's sprites. Only the falling trios
+/* ── GAME LOGIC (clay) - stage this frame's sprites. Only the falling trios
  * are sprites (locked gems are BG tiles): 3 SAT slots per player. Cells above
- * the rim aren't drawn — they'd poke out from under the HUD strip.
+ * the rim aren't drawn - they'd poke out from under the HUD strip.
  * Slot map: 0-2 = P1 trio, 3-5 = P2 trio. Inactive slots park at Y=$E0
- * (below the 192-line area). NEVER park at Y=$D0 — that's the SAT terminator:
+ * (below the 192-line area). NEVER park at Y=$D0 - that's the SAT terminator:
  * the VDP stops scanning at the first $D0 and every later slot vanishes. ── */
 static void stage_sprites(void) {
   uint8_t p, i, slot;
@@ -691,7 +691,7 @@ static void stage_sprites(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — end of game (top-out). `loser` topped out. ── */
+/* ── GAME LOGIC (clay) - end of game (top-out). `loser` topped out. ── */
 static void game_over(void) {
   uint16_t best = score[0];
   if (two_player && score[1] > best) best = score[1];
@@ -705,11 +705,11 @@ static void game_over(void) {
   prev_pad[0] = prev_pad[1] = 0xFF;             /* require a fresh press */
   over_step = 4;                                /* results text, one per vblank
                                                  * (each draw_u16 is 5 software
-                                                 * divisions — see the BUDGET
+                                                 * divisions - see the BUDGET
                                                  * FOOTGUN at the main loop) */
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_game(uint8_t versus) {
   uint8_t p, r, c;
   two_player = versus;
@@ -738,10 +738,10 @@ static void start_game(uint8_t versus) {
 void main(void) {
   uint8_t pad, fresh;
 
-  /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
    * Init order: VDP regs (display off) → palette → tiles → name table → SAT →
    * R10 → display on (which also enables the frame IRQ) → EI. The one hard
-   * rule: EI comes LAST, after every register is in place — the crt0 boots
+   * rule: EI comes LAST, after every register is in place - the crt0 boots
    * with DI and the FIRST halt would hang forever if interrupts were never
    * enabled. */
   sms_vdp_init();                    /* R0=0x36 already has IE1 (line IRQ) set */
@@ -755,10 +755,10 @@ void main(void) {
   music_play(0);
 
   /* R10 = SPLIT_LINE arms the line counter: IRQ at the last bar line. Set
-   * once — it reloads itself every underflow. */
+   * once - it reloads itself every underflow. */
   sms_vdp_write_reg(10, SPLIT_LINE);
 
-  hiscore = hiscore_load();          /* cart RAM if present — else 0 */
+  hiscore = hiscore_load();          /* cart RAM if present - else 0 */
   state = ST_TITLE;
   prev_pad[0] = prev_pad[1] = 0xFF;
   paint_title();
@@ -766,7 +766,7 @@ void main(void) {
 
   for (;;) {
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: button 1 = 1P, button 2 = 2P versus ── */
+      /* ── GAME LOGIC (clay) - title: button 1 = 1P, button 2 = 2P versus ── */
       wait_vblank();
       sfx_update();
       music_update();
@@ -782,7 +782,7 @@ void main(void) {
     if (state == ST_OVER) {
       /* Freeze the boards; button 1 or 2 returns to the title. */
       wait_vblank();
-      if (over_step) {                 /* deferred draws — one per vblank */
+      if (over_step) {                 /* deferred draws - one per vblank */
         if (over_step == 4)
           text_draw(8, 11, two_player ? (loser ? "P1 WINS" : "P2 WINS") : "GAME OVER");
         else if (over_step == 3) { text_draw(11, 9, "P1"); draw_u16(11, 13, score[0]); }
@@ -811,12 +811,12 @@ void main(void) {
      *
      * BUDGET FOOTGUN (inherited from the shmup, which found it the hard way):
      * everything between wait_vblank() and wait_split() must finish before the
-     * line IRQ at line 23 — vblank (70 lines) + the HUD strip (23) ≈ 21k
+     * line IRQ at line 23 - vblank (70 lines) + the HUD strip (23) ≈ 21k
      * cycles. The SAT upload eats ~7k of that. An unconditional HUD redraw (10
      * software 16-bit divisions for the digits) blows the budget when it lands
      * the SAME frame as a 72-cell well repaint. So we GATE both behind dirty
-     * flags — HUD redraws only when the score/level changed, wells repaint
-     * only when a lock/clear dirtied them — and they rarely coincide. */
+     * flags - HUD redraws only when the score/level changed, wells repaint
+     * only when a lock/clear dirtied them - and they rarely coincide. */
     wait_vblank();
     sms_sat_upload();                /* shadow SAT staged at end of last frame */
     if (board_dirty[0]) { board_dirty[0] = 0; repaint_well(0); }
@@ -824,15 +824,15 @@ void main(void) {
     if (hud_dirty) { hud_dirty = 0; draw_hud(); }
     sfx_update();
     music_update();
-    wait_split();                    /* the line-interrupt split — every frame */
+    wait_split();                    /* the line-interrupt split - every frame */
 
-    /* ── GAME LOGIC (clay — reshape freely) — both players update EVERY frame
+    /* ── GAME LOGIC (clay - reshape freely) - both players update EVERY frame
      * (simultaneous versus, not alternating turns). Any update can end the
      * game, so re-check state between them. */
     update_player(0);
     if (two_player && state == ST_PLAY) update_player(1);
 
-    /* Stage the SAT shadow NOW (RAM only — cheap, any time); the actual VRAM
+    /* Stage the SAT shadow NOW (RAM only - cheap, any time); the actual VRAM
      * upload waits for the next vblank at the top of the loop. */
     stage_sprites();
   }

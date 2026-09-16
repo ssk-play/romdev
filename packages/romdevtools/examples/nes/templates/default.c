@@ -1,17 +1,17 @@
-/* ── default.c — minimal NES starter ────────────────────────────
+/* ── default.c - minimal NES starter ────────────────────────────
  *
  * A "hello, it works!" screen: a tiled background band + a bouncing
  * sprite, so the very first build shows recognizable content (not a
  * flat color). Smallest starting point when you're not yet sure what
- * you want to build — edit from here.
+ * you want to build - edit from here.
  *
  * For something more game-shaped:
- *   - hello_sprite — sprite + d-pad movement
- *   - tile_engine  — 32×30 nametable + rooms + door transitions
- *   - scaffold({op:'game', genre:'shmup'|'platformer'|...}) — full genres
+ *   - hello_sprite - sprite + d-pad movement
+ *   - tile_engine  - 32×30 nametable + rooms + door transitions
+ *   - scaffold({op:'game', genre:'shmup'|'platformer'|...}) - full genres
  *
  * NES uses CHR-RAM here, so we upload our tile graphics at boot before
- * turning rendering on (an empty CHR-RAM = a blank screen — the #1 NES
+ * turning rendering on (an empty CHR-RAM = a blank screen - the #1 NES
  * "why is it black" footgun; see TROUBLESHOOTING.md).
  */
 
@@ -21,10 +21,10 @@
  * 8 bytes each). Tile 1 = a solid filled block (color 1). Tile 2 = a simple
  * face/box so the sprite reads as an object. */
 static const uint8_t tiles[32] = {
-  /* tile 1 — solid block: plane0 all-on, plane1 all-off → every pixel color 1 */
+  /* tile 1 - solid block: plane0 all-on, plane1 all-off → every pixel color 1 */
   0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-  /* tile 2 — sprite: a filled diamond/box (color 1 outline + fill) */
+  /* tile 2 - sprite: a filled diamond/box (color 1 outline + fill) */
   0x18,0x3C,0x7E,0xFF,0xFF,0x7E,0x3C,0x18,
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
@@ -50,7 +50,7 @@ void main(void) {
 
   ppu_off();
   /* The runtime's default PPUCTRL puts SPRITES at pattern table $0000 and the
-   * BACKGROUND at $1000 — two separate 4KB tables. So upload the block tile to
+   * BACKGROUND at $1000 - two separate 4KB tables. So upload the block tile to
    * the BG table ($1000, slot 1 → $1010) AND the sprite tile to the sprite
    * table ($0000, slot 2 → $0020). (Uploading only to $0000 = invisible BG, the
    * classic "my tiles are in the wrong pattern table" NES gotcha.) */

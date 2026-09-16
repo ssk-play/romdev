@@ -1,46 +1,46 @@
-/* ── platformer.c — Atari Lynx side-scrolling platformer (complete example) ───
+/* ── platformer.c - Atari Lynx side-scrolling platformer (complete example) ───
  *
- * A COMPLETE, working game — title screen, lives + score, in-session
+ * A COMPLETE, working game - title screen, lives + score, in-session
  * hi-score, MIKEY music + SFX, gravity/jump physics, one-way platforms,
  * pits, spikes, coins, a scrolling level, AND the Lynx's signature party
  * trick: HARDWARE SPRITE SCALING. The hero is a Suzy-scaled sprite, and
  * collectible GEMS breathe (pulse big↔small) every frame purely by
- * rewriting two 8.8 fixed-point fields in a Sprite Control Block — no CPU
+ * rewriting two 8.8 fixed-point fields in a Sprite Control Block - no CPU
  * pixel work at all. That pulse is the bait: the bigger the gem reads, the
  * easier it is to grab, and the hardware does every frame of the animation.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented Lynx footgun;
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented Lynx footgun;
  *     reshape your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — level layout, physics tuning, scoring, art: reshape
+ *   GAME LOGIC (clay) - level layout, physics tuning, scoring, art: reshape
  *     freely.
  *
  * What depends on what:
- *   lynx_sfx.{h,c} — MIKEY 4-voice audio (voice 0 = jump/coin SFX, voice 1 =
+ *   lynx_sfx.{h,c} - MIKEY 4-voice audio (voice 0 = jump/coin SFX, voice 1 =
  *     background melody, voice 2 = land/hurt SFX, voice 3 = noise/death).
- *   vendor/cc65/libsrc/lynx/ — the FULL cc65 Lynx driver source shipped into
+ *   vendor/cc65/libsrc/lynx/ - the FULL cc65 Lynx driver source shipped into
  *     your project. The TGI driver (tgi/lynx-160-102-16.s) is REQUIRED
  *     reading when graphics misbehave: every TGI call is itself a Suzy
  *     sprite, and our scaled sprites ride the same engine via tgi_ioctl(0).
  *
- * SCROLLING ON THE LYNX (read this — it is the platform's biggest "where's
+ * SCROLLING ON THE LYNX (read this - it is the platform's biggest "where's
  *   the hardware feature?" surprise): the Lynx has NO hardware tilemap and NO
  *   background scroll register. Suzy is a SPRITE BLITTER, not a tile engine.
  *   So we scroll the level the honest way: keep a software camera (cam_x) and
  *   REDRAW the visible slice of the world every frame, painting each ground/
  *   platform column at its on-screen position (world_x - cam_x). The full-
- *   redraw TGI loop (below) makes that cheap enough — the whole 160-px window
+ *   redraw TGI loop (below) makes that cheap enough - the whole 160-px window
  *   is a handful of tgi_bar fills. The camera is one-way (never scrolls back),
  *   the classic runner camera. See draw_level().
  *
- * PLAYERS: 1. This is a handheld — multiplayer on real hardware is ComLynx,
+ * PLAYERS: 1. This is a handheld - multiplayer on real hardware is ComLynx,
  *   a cable between TWO Lynx units. A single emulator instance has nobody on
  *   the other end of the cable, so this example is honestly single-player
  *   (no fake "P2" that could never work).
  *
  * SCREEN: 160x102. The system font is 8x8, so a full row of text is 20
- *   characters — keep the HUD line short and the layout compact.
+ *   characters - keep the HUD line short and the layout compact.
  */
 
 #include <tgi.h>
@@ -49,11 +49,11 @@
 #include <stdint.h>
 #include "lynx_sfx.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it <=16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "RIDGE ROMP"
 
-/* ── GAME LOGIC (clay — reshape freely) — screen + world geometry ─────────── */
+/* ── GAME LOGIC (clay - reshape freely) - screen + world geometry ─────────── */
 #define SCRW         160
 #define SCRH         102
 #define HUD_H        9                  /* HUD bar height (keep it compact)   */
@@ -61,10 +61,10 @@
 #define PLAYER_W     8                  /* art is 8x8; SCALE keeps that 1:1   */
 
 /* The level is a column map, 8 px per column. world_x of column c = c*8.
- *   ground_y[c] — screen-Y of the ground surface, 0xFF = pit (no floor).
- *   plat_y[c]   — screen-Y of a one-way floating platform, 0 = none.
+ *   ground_y[c] - screen-Y of the ground surface, 0xFF = pit (no floor).
+ *   plat_y[c]   - screen-Y of a one-way floating platform, 0 = none.
  * COL_COUNT columns × 8 px = the level length; the run loops when the camera
- * passes the end (we wrap cam_x back to 0 — the seam is a flat runway). */
+ * passes the end (we wrap cam_x back to 0 - the seam is a flat runway). */
 #define NO_GROUND 0xFF
 #define COL_COUNT 48                    /* 48 * 8 = 384 px of level           */
 static const uint8_t ground_y[COL_COUNT] = {
@@ -88,10 +88,10 @@ static const uint8_t plat_y[COL_COUNT] = {
   0, 0, 70, 70, 0, 0,
 };
 
-/* ── GAME LOGIC (clay) — physics tuning (all Q4.4: 16 = 1.0 px) ───────────── */
+/* ── GAME LOGIC (clay) - physics tuning (all Q4.4: 16 = 1.0 px) ───────────── */
 #define GRAVITY_Q44     6               /* +0.375 px/frame/frame              */
 #define JUMP_VEL_Q44 (-58)              /* launch vy → ~7 px apex, ~6 tiles   */
-#define MAX_VY_Q44     56               /* terminal fall = 3.5 px/frame —     *
+#define MAX_VY_Q44     56               /* terminal fall = 3.5 px/frame -     *
                                          * MUST stay under 4: the landing     *
                                          * window is 4 px (tunnelling else)   */
 #define MOVE_SPEED      2               /* px/frame walk + scroll speed       */
@@ -101,33 +101,33 @@ static const uint8_t plat_y[COL_COUNT] = {
 #define N_SPIKES        2
 #define N_GEMS          2               /* the SCALING collectibles           */
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * SUZY HARDWARE SPRITE SCALING — the Lynx signature. Suzy renders every
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * SUZY HARDWARE SPRITE SCALING - the Lynx signature. Suzy renders every
  * sprite through a Sprite Control Block (SCB) it walks in cart/work RAM.
  * Two SCB fields, HSIZE and VSIZE, are 8.8 fixed-point scale factors
  * ($0100 = 1.0): the SAME 8x8 source pixels render at any size, every
  * frame, for free. We use it three ways here:
  *   - the HERO renders at a fixed 1.0x via the SAME SCB path (so forking in
  *     a depth/power-up scale is a one-line change);
- *   - the GEMS breathe — HSIZE/VSIZE sweep 0.75x↔1.75x every frame, a pure
+ *   - the GEMS breathe - HSIZE/VSIZE sweep 0.75x↔1.75x every frame, a pure
  *     hardware animation that doubles as a difficulty tell (a fat gem is an
  *     easy grab, the collision box tracks the live hardware size);
- *   - it costs zero extra CPU vs. a fixed sprite — Suzy scales while it blits.
+ *   - it costs zero extra CPU vs. a fixed sprite - Suzy scales while it blits.
  *
  * The SCB, field by field (this is cc65's SCB_REHV_PAL from <_suzy.h>):
  *   sprctl0  bits 7-6 = bits per pixel (11 = 4bpp), bits 2-0 = sprite TYPE.
  *            TYPE_NORMAL (4) draws pens 1-15 and treats pen 0 as
- *            TRANSPARENT — that's how shaped sprites sit over the level.
+ *            TRANSPARENT - that's how shaped sprites sit over the level.
  *   sprctl1  bit 7 LITERAL (raw nybbles, no RLE) + bits 5-4 reload depth:
  *            REHV means "this SCB carries HPOS, VPOS, HSIZE, VSIZE". The
- *            reload bits ARE the struct layout — mismatch them and Suzy
+ *            reload bits ARE the struct layout - mismatch them and Suzy
  *            reads palette bytes as size words.
  *   sprcoll  $20 = NO_COLLIDE. Gameplay collision is done in C (in screen
  *            coordinates the collision buffer knows nothing about).
  *   next     pointer to the next SCB, 0 = end of chain (one blit per call).
  *   data     sprite pixel data (LITERAL 4bpp format below).
  *   hpos/vpos signed SCREEN position of the sprite's top-left corner.
- *   hsize/vsize 8.8 scale — THE party trick, rewritten per draw.
+ *   hsize/vsize 8.8 scale - THE party trick, rewritten per draw.
  *   penpal[8] 16 nybbles mapping pixel values 0-15 → palette pens.
  *
  * LITERAL 4bpp data format (hand-encodable): each sprite LINE is
@@ -135,7 +135,7 @@ static const uint8_t plat_y[COL_COUNT] = {
  * where offset = 1 + bytes of pixel data; a final offset of 0 ends the
  * sprite. 8 px @ 4bpp = 4 data bytes, so every line starts with 5.
  *
- * Drawing: tgi_sprite(&scb) → tgi_ioctl(0, &scb) — the TGI driver's
+ * Drawing: tgi_sprite(&scb) → tgi_ioctl(0, &scb) - the TGI driver's
  * documented escape hatch (see CONTROL in vendor/cc65/libsrc/lynx/tgi/
  * lynx-160-102-16.s). It points Suzy's SCBNEXT at your SCB, aims VIDBAS at
  * TGI's current DRAW page (so scaled sprites land in the same double-
@@ -143,7 +143,7 @@ static const uint8_t plat_y[COL_COUNT] = {
  * until SPRSYS reports the blit done.
  *
  * Requires: the cc65 crt0 Suzy init (already done before main()), and calls
- *   only between the tgi_busy() wait and tgi_updatedisplay() — i.e. while
+ *   only between the tgi_busy() wait and tgi_updatedisplay() - i.e. while
  *   TGI's draw buffer is the blit target. Draw order = paint order: level
  *   fills first, scaled sprites after, HUD text last.
  */
@@ -169,7 +169,7 @@ static void draw_scaled(unsigned char *data, int x, int y, unsigned scale) {
   tgi_sprite(&scb);
 }
 
-/* ── GAME LOGIC (clay) — 8x8 4bpp literal sprite art ────────────────────────
+/* ── GAME LOGIC (clay) - 8x8 4bpp literal sprite art ────────────────────────
  * Pens use the TGI default palette (cc65 lynx.h COLOR_* indices): 2 = red,
  * 9 = yellow, $D = blue, $E = light-blue, $F = white, 0 = transparent. Each
  * line: 5, then 4 nybble bytes; a final 0 byte ends the sprite. */
@@ -196,7 +196,7 @@ static unsigned char spr_gem[] = {
   0
 };
 
-/* ── GAME LOGIC (clay) — gem pulse (the SCALING signature) ──────────────────
+/* ── GAME LOGIC (clay) - gem pulse (the SCALING signature) ──────────────────
  * One shared phase drives every gem's HSIZE/VSIZE. The 8.8 scale sweeps
  * SCALE_MIN..SCALE_MAX and back; gem_scale() returns the current value and
  * gem_half() the matching on-screen half-width so the grab box tracks the
@@ -233,14 +233,14 @@ static uint8_t  dist_sub;              /* 64 px scrolled = +1 distance point */
 static uint8_t  hurt_timer;
 static uint8_t  prev_joy;
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static uint8_t state;
 static uint8_t over_new_hi;
 
-/* ── GAME LOGIC (clay) — Galois LFSR (taps $B8), period 255 ── */
+/* ── GAME LOGIC (clay) - Galois LFSR (taps $B8), period 255 ── */
 static uint8_t rng_state = 0x5A;
 static uint8_t rand8(void) {
   uint8_t lsb = (uint8_t)(rng_state & 1);
@@ -249,7 +249,7 @@ static uint8_t rand8(void) {
   return rng_state;
 }
 
-/* ── GAME LOGIC (clay) — score text (no sprintf: it drags in ~6KB) ── */
+/* ── GAME LOGIC (clay) - score text (no sprintf: it drags in ~6KB) ── */
 static char numbuf[6];
 static char *fmt5(unsigned v) {
   uint8_t i;
@@ -259,16 +259,16 @@ static char *fmt5(unsigned v) {
 }
 static uint8_t udist(uint8_t a, uint8_t b) { return a > b ? a - b : b - a; }
 
-/* ── GAME LOGIC (clay) — column-map lookups (world x → column) ──────────────
+/* ── GAME LOGIC (clay) - column-map lookups (world x → column) ──────────────
  * The level loops: world x wraps at COL_COUNT*8 so the run is endless. */
 #define LEVEL_LEN ((unsigned)COL_COUNT * 8u)
 static uint8_t col_of(unsigned wx) { return (uint8_t)((wx % LEVEL_LEN) >> 3); }
 
-/* ── GAME LOGIC (clay) — draw the scrolling level (SOFTWARE camera) ─────────
+/* ── GAME LOGIC (clay) - draw the scrolling level (SOFTWARE camera) ─────────
  * No hardware scroll on the Lynx (see header). We paint the visible window
  * column by column: for each on-screen column, look up the world column at
  * (cam_x + screenX) and fill its ground body + grass cap + any platform
- * slab. Per-column tgi_bar fills keep the code legible — the whole strip is
+ * slab. Per-column tgi_bar fills keep the code legible - the whole strip is
  * well under the frame budget. */
 static void draw_level(void) {
   int sx;
@@ -292,7 +292,7 @@ static void draw_level(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — shared scene painter (runs every frame) ────────────
+/* ── GAME LOGIC (clay) - shared scene painter (runs every frame) ────────────
  * Full-redraw, painter's order: sky, far parallax hills, HUD bar, then the
  * caller layers the level + sprites + text on top. Layered bands keep any
  * one colour comfortably under the render-health blank threshold. */
@@ -311,7 +311,7 @@ static void draw_scene(void) {
   tgi_bar(0, 0, SCRW - 1, HUD_H - 1);                 /* HUD bar             */
 }
 
-/* ── GAME LOGIC (clay) — place world objects across the level ── */
+/* ── GAME LOGIC (clay) - place world objects across the level ── */
 static void place_objects(void) {
   uint8_t i, c;
   for (i = 0; i < N_COINS; i++) {
@@ -337,7 +337,7 @@ static void place_objects(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_game(void) {
   px = 24;
   py_q44 = (int16_t)((GROUND_Y - PLAYER_W) << 4);
@@ -357,11 +357,11 @@ static void start_game(void) {
 static void game_over(void) {
   over_new_hi = 0;
   if (score > hiscore) {
-    /* ── In-session hi-score ONLY — and here's the honest why. Real Lynx
+    /* ── In-session hi-score ONLY - and here's the honest why. Real Lynx
      * carts persist via a 93Cxx serial EEPROM on the cart PCB (cc65 even
      * ships lynx_eeprom_read/write for it; see vendor/cc65/libsrc/lynx/
      * eeprom.s). PROBED: the bundled handy core emulates CEEPROM internally
-     * but its libretro build exposes NO save path — retro_get_memory(
+     * but its libretro build exposes NO save path - retro_get_memory(
      * SAVE_RAM) returns NULL/size 0, so nothing survives host.hardReset()
      * and a bit-banged round-trip reads back garbage under the WASM build.
      * Wiring the EEPROM to SAVE_RAM is a future core round; until then a
@@ -375,7 +375,7 @@ static void game_over(void) {
   state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay) — death + respawn at the run start ── */
+/* ── GAME LOGIC (clay) - death + respawn at the run start ── */
 static void lose_life(void) {
   sfx_noise(14);                    /* voice 3: splat */
   if (lives) lives--;
@@ -389,7 +389,7 @@ static void lose_life(void) {
   prev_joy = 0xFF;                  /* swallow held jump across the respawn */
 }
 
-/* ── GAME LOGIC (clay) — landing probe against the column map ───────────────
+/* ── GAME LOGIC (clay) - landing probe against the column map ───────────────
  * One-way platforms: only catch the player while FALLING through a narrow
  * 4-px window at a surface's top. Probe both columns under the 8-px-wide
  * feet so a foot half-off a ledge still lands. Returns the surface Y to snap
@@ -410,7 +410,7 @@ static uint8_t land_top(uint8_t feet) {
   return 0;
 }
 
-/* ── GAME LOGIC (clay) — per-state frames. Each runs INSIDE the canonical
+/* ── GAME LOGIC (clay) - per-state frames. Each runs INSIDE the canonical
  * loop below: scene already painted, tgi_updatedisplay not yet called. ── */
 
 static unsigned attract_cam;
@@ -418,7 +418,7 @@ static unsigned attract_cam;
 static void frame_title(uint8_t joy) {
   cam_x = attract_cam;                 /* attract: the level drifts by        */
   draw_level();
-  /* a lone breathing gem sells the scaling idiom on the title screen —
+  /* a lone breathing gem sells the scaling idiom on the title screen -
    * parked in a clear top-right zone (away from all the text) so the pulse
    * reads cleanly. */
   draw_scaled(spr_gem, 132, 14, gem_scale());
@@ -482,7 +482,7 @@ static void frame_play(uint8_t joy) {
     tgi_bar(s + 2, spikes[i].y - 2, s + 3, spikes[i].y + 5);
     tgi_bar(s + 4, spikes[i].y, s + 5, spikes[i].y + 5);
   }
-  /* gems — drawn via the SCALING SCB (pulse this frame's hardware size) */
+  /* gems - drawn via the SCALING SCB (pulse this frame's hardware size) */
   for (i = 0; i < N_GEMS; i++) {
     if (!gems[i].alive) continue;
     s = obj_sx(gems[i].wx); if (s < 0) continue;
@@ -595,23 +595,23 @@ void main(void) {
   hiscore = 0;
 
   for (;;) {
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-     * CANONICAL LYNX GAME LOOP — full-redraw every frame, in this order:
-     *   1. while (tgi_busy()) { }  — WAIT for the previous frame's page
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+     * CANONICAL LYNX GAME LOOP - full-redraw every frame, in this order:
+     *   1. while (tgi_busy()) { }  - WAIT for the previous frame's page
      *      flip. Skipping this is the #1 "Lynx screen stays blank" trap:
      *      drawing while the swap is pending loses the frame.
-     *   2. Repaint the WHOLE scene with tgi_bar fills — NOT tgi_clear()
+     *   2. Repaint the WHOLE scene with tgi_bar fills - NOT tgi_clear()
      *      (which can leave the framebuffer stale on this toolchain+
      *      emulator path). TGI double-buffers; the back buffer holds the
      *      frame from two flips ago, so partial redraws ghost. The SOFTWARE
      *      camera (header) means scrolling = redrawing the visible slice.
      *   3. Draw every object (every TGI call and every tgi_sprite() is a
      *      synchronous Suzy blit into the SAME draw page).
-     *   4. tgi_updatedisplay() — request the page flip at next VBL.
-     *   5. sfx_update() IMMEDIATELY after — MIKEY voice writes must land in
+     *   4. tgi_updatedisplay() - request the page flip at next VBL.
+     *   5. sfx_update() IMMEDIATELY after - MIKEY voice writes must land in
      *      vblank: handy reschedules its timer sweep on the spot when a
      *      voice CTL bit-3 write lands, and mid-frame that sweep can preempt
-     *      an in-flight Suzy blit and eat sprites (the R57 bug — history in
+     *      an in-flight Suzy blit and eat sprites (the R57 bug - history in
      *      lynx_sfx.c). sfx_tone()/sfx_noise() only STAGE; sfx_update() is
      *      the hardware flush. */
     while (tgi_busy()) { }

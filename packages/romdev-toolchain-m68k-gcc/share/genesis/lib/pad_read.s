@@ -1,4 +1,4 @@
-; Genesis — reading the 3-button controller with edge detection.
+; Genesis - reading the 3-button controller with edge detection.
 ;
 ; Genesis controllers connect via TWO I/O ports: $A10003 (port 1) and
 ; $A10005 (port 2). Each is a single byte, but the BITS you read depend
@@ -22,7 +22,7 @@
 ; pressed for sanity.
 ;
 ; **6-button pad** uses extra TH transitions to expose XYZ + Mode. Not
-; covered here — see Sega's official 6-button protocol doc. Most modern
+; covered here - see Sega's official 6-button protocol doc. Most modern
 ; homebrew supports 3-button and treats 6-button as "ignore extras."
 ;
 ; ** Important libretro gotcha: ** genesis_plus_gx (and most cores) read
@@ -46,7 +46,7 @@ PAD1_CTRL  equ $A10009
 ; (Low byte = TH=0 read; high byte = TH=1 read. Caller can mask out
 ; the bits they care about.)
 ;
-; The values are ACTIVE-HIGH after this routine — 1 = pressed.
+; The values are ACTIVE-HIGH after this routine - 1 = pressed.
 read_pad:
   movem.l d1/a0,-(sp)
   lea     PAD1_DATA,a0
@@ -67,8 +67,8 @@ read_pad:
   or.w    d1,d0
   ; --- mask off the unused bits (bits 2-3 in TH=0, bits 6-7) ---
   ; Mask: %0111001111110011 = $73F3. Layout below for review:
-  ;   high byte (TH=1 read): 0111 0011 = $73 — bits 14,12,11,9,8 used; 15,13,10 unused
-  ;   low  byte (TH=0 read): 1111 0011 = $F3 — bits 7,6,5,4,1,0 used; 3,2 unused
+  ;   high byte (TH=1 read): 0111 0011 = $73 - bits 14,12,11,9,8 used; 15,13,10 unused
+  ;   low  byte (TH=0 read): 1111 0011 = $F3 - bits 7,6,5,4,1,0 used; 3,2 unused
   and.w   #$73F3,d0
   movem.l (sp)+,d1/a0
   rts

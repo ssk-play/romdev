@@ -1,4 +1,4 @@
-// R45 — GB music_demo: hUGEDriver + sample song builds + actually plays.
+// R45 - GB music_demo: hUGEDriver + sample song builds + actually plays.
 //
 // What gets built:
 //   - examples/gb/templates/music_demo.c (player main)
@@ -47,7 +47,7 @@ test("R45 GB music_demo: hUGEDriver compiles + ROM builds", { timeout: 300000 },
   // 72-note table (upstream hUGE_note_table.inc has exactly this many entries).
   assert.match(driverC, /hUGE_note_table\[72\]/, "must ship the 72-entry GB note table");
 
-  // The main loop must call hUGE_dosound — that's what makes it a
+  // The main loop must call hUGE_dosound - that's what makes it a
   // music player rather than a silent ROM.
   assert.match(main, /hUGE_dosound\s*\(\)/, "music_demo must call hUGE_dosound() each frame");
   assert.match(main, /hUGE_init\s*\(/,      "music_demo must initialise the driver");

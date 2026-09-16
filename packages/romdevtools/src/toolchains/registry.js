@@ -1,4 +1,4 @@
-// Toolchain registry — the platform → toolchain bundling map.
+// Toolchain registry - the platform → toolchain bundling map.
 //
 // All v1 toolchains are bundled WASM, no install. The `source` field is a
 // reference for our build scripts; runtime resolution happens in the loader.

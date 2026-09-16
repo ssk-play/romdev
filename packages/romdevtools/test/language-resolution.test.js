@@ -17,7 +17,7 @@ int main() {
     return 0;
 }`;
 
-const ASM_SOURCE = `; Genesis asm — minimal
+const ASM_SOURCE = `; Genesis asm - minimal
     org $200
     dc.l 0x00FF0000
 reset:
@@ -36,7 +36,7 @@ test("genesis: omitted language + asm source → vasm68k (backward compatible)",
     `asm source must still route to vasm68k (got ${r.toolchain})`);
 });
 
-test("genesis: sourceName extension wins — main.c → gcc even if content is ambiguous", async () => {
+test("genesis: sourceName extension wins - main.c → gcc even if content is ambiguous", async () => {
   const r = await buildForPlatform({ platform: "genesis", source: "int x;", sourceName: "main.c" });
   assert.equal(r.toolchain, "m68k-elf-gcc");
 });
@@ -54,7 +54,7 @@ test("genesis: explicit language:'asm' is always honored, even on C-looking sour
 test("genesis: a /* */ inside an asm ; comment does NOT trip the C heuristic", async () => {
   // This is the exact false-positive that broke examples/genesis/main.s:
   // an asm doc-comment that embeds "buildSource({ source: /* this file */ })".
-  const asmWithBlockCommentProse = `; Hello — scaffold.\n; usage: buildSource({ source: /* this file */ });\n    org $200\n    nop`;
+  const asmWithBlockCommentProse = `; Hello - scaffold.\n; usage: buildSource({ source: /* this file */ });\n    org $200\n    nop`;
   const r = await buildForPlatform({ platform: "genesis", source: asmWithBlockCommentProse });
   assert.equal(r.toolchain, "vasm68k",
     "asm prose containing /* */ must NOT be misread as C");

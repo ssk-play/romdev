@@ -1,4 +1,4 @@
-// The playtest window must ALWAYS preserve the chosen aspect ratio — resizing
+// The playtest window must ALWAYS preserve the chosen aspect ratio - resizing
 // the window grows the letterbox/pillarbox bars, never stretches the image
 // off-aspect. These test the pure letterbox() math (the render loop reads the
 // window's live pixel size each frame and feeds it here).
@@ -28,7 +28,7 @@ test("letterbox keeps target aspect when the window is too TALL (letterbox)", ()
   assert.equal(dstX, 0);
 });
 
-test("aspect holds across a stretch — drawn ratio is identical at two window sizes", () => {
+test("aspect holds across a stretch - drawn ratio is identical at two window sizes", () => {
   const a = letterbox(640, 480, TV);
   const b = letterbox(1920, 700, TV); // user dragged the window much wider
   const ratioA = a.dstW / a.dstH;

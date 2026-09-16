@@ -1,39 +1,39 @@
-; ── shmup.asm — FLAK FRENZY — Atari 2600 gallery shooter (complete game) ─────
+; ── shmup.asm - FLAK FRENZY - Atari 2600 gallery shooter (complete game) ─────
 ;
-; A COMPLETE, working game — drawn title screen, a fixed/gallery shooter
+; A COMPLETE, working game - drawn title screen, a fixed/gallery shooter
 ; (your cannon vs a marching formation of replicated invaders), score +
 ; in-session hi-score, TIA sound effects + a title jingle, game-over with
 ; auto-return to the title, and the 2600's signature feature: THE WHOLE
-; MACHINE. There is no framebuffer, no tilemap, no OS — every visible
+; MACHINE. There is no framebuffer, no tilemap, no OS - every visible
 ; scanline below is composed live by racing the beam, and this file
 ; teaches the gallery-shooter's load-bearing TIA tricks while doing it:
 ;
-;   1. NUSIZ REPLICATION (the enemy formation) — ONE GRP1 write paints
+;   1. NUSIZ REPLICATION (the enemy formation) - ONE GRP1 write paints
 ;      THREE invaders. NUSIZ1 = %011 (three medium-spaced copies) is how
 ;      Space Invaders / Galaxian / Demon Attack drew a whole row of aliens
 ;      from a single 8-pixel sprite. This is the genre's defining idiom and
-;      the reason the 2600 is GOOD at this genre — playfield "barcode" bars
+;      the reason the 2600 is GOOD at this genre - playfield "barcode" bars
 ;      would read as stripes, not invaders. We replicate a 2x2 BLOCK of six
 ;      invaders by re-using P1 (GRP1) on a SECOND scanline band lower down.
-;   2. RESP/HMOVE BEAM POSITIONING (the SBC-#15 idiom) — there is no sprite
+;   2. RESP/HMOVE BEAM POSITIONING (the SBC-#15 idiom) - there is no sprite
 ;      X register; you strobe RESPx WHERE THE BEAM IS, then nudge ±7px with
 ;      HMOVE. Three objects (ship P0, formation P1, shot M0) positioned this
 ;      way each frame, inside the timed VBLANK window.
-;   3. TIA COLLISION LATCHES (the hit detect) — the TIA detects M0/P1 pixel
+;   3. TIA COLLISION LATCHES (the hit detect) - the TIA detects M0/P1 pixel
 ;      overlap in silicon as it draws; we read the latched result one frame
 ;      later, free, instead of doing AABB math. Clear it every frame (CXCLR)
 ;      or a stale hit scores phantom kills.
-;   4. TIM64T/INTIM FRAME TIMING — set the RIOT timer for VBLANK/overscan and
+;   4. TIM64T/INTIM FRAME TIMING - set the RIOT timer for VBLANK/overscan and
 ;      let it absorb however much the game logic costs, instead of hand-
 ;      counting WSYNCs (which rolls the picture the moment logic grows).
 ;
-; THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+; THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
 ; very different one. The markers tell you what's what:
-;   HARDWARE IDIOM (load-bearing) — cycle-counted / footgun-dodging code;
+;   HARDWARE IDIOM (load-bearing) - cycle-counted / footgun-dodging code;
 ;     reshape your gameplay around it (see TROUBLESHOOTING before changing).
-;   GAME LOGIC (clay) — movement, scoring, tuning, art: reshape freely.
+;   GAME LOGIC (clay) - movement, scoring, tuning, art: reshape freely.
 ;
-; GAME_TITLE: on the 2600 a title is DRAWN, not printed — there is no font
+; GAME_TITLE: on the 2600 a title is DRAWN, not printed - there is no font
 ; hardware. The FLAK/FRENZY banner bitmaps near the bottom of this file ARE
 ; the title; redraw them for your game (the comment above each table shows
 ; the 40-pixel artwork and the PF0/PF1/PF2 bit-order encoding).
@@ -46,18 +46,18 @@
 ;   Clear the whole formation to advance; let it reach your row and it's
 ;   game over. Your best SCORE this session is shown on the title screen.
 ;
-; PLAYERS — 1P, honest. The 2600 has two joystick ports, but this genre's
+; PLAYERS - 1P, honest. The 2600 has two joystick ports, but this genre's
 ; kernel is already spending its scanline budget on P0 (your ship), P1 with
 ; NUSIZ replication (the formation), and M0 (the shot). A second human ship
 ; would need its own positioned object competing for the SAME 76-cycle
-; lines the formation already fills — so like the arcade gallery shooters
+; lines the formation already fills - so like the arcade gallery shooters
 ; this descends from, FLAK FRENZY is single-player. (To add 2P alternating
-; TURNS instead — cheap, no extra kernel objects — keep a second score/lives
+; TURNS instead - cheap, no extra kernel objects - keep a second score/lives
 ; pair and swap on death; left as an exercise.)
 ;
 ; HI-SCORE HONESTY: real 2600 cartridges had NO battery, NO SRAM, NO
 ; persistence of any kind. The hi-score here lives in RIOT RAM ($A0) and
-; survives game → title cycles only WITHIN one power-on session — exactly
+; survives game → title cycles only WITHIN one power-on session - exactly
 ; like the arcade machines of the era. Power off and it is gone. Do not
 ; fake an EEPROM; state it honestly in your fork too.
 ;
@@ -99,7 +99,7 @@ AUDF0    = $17
 AUDF1    = $18
 AUDV0    = $19
 AUDV1    = $1A
-; ── TIA READ registers (separate read map — the same addresses as some
+; ── TIA READ registers (separate read map - the same addresses as some
 ; write strobes; e.g. CXM0P reads $00 while STA $00 strobes VSYNC) ──────
 CXM0P    = $00          ; bit7 = missile0 / player1 collision (latched)
 INPT4    = $0C          ; joystick 0 fire (bit7, ACTIVE LOW)
@@ -109,7 +109,7 @@ SWCHB    = $282         ; console: bit0 RESET, bit1 SELECT (ACTIVE LOW)
 INTIM    = $284         ; timer read
 TIM64T   = $296         ; timer set, 64-cycle ticks
 
-; ── Zero-page state (the 2600's ENTIRE RAM is $80-$FF — 128 bytes; in
+; ── Zero-page state (the 2600's ENTIRE RAM is $80-$FF - 128 bytes; in
 ; core memory dumps system_ram offset 0 = $80) ────────────────────────
 STATE     = $80         ; 0 = title, 1 = play, 2 = game over
 P_X       = $81         ; player cannon X column (visible 0..159)
@@ -139,7 +139,7 @@ WAVE      = $96         ; wave number (formation speeds up each wave)
 MARCH_PERIOD = $97      ; frames per march step (set per wave; speeds up)
 S0BUF     = $98         ; 6 rows: packed score digits for the kernel
 SCRATCH   = $9E         ; 6 bytes general kernel/packer scratch
-SCORE_HSV = $A4         ; SESSION hi-score (BCD low byte). RAM only — real
+SCORE_HSV = $A4         ; SESSION hi-score (BCD low byte). RAM only - real
 SCORE_HSH = $A5         ;   2600 carts have no battery; honest by design.
 HSBUF     = $A6         ; 6 rows: hi-score, packed
 
@@ -160,7 +160,7 @@ START:
 .clr:
   STA $00,X             ; clears ALL of $00-$FF: zero page RAM AND the TIA
   DEX                   ; write registers (GRP/ENAxx/HMxx/audio all silenced
-  BNE .clr              ; — the standard 2600 power-on hygiene)
+  BNE .clr              ; - the standard 2600 power-on hygiene)
 
   ; Fixed identity colors (the kernels rewrite COLUPF per band, but the
   ; object colors are constant all session).
@@ -168,7 +168,7 @@ START:
   STA COLUP0
   LDA #COL_FORM
   STA COLUP1
-  ; NUSIZ0: single-width cannon. NUSIZ1: THREE medium-spaced copies — the
+  ; NUSIZ0: single-width cannon. NUSIZ1: THREE medium-spaced copies - the
   ; gallery-shooter idiom. Set ONCE; persists every frame.
   LDA #%00000000
   STA NUSIZ0
@@ -178,14 +178,14 @@ START:
   JSR enter_title
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
 ; THE FRAME LOOP. 262 scanlines, every frame, forever. VBLANK and overscan
 ; are timed with the RIOT timer (TIM64T) instead of counted WSYNCs: set the
 ; timer, run however much game logic the state needs, then spin on INTIM.
 ; This is how shipped 2600 games did it, and it kills the classic homebrew
 ; bug class where adding one branch to the game logic emits a 263rd line
 ; and the TV loses vsync (rolling picture). The VISIBLE 192 lines are still
-; counted exactly — every STA WSYNC below is one scanline, and each state's
+; counted exactly - every STA WSYNC below is one scanline, and each state's
 ; kernel accounts for all 192.
 ; ──────────────────────────────────────────────────────────────────────
 MAIN:
@@ -210,7 +210,7 @@ MAIN:
   BNE .vbwait
   STA WSYNC
 
-  ; kernel dispatch — title has its own kernel; play and game-over share one
+  ; kernel dispatch - title has its own kernel; play and game-over share one
   LDA STATE
   BNE .ingame
   JMP title_kernel
@@ -231,13 +231,13 @@ kernel_done:
 
 ; ──────────────────────────────────────────────────────────────────────
 ; Per-frame logic, dispatched by state. Runs entirely inside the timed
-; VBLANK window (~2800 cycles — an eternity next to the kernel's 76/line).
+; VBLANK window (~2800 cycles - an eternity next to the kernel's 76/line).
 ; ──────────────────────────────────────────────────────────────────────
 frame_logic:
   INC FRAME
   JSR audio_tick
 
-  ; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  ; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
   ; Console RESET + fire button are ACTIVE LOW and not debounced; a held
   ; RESET would restart every frame. Convert to press-EDGES once per frame:
   ; edge = was-released-last-frame AND pressed-now.
@@ -270,7 +270,7 @@ frame_logic:
 logic_play_jmp:
   JMP logic_play
 
-; ── GAME LOGIC (clay — reshape freely) ── title-screen behavior ────────
+; ── GAME LOGIC (clay - reshape freely) ── title-screen behavior ────────
 logic_title:
   ; fire 0 or console RESET starts the game.
   LDA FIRE_EDG
@@ -283,7 +283,7 @@ logic_title:
   JMP start_game
 .packtitle:
   ; Pack the hi-score into the title's display buffer (the kernel just
-  ; streams bytes — all per-frame thinking happens HERE, in VBLANK, never
+  ; streams bytes - all per-frame thinking happens HERE, in VBLANK, never
   ; inside a kernel). Hi-score uses the high byte's tens digit + low byte's
   ; two digits = 3 visible digits, packed two-per-PF1-row like the score.
   LDA SCORE_HSV
@@ -303,7 +303,7 @@ logic_title:
   STA ENAM0
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── one frame of the shooter ─────
+; ── GAME LOGIC (clay - reshape freely) ── one frame of the shooter ─────
 logic_play:
   LDA EDGEB
   AND #$01              ; console RESET → back to title
@@ -311,10 +311,10 @@ logic_play:
   JMP enter_title
 .noquit:
 
-  ; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  ; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
   ; SWCHA is ACTIVE LOW (0 = pressed) and must be RE-LOADED for every
   ; direction check. The classic bug: caching it in A and chaining ASLs,
-  ; then clobbering A with game state between shifts — "right works once,
+  ; then clobbering A with game state between shifts - "right works once,
   ; left never moves". Fresh LDA SWCHA + AND #mask per check is immune.
   ; Joystick 0 lives in the HIGH nibble: bit7 right, bit6 left.
   LDA SWCHA
@@ -326,7 +326,7 @@ logic_play:
   INC P_X
   INC P_X
 .nr:
-  LDA SWCHA            ; RE-LOAD — never trust A to still hold SWCHA
+  LDA SWCHA            ; RE-LOAD - never trust A to still hold SWCHA
   AND #$40             ; joy0 left
   BNE .nl
   LDA P_X
@@ -366,14 +366,14 @@ logic_play:
   STA SHOT_Y           ; flew off the top → free the shot
 .noShotMove:
 
-  ; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-  ; Shot/invader collision via the TIA's hardware collision LATCH — the
+  ; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+  ; Shot/invader collision via the TIA's hardware collision LATCH - the
   ; 2600 detects M0/P1 pixel overlap in silicon while it draws; we read the
   ; latched result here, one frame late, for free (no AABB math). Rules:
-  ;   * latches accumulate until CXCLR — clear them EVERY frame, or a stale
+  ;   * latches accumulate until CXCLR - clear them EVERY frame, or a stale
   ;     hit scores a phantom kill long after the shot is gone;
   ;   * NUSIZ replication means P1 is THREE invaders + we draw two rows, so
-  ;     the latch only says "you hit SOME invader" — we map the shot's X/Y
+  ;     the latch only says "you hit SOME invader" - we map the shot's X/Y
   ;     to the specific cell to clear the right ALIVE bit.
   BIT CXM0P            ; bit7 (N flag) = M0/P1 overlapped last frame
   BPL .noHit
@@ -438,7 +438,7 @@ logic_play:
 .alive:
   JMP pack_score       ; render SCORE into the kernel's row buffer (tail-RTS)
 
-; ── GAME LOGIC (clay — reshape freely) ── game-over freeze-frame ───────
+; ── GAME LOGIC (clay - reshape freely) ── game-over freeze-frame ───────
 logic_over:
   LDA EDGEB
   AND #$01
@@ -456,9 +456,9 @@ logic_over:
   STA ENAM0
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── helpers ──────────────────────
+; ── GAME LOGIC (clay - reshape freely) ── helpers ──────────────────────
 
-; resolve_hit — a shot overlapped the formation. Figure out WHICH of the up
+; resolve_hit - a shot overlapped the formation. Figure out WHICH of the up
 ; to 6 cells (2 rows × 3 NUSIZ copies) the shot is inside, clear its ALIVE
 ; bit, score it, and free the shot. Cell columns are FORM_X + n*16.
 resolve_hit:
@@ -466,7 +466,7 @@ resolve_hit:
   LDA SHOT_Y
   CMP FORM_Y
   BCC .maybeBottom     ; shot Y below the top row's top
-  ; (shot at/above top row top — treat as top row)
+  ; (shot at/above top row top - treat as top row)
   LDX #0               ; row 0 → ALIVE bits 0..2
   JMP .findCol
 .maybeBottom:
@@ -609,10 +609,10 @@ digit_times6:           ; A = digit 0-9 → A = digit*6 (DIGITS row index)
   ASL                 ; *6
   RTS
 
-; pack_two_digits — A = a BCD byte (two digits). Writes 6 rows into SCRATCH,
+; pack_two_digits - A = a BCD byte (two digits). Writes 6 rows into SCRATCH,
 ; left digit (high nibble) in PF1 high nibble, right digit (low nibble) in
-; PF1 low nibble. In SCORE mode the byte draws twice (two colors) — the
-; classic dual-score look — but here both halves carry the SAME packed pair.
+; PF1 low nibble. In SCORE mode the byte draws twice (two colors) - the
+; classic dual-score look - but here both halves carry the SAME packed pair.
 pack_two_digits:
   PHA
   LSR
@@ -660,7 +660,7 @@ pack_score:             ; render the low two SCORE digits into S0BUF
   BNE .pks
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── TIA sound ────────────────────
+; ── GAME LOGIC (clay - reshape freely) ── TIA sound ────────────────────
 ; Voice 0 = one-shot sound effects; voice 1 = the jingle player. Keeping
 ; them on separate voices means a pew blip never cuts the tune off.
 sfx_play:               ; A = AUDF pitch, X = AUDC waveform, Y = frames
@@ -723,8 +723,8 @@ audio_tick:             ; called once per frame, every state
   RTS
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-; OBJECT POSITIONING — the canonical SBC-#15 beam-race. There is no "X
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+; OBJECT POSITIONING - the canonical SBC-#15 beam-race. There is no "X
 ; register" for sprites: you strobe RESPx/RESM0 and the object lands
 ; WHEREVER THE BEAM IS. Each SBC/BCS lap is 5 CPU cycles = 15 beam pixels,
 ; so when the subtraction underflows the beam has crossed x/15 coarse
@@ -780,12 +780,12 @@ position_objects:
   RTS                   ; come fresh after a WSYNC (mid-line HMOVE combs)
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-; THE PLAY/GAME-OVER KERNEL — 192 visible lines, fully accounted:
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+; THE PLAY/GAME-OVER KERNEL - 192 visible lines, fully accounted:
 ;   24 = score bar  +  168 = playfield (formation + ship + shot)
 ;
 ; SCORE BAR (SCORE mode): CTRLPF = $02 colors the LEFT playfield half with
-; COLUP0 and the RIGHT half with COLUP1 — a two-color scoreboard with zero
+; COLUP0 and the RIGHT half with COLUP1 - a two-color scoreboard with zero
 ; sprites. We stream the packed score digits into PF1, one row of font per
 ; 4 scanlines.
 ;
@@ -795,7 +795,7 @@ position_objects:
 ;     formation bands (top row at FORM_Y, bottom row 16 lines lower). NUSIZ1
 ;     replication means this ONE store paints all three columns of that row.
 ;     ALIVE-bit masking blanks killed columns by zeroing the relevant copy
-;     — done by swapping GRP1 to a per-column-masked byte (kept simple: a
+;     - done by swapping GRP1 to a per-column-masked byte (kept simple: a
 ;     dead WHOLE row blanks; partial columns rely on the collision-cleared
 ;     bit + the player seeing the gap as the block marches).
 ;   * GRP0 = the cannon bitmap row IF this Y is in the cannon band.
@@ -842,7 +842,7 @@ play_kernel:
   ; a STATIC star-lane backdrop. CTRLPF bit0 (reflect) mirrors the 20-pixel
   ; playfield into a symmetric 40-pixel field of dim vertical star lanes; set
   ; PF0/PF1/PF2 ONCE here (registers persist every line) so the starfield
-  ; costs ZERO per-line cycles — the one-line kernel below stays inside 76.
+  ; costs ZERO per-line cycles - the one-line kernel below stays inside 76.
   STA WSYNC
   LDA #$01
   STA CTRLPF           ; reflect mode: symmetric star lanes
@@ -947,12 +947,12 @@ play_kernel:
   JMP kernel_done
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-; THE TITLE KERNEL — 192 lines, banded:
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+; THE TITLE KERNEL - 192 lines, banded:
 ;   24 blank + 28 banner "FLAK" + 8 gap + 28 banner "FRENZY" + 16 gap +
 ;   24 hi-score + remainder pad = 192
 ;
-; The banner is an ASYMMETRIC PLAYFIELD — the 2600's only way to draw
+; The banner is an ASYMMETRIC PLAYFIELD - the 2600's only way to draw
 ; full-width artwork. The playfield registers hold just 20 pixels; the TIA
 ; replays them for the right half of the line (CTRLPF bit0 chooses repeat
 ; or mirror). For 40 INDEPENDENT pixels you rewrite all three registers
@@ -961,7 +961,7 @@ play_kernel:
 ;   PF0 again after cycle ~28 (left copy drawn) before ~49 (right copy reads)
 ;   PF1 again after cycle ~39                   before ~54
 ;   PF2 again after cycle ~50                   before ~65
-; The code below hits those windows by instruction order alone — count
+; The code below hits those windows by instruction order alone - count
 ; cycles before you reorder ANYTHING between the WSYNC and the last STA.
 ; REQUIRES: CTRLPF bit0 = 0 (repeat mode). In mirror mode the right half
 ; reads the registers in REVERSE order and every window above is wrong.
@@ -976,7 +976,7 @@ title_kernel:
   STA GRP0
   STA GRP1
   STA ENAM0
-  STA CTRLPF           ; REPEAT mode — required by the banner (see above)
+  STA CTRLPF           ; REPEAT mode - required by the banner (see above)
   STA VBLANK           ; beam on
 
   LDX #24              ; band 1: 24 blank lines
@@ -1065,7 +1065,7 @@ title_kernel:
 
   ; band 6: hi-score, 24 lines (6 rows × 4). Packed digits stream into PF1;
   ; SCORE mode draws them twice in the two player colors. In-session best;
-  ; honest: there is no battery — gone at power-off, like the arcades.
+  ; honest: there is no battery - gone at power-off, like the arcades.
   LDX #0
 .hsb:
   STA WSYNC
@@ -1091,12 +1091,12 @@ title_kernel:
   JMP kernel_done
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── GAME LOGIC (clay — reshape freely) ── data tables ──────────────────
+; ── GAME LOGIC (clay - reshape freely) ── data tables ──────────────────
 BITMASK:
   .byte $01,$02,$04,$08,$10,$20
 
 ; Digit font: 4 pixels wide × 6 rows, stored in the HIGH nibble (PF1 bit7
-; is the LEFTMOST pixel of the left playfield half — high nibble = left).
+; is the LEFTMOST pixel of the left playfield half - high nibble = left).
 DIGITS:
   .byte $60,$90,$90,$90,$90,$60   ; 0
   .byte $20,$60,$20,$20,$20,$70   ; 1
@@ -1109,7 +1109,7 @@ DIGITS:
   .byte $60,$90,$60,$90,$90,$60   ; 8
   .byte $60,$90,$90,$70,$10,$60   ; 9
 
-; Title jingle (voice 1, AUDC $04 square; AUDF divider — LOWER = higher
+; Title jingle (voice 1, AUDC $04 square; AUDF divider - LOWER = higher
 ; pitch; 10 frames per note; $FF terminates). The table IS the song.
 TITLE_TUNE:
   .byte $17,$13,$0F,$0C,$0F,$0C,$09,$0C,$FF
@@ -1119,7 +1119,7 @@ OVER_TUNE:
 
 ; ── THE INVADER SPRITE ────────────────────────────────────────────────
 ; 8 rows, drawn via P1 with NUSIZ1=%011 so it hardware-replicates into 3
-; medium-spaced invaders from ONE GRP1 write — the genre's defining trick.
+; medium-spaced invaders from ONE GRP1 write - the genre's defining trick.
 FORM:
   .byte %00100100
   .byte %00111100
@@ -1144,7 +1144,7 @@ SHIP:
 ; ── THE TITLE BANNER ──────────────────────────────────────────────────
 ; 40-pixel-wide artwork, 7 rows per word, drawn by the asymmetric-playfield
 ; kernel above. Each row is six bytes across six tables (left PF0/PF1/PF2,
-; right PF0/PF1/PF2). PF bit order is the 2600's great prank — three
+; right PF0/PF1/PF2). PF bit order is the 2600's great prank - three
 ; registers, three different orders:
 ;   PF0: only bits 4-7 used, bit 4 = LEFTMOST pixel   (reversed)
 ;   PF1: bit 7 = leftmost                              (normal)

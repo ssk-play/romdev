@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.XGMSample — fixed-rate (13.3/6.65 KHz) XGM sample, 64-byte aligned.
+// Port of sgdk.xgm2tool.format.XGMSample - fixed-rate (13.3/6.65 KHz) XGM sample, 64-byte aligned.
 
 import { resamplePcm8 } from "./util.js";
 
@@ -24,7 +24,7 @@ export class XGMSample {
   static verbose = false;
 
   // XGM fixed sample rates (package-private in Java; exposed as static here so
-  // sibling ports — e.g. vgm.js — can reference XGMSample.XGM_FULL_RATE/HALF_RATE).
+  // sibling ports - e.g. vgm.js - can reference XGMSample.XGM_FULL_RATE/HALF_RATE).
   static XGM_FULL_RATE = XGM_FULL_RATE;
   static XGM_HALF_RATE = XGM_HALF_RATE;
 
@@ -102,7 +102,7 @@ export class XGMSample {
       throw new Error("XGMSample.sampleAdvancedCompare is not supported in the JS port");
     }
 
-    // simple sample compare (exact match) — compare the first minSize bytes.
+    // simple sample compare (exact match) - compare the first minSize bytes.
     for (let i = 0; i < minSize; i++) {
       if ((this.data[i] & 0xff) !== (originSample.data[i] & 0xff)) return 0;
     }

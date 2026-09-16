@@ -6,7 +6,7 @@ import {
 import { WasmcartHost } from "../../host/WasmcartHost.js";
 import { JsGameHost } from "../../host/JsGameHost.js";
 
-// Native-runtime platforms don't use a libretro core — they run a native WASM/JS
+// Native-runtime platforms don't use a libretro core - they run a native WASM/JS
 // game module in-process. loadMedia builds the matching host and installs it.
 const NATIVE_RUNTIME_HOSTS = {
   wasmcart: () => new WasmcartHost(),
@@ -36,7 +36,7 @@ export function registerLifecycleTools(server, z, sessionKey) {
     if (!path && !base64) throw new Error("loadMedia: provide either `path` (file on disk) or `base64` (ROM bytes).");
     if (path && base64) throw new Error("loadMedia: provide `path` OR `base64`, not both.");
     if (deterministicSeed !== undefined && !NATIVE_RUNTIME_HOSTS[platform]) {
-      throw new Error("deterministicSeed is a wasmcart option (seeded replay via wc_set_seed). Emulator cores are already deterministic from power-on — just replay the same input script.");
+      throw new Error("deterministicSeed is a wasmcart option (seeded replay via wc_set_seed). Emulator cores are already deterministic from power-on - just replay the same input script.");
     }
 
     // Native-runtime kinds (wasmcart, jsgame) bypass the libretro core path: build
@@ -102,7 +102,7 @@ export function registerLifecycleTools(server, z, sessionKey) {
       ...(coreOptions ? { coreOptions } : {}),
     });
 
-    // Pre-seed cheats BEFORE the first frame — so a boot-time cheat (e.g. a Game
+    // Pre-seed cheats BEFORE the first frame - so a boot-time cheat (e.g. a Game
     // Genie code that changes a value the reset code reads) is in effect from
     // frame 0. Raw ROM codes are re-encoded to a read-intercept (same as
     // applyCheat) so they don't silently no-op. Applied only if the core has the
@@ -124,7 +124,7 @@ export function registerLifecycleTools(server, z, sessionKey) {
     }
     // Remember what we loaded so a later host eviction (restart/reconnect) can
     // tell the agent the exact loadMedia call to recover with. Survives reset.
-    // Only for slot A — the breadcrumb is the primary ROM's recovery anchor;
+    // Only for slot A - the breadcrumb is the primary ROM's recovery anchor;
     // slot B is disposable comparison scratch and must not clobber it.
     if (!slotB) {
       rememberLastMedia(sessionKey, {
@@ -141,7 +141,7 @@ export function registerLifecycleTools(server, z, sessionKey) {
     // presentation, so a bezel there would composite a picture nothing displays.
     let activeBezel;
     if (useActiveBezel || activeBezelPath) {
-      if (slotB) throw new Error("Active Bezels are not supported on slot 'b' — it is comparison scratch and never drives the presented frame.");
+      if (slotB) throw new Error("Active Bezels are not supported on slot 'b' - it is comparison scratch and never drives the presented frame.");
       const romBytes = bytes ?? new Uint8Array(await readFile(host.status.mediaPath ?? path));
       await attachActiveBezel(sessionKey, host, {
         packagePath: activeBezelPath,
@@ -161,7 +161,7 @@ export function registerLifecycleTools(server, z, sessionKey) {
     }
 
     // Framebuffer dimensions are NOT known until the core has run at least one
-    // frame — before that, fbWidth/fbHeight hold a pre-boot default (e.g.
+    // frame - before that, fbWidth/fbHeight hold a pre-boot default (e.g.
     // 256×192 on Genesis) that does NOT match the real output resolution
     // (256×224 after booting). Reporting it here misleads any agent that routes
     // on dimensions, so we omit it until a frame has been stepped and point the
@@ -170,7 +170,7 @@ export function registerLifecycleTools(server, z, sessionKey) {
     // SETTLE FRAMES ARE REAL EXECUTION. loadMedia runs the core until it emits
     // its first video_refresh plus a few more (so framebuffer geometry is the
     // ROM's, not a pre-init default), and deliberately does NOT count them in
-    // frameCount — "the first stepFrames(N) advances the count by exactly N".
+    // frameCount - "the first stepFrames(N) advances the count by exactly N".
     //
     // The cost of that is a frameCount of 0 that does NOT mean "nothing has
     // executed": the game's boot code has already run and written RAM. A client
@@ -190,12 +190,12 @@ export function registerLifecycleTools(server, z, sessionKey) {
       ...(settleFrames > 0 ? { settleFrames, settleNote: `The core ran ${settleFrames} warm-up frames during load to resolve real framebuffer geometry. They are NOT counted in frameCount (which stays 0 so your first stepFrames(N) advances it by exactly N), but they ARE real execution: the game's boot code has run and written RAM. Memory read now is post-boot state, not hardware power-on state.` } : {}),
       ...(framebufferKnown
         ? { framebuffer: { width: host.status.fbWidth, height: host.status.fbHeight } }
-        : { framebufferNote: "Framebuffer dimensions are unknown until the core runs — call stepFrames first, then getStatus (the pre-boot default does not match the real output resolution)." }),
+        : { framebufferNote: "Framebuffer dimensions are unknown until the core runs - call stepFrames first, then getStatus (the pre-boot default does not match the real output resolution)." }),
       ...(appliedCheats ? { cheats: appliedCheats } : {}),
       ...(activeBezel ? { activeBezel } : {}),
     });
     // Livestream: only slot A drives the human's view (the session's main ROM).
-    // Slot B is comparison scratch — surfacing it would flip the livestream
+    // Slot B is comparison scratch - surfacing it would flip the livestream
     // back and forth between two ROMs. frame({op:'sideBySide'}) is what shows B.
     if (slotB) return payload;
     return attachObserverFrame(payload, host, `loaded ${host.status.mediaPath ? host.status.mediaPath.split("/").pop() : platform}`);
@@ -203,14 +203,14 @@ export function registerLifecycleTools(server, z, sessionKey) {
 
   server.tool(
     "loadMedia",
-    "Load a ROM/disk/tape/program into a fresh host — resolves the libretro core automatically. " +
-    "Pass `path` (file on disk) OR `base64` (ROM bytes — e.g. straight from buildSource, no disk write, " +
+    "Load a ROM/disk/tape/program into a fresh host - resolves the libretro core automatically. " +
+    "Pass `path` (file on disk) OR `base64` (ROM bytes - e.g. straight from buildSource, no disk write, " +
     "for a fast iteration loop). `cheats` apply BEFORE the first frame (one call instead of loadMedia + " +
     "applyCheat), so a boot-time code that changes a value the reset code reads is in effect from frame 0. " +
     "`slot:'b'` loads into the SECONDARY comparison host (a different platform is fine) so two cores can run " +
-    "at once for frame({op:'sideBySide'}) — the original-vs-port compare loop; slot B does not affect slot A " +
+    "at once for frame({op:'sideBySide'}) - the original-vs-port compare loop; slot B does not affect slot A " +
     "or the livestream. " +
-    "NOTE: framebuffer dimensions are omitted until you stepFrames — the pre-boot default does not match the " +
+    "NOTE: framebuffer dimensions are omitted until you stepFrames - the pre-boot default does not match the " +
     "real output resolution.",
     {
       platform: z.string().describe("Platform id (e.g. 'nes', 'gb', 'c64'). Use listPlatforms() to discover."),
@@ -219,14 +219,14 @@ export function registerLifecycleTools(server, z, sessionKey) {
       mediaKind: z.enum(MEDIA_KINDS).optional().describe("Default 'cartridge' for consoles, 'program' for C64."),
       virtualName: z.string().optional().describe("With `base64`: virtual filename shown to cores that fopen() the path (default '/rom')."),
       cheats: z.array(z.string()).max(64).optional().describe("Codes applied before the first frame (Game Genie / raw ADDR:VAL[:COMPARE] / native device codes). A raw ROM-address code is re-encoded to a read-intercept so it doesn't silently no-op. Returns a per-code `cheats:[{code, appliedAs, applied}]` report."),
-      slot: z.enum(["a", "b"]).default("a").describe("'a' (default) = the session's primary host (what every other tool uses). 'b' = the secondary comparison host used by frame({op:'sideBySide'}); load the second ROM here. Slot B is independent scratch — it keeps no recovery breadcrumb and never drives the livestream."),
-      useActiveBezel: z.boolean().default(false).describe("Load the same-basename Active Bezel sidecar beside the ROM ('Game.nes' -> 'Game.ab') and run it after every core frame, making the COMPOSITE the default presented/captured picture. An Active Bezel is an executable companion that reads the core's live memory and renders the whole scene — a map, a HUD, reconstructed world graphics — around or over the game. Fails loudly if no sidecar exists rather than quietly loading the ROM alone. Default false: omit it and loadMedia behaves exactly as it always has."),
-      activeBezelPath: z.string().optional().describe("Explicit package path (a .ab archive OR an unpacked directory), overriding same-basename discovery. This is a DEVELOPMENT override for iterating on a package that doesn't live beside the ROM yet — ordinary use should rely on discovery."),
+      slot: z.enum(["a", "b"]).default("a").describe("'a' (default) = the session's primary host (what every other tool uses). 'b' = the secondary comparison host used by frame({op:'sideBySide'}); load the second ROM here. Slot B is independent scratch - it keeps no recovery breadcrumb and never drives the livestream."),
+      useActiveBezel: z.boolean().default(false).describe("Load the same-basename Active Bezel sidecar beside the ROM ('Game.nes' -> 'Game.ab') and run it after every core frame, making the COMPOSITE the default presented/captured picture. An Active Bezel is an executable companion that reads the core's live memory and renders the whole scene - a map, a HUD, reconstructed world graphics - around or over the game. Fails loudly if no sidecar exists rather than quietly loading the ROM alone. Default false: omit it and loadMedia behaves exactly as it always has."),
+      activeBezelPath: z.string().optional().describe("Explicit package path (a .ab archive OR an unpacked directory), overriding same-basename discovery. This is a DEVELOPMENT override for iterating on a package that doesn't live beside the ROM yet - ordinary use should rely on discovery."),
       activeBezelConfig: z.record(z.string(), z.any()).optional().describe("Per-package settings, validated against the manifest's settings schema (e.g. {show_map:true})."),
-      activeBezelForce: z.boolean().default(false).describe("Load the package even when the ROM hash does not match what it declares support for. The composite may be meaningless — a map keyed to another revision's RAM layout draws confidently wrong things — so this is for development, not for trusting the output."),
-      activeBezelRenderer: z.enum(["software", "gpu"]).optional().describe("Force the compositor. Default: GPU when the package requests it and a GL context is available, else the CPU compositor. 'software' pins the CPU path, which is fully featured and deterministic — the right choice for golden-frame comparisons."),
-      deterministicSeed: z.number().int().min(0).optional().describe("wasmcart only: load as a DETERMINISTIC REPLAY — fixed virtual clock + this u32 RNG seed delivered to the cart's wc_set_seed before init. Same seed + same input script = an identical frame sequence (airtight frameHash regression goldens). Only meaningful for carts that declare WC_FLAG_DETERMINISTIC (check capabilities.hasDeterministic after load); other carts get the fixed clock but keep their own entropy."),
-      coreOptions: z.record(z.string(), z.string()).optional().describe("Libretro core options applied before the ROM loads, overriding the core's defaults (e.g. {\"snes9x_layer_3\":\"disabled\"} hides a layer at the RENDERER so an Active Bezel can own it — game state and VRAM are untouched). Keys/values are core-specific and unvalidated: a wrong key is silently ignored by the core, so verify the effect visually."),
+      activeBezelForce: z.boolean().default(false).describe("Load the package even when the ROM hash does not match what it declares support for. The composite may be meaningless - a map keyed to another revision's RAM layout draws confidently wrong things - so this is for development, not for trusting the output."),
+      activeBezelRenderer: z.enum(["software", "gpu"]).optional().describe("Force the compositor. Default: GPU when the package requests it and a GL context is available, else the CPU compositor. 'software' pins the CPU path, which is fully featured and deterministic - the right choice for golden-frame comparisons."),
+      deterministicSeed: z.number().int().min(0).optional().describe("wasmcart only: load as a DETERMINISTIC REPLAY - fixed virtual clock + this u32 RNG seed delivered to the cart's wc_set_seed before init. Same seed + same input script = an identical frame sequence (airtight frameHash regression goldens). Only meaningful for carts that declare WC_FLAG_DETERMINISTIC (check capabilities.hasDeterministic after load); other carts get the fixed clock but keep their own entropy."),
+      coreOptions: z.record(z.string(), z.string()).optional().describe("Libretro core options applied before the ROM loads, overriding the core's defaults (e.g. {\"snes9x_layer_3\":\"disabled\"} hides a layer at the RENDERER so an Active Bezel can own it - game state and VRAM are untouched). Keys/values are core-specific and unvalidated: a wrong key is silently ignored by the core, so verify the effect visually."),
       presentWindow: z.boolean().optional().describe("wasmcart GL carts only: load this cart on its OWN GL context so a later playtest({op:'open'}) can present it by GPU blit+swap instead of reading every frame back to the CPU. Measured on a 1080p 3D cart: convertMs 3.52 -> 0, window cost ~7.45ms -> ~2.0ms at a steady 60fps. Pass it when you intend to open a window for a HUMAN to play a 3D/GL cart; skip it for headless work, where the readback is what you want anyway. MUST be set at load time - the GL context binds when the cart's wasm loads and cannot be swapped afterward, so a cart already loaded without it keeps the readback path until reloaded. CAPTURES ARE UNAFFECTED BY CONTRACT: frame({op:'screenshot'}) and playtest({op:'framebuffer'}) return the full cart frame at the cart's resolution, byte-identical to a plain load, and capture dimensions are a function of the CART only - nothing a human does to the window (drag, F11) changes them. Costs one extra GL context per loaded cart; a cart loaded WITHOUT it shares the process-wide offscreen context, which can never be attached to a window (doing so would drag every other session's cart into that window). No effect on 2D carts or emulator cores."),
     },
     safeTool(doLoadMedia),
@@ -239,9 +239,9 @@ export function registerLifecycleTools(server, z, sessionKey) {
     "(Loading media is the separate `loadMedia` tool.)\n" +
     "'unload': drop the current media but keep the core hot (for a fast ROM swap). 'shutdown': tear the host down " +
     "entirely (a later loadMedia makes a fresh one).\n" +
-    "'reset': DEFAULT is a SOFT reset (the RESET button — retro_reset; on most cores does NOT clear work RAM, so " +
+    "'reset': DEFAULT is a SOFT reset (the RESET button - retro_reset; on most cores does NOT clear work RAM, so " +
     "boot-seeded variables PERSIST). Pass `hard:true` for a TRUE power-cycle that reloads the ROM from scratch and " +
-    "clears RAM + re-seeds boot state — use it when re-testing boot-time behavior (a soft reset boots the PREVIOUS " +
+    "clears RAM + re-seeds boot state - use it when re-testing boot-time behavior (a soft reset boots the PREVIOUS " +
     "state).\n" +
     "'pause': halt emulation (stepFrames returns 0 until resume). 'resume': continue.\n" +
     "`slot:'b'` targets the secondary comparison host (loaded via loadMedia({slot:'b'})). Slot-B ops never " +
@@ -255,16 +255,16 @@ export function registerLifecycleTools(server, z, sessionKey) {
       const slotB = slot === "b";
       const get = slotB ? getHostB : getHost;
       const getOrNull = slotB ? getHostBOrNull : getHostOrNull;
-      // Slot B never drives the human's livestream — wrap attachObserverFrame so
+      // Slot B never drives the human's livestream - wrap attachObserverFrame so
       // slot-A behavior is unchanged but slot B stays silent.
       const observe = slotB ? (content) => content : attachObserverFrame;
       switch (op) {
         case "unload": {
           const host = getOrNull(sessionKey);
           if (!host || !host.status.loaded) {
-            // Don't claim success when there was nothing loaded — that masks a
+            // Don't claim success when there was nothing loaded - that masks a
             // session/state mix-up (the agent thinks it unloaded media it never had).
-            return textContent(`nothing to unload — no media is loaded in ${slotB ? "comparison slot B" : "this session"}`);
+            return textContent(`nothing to unload - no media is loaded in ${slotB ? "comparison slot B" : "this session"}`);
           }
           host.unloadMedia();
           // The package is bound to this ROM's hash; keeping it across an unload
@@ -296,11 +296,11 @@ export function registerLifecycleTools(server, z, sessionKey) {
             // broke, so it discards caches built from a timeline that no longer
             // exists rather than drawing a stale interpretation of fresh state.
             if (!slotB) notifyActiveBezel(sessionKey, "reset");
-            return observe(textContent(reloaded ? "reset (hard / power-cycle — RAM cleared)" : "reset (soft — no cached ROM to reload for a hard reset)"), host, "reset (hard)");
+            return observe(textContent(reloaded ? "reset (hard / power-cycle - RAM cleared)" : "reset (soft - no cached ROM to reload for a hard reset)"), host, "reset (hard)");
           }
           host.reset();
           if (!slotB) notifyActiveBezel(sessionKey, "reset");
-          return observe(textContent("reset (soft — RESET button; work RAM persists, use hard:true to clear it)"), host, "reset");
+          return observe(textContent("reset (soft - RESET button; work RAM persists, use hard:true to clear it)"), host, "reset");
         }
         case "pause":
           get(sessionKey).pause();

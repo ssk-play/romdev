@@ -1,4 +1,4 @@
-// NES (fceumm / 6502) callSubroutine instruction WATCHDOG — the fix for the
+// NES (fceumm / 6502) callSubroutine instruction WATCHDOG - the fix for the
 // "callSubroutine hung" black box. A routine that loops FOREVER (e.g. a codec
 // fed a wrong pointer) spins inside one retro_run frame, so the host's per-frame
 // cap can't catch it. The core's instruction watchdog force-stops at the budget
@@ -28,7 +28,7 @@ const toJSON = (res) => { assert.equal(res.isError, undefined, "isError: " + JSO
 
 // main writes an incrementing counter each frame; spin_forever is a separate
 // asm TU with a `jmp self` infinite loop (referenced by main so it links, but
-// never reached at runtime — counter starts at 0, never 123).
+// never reached at runtime - counter starts at 0, never 123).
 const MAIN_C = [
   "void spin_forever(void);",
   "volatile unsigned char counter;",
@@ -61,7 +61,7 @@ test("NES watchdog: infinite-loop routine returns {watchdog:true} (fceumm 6502)"
   assert.equal(load.loaded, true, "loadMedia failed: " + JSON.stringify(load));
   toJSON(await client.callTool({ name: "frame", arguments: { op: "step",  frames: 30 } }));
 
-  // The WATCHDOG: drive the infinite-loop routine. It must NOT hang — it returns
+  // The WATCHDOG: drive the infinite-loop routine. It must NOT hang - it returns
   // { returned:false, watchdog:true, finalPC=spinAddr }.
   const wd = toJSON(await client.callTool({
     name: "cpu",
@@ -72,14 +72,14 @@ test("NES watchdog: infinite-loop routine returns {watchdog:true} (fceumm 6502)"
   assert.equal(wd.watchdog, true, "watchdog must trip on an infinite loop (no hang): " + JSON.stringify(wd));
   assert.ok(wd.finalPC, "watchdog must report finalPC (where it's stuck): " + JSON.stringify(wd));
   // finalPC should be the spin address (the jmp-self never moves the PC).
-  // finalPC comes back as a "$XXXX" / "0xXXXX" hex string — strip the prefix.
+  // finalPC comes back as a "$XXXX" / "0xXXXX" hex string - strip the prefix.
   const finalPCnum = typeof wd.finalPC === "string"
     ? parseInt(String(wd.finalPC).replace(/^\$|^0x/i, ""), 16)
     : wd.finalPC;
   assert.equal(finalPCnum & 0xFFFF, spinAddr & 0xFFFF, "watchdog finalPC should be the spin addr: " + JSON.stringify(wd) + " spin=" + spinAddr.toString(16));
 
   // No-regression: a NORMAL routine (one that RTSes immediately) still returns.
-  // _spin_forever's second instruction is an `rts` at spinAddr+3 — call THAT to
+  // _spin_forever's second instruction is an `rts` at spinAddr+3 - call THAT to
   // get a clean immediate return, proving the watchdog doesn't false-trip.
   const ret = toJSON(await client.callTool({
     name: "cpu",

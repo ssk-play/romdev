@@ -1,4 +1,4 @@
-// ── Hello, Atari 7800 — MARIA bring-up + single sprite ──────────────
+// ── Hello, Atari 7800 - MARIA bring-up + single sprite ──────────────
 //
 // Build: build({ output: "rom",  platform: "atari7800", source: <this file>,
 //                      language: "c" })
@@ -37,7 +37,7 @@ static const uint8_t sprite_pixels[16 * 8] = {
 };
 
 // DL: 5-byte header pointing at sprite_pixels, then $00.
-// We fill in the address bytes at runtime — cc65 won't evaluate
+// We fill in the address bytes at runtime - cc65 won't evaluate
 // (uintptr_t)&sprite_pixels at compile time for an initializer.
 static uint8_t display_list[6] = {
   0,

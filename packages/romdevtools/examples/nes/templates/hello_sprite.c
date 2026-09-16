@@ -1,4 +1,4 @@
-/* ── hello_sprite.c — NES starter ────────────────────────────────
+/* ── hello_sprite.c - NES starter ────────────────────────────────
  *
  * Tested boots-from-cold game-loop skeleton:
  *   - Standard two-vblank PPU warm-up (handled by the bundled crt0)
@@ -6,10 +6,10 @@
  *   - Sets a 4-color sprite palette at $3F10
  *   - Places one sprite in the middle of the screen
  *   - Reads d-pad each NMI and moves it
- *   - Uses shadow_oam (at $0200) — the NMI handler DMAs it to $2003
+ *   - Uses shadow_oam (at $0200) - the NMI handler DMAs it to $2003
  *     automatically every frame
  *
- * Edit FROM this baseline rather than building from scratch — the
+ * Edit FROM this baseline rather than building from scratch - the
  * two-vblank warm-up and palette-at-$3F00 setup below are the NES
  * pitfalls that cost new ports the most time (see TROUBLESHOOTING.md
  * "screen blank" / "wrong colors").
@@ -28,14 +28,14 @@
 static const uint8_t tile_data[16] = {
   /* plane 0 (low bit of each pixel) */
   0xFF, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0xFF,
-  /* plane 1 (high bit of each pixel) — keep zero, so all pixels are color 1 */
+  /* plane 1 (high bit of each pixel) - keep zero, so all pixels are color 1 */
   0,    0,    0,    0,    0,    0,    0,    0,
 };
 
 /* Two BG tiles so the backdrop isn't a single flat colour (a uniform
  * screen reads >=92% one colour and fails the blank-screen check):
- *   tile 1 — solid colour 1
- *   tile 2 — solid colour 2
+ *   tile 1 - solid colour 1
+ *   tile 2 - solid colour 2
  * Checkerboarded across the nametable below. BG fetches from $1000-$1FFF
  * under the default PPUCTRL, so these upload to the BG pattern table. */
 static const uint8_t bg_tiles[2 * 16] = {
@@ -49,7 +49,7 @@ static const uint8_t bg_tiles[2 * 16] = {
 
 /* 32-byte palette: 4 BG palettes + 4 sprite palettes.
  * BG  index 0 ($3F00) is the universal backdrop.
- * SPR index 0 ($3F10) is transparent — always; the value is written
+ * SPR index 0 ($3F10) is transparent - always; the value is written
  * but the hardware ignores it. */
 static const uint8_t palette[32] = {
   /* BG palettes 0-3 */
@@ -57,7 +57,7 @@ static const uint8_t palette[32] = {
   0x0F, 0x21, 0x11, 0x01,
   0x0F, 0x27, 0x17, 0x07,
   0x0F, 0x2A, 0x1A, 0x0A,
-  /* Sprite palettes 0-3 — palette 0 colour 1 = light blue */
+  /* Sprite palettes 0-3 - palette 0 colour 1 = light blue */
   0x0F, 0x2C, 0x12, 0x32,
   0x0F, 0x21, 0x11, 0x01,
   0x0F, 0x27, 0x17, 0x07,
@@ -85,7 +85,7 @@ void main(void) {
   uint8_t pad;
   uint8_t prev_pad = 0;   /* for one-shot edge detection on A */
 
-  /* ── 1. PPU off (rendering disabled — safe to write VRAM) ─────── */
+  /* ── 1. PPU off (rendering disabled - safe to write VRAM) ─────── */
   ppu_off();
 
   /* ── 2. Upload our tile to CHR-RAM at $0010 (tile slot 1) ──────
@@ -109,7 +109,7 @@ void main(void) {
   /* ── 5. PPU back on with BG + sprites ────────────────────────── */
   ppu_on_all();
 
-  /* ── 6. APU on — let the player beep ─────────────────────────── */
+  /* ── 6. APU on - let the player beep ─────────────────────────── */
   sound_init();
 
   /* ── 7. Game loop ────────────────────────────────────────────── */

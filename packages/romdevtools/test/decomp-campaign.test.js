@@ -3,7 +3,7 @@
 // asset round-trips, artifact retention and skill staleness.
 //
 // Each test pins a rule that, if broken, produces a CONFIDENT WRONG ANSWER
-// rather than an error — which is the failure mode this whole domain exists to
+// rather than an error - which is the failure mode this whole domain exists to
 // prevent.
 
 import { test } from "node:test";
@@ -27,7 +27,7 @@ import { generateSkill } from "../src/decomp/skill-sync.js";
 test("work class: one TU listed under several sections classifies by its CODE type", () => {
   // splat lists "sys/sys_utils" three times: as `c`, `.rodata` AND `.bss`. A
   // plain Map.set keeps whichever came last (.rodata), so every such object
-  // classified as data — that misfiled 152 real game functions and emptied the
+  // classified as data - that misfiled 152 real game functions and emptied the
   // default queue entirely.
   const splat = { segments: [{ name: "main", subsegments: [
     { name: "sys/sys_utils", type: "c" },
@@ -205,10 +205,10 @@ test("assets: a MIO0 range round-trips to BYTE-IDENTICAL bytes", () => {
   // Round trip is the acceptance test, and it now completes: romdev ships an
   // encoder that reproduces the reference's match choices, so decode -> encode
   // returns the original container byte for byte. An earlier version of this
-  // test asserted only that decode alone is NOT "recovered" — true, but it
+  // test asserted only that decode alone is NOT "recovered" - true, but it
   // stopped short of the thing that actually matters.
   const { encodeMio0, decodeMio0Container, roundTrip } = require0();
-  // A payload with runs, repeats and literals — all three encoder paths.
+  // A payload with runs, repeats and literals - all three encoder paths.
   const payload = Buffer.concat([
     Buffer.alloc(64),                                   // run-fill
     Buffer.from("the quick brown fox ".repeat(12)),     // long matches

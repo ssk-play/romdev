@@ -1,4 +1,4 @@
-// sh-elf-gcc — WASM toolchain wrappers for Dreamcast (SH-4) C builds.
+// sh-elf-gcc - WASM toolchain wrappers for Dreamcast (SH-4) C builds.
 //
 // The full pipeline:
 //   runCc1sh({source, headers, options})  → SH assembly text (.s)
@@ -9,7 +9,7 @@
 // 0.81.0: the 4 stages come from the shared makeGccToolchain() factory
 // (common/gcc-toolchain.js); this file is just the SH-4 config + thin re-exports.
 // SH-4 little-endian, single-precision FP only (-m4-single-only at the cc1 level;
-// --isa=sh4 at as; -EL at ld). NOTE: callers should default cc1 to -O1, not -O2 —
+// --isa=sh4 at as; -EL at ld). NOTE: callers should default cc1 to -O1, not -O2 -
 // the sh-elf cc1.wasm has an -O2-only pass that aborts on common control flow; that
 // default lives in the sh-c builder, not here (this wrapper passes options through).
 //

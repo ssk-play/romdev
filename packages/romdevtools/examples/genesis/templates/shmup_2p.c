@@ -1,13 +1,13 @@
-/* ── shmup_2p.c — Genesis SGDK two-player competitive shooter ───────
+/* ── shmup_2p.c - Genesis SGDK two-player competitive shooter ───────
  *
  * Same shape as `shmup` but with TWO player ships, one per controller
  * port. Each player has their own bullet pool (4 slots each) and their
- * own score. Enemies are shared — first hit wins the points. Cooperate
+ * own score. Enemies are shared - first hit wins the points. Cooperate
  * to survive longer; compete on the score counter.
  *
  * Designed for the romdev playtest window with two USB
  * controllers plugged in (R23c hot-plug lands a 2nd pad in port 1).
- * When no second pad is connected, port 2's ship just sits idle — the
+ * When no second pad is connected, port 2's ship just sits idle - the
  * single-player `shmup` template is still the right pick for that case.
  *
  * SAT layout (well under the 80-sprite Genesis cap):
@@ -46,12 +46,12 @@ static const u32 tile_stars[8]   = {
     0x66666666, 0x66655666, 0x66666666, 0x56666665,
     0x66666666, 0x66655666, 0x66666666, 0x56666665,
 };
-/* P1 ship — palette 0 colour 1 (white). */
+/* P1 ship - palette 0 colour 1 (white). */
 static const u32 tile_ship_p1[8] = {
     0x00011000, 0x00011000, 0x00111100, 0x00111100,
     0x01111110, 0x01111110, 0x11111111, 0x11000011,
 };
-/* P2 ship — palette 0 colour 4 (we'll set to red below). */
+/* P2 ship - palette 0 colour 4 (we'll set to red below). */
 static const u32 tile_ship_p2[8] = {
     0x00044000, 0x00044000, 0x00444400, 0x00444400,
     0x04444440, 0x04444440, 0x44444444, 0x44000044,
@@ -232,7 +232,7 @@ int main(bool hard) {
             spawn_enemy();
         }
 
-        /* Bullet × enemy collisions — whoever hit first scores. */
+        /* Bullet × enemy collisions - whoever hit first scores. */
         for (j = 0; j < MAX_ENEMIES; j++) {
             if (!enemies[j].alive) continue;
             for (i = 0; i < MAX_BULLETS_PP; i++) {
@@ -256,7 +256,7 @@ int main(bool hard) {
             }
         }
 
-        /* SAT staging — fixed slot layout. */
+        /* SAT staging - fixed slot layout. */
         VDP_setSprite(0, p1.x, p1.y, SPRITE_SIZE(1, 1),
                       TILE_ATTR_FULL(PAL0, 1, 0, 0, T_SHIP_P1));
         VDP_setSprite(1, p2.x, p2.y, SPRITE_SIZE(1, 1),

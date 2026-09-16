@@ -1,4 +1,4 @@
-// sync32 — build a .s32 cart from C, entirely in WASM.
+// sync32 - build a .s32 cart from C, entirely in WASM.
 //
 // sync32 is an RP2350 console: a game is a freestanding Cortex-M33 binary
 // wrapped in a 64-byte header. The pipeline mirrors the SDK's sync32.mk:
@@ -12,16 +12,16 @@
 // TWO THINGS MAKE THIS CHEAP, and both were verified before writing it:
 //
 // 1. The ARM tools romdev already bundles for GBA are a full arm-none-eabi
-//    gcc — they are not GBA-specific. Asked for `-mcpu=cortex-m33 -mthumb
+//    gcc - they are not GBA-specific. Asked for `-mcpu=cortex-m33 -mthumb
 //    -mfloat-abi=hard -mfpu=fpv5-sp-d16`, cc1 emits `.cpu cortex-m33 /
 //    .arch armv8-m.main / .fpu fpv5-sp-d16` and as/ld accept it. So sync32
-//    needs no new toolchain build — only its own flags and link script.
+//    needs no new toolchain build - only its own flags and link script.
 //
 // 2. A sync32 cart links with NO libraries. The SDK is freestanding
 //    (`-nostartfiles -ffreestanding`, no libc headers), and a natively-built
 //    cart's ELF has zero undefined symbols and zero libgcc helpers. That
 //    matters because the bundled ARM archives are ARMv4T (ARM7TDMI, for the
-//    GBA) and would be link-incompatible with ARMv8-M — we simply never need
+//    GBA) and would be link-incompatible with ARMv8-M - we simply never need
 //    them. If a future cart does pull in a libgcc helper (a 64-bit divide,
 //    say), the link fails with an undefined `__aeabi_*` symbol, and THAT is
 //    the point at which an ARMv8-M libgcc has to be built. Nothing today
@@ -38,7 +38,7 @@ import { packS32 } from "./s32-format.js";
 import { packS32Archive, buildInfoTxt, checkIconBmp } from "./s32-archive.js";
 
 // Exactly the SDK's CFLAGS architecture flags (sync32.mk). Kept as one list so
-// cc1 and as cannot disagree about the target — a mismatch there produces
+// cc1 and as cannot disagree about the target - a mismatch there produces
 // objects that link but fault on hardware.
 const M33_FLAGS = [
   "-mcpu=cortex-m33",
@@ -159,7 +159,7 @@ export async function buildSync32(args) {
   }
 
   // libgcc: the compiler's own helper routines (64-bit divide, soft-float
-  // doubles, ...). NOT libc — a cart still links no libc at all. It is last on
+  // doubles, ...). NOT libc - a cart still links no libc at all. It is last on
   // the link line, as libgcc always is, so it only pulls the members actually
   // referenced.
   //
@@ -174,7 +174,7 @@ export async function buildSync32(args) {
   const ld = await runM33Ld({
     objects, linkScript, archives,
     // The archive is MOUNTED via `archives` but must also be NAMED on the
-    // command line — runLd only lists `objects` there — and it has to come
+    // command line - runLd only lists `objects` there - and it has to come
     // AFTER the objects, because ld resolves an archive against the undefined
     // symbols it has seen so far.
     options: ["--gc-sections", ...(libgcc ? ["/work/libgcc.a"] : []), ...linkOptions],
@@ -210,7 +210,7 @@ export async function buildSync32(args) {
   // `archive` (default when there are resources) is the single-file tar form.
   // `folder` writes the game directory instead: main.s32e plus the resources
   // beside it. BOTH are valid per the ABI, but they are not interchangeable at
-  // load time — the libretro core reads a BARE EXECUTABLE and looks for a
+  // load time - the libretro core reads a BARE EXECUTABLE and looks for a
   // sibling `<romname>/` data directory, and does NOT unpack a tar. So a cart
   // you intend to run through romdev's own emulator wants `form:'folder'`,
   // while `archive` is the shape you ship.
@@ -280,7 +280,7 @@ function toBytes(v) {
  *
  * Null is not fatal: a cart that never needs a helper routine links fine
  * without it, and one that does gets a clear `undefined reference to
- * __aeabi_*` naming exactly what is missing. Memoized — the archive is a few
+ * __aeabi_*` naming exactly what is missing. Memoized - the archive is a few
  * MB and every build would otherwise re-read it.
  */
 let _libgcc;

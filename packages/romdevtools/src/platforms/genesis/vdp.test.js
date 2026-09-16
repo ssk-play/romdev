@@ -23,7 +23,7 @@ test("rgbToGenesisColor: red/green/blue/black round-trip", () => {
 
 test("decodeCRAM: packed 9-bit (BBBGGGRRR) LE words → RGB triples", () => {
   // The gpgx genesis_cram region stores PACKED 9-bit colours (0bBBBGGGRRR),
-  // little-endian — NOT the raw 16-bit bus word. Full-red is packed 0x007
+  // little-endian - NOT the raw 16-bit bus word. Full-red is packed 0x007
   // (bytes 07 00), green 0x038 (38 00), blue 0x1C0 (c0 01). Verified live:
   // bus $00EE (yellow) → bytes 3f 00 → 0x003F → R7 G7 B0 → (255,255,0).
   const cram = new Uint8Array(128);

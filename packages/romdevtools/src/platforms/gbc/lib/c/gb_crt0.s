@@ -1,12 +1,12 @@
 ;; Game Boy / Game Boy Color crt0 for SDCC.
 ;;
 ;; Replaces SDCC's stock sm83 crt0 (designed for a host-runtime that
-;; handles I/O via rst $08 — useless on a real cartridge). This one
+;; handles I/O via rst $08 - useless on a real cartridge). This one
 ;; lays out a real cartridge image:
 ;;
 ;;   $0000-$0060  reset + interrupt vectors (default = ret/reti)
 ;;   $0100-$0103  entry point (nop; jp init)
-;;   $0104-$014F  cartridge header window — host pipeline patches in
+;;   $0104-$014F  cartridge header window - host pipeline patches in
 ;;                Nintendo logo + checksum after link
 ;;   $0150+       _CODE segment (the build is configured with
 ;;                -b _CODE=0x0150 so user code can't pack into the
@@ -86,11 +86,11 @@
         nop
         jp      init
 
-;; ─── Header bytes at $0104-$014F — host pipeline fills most of these ──
+;; ─── Header bytes at $0104-$014F - host pipeline fills most of these ──
         .area _HEADERe (ABS)
         .org    0x0104
         ;; Nintendo logo ($0104-$0133, 48 bytes) + title/manufacturer/CGB
-        ;; flag ($0134-$0143) + licensee/SGB ($0144-$0146): left as a gap —
+        ;; flag ($0134-$0143) + licensee/SGB ($0144-$0146): left as a gap -
         ;; the post-link header fix (bundled rgbfix, or patch-header.js when
         ;; rebuilding outside romdev) writes the canonical logo, the CGB
         ;; flag, and both checksums.
@@ -104,9 +104,9 @@
         ;;
         ;;   $0147 = $03  MBC1 + RAM + BATTERY  → the core exposes the 8KB
         ;;                at $A000-$BFFF as persistent SAVE_RAM (.srm).
-        ;;                Writes only stick after the $0A enable sequence —
+        ;;                Writes only stick after the $0A enable sequence -
         ;;                see the SRAM HARDWARE IDIOM in the puzzle example.
-        ;;   $0148 = $00  32 KB ROM (2 banks — no banking needed)
+        ;;   $0148 = $00  32 KB ROM (2 banks - no banking needed)
         ;;   $0149 = $02  8 KB cart RAM (one bank at $A000)
         .org    0x0147
         .db     0x03            ; cart type: MBC1+RAM+BATTERY
@@ -143,7 +143,7 @@ init::
 gsinit::
         ;; ── Zero the BSS segment (`_DATA`). ──────────────────────────
         ;; Round 27 fix: pre-r55 this loop targeted `s__INITIALIZED` for
-        ;; `l__INITIALIZER` bytes — but `_INITIALIZED` is the runtime
+        ;; `l__INITIALIZER` bytes - but `_INITIALIZED` is the runtime
         ;; shadow of the `_INITIALIZER` ROM image and gets overwritten
         ;; by the copy loop below anyway, so it was a no-op. The actual
         ;; BSS at `s__DATA..s__DATA+l__DATA` (where every uninitialised

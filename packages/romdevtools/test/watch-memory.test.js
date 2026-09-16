@@ -260,7 +260,7 @@ test("missing region without ranges returns a clear error result", async () => {
 // was a silent no-op (eventCount:0, indistinguishable from "byte didn't move").
 // Now it drives host.setInput and reports what landed.
 test("pressDuring actually delivers input via setInput and reports it", async () => {
-  // The watched byte only changes on a frame where `start` is held — proving
+  // The watched byte only changes on a frame where `start` is held - proving
   // the press reached the (fake) ROM rather than being dropped.
   const host = makeHost({ system_ram: [0] }, (f, mem, h) => {
     const last = h.inputLog[h.inputLog.length - 1];
@@ -285,7 +285,7 @@ test("pressDuring actually delivers input via setInput and reports it", async ()
 });
 
 test("pressDuring honors platform button aliases (Genesis c -> a)", async () => {
-  // genesis_plus_gx maps Genesis A/B/C onto libretro y/b/a — so the Genesis-native
+  // genesis_plus_gx maps Genesis A/B/C onto libretro y/b/a - so the Genesis-native
   // 'c' alias resolves to libretro 'a' (NOT 'y'; 'y' is Genesis A). Verified
   // empirically against the running core 2026-06-05.
   const host = makeHost({ system_ram: [0] }, () => {});
@@ -317,7 +317,7 @@ test("watch WITHOUT pressDuring never touches setInput (inherits held input)", a
   }));
   assert.ok(res.eventCount >= 1, "watch still ran and saw changes");
   assert.equal(host.inputLog.length, 0,
-    "watch with no pressDuring made ZERO setInput calls — the held pad is inherited, not reset");
+    "watch with no pressDuring made ZERO setInput calls - the held pad is inherited, not reset");
 });
 
 // And the converse: a pressDuring schedule STILL owns the pad (drives + releases),
@@ -354,7 +354,7 @@ test("format:'series' returns a compact value-vs-frame curve per offset", async 
   assert.equal(s.values.length, s.frames.length, "parallel arrays");
   // The series is the actual trajectory: values track the frame numbers.
   assert.deepEqual(s.values.slice(0, 3), [1, 2, 3]);
-  // No per-row pc/label boilerplate — it's columnar.
+  // No per-row pc/label boilerplate - it's columnar.
   assert.equal(s.pc, undefined);
 });
 
@@ -370,7 +370,7 @@ test("format:'series' downsamples to maxEvents (keeps first+last, spans window)"
   assert.equal(s.points, 10, "downsampled to maxEvents");
   assert.equal(s.downsampledFrom, 100, "reports the original count");
   assert.equal(s.frames[0], 1, "first point kept");
-  assert.equal(s.frames[s.frames.length - 1], 100, "last point kept — series spans the whole window");
+  assert.equal(s.frames[s.frames.length - 1], 100, "last point kept - series spans the whole window");
   assert.ok(res.seriesNote, "downsample is surfaced, not silent");
 });
 
@@ -389,7 +389,7 @@ test("sampleEvery keeps every Nth change", async () => {
   assert.deepEqual(s.frames, [1, 5, 9, 13, 17]);
 });
 
-// ── stepInstructions (bulk single-step) — v0.89.0 field feedback ─────────────
+// ── stepInstructions (bulk single-step) - v0.89.0 field feedback ─────────────
 // Jay's ActRaiser session: proving a ~26-instruction routine cost ~26 round
 // trips. stepInstructions returns the whole ordered trace in one call, with
 // `width` = PC[k+1]-PC[k] (the 65816 immediate-width signal) and the note ONCE.

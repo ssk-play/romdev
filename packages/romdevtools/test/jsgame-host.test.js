@@ -1,4 +1,4 @@
-// jsgame host kind — romdev drives a JS web game (rungame's headless host session)
+// jsgame host kind - romdev drives a JS web game (rungame's headless host session)
 // through the same run/see/drive surface it uses for emulator cores, plus JS-heap
 // introspection.
 //
@@ -65,7 +65,7 @@ test("jsgame: load + capabilities + step + screenshot + input + JS introspection
   assert.equal(r.loaded, true);
   assert.equal(r.platform, "jsgame");
   assert.ok(r.fbWidth > 0 && r.fbHeight > 0, "reports a framebuffer size");
-  // Regression (0.105.1): displayAspect must be a real ratio once frames run —
+  // Regression (0.105.1): displayAspect must be a real ratio once frames run -
   // a 0 here zero-sized the playtest window ("invalid width").
   assert.ok(r.displayAspect > 0, "reports a real displayAspect, not the 0 init");
   assert.equal(r.displayAspect, r.fbWidth / r.fbHeight, "canvas pixels are square");
@@ -87,6 +87,6 @@ test("jsgame: load + capabilities + step + screenshot + input + JS introspection
   assert.ok(r.shotW > 0 && r.shotH > 0);
   assert.ok(r.maxPixel > 0, "framebuffer has rendered content");
 
-  // JS introspection (the V8 bonus): rungame exposes _jsg = {controllers, …}
+  // JS introspection (the V8 bonus): rungame exposes _jsg = {controllers, ...}
   assert.ok(Array.isArray(r.globals) && r.globals.length > 0, "exposes the game's _jsg globals bag");
 });

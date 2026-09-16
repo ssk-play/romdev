@@ -1,7 +1,7 @@
 /* Freestanding <stdint.h> for sync32 carts (ARMv8-M / Cortex-M33, ILP32).
  *
  * A sync32 cart is built -ffreestanding against no libc, so it cannot use
- * newlib's stdint.h — that one includes <machine/_default_types.h> and pulls a
+ * newlib's stdint.h - that one includes <machine/_default_types.h> and pulls a
  * whole hosted header tree behind it. Only the exact-width types are needed
  * (sync32.h uses uint8_t/uint16_t/uint32_t and friends), and on this target
  * their widths are fixed by the ABI, so a small correct header is better than

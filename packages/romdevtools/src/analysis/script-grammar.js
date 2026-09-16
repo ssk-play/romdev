@@ -1,16 +1,16 @@
-// script-grammar — decode a data region as custom bytecode from a DECLARATIVE
+// script-grammar - decode a data region as custom bytecode from a DECLARATIVE
 // grammar, so a reverse-engineered script format lives in the project (and in
 // the tool call) instead of a side decoder script.
 //
 // Games are full of little interpreters: level/map scripts, entity spawn
 // lists, cutscene command streams, music macros. Once the interpreter's
 // grammar is verified (each opcode's argument shape), decoding the data is
-// mechanical — exactly the part a hand-rolled Python decoder does. This
+// mechanical - exactly the part a hand-rolled Python decoder does. This
 // module takes the grammar as data:
 //
 //   {
 //     endian: "little" | "big",              // default "little"
-//     recordPrefix: [field...],              // read before EVERY record —
+//     recordPrefix: [field...],              // read before EVERY record -
 //                                            // e.g. a trigger/distance word
 //     opcode: { type: "u8" },                // how the command id is read
 //     commands: {
@@ -26,7 +26,7 @@
 // Field spec (processed in order; every shape composes):
 //   { name, type }                    type: u8|i8|u16|i16|u24|u32
 //   { ..., if: {field, mask?, eq|ne} }   present only when (fields[field] &
-//                                        mask) equals/not-equals the value —
+//                                        mask) equals/not-equals the value -
 //                                        mask defaults to "whole byte".
 //                                        `default` supplies the implied value
 //                                        when the condition fails (reported
@@ -41,8 +41,8 @@
 //                                     consumed), else the sub-fields follow.
 //
 // The conditional test reads from fields ALREADY decoded in the same scope
-// (or an enclosing scope), so flag-gated layouts — the common compressed
-// form: "bit 7 set means the delay/reload pair is omitted" — are one line.
+// (or an enclosing scope), so flag-gated layouts - the common compressed
+// form: "bit 7 set means the delay/reload pair is omitted" - are one line.
 //
 // Decoding is bounds-checked and total: it always returns what it decoded
 // plus a machine-readable stop reason, never throws on data (only on a
@@ -160,7 +160,7 @@ function present(fields) {
  */
 export function decodeScript(data, grammar, opts = {}) {
   if (!grammar || typeof grammar !== "object" || !grammar.commands) {
-    throw new Error("script grammar: pass {commands: {opcode: {name, fields}}, ...} — see the disasm tool description");
+    throw new Error("script grammar: pass {commands: {opcode: {name, fields}}, ...} - see the disasm tool description");
   }
   const little = (grammar.endian ?? "little") === "little";
   const { startOffset = 0, baseAddress = 0, maxRecords = 256 } = opts;
@@ -208,7 +208,7 @@ export function decodeScript(data, grammar, opts = {}) {
     }
   } catch (e) {
     if (e instanceof ScriptDecodeEnd) {
-      stopped = { reason: e.reason, at: addr(p), note: "record truncated by end of region — extend the region or check startOffset" };
+      stopped = { reason: e.reason, at: addr(p), note: "record truncated by end of region - extend the region or check startOffset" };
     } else {
       throw e;
     }

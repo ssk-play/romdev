@@ -1,4 +1,4 @@
-// NES-PPU-on-SNES PER-FRAME runtime — phase 2. The static shim
+// NES-PPU-on-SNES PER-FRAME runtime - phase 2. The static shim
 // (nes-ppu-shim.js) draws the boot picture ONCE then stubs the PPU seam; this
 // runtime keeps it LIVE: every vblank it flushes the game's sprite state to SNES
 // OAM and runs the game's own NMI handler, so animation actually moves. Pairs
@@ -9,7 +9,7 @@
 //   IS SNES low RAM at the same addresses. A typical NES game builds a 256-byte
 //   "shadow OAM" in RAM (commonly $0200) and copies it to the PPU each frame via
 //   OAMDMA (`sta $4014`, A = source page). That shadow OAM therefore already
-//   exists in SNES WRAM — the runtime just (a) learns the page from the OAMDMA
+//   exists in SNES WRAM - the runtime just (a) learns the page from the OAMDMA
 //   write, and (b) each vblank converts those 64 NES sprites to SNES OAM format
 //   and DMAs them in. Sprites are the dominant per-frame change, so this single
 //   feature turns "static screenshot" into "the sprites move."
@@ -31,7 +31,7 @@
 // Plain JS ESM + JSDoc.
 
 /**
- * Fixed runtime state in SNES low RAM ($0010-$0012 — a small window most NES
+ * Fixed runtime state in SNES low RAM ($0010-$0012 - a small window most NES
  * games leave free in zero page; the NMI also saves/restores DP scratch $00).
  */
 export const RT_RAM = {
@@ -61,13 +61,13 @@ export function emitPpuRuntime({ nesNmiLabel = null, oamPage = 0x02 } = {}) {
   const highHex = "$" + (OAM_STAGE + 0x100).toString(16).toUpperCase();
 
   // We are already in EMULATION mode here (NES_RT_NMI switched back before this),
-  // so just call the game's 6502 NMI body directly — no mode switch.
+  // so just call the game's 6502 NMI body directly - no mode switch.
   const callGameNmi = nesNmiLabel
     ? [
         "        ; run the game's own NMI handler (its per-frame logic), in E-mode",
         `        jsr     ${nesNmiLabel}`,
       ]
-    : ["        ; (no translated NES NMI handler — sprite flush only)"];
+    : ["        ; (no translated NES NMI handler - sprite flush only)"];
 
   return [
     "; ── NES-PPU-on-SNES per-frame runtime (phase 2: live sprites) ─────────",
@@ -136,7 +136,7 @@ export function emitPpuRuntime({ nesNmiLabel = null, oamPage = 0x02 } = {}) {
     "; NES shadow OAM → SNES OAM. Verified on snes9x. Phase 2 reads the shadow OAM",
     "; from $0200 (the de-facto-standard page); the OAMDMA seam records the actual",
     "; page in OAMDMA_PAGE, and the init seeds it to $02. X walks the NES sprites,",
-    "; Y the SNES low table — both step by 4 in lockstep.",
+    "; Y the SNES low table - both step by 4 in lockstep.",
     "NES_RT_FLUSH_SPRITES:",
     "        php",
     "        sep #$20",
@@ -144,7 +144,7 @@ export function emitPpuRuntime({ nesNmiLabel = null, oamPage = 0x02 } = {}) {
     "        lda #$7E",
     "        pha",
     "        plb                     ; DBR = $7E for the staging stores",
-    "        ldx #$0000              ; NES sprite byte index (0,4,..252) — DBR-independent",
+    "        ldx #$0000              ; NES sprite byte index (0,4,..252) - DBR-independent",
     "        ldy #$0000              ; SNES low-table byte index",
     "-",
     "        lda $0200,x             ; NES Y    ($0200 is bank-0 low RAM == $7E:0200)",

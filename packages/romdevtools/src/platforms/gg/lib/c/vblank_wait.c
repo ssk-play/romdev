@@ -1,4 +1,4 @@
-/* SMS vblank wait — polls VDP_CTRL bit 7.
+/* SMS vblank wait - polls VDP_CTRL bit 7.
  *
  * Reading $BF returns the status byte and CLEARS bit 7. Spin until set;
  * the act of reading clears the flag for the next iteration.

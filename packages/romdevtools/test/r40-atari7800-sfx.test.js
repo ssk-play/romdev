@@ -1,6 +1,6 @@
-// R40 — Atari 7800 TIA sound wrapper smoke test.
+// R40 - Atari 7800 TIA sound wrapper smoke test.
 //
-// 7800 audio = TIA (the 2600's audio chip — MARIA is the 7800-specific
+// 7800 audio = TIA (the 2600's audio chip - MARIA is the 7800-specific
 // video upgrade). 2 voices, AUDC/AUDF/AUDV per channel. Optional
 // POKEY exists on some carts but isn't bundled. atari7800_sfx wraps
 // the TIA into the cross-platform sfx_* shape.

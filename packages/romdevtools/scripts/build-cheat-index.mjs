@@ -44,13 +44,13 @@ const PLATFORM_DIRS = {
   "Nintendo - Game Boy Advance": { platform: "gba" },
   // PCE/TG-16: classic ADDR:VAL (hex) form, same as the older platforms.
   "NEC - PC Engine - TurboGrafx 16": { platform: "pce" },
-  // MSX: newer RetroArch struct form — cheatK_address/cheatK_value are DECIMAL
+  // MSX: newer RetroArch struct form - cheatK_address/cheatK_value are DECIMAL
   // (no cheatK_code), so convert to hex ADDR:VAL on parse. (The "(fMSX core)"
   // sibling folder is a near-duplicate; we ingest the canonical one.)
   "Microsoft - MSX - MSX2 - MSX2P - MSX Turbo R": { platform: "msx", decimalAddrVal: true },
   // C64: the libretro-database cheats tree ships NO "Commodore - 64" folder
   // (zero source cheats), so there is no index to build. makeCheat (raw
-  // ADDR:VAL via vice's retro_cheat_set) still works on C64 — see cheats.js.
+  // ADDR:VAL via vice's retro_cheat_set) still works on C64 - see cheats.js.
 };
 
 // Classify a decoded code: a compare byte means it targets ROM/code (the
@@ -117,7 +117,7 @@ async function main() {
     const res = await buildPlatform(srcDir, dbDir, platform, parseOpts);
     if (!res) { summary.push(`${platform}: (source folder absent)`); continue; }
     const outPath = path.join(outDir, `${platform}.json`);
-    // Compact: no pretty-printing — this ships, size matters.
+    // Compact: no pretty-printing - this ships, size matters.
     await writeFile(outPath, JSON.stringify({
       platform: res.platform,
       source: "RetroArch / libretro-database cheats (community-aggregated)",

@@ -1,4 +1,4 @@
-/* ── shmup.c — GameTank vertical shooter (complete example game) ─────────────
+/* ── shmup.c - GameTank vertical shooter (complete example game) ─────────────
  *
  * A COMPLETE, working game on the bundled GameTank SDK draw-queue runtime: an
  * arrowhead fighter you fly along the bottom, enemy raiders that fall from the
@@ -8,11 +8,11 @@
  * per-pixel color + transparency.
  *
  * FORK THIS. Markers:
- *   HARDWARE IDIOM (load-bearing) — the GameTank draws via a blitter DRAW QUEUE
+ *   HARDWARE IDIOM (load-bearing) - the GameTank draws via a blitter DRAW QUEUE
  *     (gt_draw.h): enqueue rects/sprites each frame, then gt_present() drains the
  *     queue, waits a vblank, and flips the double buffer. Sprites live in GRAM
  *     (gt_load_sprite writes the pixels once at init). Don't fire blits by hand.
- *   GAME LOGIC (clay) — sprite art, speeds, spawn timing, scoring: tune freely.
+ *   GAME LOGIC (clay) - sprite art, speeds, spawn timing, scoring: tune freely.
  *
  * SCREEN: 128x128. PLAYERS: 1. CONTROLS: D-pad move, A or START to fire/confirm.
  */

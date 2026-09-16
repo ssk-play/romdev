@@ -2,7 +2,7 @@
 // zero-width playtest window: hosts that don't know their display aspect
 // report 0, `status.displayAspect ?? fbW/fbH` keeps the 0 (nullish doesn't
 // catch it), tvAspectFor's default returned it verbatim, and the window opened
-// with width = round(height * 0) = 0 — SDL "invalid width", which the tool
+// with width = round(height * 0) = 0 - SDL "invalid width", which the tool
 // then mislabeled as a no-display/desktop-session problem.
 
 import { test } from "node:test";

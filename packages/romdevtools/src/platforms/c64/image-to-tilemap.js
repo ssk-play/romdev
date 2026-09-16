@@ -15,7 +15,7 @@
 // Input must be 320×200, already quantized to the 16-color C64 palette
 // (use getPlatformPalettePng({platform:"c64"}) as the ImageMagick -remap
 // target). Each 8×8 cell may use at most 2 of those colors (one is the
-// global background, the other is that cell's foreground) — hi-res char
+// global background, the other is that cell's foreground) - hi-res char
 // mode's hard constraint. Cells that violate it are reported.
 
 import { PNG } from "pngjs";
@@ -26,7 +26,7 @@ const H = 200;
 const COLS = 40;
 const ROWS = 25;
 
-/** nearest C64 palette index for an (r,g,b) — exact match preferred. */
+/** nearest C64 palette index for an (r,g,b) - exact match preferred. */
 function nearestC64Index(r, g, b) {
   let best = 0;
   let bestD = Infinity;
@@ -123,7 +123,7 @@ export function c64ImageToTilemap(args) {
         if (chars.length >= 256) {
           if (!overflowReported) {
             warnings.push(
-              `Image needs more than 256 unique chars after dedup — extra cells reuse char 0. ` +
+              `Image needs more than 256 unique chars after dedup - extra cells reuse char 0. ` +
               `Reduce detail or split across multiple charsets/screens.`
             );
             overflowReported = true;
@@ -143,9 +143,9 @@ export function c64ImageToTilemap(args) {
   if (multiColorCells > 0) {
     warnings.push(
       `${multiColorCells} of ${COLS * ROWS} cells contain >2 colors (bg + >1 fg). ` +
-      `Hi-res char mode is 2 colors per 8×8 cell — those cells collapsed all non-background ` +
+      `Hi-res char mode is 2 colors per 8×8 cell - those cells collapsed all non-background ` +
       `pixels to a single foreground color. For 3-4 colors per cell use multicolor mode ` +
-      `(half horizontal resolution) — not yet implemented; pre-author the image to 2 colors/cell.`
+      `(half horizontal resolution) - not yet implemented; pre-author the image to 2 colors/cell.`
     );
   }
 

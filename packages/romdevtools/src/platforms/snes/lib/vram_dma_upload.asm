@@ -1,8 +1,8 @@
-; SNES — VRAM upload via DMA channel 0.
+; SNES - VRAM upload via DMA channel 0.
 ;
 ; Uploads `size` bytes from `source_addr` (bank-byte in `source_bank`)
 ; into VRAM starting at word-address VMADD. Use during forced blank or
-; vblank — VRAM writes outside those windows are silently ignored.
+; vblank - VRAM writes outside those windows are silently ignored.
 ;
 ; Important: VMADD is a WORD address, NOT byte. word $2000 = byte $4000.
 ; BG tilemaps are typically at word $4000+ (= byte $8000+) so they don't
@@ -17,7 +17,7 @@
 ;   8-bit VMAIN ($2115)  :  increment mode ($80 = inc after high-byte write)
 ;   16-bit a1t0 ($4302)  :  source address (low 16 bits)
 ;   8-bit  a1b0 ($4304)  :  source bank byte
-;   16-bit das0 ($4305)  :  byte count (NOT word count — pass size_in_bytes)
+;   16-bit das0 ($4305)  :  byte count (NOT word count - pass size_in_bytes)
 ;
 ; Example: upload CHR from `bg_chr_data` (a label in ROM) to VRAM $0000:
 ;
@@ -36,7 +36,7 @@
 ;   ldx #(bg_chr_end-bg_chr_data)
 ;   stx $4305          ; byte count
 ;   lda #$01
-;   sta $420B          ; MDMAEN bit 0 — fire channel 0
+;   sta $420B          ; MDMAEN bit 0 - fire channel 0
 ;
 ; The DMA finishes synchronously; no need to wait. Subsequent CPU
 ; instructions run after the transfer completes.

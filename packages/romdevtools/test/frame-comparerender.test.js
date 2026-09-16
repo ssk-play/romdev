@@ -1,6 +1,6 @@
-// frame({op:'compareRender'}) — the presentation oracle. Compares the DECODED
+// frame({op:'compareRender'}) - the presentation oracle. Compares the DECODED
 // rendering state (BG/sprite enable, palette, tilemap, forced-blank) of slot A
-// vs slot B — what an agent building/tuning the graphics shim needs. Two real
+// vs slot B - what an agent building/tuning the graphics shim needs. Two real
 // hosts; same-platform → line diff, cross-platform → both summaries + verdicts.
 
 import { test } from "node:test";

@@ -1,18 +1,18 @@
-// ── music_demo.c — cc65 lynx_snd_play music engine demo ─────────────
+// ── music_demo.c - cc65 lynx_snd_play music engine demo ─────────────
 //
 // Demonstrates the cc65 4-channel music driver on the Atari Lynx.
 // Unlike lynx_sfx (one-shot pokes to the MIKEY voice registers) the
 // snd_* API streams a bytestream of (note, length) tuples driven by a
-// 240Hz timer IRQ — the same primitive used by Lynx-tracker exports.
+// 240Hz timer IRQ - the same primitive used by Lynx-tracker exports.
 //
 // Wiring:
-//   1) lynx_snd_init()                        — set up 240Hz IRQ, reset voices
-//   2) lynx_snd_play(0, demo_music)           — start streaming on channel 0
+//   1) lynx_snd_init()                        - set up 240Hz IRQ, reset voices
+//   2) lynx_snd_play(0, demo_music)           - start streaming on channel 0
 //   3) main loop just keeps the screen alive; the IRQ does the audio work
 //
 // To stop / restart you can call lynx_snd_stop() or lynx_snd_play again
 // with the same data. The music data itself is in lynx_music.c (the
-// byte array IS the source — no asset pipeline involved).
+// byte array IS the source - no asset pipeline involved).
 
 #include <tgi.h>
 #include <lynx.h>
@@ -26,7 +26,7 @@ void main(void) {
   lynx_snd_play(0, (unsigned char *)demo_music);
 
   for (;;) {
-    /* CANONICAL LYNX FRAME LOOP — full redraw every frame: WAIT for Suzy's
+    /* CANONICAL LYNX FRAME LOOP - full redraw every frame: WAIT for Suzy's
      * blitter (drawing mid-flight loses the frame → black), then clear with
      * a full-screen bar (tgi_clear leaves the back page stale on this core)
      * before drawing. The #1 "Lynx stays blank" trap. */

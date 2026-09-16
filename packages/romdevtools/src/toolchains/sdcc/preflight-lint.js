@@ -1,12 +1,12 @@
 // Pre-flight scan for SDCC sm83 / z80 C sources.
 //
-// What this catches now: C89 violations — mid-block declarations and
+// What this catches now: C89 violations - mid-block declarations and
 // C99 inline for-loop counter decls. SDCC's sm83 frontend is C89 only,
 // and its error reporting for these is misleading (it points at the
 // line AFTER the offense). We emit the warning with the right file:line.
 //
 // The "crash family" patterns (#1..#10, #37, #38, #39 from agent reports)
-// were stack-overflow symptoms — fixed at the build level with
+// were stack-overflow symptoms - fixed at the build level with
 // -s STACK_SIZE=8388608. Those checks are gone.
 
 /**
@@ -25,7 +25,7 @@
  * @param {string} file    virtual filename for error reporting
  * @param {{port?: string}} [opts]
  *        `port` is "sm83" (GB/GBC) or "z80" (SMS/GG/MSX/Coleco/ZXSpectrum)
- *        — controls the message wording so it says "SDCC sm83" on GB/GBC
+ *        - controls the message wording so it says "SDCC sm83" on GB/GBC
  *        and "SDCC z80" on the z80 platforms. Default "sm83" for back-compat.
  * @returns {LintIssue[]}
  */
@@ -36,7 +36,7 @@ export function lintSdccSource(source, file = "main.c", opts = {}) {
   const lines = source.split(/\r?\n/);
 
   // ─── C89 violations ─────────────────────────────────────────────
-  // SDCC's sm83 and z80 frontends are both C89-only — no inline for-loop
+  // SDCC's sm83 and z80 frontends are both C89-only - no inline for-loop
   // counter decls, no mid-block decls. Catching these here gives a clear
   // file:line; otherwise SDCC reports the misleading "syntax error on
   // the NEXT decl" line.
@@ -66,17 +66,17 @@ export function lintSdccSource(source, file = "main.c", opts = {}) {
   // no warning. Detect: a u8-typed counter used in a `< BOUND` test where
   // BOUND is a literal or a simple `A * B` product that exceeds 255.
   // CONSERVATIVE: only flag when we can SEE the counter declared u8 and
-  // the bound is a constant we can evaluate — never guess.
+  // the bound is a constant we can evaluate - never guess.
   {
     // Build a SCOPE-AWARE map of where each name is declared and at what
     // width. A name like `i` is commonly re-declared in several functions
-    // — some as uint8_t, some as uint16_t. A flat "is this name ever u8"
+    // - some as uint8_t, some as uint16_t. A flat "is this name ever u8"
     // set wrongly flags the uint16_t loop just because a DIFFERENT
     // function declared its own `i` as uint8_t (the SMS/GG default
     // scaffold false-positive). Instead we record EVERY declaration's
     // line + width, then for each loop consult the nearest declaration of
-    // the counter that appears ABOVE the loop — i.e. the one actually in
-    // scope — and only flag it when that declaration is 8-bit.
+    // the counter that appears ABOVE the loop - i.e. the one actually in
+    // scope - and only flag it when that declaration is 8-bit.
     //
     // decls: Map<name, Array<{line:number, u8:boolean}>>  (line is 1-based)
     const decls = new Map();
@@ -110,7 +110,7 @@ export function lintSdccSource(source, file = "main.c", opts = {}) {
         if (d.line <= loopLine && (best === null || d.line > best.line)) best = d;
       }
       // No declaration above the loop (e.g. param/global declared after, or
-      // out-of-order) — fall back to "flag only if EVERY decl is u8" so we
+      // out-of-order) - fall back to "flag only if EVERY decl is u8" so we
       // never wolf-cry on a name that is also declared wide somewhere.
       if (best === null) return ds.every((d) => d.u8);
       return best.u8;
@@ -127,7 +127,7 @@ export function lintSdccSource(source, file = "main.c", opts = {}) {
     };
     for (let i = 0; i < lines.length; i++) {
       const code = lines[i].replace(/\/\/.*$/, "").replace(/\/\*.*?\*\//g, "");
-      // for ( ... ident < BOUND ; ... )  — grab the counter + bound.
+      // for ( ... ident < BOUND ; ... )  - grab the counter + bound.
       const m = code.match(/\bfor\s*\([^;]*;\s*([A-Za-z_]\w*)\s*<\s*([^;]+?)\s*;/);
       if (!m) continue;
       const [, counter, boundExpr] = m;
@@ -136,14 +136,14 @@ export function lintSdccSource(source, file = "main.c", opts = {}) {
       if (bound !== null && bound > 255) {
         issues.push({
           severity: "warning",
-          // CRASH-CLASS: not cosmetic — this loop never exits and hangs the
+          // CRASH-CLASS: not cosmetic - this loop never exits and hangs the
           // game. `critical` lifts it above ordinary warnings so an agent
           // triaging issues[] can't miss it among unused-variable noise.
           critical: true,
           file,
           line: i + 1,
           stage: "lint",
-          message: `WILL HANG: uint8 loop counter '${counter}' with bound ${bound} (> 255) — infinite loop`,
+          message: `WILL HANG: uint8 loop counter '${counter}' with bound ${bound} (> 255) - infinite loop`,
           details: `A u8/uint8_t/char counter can never reach ${bound}, so this loop never exits and all code after it is dead. ${portLabel} gives no warning. Declare '${counter}' as uint16_t. See GB TROUBLESHOOTING § uint8 loop-bound trap.`,
           ref: "uint8-loop-bound",
         });
@@ -153,21 +153,21 @@ export function lintSdccSource(source, file = "main.c", opts = {}) {
 
   // ─── __xdata / VRAM byte-copy miscompile ────────────────────────
   // SDCC sm83 miscompiles `for (i...) dst[i] = src[i];` ONLY when dst is an
-  // __xdata pointer (e.g. into VRAM $8000) — it writes through the return
+  // __xdata pointer (e.g. into VRAM $8000) - it writes through the return
   // address and crashes the CPU. A plain WRAM array copy (`static uint8_t
   // rb[78]; ... rb[i]=grid[i];`) is perfectly fine. The old lint flagged the
-  // SHAPE unconditionally as a "warning" — every WRAM copy in every genre
+  // SHAPE unconditionally as a "warning" - every WRAM copy in every genre
   // scaffold cried wolf, training agents to distrust the linter. We now
   // classify the DESTINATION identifier before deciding the severity:
   //
   //   • PROVABLY VRAM/__xdata  → "warning" (the real crash-class footgun)
-  //       - dst is declared as a POINTER (`type *dst`) — only pointers can
+  //       - dst is declared as a POINTER (`type *dst`) - only pointers can
   //         alias __xdata; an indexed write through one is the bug.
   //       - dst is a known-VRAM name (vram*, VRAM, *vram*, bgmap, _VRAM*).
   //       - dst is assigned from a cast/literal in $8000-$9FFF anywhere in
   //         the source (e.g. `dst = (uint8_t*)0x9800;`).
   //   • PLAIN RAM ARRAY        → SUPPRESS (declared `type dst[N];` here).
-  //   • UNKNOWN (bare ident,   → "info" — visible, not scary. Better to
+  //   • UNKNOWN (bare ident,   → "info" - visible, not scary. Better to
   //     no decl in this TU)      occasionally downgrade a real VRAM case to
   //                              info than to keep crying wolf on WRAM.
   //
@@ -188,9 +188,9 @@ export function lintSdccSource(source, file = "main.c", opts = {}) {
     const dst = cp[1];
     // A VRAM-suggestive NAME promotes an otherwise-unknown dest to VRAM even
     // with no decl in this TU (e.g. `vram_buf[i] = tiles[i];`). A declared
-    // plain array still wins as "array" (suppress) — names rarely collide.
+    // plain array still wins as "array" (suppress) - names rarely collide.
     const klass = dstClass.get(dst) || (isVramName(dst) ? "vram" : "unknown");
-    if (klass === "array") continue; // plain WRAM array — provably safe, suppress
+    if (klass === "array") continue; // plain WRAM array - provably safe, suppress
     const isVram = klass === "vram";
     issues.push({
       // Provably-VRAM → warning (the crash-class footgun). Unknown bare
@@ -201,11 +201,11 @@ export function lintSdccSource(source, file = "main.c", opts = {}) {
       line: i + 1,
       stage: "lint",
       message: isVram
-        ? `byte-copy loop \`${dst}[${idx1}] = ${cp[3]}[${idx2}]\` into VRAM/__xdata — ${portLabel} miscompiles this`
-        : `byte-copy loop \`${dst}[${idx1}] = ${cp[3]}[${idx2}]\` — safe for WRAM arrays, but miscompiles if '${dst}' points into VRAM/__xdata`,
+        ? `byte-copy loop \`${dst}[${idx1}] = ${cp[3]}[${idx2}]\` into VRAM/__xdata - ${portLabel} miscompiles this`
+        : `byte-copy loop \`${dst}[${idx1}] = ${cp[3]}[${idx2}]\` - safe for WRAM arrays, but miscompiles if '${dst}' points into VRAM/__xdata`,
       details: isVram
-        ? `${portLabel} miscompiles this pattern when '${dst}' points into VRAM ($8000-$9FFF) or another __xdata region — it writes through the return address and crashes the CPU (PC near $002B, sprites/tiles never show). Use \`memcpy_vram(${dst}, ${cp[3]}, n)\` (in gb_runtime.c) instead. See GB TROUBLESHOOTING § the #1 SDCC footgun.`
-        : `If '${dst}' is a plain WRAM array (\`type ${dst}[N];\`) this is FINE — ignore. ${portLabel} only miscompiles it when '${dst}' is a pointer into VRAM ($8000-$9FFF)/__xdata, where it writes through the return address and crashes the CPU. If '${dst}' is a VRAM pointer, use \`memcpy_vram(${dst}, ${cp[3]}, n)\` instead. See GB TROUBLESHOOTING § the #1 SDCC footgun.`,
+        ? `${portLabel} miscompiles this pattern when '${dst}' points into VRAM ($8000-$9FFF) or another __xdata region - it writes through the return address and crashes the CPU (PC near $002B, sprites/tiles never show). Use \`memcpy_vram(${dst}, ${cp[3]}, n)\` (in gb_runtime.c) instead. See GB TROUBLESHOOTING § the #1 SDCC footgun.`
+        : `If '${dst}' is a plain WRAM array (\`type ${dst}[N];\`) this is FINE - ignore. ${portLabel} only miscompiles it when '${dst}' is a pointer into VRAM ($8000-$9FFF)/__xdata, where it writes through the return address and crashes the CPU. If '${dst}' is a VRAM pointer, use \`memcpy_vram(${dst}, ${cp[3]}, n)\` instead. See GB TROUBLESHOOTING § the #1 SDCC footgun.`,
       ref: "xdata-copy-miscompile",
     });
   }
@@ -214,7 +214,7 @@ export function lintSdccSource(source, file = "main.c", opts = {}) {
   // SDCC links `_DATA`/`_INITIALIZED` (value-init statics) + `_BSS` (zero-init
   // statics) at the BOTTOM of WRAM starting $C000. A program that ALSO pokes a
   // hardcoded pointer into that low range (e.g. `(uint8_t*)0xC000`) scribbles
-  // over its own statics — the seed of a PRNG, a collision grid, the score —
+  // over its own statics - the seed of a PRNG, a collision grid, the score -
   // and the symptom looks EXACTLY like an SDCC codegen bug (a 32-bit xorshift
   // that "degenerates" because its seed got clobbered, never a real
   // miscompile). This was the real root cause behind a GBC Columns agent's
@@ -223,7 +223,7 @@ export function lintSdccSource(source, file = "main.c", opts = {}) {
   // ONLY for the sm83/z80 GB/SMS-family, whose WRAM base is $C000. Flag the
   // low 256 bytes ($C000-$C0FF) where _DATA/_INITIALIZED live (small projects'
   // statics sit here; $C100 is shadow_oam; $C200+ is the documented-safe
-  // scratch floor). INFO severity — visible, not "your code is broken": a
+  // scratch floor). INFO severity - visible, not "your code is broken": a
   // hardcoded low pointer is occasionally legitimate (e.g. you've checked the
   // map). NEVER critical.
   if (port === "sm83" || port === "z80") {
@@ -245,13 +245,13 @@ export function lintSdccSource(source, file = "main.c", opts = {}) {
         line: i + 1,
         stage: "lint",
         message: `hardcoded WRAM pointer $${addr.toString(16).toUpperCase()} overlaps the C static-data segment ($C000-)`,
-        details: `${portLabel} links your value- and zero-initialised \`static\` globals (PRNG seeds, grids, scores) at the BOTTOM of WRAM from $C000. A hardcoded pointer into $C000-$C0FF can scribble over them — the classic symptom is a PRNG/array that looks "miscompiled" (e.g. an xorshift whose seed got clobbered so every roll is identical) when the math is actually fine. Prefer a \`static\` array and let the linker place it; if you must hardcode, use $C200+ and verify with the linker map (build with includeSymbols:true → check s__DATA/s__BSS). $C100 is shadow_oam. See ${port === "sm83" ? "GB/GBC" : "SMS/GG"} SDCC_GOTCHAS.md § "sm83 codegen traps in plain game logic".`,
+        details: `${portLabel} links your value- and zero-initialised \`static\` globals (PRNG seeds, grids, scores) at the BOTTOM of WRAM from $C000. A hardcoded pointer into $C000-$C0FF can scribble over them - the classic symptom is a PRNG/array that looks "miscompiled" (e.g. an xorshift whose seed got clobbered so every roll is identical) when the math is actually fine. Prefer a \`static\` array and let the linker place it; if you must hardcode, use $C200+ and verify with the linker map (build with includeSymbols:true → check s__DATA/s__BSS). $C100 is shadow_oam. See ${port === "sm83" ? "GB/GBC" : "SMS/GG"} SDCC_GOTCHAS.md § "sm83 codegen traps in plain game logic".`,
         ref: "wram-static-overlap",
       });
     }
   }
 
-  // Mid-block declarations (rough heuristic — flags any `type name [=...] ;`
+  // Mid-block declarations (rough heuristic - flags any `type name [=...] ;`
   // that appears after a non-decl, non-blank statement at deeper indent
   // than the function opening brace).
   const c89DeclWarnings = detectMidBlockDecls(lines, portLabel);
@@ -294,7 +294,7 @@ function isVramName(n) {
  * Classify each identifier that is the destination of a copy loop into one
  * of: "vram" (provably a VRAM/__xdata pointer → real crash-class footgun),
  * "array" (declared as a plain `type name[N];` RAM array → provably safe,
- * suppress the warning), or absent (unknown — caller treats as "info").
+ * suppress the warning), or absent (unknown - caller treats as "info").
  *
  * This is a whole-TU pass: a name is classified by scanning the ENTIRE
  * source, so a `uint8_t *dst;` decl far above the loop, or a later
@@ -302,7 +302,7 @@ function isVramName(n) {
  *
  * Precedence: VRAM wins over array (a name that is BOTH a pointer and,
  * say, shadowed by an array elsewhere should still be treated as the
- * dangerous case — but in practice a single name is one or the other).
+ * dangerous case - but in practice a single name is one or the other).
  *
  * @param {string[]} lines  source split into lines
  * @returns {Map<string,"vram"|"array">}
@@ -313,12 +313,12 @@ function classifyCopyDest(lines) {
   const setVram  = (n) => { klass.set(n, "vram"); };
   const setArray = (n) => { if (klass.get(n) !== "vram") klass.set(n, "array"); };
 
-  // A literal/cast value lands in VRAM if it's 0x8000–0x9FFF.
+  // A literal/cast value lands in VRAM if it's 0x8000-0x9FFF.
   const inVramRange = (hexOrDec) => {
     const v = /^0x/i.test(hexOrDec) ? parseInt(hexOrDec, 16) : parseInt(hexOrDec, 10);
     return Number.isFinite(v) && v >= 0x8000 && v <= 0x9fff;
   };
-  // Type keywords that introduce a declaration (subset is fine — we only
+  // Type keywords that introduce a declaration (subset is fine - we only
   // need to tell "pointer decl" from "array decl").
   const TYPE = "(?:unsigned\\s+|signed\\s+)?(?:char|short|int|long|void|u?int(?:8|16|32|64)_t|u8|u16|u32|u64|uint8|uint16|uint32|uint64|int8|int16|int32|int64|size_t|[A-Z][A-Za-z0-9_]*_t)";
   const QUAL = "(?:static\\s+|const\\s+|register\\s+|volatile\\s+|extern\\s+|auto\\s+|__xdata\\s+|__at\\s*\\([^)]*\\)\\s*)*";
@@ -368,7 +368,7 @@ function classifyCopyDest(lines) {
  * in this block. A decl after a non-decl statement is the violation.
  *
  * False positives: typedefs in unusual places, prototype-style empty
- * blocks. Not strict — we only emit warnings.
+ * blocks. Not strict - we only emit warnings.
  */
 function detectMidBlockDecls(lines, portLabel = "SDCC sm83") {
   const issues = [];
@@ -398,14 +398,14 @@ function detectMidBlockDecls(lines, portLabel = "SDCC sm83") {
     // matters: if the line is `void foo(void) {` we need the `{` to
     // push the block stack BEFORE we evaluate the rest of the line as
     // a statement.
-    // Strip prototype-style "type name(...)" function headers — those
+    // Strip prototype-style "type name(...)" function headers - those
     // aren't statements and shouldn't set sawCode. After the `{` we'll
     // see the body.
     const hadOpen  = stripped.includes("{");
     const hadClose = stripped.includes("}");
     if (hadOpen) {
       // Process anything BEFORE the brace as part of the OUTER scope
-      // (which we don't care about for mid-decl detection — the inner
+      // (which we don't care about for mid-decl detection - the inner
       // scope is what counts), then push.
       stack.push({ sawCode: false, midDeclCount: 0 });
     }
@@ -437,12 +437,12 @@ function detectMidBlockDecls(lines, portLabel = "SDCC sm83") {
     //
     // CONSERVATIVE: prefer false-negatives. The cost of a false-positive
     // ("you have a mid-block decl" when the user is innocent) is way
-    // worse than missing a real one — the agent has already told us
+    // worse than missing a real one - the agent has already told us
     // they distrust the linter after one wolf cry.
     const TYPE_RE = /^(?:static\s+|const\s+|register\s+|volatile\s+|extern\s+|auto\s+)*(?:unsigned\s+|signed\s+)?(?:char|short|int|long|float|double|void|struct\s+\w+|union\s+\w+|enum\s+\w+|u?int(?:8|16|32|64)_t|u8|u16|u32|u64|uint8|uint16|uint32|uint64|int8|int16|int32|int64|size_t|ptrdiff_t|bool|FILE|[A-Z][A-Za-z0-9_]*_t)\s+\*{0,3}\s*[A-Za-z_]\w*/;
     const isDecl = TYPE_RE.test(after);
 
-    // Identify what counts as "non-decl code" — only the ACTUAL flow-
+    // Identify what counts as "non-decl code" - only the ACTUAL flow-
     // control keywords + assignments + calls. Things that AREN'T code:
     //   - control-flow KEYWORDS inside a declaration's initializer
     //   - assignments inside an initializer (e.g. `int x = (cond ? a : b);`)
@@ -451,7 +451,7 @@ function detectMidBlockDecls(lines, portLabel = "SDCC sm83") {
     // We only set sawCode=true on those.
     //
     // Lines that are ONLY trailing tokens of a previous statement (e.g.
-    // continuation of a multi-line assignment) DON'T count either — but
+    // continuation of a multi-line assignment) DON'T count either - but
     // we don't track those, so allow some noise on multi-line stmts.
     const looksLikeCode = !isDecl && (
       /^(?:return\b|if\s*\(|for\s*\(|while\s*\(|do\b|switch\s*\(|goto\b|break\b|continue\b|case\b|default\s*:)/.test(after) ||
@@ -471,7 +471,7 @@ function detectMidBlockDecls(lines, portLabel = "SDCC sm83") {
         // Report EVERY mid-block decl in the block, not just the first.
         // Earlier rounds suppressed subsequent decls (one-per-block) which
         // led to the "linter says line 533, real decl is line 539" footgun
-        // an agent reported in round 24 — the linter caught an earlier
+        // an agent reported in round 24 - the linter caught an earlier
         // decl the agent didn't recognize, then suppressed the obvious
         // one. Reporting all of them eliminates the surprise: every line
         // the lint mentions IS a real mid-block decl.
@@ -479,17 +479,17 @@ function detectMidBlockDecls(lines, portLabel = "SDCC sm83") {
         issues.push({
           line: i + 1,
           message: `${ordinal} (C89 violation)`,
-          details: `${portLabel} is C89 only — variable declarations must come BEFORE any code statement in a block. Move this declaration to the top of the enclosing block. NOTE: SDCC's own reported error line is usually wrong (points at the line AFTER the offense); use this warning's line instead. If the line shown doesn't look like a decl to you, double-check: typedef'd names ending in \`_t\` and struct/union/enum types all count as declarations. See SDCC_GOTCHAS.md § C89 vs C99.`,
+          details: `${portLabel} is C89 only - variable declarations must come BEFORE any code statement in a block. Move this declaration to the top of the enclosing block. NOTE: SDCC's own reported error line is usually wrong (points at the line AFTER the offense); use this warning's line instead. If the line shown doesn't look like a decl to you, double-check: typedef'd names ending in \`_t\` and struct/union/enum types all count as declarations. See SDCC_GOTCHAS.md § C89 vs C99.`,
         });
         top.midDeclCount++;
       }
-      // A decl itself never sets sawCode — that's the whole point.
+      // A decl itself never sets sawCode - that's the whole point.
     } else if (looksLikeCode) {
-      // Real statement — flag any future decl in this block.
+      // Real statement - flag any future decl in this block.
       top.sawCode = true;
     }
     // Lines that match neither (continuations, comments-only after strip,
-    // unrecognized syntax) are left alone — we don't flip sawCode on them.
+    // unrecognized syntax) are left alone - we don't flip sawCode on them.
   }
   return issues;
 }

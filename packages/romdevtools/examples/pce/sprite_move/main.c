@@ -1,9 +1,9 @@
 /*
- * PC Engine "sprite_move" — a joypad-controlled 16x16 sprite over a tiled BG.
+ * PC Engine "sprite_move" - a joypad-controlled 16x16 sprite over a tiled BG.
  *
  * Press the d-pad to slide a yellow-faced sprite around a green/dark checkerboard
  * background. This is the canonical PCE "read pad + move a sprite over a tilemap"
- * starter: it exercises the whole helper library end to end —
+ * starter: it exercises the whole helper library end to end -
  *
  *   vce_set_color()           BG + sprite palette entries (9-bit GRB)
  *   load_tiles()/vram_write() tile patterns + sprite pattern into VRAM
@@ -15,7 +15,7 @@
  * BUILD: link main.c + pce_video.c + pce_input.c + pce_sound.c together, with
  * pce_hw.h in includes. (PCE cc65 target supplies crt0 + pce.lib automatically.)
  *
- * cc65 is C89 — declare locals at the top of a block. A cart INIT must never
+ * cc65 is C89 - declare locals at the top of a block. A cart INIT must never
  * return, so main() ends in for(;;){}.
  *
  * EMPTY-BSS TRAP: linking pce_video.c pulls in _pce_keep[4], so .bss is never
@@ -92,7 +92,7 @@ static void make_sprite(void) {
 /* Draw a 32x32-cell checkerboard of TILE_A / TILE_B across the BAT. The default
  * PCE virtual screen is 32x32 cells (256x256 px), which covers the display.
  * A two-colour checkerboard (green + dark teal) makes the whole playfield read
- * as a real, visible background — a SOLID single-colour fill instead looks blank
+ * as a real, visible background - a SOLID single-colour fill instead looks blank
  * to a human (one colour covers >92% of the screen), so we alternate by cell. */
 static void fill_bat(void) {
     u16 ea = BAT_ENTRY(TILE_A_VRAM, 0);

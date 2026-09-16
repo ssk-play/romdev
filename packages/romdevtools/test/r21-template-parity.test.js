@@ -26,7 +26,7 @@ async function readSource(rel) {
 
 test("R21 Genesis SGDK templates: all compile to valid ROMs", { timeout: 180000 }, async () => {
   const { buildGenesisC } = await import("romdev-toolchain-m68k-gcc");
-  // R30: genre scaffolds now use genesis_sfx — provide it alongside main.c.
+  // R30: genre scaffolds now use genesis_sfx - provide it alongside main.c.
   const sfxH = await readSource("../romdev-toolchain-m68k-gcc/share/genesis/lib/c/genesis_sfx.h");
   const sfxC = await readSource("../romdev-toolchain-m68k-gcc/share/genesis/lib/c/genesis_sfx.c");
   for (const t of GENESIS_TEMPLATES) {
@@ -48,7 +48,7 @@ test("R21 Genesis SGDK templates: all compile to valid ROMs", { timeout: 180000 
 
 test("R21 SNES PVSnesLib templates: all compile to valid ROMs", { timeout: 180000 }, async () => {
   const { buildSnesC } = await import("../src/toolchains/snes-c/snes-c.js");
-  // R31: SNES genre scaffolds now include snes_sfx — provide it.
+  // R31: SNES genre scaffolds now include snes_sfx - provide it.
   const sfxH = await readSource("src/platforms/snes/lib/c/snes_sfx.h");
   const sfxC = await readSource("src/platforms/snes/lib/c/snes_sfx.c");
   const sfxDataAsm = await readSource("src/platforms/snes/lib/c/snes_sfx_data.asm");

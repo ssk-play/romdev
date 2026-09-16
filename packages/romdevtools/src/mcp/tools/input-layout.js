@@ -1,4 +1,4 @@
-// getInputLayout — return per-platform input register/protocol info plus
+// getInputLayout - return per-platform input register/protocol info plus
 // the libretro→hardware id mapping. Lets agents writing asm input handlers
 // know exactly what each bit/id means.
 
@@ -11,10 +11,10 @@ if (!FACE_BUTTON_MAP.sync32) FACE_BUTTON_MAP.sync32 = { north: "x", east: "a", s
 
 const HARDWARE_LAYOUTS = {
   sync32: {
-    register: "none — a game calls api->pad(port, &pad) and reads pad.buttons (uint16_t) + pad.lx/ly (int8_t sticks) + pad.connected",
+    register: "none - a game calls api->pad(port, &pad) and reads pad.buttons (uint16_t) + pad.lx/ly (int8_t sticks) + pad.connected",
     protocol: "api-struct",
     strobe: "No strobe and no register: the console polls the pad for you; api->pad() returns the state sampled for this frame.",
-    readSequence: "s32_pad_t pad; api->pad(0, &pad); if (pad.buttons & S32_PAD_A) jump(); — edge-detect yourself by keeping last frame's word (pressed = now & ~prev).",
+    readSequence: "s32_pad_t pad; api->pad(0, &pad); if (pad.buttons & S32_PAD_A) jump(); - edge-detect yourself by keeping last frame's word (pressed = now & ~prev).",
     bitOrder: ["UP 0x0001", "DOWN 0x0002", "LEFT 0x0004", "RIGHT 0x0008", "START 0x0010", "SELECT 0x0020", "L 0x0100", "R 0x0200", "A 0x1000", "B 0x2000", "X 0x4000", "Y 0x8000"],
     note: "Bits are the S32_PAD_* constants in sync32.h (platform({op:'doc', platform:'sync32', name:'abi'})). The s32core libretro frontend maps by NAME, not position: libretro a→S32_PAD_A (0x1000), b→S32_PAD_B (0x2000), x→S32_PAD_X, y→S32_PAD_Y, l/r→S32_PAD_L/R, start/select/dpad→their bits. So input({op:'set', ports:[{a:true}]}) is what a cart reads as S32_PAD_A. Playtest window keyboard (the romdev default binding): arrows = dpad, Z = libretro b (S32_PAD_B), X = libretro a (S32_PAD_A), A = libretro y, S = libretro x, Q/W = l/r, Enter = start, RShift = select; ESC closes the window. Port 0..3 are the four pads; pad.connected==0 means nothing plugged in that port.",
     faceButtons: FACE_BUTTON_MAP.sync32,
@@ -54,7 +54,7 @@ const HARDWARE_LAYOUTS = {
     register: "$4016 (port 1), $4017 (port 2)",
     protocol: "strobe-and-shift",
     strobe: "Write 1 then 0 to $4016. Same protocol as NES, 16 reads.",
-    readSequence: "16 reads per port — first 12 are buttons, last 4 are device-id padding.",
+    readSequence: "16 reads per port - first 12 are buttons, last 4 are device-id padding.",
     bitOrder: [
       "B", "Y", "Select", "Start",
       "Up", "Down", "Left", "Right",
@@ -69,13 +69,13 @@ const HARDWARE_LAYOUTS = {
     strobe: "TH bit (bit 6) of CTRL register selects which set of buttons is read.",
     readSequence: "TH=0: read Up/Down/0/0/A/Start. TH=1: read Up/Down/Left/Right/B/C. 6-button pad uses extra TH transitions.",
     bitOrder: ["Up", "Down", "Left/0", "Right/0", "B/A", "C/Start"],
-    note: "Bit positions vary by TH state. genesis_plus_gx maps the Genesis face buttons A/B/C onto libretro Y/B/A respectively — so to PRESS a Genesis button via setInput: Genesis A → setInput({y:true}) (or spatial {west:true}), Genesis B → {b:true} (spatial {south:true}), Genesis C → {a:true} (spatial {east:true}). NOTE the inversion: libretro 'a' is Genesis C, NOT Genesis A. (libretro 'C' doesn't exist; the 6-button pad's X/Y/Z map to libretro x/north/l.) Use pressButton({button:'c'}) for the Genesis-native alias, or getInputLayout's faceButtons. Verified empirically against genesis_plus_gx 2026-06-05.",
+    note: "Bit positions vary by TH state. genesis_plus_gx maps the Genesis face buttons A/B/C onto libretro Y/B/A respectively - so to PRESS a Genesis button via setInput: Genesis A → setInput({y:true}) (or spatial {west:true}), Genesis B → {b:true} (spatial {south:true}), Genesis C → {a:true} (spatial {east:true}). NOTE the inversion: libretro 'a' is Genesis C, NOT Genesis A. (libretro 'C' doesn't exist; the 6-button pad's X/Y/Z map to libretro x/north/l.) Use pressButton({button:'c'}) for the Genesis-native alias, or getInputLayout's faceButtons. Verified empirically against genesis_plus_gx 2026-06-05.",
     faceButtons: FACE_BUTTON_MAP.genesis,
   },
   atari2600: {
     register: "SWCHA ($280), INPT4/INPT5 (fire buttons)",
     protocol: "direct-read",
-    strobe: "None — bits are wired directly.",
+    strobe: "None - bits are wired directly.",
     readSequence: "SWCHA: high nibble = player 1 directions (active-low). INPT4 bit 7 = player 1 fire (active-low).",
     bitOrder: ["P1 Right", "P1 Left", "P1 Down", "P1 Up", "P2 Right", "P2 Left", "P2 Down", "P2 Up"],
     note: "One fire button per player. Active-low everywhere.",
@@ -102,7 +102,7 @@ const HARDWARE_LAYOUTS = {
   sms: {
     register: "I/O port $DC (controllers, read via `in a,($DC)`) and $DD (port 2 high bits + reset)",
     protocol: "direct-read",
-    strobe: "None — the SMS reads controller bits directly from the Z80 I/O port.",
+    strobe: "None - the SMS reads controller bits directly from the Z80 I/O port.",
     readSequence: "$DC: bit0 P1 Up, bit1 P1 Down, bit2 P1 Left, bit3 P1 Right, bit4 P1 button 1 (TL), bit5 P1 button 2 (TR), bits6-7 P2 Up/Down. $DD: bits0-3 P2 Left/Right/TL/TR, bit6 reset. ALL ACTIVE-LOW (0 = pressed).",
     bitOrder: ["P1 Up", "P1 Down", "P1 Left", "P1 Right", "P1 Button1", "P1 Button2", "P2 Up", "P2 Down"],
     note: "Active-low: a pressed button reads 0. Two face buttons per pad (1=TL, 2=TR); no Start on the SMS pad (the console has a physical Pause button wired to the Z80 NMI). genesis_plus_gx maps button 1 (TL) → libretro 'b' and button 2 (TR) → libretro 'a' (NOTE the inversion: setInput({a:true}) presses button 2, not button 1). Spatial names are correct: west→button 1, east→button 2. pressButton({button:'1'|'2'}) takes the printed labels. Verified vs gpgx 2026-06-05.",
@@ -111,32 +111,32 @@ const HARDWARE_LAYOUTS = {
   gg: {
     register: "I/O port $DC (D-pad + buttons 1/2) and $00 (START button, bit 7)",
     protocol: "direct-read",
-    strobe: "None — same VDP/controller chip as the SMS, read directly from Z80 I/O.",
-    readSequence: "$DC: bit0 Up, bit1 Down, bit2 Left, bit3 Right, bit4 button 1, bit5 button 2 — all active-low. The Game Gear's extra START button is bit 7 of port $00 (also active-low).",
+    strobe: "None - same VDP/controller chip as the SMS, read directly from Z80 I/O.",
+    readSequence: "$DC: bit0 Up, bit1 Down, bit2 Left, bit3 Right, bit4 button 1, bit5 button 2 - all active-low. The Game Gear's extra START button is bit 7 of port $00 (also active-low).",
     bitOrder: ["Up", "Down", "Left", "Right", "Button1", "Button2"],
-    note: "Active-low. Handheld single controller. START is at port $00 bit 7, NOT in $DC. genesis_plus_gx maps button 1 → libretro 'b' and button 2 → libretro 'a' (same inversion as SMS — setInput({a:true}) presses button 2), START → 'start'. Spatial names are correct: west→button 1, east→button 2. Verified vs gpgx 2026-06-05.",
+    note: "Active-low. Handheld single controller. START is at port $00 bit 7, NOT in $DC. genesis_plus_gx maps button 1 → libretro 'b' and button 2 → libretro 'a' (same inversion as SMS - setInput({a:true}) presses button 2), START → 'start'. Spatial names are correct: west→button 1, east→button 2. Verified vs gpgx 2026-06-05.",
     faceButtons: FACE_BUTTON_MAP.gg,
   },
   atari7800: {
-    register: "SWCHA ($0280, RIOT — directions), INPT0/INPT1 (2-button ProLine fire) OR INPT4/INPT5 (1-button/2600-compat fire), CTLSWA/CTLSWB ($0281/$0283) to select mode",
+    register: "SWCHA ($0280, RIOT - directions), INPT0/INPT1 (2-button ProLine fire) OR INPT4/INPT5 (1-button/2600-compat fire), CTLSWA/CTLSWB ($0281/$0283) to select mode",
     protocol: "direct-read",
-    strobe: "None for directions. ⚠ The fire-button read DEPENDS on controller mode: a 2-button ProLine pad reads fire via INPT0 (right/button 2/libretro 'a') + INPT1 (left/button 1/libretro 'b') when the port is driven; a 1-button or 2600-style joystick reads fire via INPT4/INPT5. Set the CTLSWx mode bits accordingly before reading. (Default boot is 1-BUTTON mode — both 'a' and 'b' collapse onto INPT4 until you enable 2-button mode by driving CTLSWB bit2.)",
-    readSequence: "SWCHA: high nibble = player 1 directions (active-low: bit7 Right, bit6 Left, bit5 Down, bit4 Up). ProLine fire: INPT0/INPT1 bit 7 (the polarity flips with the port-drive state — verify against the emulator with readMemory). 2600-compat fire: INPT4/INPT5 bit 7 (active-low).",
+    strobe: "None for directions. ⚠ The fire-button read DEPENDS on controller mode: a 2-button ProLine pad reads fire via INPT0 (right/button 2/libretro 'a') + INPT1 (left/button 1/libretro 'b') when the port is driven; a 1-button or 2600-style joystick reads fire via INPT4/INPT5. Set the CTLSWx mode bits accordingly before reading. (Default boot is 1-BUTTON mode - both 'a' and 'b' collapse onto INPT4 until you enable 2-button mode by driving CTLSWB bit2.)",
+    readSequence: "SWCHA: high nibble = player 1 directions (active-low: bit7 Right, bit6 Left, bit5 Down, bit4 Up). ProLine fire: INPT0/INPT1 bit 7 (the polarity flips with the port-drive state - verify against the emulator with readMemory). 2600-compat fire: INPT4/INPT5 bit 7 (active-low).",
     bitOrder: ["P1 Right", "P1 Left", "P1 Down", "P1 Up", "P2 Right", "P2 Left", "P2 Down", "P2 Up"],
-    note: "The 2-button-vs-1-button fire path is the #1 7800 input footgun — if fire 'doesn't register', you're likely reading the wrong register for the pad mode. Directions are the SAME as the 2600 (shared RIOT SWCHA). libretro maps the two ProLine buttons onto JOYPAD 'a' → INPT0 (right/button 2) and 'b' → INPT1 (left/button 1), active-HIGH bit7 (confirmed empirically vs prosystem 2026-06-05 + Riot.c). NOTE: default boot is 1-BUTTON mode (SWCHB bit2 set) where BOTH 'a' and 'b' read via INPT4 (active-low) and INPT0/1 stay dead — enable 2-button mode (CTLSWB bit2 = output, SWCHB bit2 = 0) to split them. Verify empirically: drive holdInputs and readMemory the INPT register to confirm which bit moved.",
+    note: "The 2-button-vs-1-button fire path is the #1 7800 input footgun - if fire 'doesn't register', you're likely reading the wrong register for the pad mode. Directions are the SAME as the 2600 (shared RIOT SWCHA). libretro maps the two ProLine buttons onto JOYPAD 'a' → INPT0 (right/button 2) and 'b' → INPT1 (left/button 1), active-HIGH bit7 (confirmed empirically vs prosystem 2026-06-05 + Riot.c). NOTE: default boot is 1-BUTTON mode (SWCHB bit2 set) where BOTH 'a' and 'b' read via INPT4 (active-low) and INPT0/1 stay dead - enable 2-button mode (CTLSWB bit2 = output, SWCHB bit2 = 0) to split them. Verify empirically: drive holdInputs and readMemory the INPT register to confirm which bit moved.",
     faceButtons: FACE_BUTTON_MAP.atari7800,
   },
   lynx: {
-    register: "Mikey JOYSTICK ($FCB0) — D-pad + A/B/Opt1/Opt2; SWITCHES ($FCB1) — Pause (bit 0)",
+    register: "Mikey JOYSTICK ($FCB0) - D-pad + A/B/Opt1/Opt2; SWITCHES ($FCB1) - Pause (bit 0)",
     protocol: "direct-read",
-    strobe: "None — read the memory-mapped Mikey registers directly.",
-    readSequence: "JOYSTICK ($FCB0): bit7 Up, bit6 Down, bit5 Left, bit4 Right, bit3 Opt1, bit2 Opt2, bit1 B (inner), bit0 A (outer). ACTIVE-HIGH (1 = pressed) — unlike most retro pads. SWITCHES ($FCB1) bit0 = Pause.",
+    strobe: "None - read the memory-mapped Mikey registers directly.",
+    readSequence: "JOYSTICK ($FCB0): bit7 Up, bit6 Down, bit5 Left, bit4 Right, bit3 Opt1, bit2 Opt2, bit1 B (inner), bit0 A (outer). ACTIVE-HIGH (1 = pressed) - unlike most retro pads. SWITCHES ($FCB1) bit0 = Pause.",
     bitOrder: ["A", "B", "Opt2", "Opt1", "Right", "Left", "Down", "Up"],
-    note: "⚠ Two gotchas: (1) buttons are ACTIVE-HIGH on the Lynx (1=pressed), opposite the active-low convention almost everywhere else. (2) The D-pad's physical Up/Down/Left/Right is RELATIVE TO SCREEN ROTATION — Mikey flips the direction bits when the screen is set to the flipped/left-handed orientation, so 'Up' in code may be physical-down on a rotated game. cc65's lynx target + the bundled lynx lib expose these via joy_read-style helpers. libretro maps A→'a', B→'b', Opt1/Opt2→'start'/'select', Pause→'select' (verify with holdInputs + readMemory $FCB0).",
+    note: "⚠ Two gotchas: (1) buttons are ACTIVE-HIGH on the Lynx (1=pressed), opposite the active-low convention almost everywhere else. (2) The D-pad's physical Up/Down/Left/Right is RELATIVE TO SCREEN ROTATION - Mikey flips the direction bits when the screen is set to the flipped/left-handed orientation, so 'Up' in code may be physical-down on a rotated game. cc65's lynx target + the bundled lynx lib expose these via joy_read-style helpers. libretro maps A→'a', B→'b', Opt1/Opt2→'start'/'select', Pause→'select' (verify with holdInputs + readMemory $FCB0).",
     faceButtons: FACE_BUTTON_MAP.lynx,
   },
   pce: {
-    register: "Joypad port — strobe via the I/O port; the BIOS reads it for you",
+    register: "Joypad port - strobe via the I/O port; the BIOS reads it for you",
     protocol: "strobe-and-scan",
     strobe: "The standard PCE pad is a 2-button pad (I and II) + Run + Select. A SEL/CLR strobe to the joyport latches the directions then the buttons; the cc65 pce target's joystick driver and the BIOS handle this.",
     readSequence: "After strobe: a nibble for D-pad (Up/Right/Down/Left) then a nibble for buttons (I, II, Select, Run). Active-low.",
@@ -145,9 +145,9 @@ const HARDWARE_LAYOUTS = {
     faceButtons: FACE_BUTTON_MAP.pce,
   },
   msx: {
-    register: "PSG (AY-3-8910) port A/B via the PPI — read via BIOS GTSTCK ($00D5) + GTTRIG ($00D8)",
+    register: "PSG (AY-3-8910) port A/B via the PPI - read via BIOS GTSTCK ($00D5) + GTTRIG ($00D8)",
     protocol: "bios-call",
-    strobe: "None for the common path — call the BIOS: GTSTCK(n) returns the joystick/cursor direction (0-8), GTTRIG(n) returns the trigger state. Direct PSG reads are possible but the BIOS is the portable way.",
+    strobe: "None for the common path - call the BIOS: GTSTCK(n) returns the joystick/cursor direction (0-8), GTTRIG(n) returns the trigger state. Direct PSG reads are possible but the BIOS is the portable way.",
     readSequence: "GTSTCK: 0=center, 1-8 = the 8 compass directions (1=up, clockwise). GTTRIG: bit 7 set = trigger pressed. Trigger 1 = button 'a', trigger 2 = button 'b'.",
     bitOrder: ["Trigger1", "Trigger2", "Up", "Down", "Left", "Right"],
     note: "libretro maps trigger 1 → 'a' (east), trigger 2 → 'b' (west). The keyboard is also an input source on MSX (BIOS CHGET $009F / read the key matrix), but for games the joystick via GTSTCK/GTTRIG is the standard path. Port 0 = keyboard cursor + space; ports 1/2 = the joystick ports.",
@@ -166,7 +166,7 @@ const LIBRETRO_JOYPAD_IDS = {
 // (as it appears in the ROM-readable joypad register, NOT libretro's id).
 // SNES read of $4218 returns a 16-bit value: button = (val & bit) != 0.
 // NES read of $4016 returns 8 sequential bits: each `lda $4016 ; lsr a ;
-// rol keydown` extracts one — bit-position here = byte position in that
+// rol keydown` extracts one - bit-position here = byte position in that
 // keydown register after 8 shifts.
 //
 // These are the bits a ROM ACTUALLY reads. The libretro JOYPAD ids above
@@ -187,7 +187,7 @@ const HARDWARE_BITS = {
     up: 0x0800, down: 0x0400, left: 0x0200, right: 0x0100,
     a: 0x0080, x: 0x0040, l: 0x0020, r: 0x0010,
   },
-  gb: { // $FF00 P1 register, active-low — bits 0-3
+  gb: { // $FF00 P1 register, active-low - bits 0-3
     // Note: row-select dependent. These are the bits READ when each row is selected.
     a: 0x01, b: 0x02, select: 0x04, start: 0x08,        // buttons row (bit 5 low)
     right: 0x01, left: 0x02, up: 0x04, down: 0x08,      // directions row (bit 4 low)
@@ -196,13 +196,13 @@ const HARDWARE_BITS = {
     a: 0x01, b: 0x02, select: 0x04, start: 0x08,
     right: 0x01, left: 0x02, up: 0x04, down: 0x08,
   },
-  genesis: { // $A10003 — bit positions depend on TH state
+  genesis: { // $A10003 - bit positions depend on TH state
     // TH=1 reads: bit 0=Up, 1=Down, 2=Left, 3=Right, 4=B, 5=C
     up: 0x01, down: 0x02, left: 0x04, right: 0x08, b: 0x10, c: 0x20,
     // TH=0 reads: bit 4=A, 5=Start
     a: 0x10, start: 0x20,
   },
-  c64: { // CIA1 PRB ($DC01), active-low — bits 0-4
+  c64: { // CIA1 PRB ($DC01), active-low - bits 0-4
     up: 0x01, down: 0x02, left: 0x04, right: 0x08, fire: 0x10,
   },
   atari2600: { // SWCHA ($280) high nibble = P1; INPT4 ($28C) bit 7 = P1 fire
@@ -234,7 +234,7 @@ const PHYSICAL_BUTTONS = {
   sync32:    ["up", "down", "left", "right", "north", "east", "south", "west", "l", "r", "start", "select"], // + lx/ly analog on the same pad
 };
 
-/** op:'layout' on the `input` tool — platform input register format + physical buttons. */
+/** op:'layout' on the `input` tool - platform input register format + physical buttons. */
 export function getInputLayoutCore({ platform }) {
       const layout = HARDWARE_LAYOUTS[platform];
       if (!layout) {
@@ -244,14 +244,14 @@ export function getInputLayoutCore({ platform }) {
         platform,
         ...layout,
         physicalButtons: PHYSICAL_BUTTONS[platform] ?? [],
-        controllerModel: "romdev uses an Xbox-shaped baseline for input: dpad + 4 face buttons (north/east/south/west) + l/r/l2/r2 + l3/r3 sticks + start/select. Older platforms are subsets — physicalButtons lists what's actually wired. Pressing a button not in that list is a silent no-op.",
+        controllerModel: "romdev uses an Xbox-shaped baseline for input: dpad + 4 face buttons (north/east/south/west) + l/r/l2/r2 + l3/r3 sticks + start/select. Older platforms are subsets - physicalButtons lists what's actually wired. Pressing a button not in that list is a silent no-op.",
         libretroJoypadIds: LIBRETRO_JOYPAD_IDS,
         hardwareBits: HARDWARE_BITS[platform] ?? null,
         hardwareBitsCaveat:
           "libretroJoypadIds are PROTOCOL ids for the input tool; they are NOT the bit positions a ROM reads from the hardware register. " +
           "hardwareBits gives the actual register bits a ROM tests (e.g. SNES: `lda $4218 ; bit #$1000` for start). " +
-          "Confusing the two silently breaks input handling — verified by the rom-games agent's 30-min bisection that prompted this field.",
-        note2: "Names from libretroJoypadIds work universally. Spatial face-button names (north/east/south/west) translate to the right physical button per platform — east is A on NES/SNES, C on Genesis. Prefer spatial names in cross-platform code.",
+          "Confusing the two silently breaks input handling - verified by the rom-games agent's 30-min bisection that prompted this field.",
+        note2: "Names from libretroJoypadIds work universally. Spatial face-button names (north/east/south/west) translate to the right physical button per platform - east is A on NES/SNES, C on Genesis. Prefer spatial names in cross-platform code.",
       };
 }
 

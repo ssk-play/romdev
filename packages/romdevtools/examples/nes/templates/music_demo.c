@@ -1,21 +1,21 @@
-/* ── music_demo.c — continuous-music NES starter ────────────────
+/* ── music_demo.c - continuous-music NES starter ────────────────
  *
  * Bundled-driver demo: FamiTone2 (Shiru, public domain) plays a multi-
  * channel music track from ROM. Compare to `default.c` (silent) or
  * `hello_sprite.c` (single APU beep on button press).
  *
  * What ships:
- *   famitone2.s         — the 6502 music engine (~1.5 KB of code)
- *   famitone_bridge.s   — tiny C-callable wrappers around its entry pts
- *   music_data.s        — the song bytes (a public-domain test track)
+ *   famitone2.s         - the 6502 music engine (~1.5 KB of code)
+ *   famitone_bridge.s   - tiny C-callable wrappers around its entry pts
+ *   music_data.s        - the song bytes (a public-domain test track)
  *
  * How it works:
- *   1. famitone_init(music_data) at boot — wires the song pointer
+ *   1. famitone_init(music_data) at boot - wires the song pointer
  *      and resets APU channel state.
  *   2. famitone_play(0) starts subsong 0. The track ships with two
  *      subsongs (0 + 1); change the index to switch.
  *   3. famitone_update() runs once per frame, right after the
- *      ppu_wait_nmi() heartbeat. This is the engine's tick — it
+ *      ppu_wait_nmi() heartbeat. This is the engine's tick - it
  *      walks the pattern data, computes envelope values, and writes
  *      the APU registers.
  *
@@ -45,8 +45,8 @@ static const unsigned char bg_colors[4] = { 0x0F, 0x01, 0x21, 0x31 };
 
 /* Two BG tiles so the backdrop isn't a single flat colour (a uniform
  * screen reads >=92% one colour and fails the blank-screen check):
- *   tile 1 — solid colour 1
- *   tile 2 — solid colour 2
+ *   tile 1 - solid colour 1
+ *   tile 2 - solid colour 2
  * We checkerboard them across the nametable below. NES BG fetches from
  * $1000-$1FFF under the default PPUCTRL (bit 4 set), so BG tiles upload
  * there. */
@@ -81,11 +81,11 @@ void main(void) {
   unsigned char frame = 0;
 
   for (i = 0; i < 32; i++) palette[i] = bg_colors[0];
-  /* BG palette 0: backdrop black, colour 1 blue, colour 2 red — gives the
+  /* BG palette 0: backdrop black, colour 1 blue, colour 2 red - gives the
    * checkerboard two visibly different cells. */
   palette[0] = 0x0F;   /* $3F00 backdrop */
-  palette[1] = 0x11;   /* colour 1 — blue */
-  palette[2] = 0x16;   /* colour 2 — red  */
+  palette[1] = 0x11;   /* colour 1 - blue */
+  palette[2] = 0x16;   /* colour 2 - red  */
 
   ppu_off();
   palette_load(palette);
@@ -95,7 +95,7 @@ void main(void) {
   fill_bg();
   oam_clear();
 
-  /* Start the music BEFORE rendering — FamiToneInit takes a few
+  /* Start the music BEFORE rendering - FamiToneInit takes a few
    * hundred cycles, but it disables NMI internally only via APU regs;
    * the PPU is unaffected. Safe to call with PPU off. */
   famitone_init(music_data);

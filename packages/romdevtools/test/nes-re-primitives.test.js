@@ -1,7 +1,7 @@
 // NES RE primitives round 2 (fceumm/6502): setRegister + watchRange + logPCRange.
-// The discovery half — verified on the 6502 core. (callSubroutine is wired via
+// The discovery half - verified on the 6502 core. (callSubroutine is wired via
 // the host's per-CPU profile: 6502 page-stack $0100, 2-byte BE return, RTS+1;
-// covered end-to-end by the Genesis reference — this asserts the 6502 exports.)
+// covered end-to-end by the Genesis reference - this asserts the 6502 exports.)
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -43,7 +43,7 @@ test("NES RE primitives: setRegister + watchRange + logPCRange (fceumm 6502)", {
 
   // setRegister round-trips (6502 reg-id 0 = A).
   const sr = toJSON(await client.callTool({ name: "cpu", arguments: { op: "setReg",  regId: 0, value: 0x42 } }));
-  assert.equal(sr.notSupported, undefined, "setRegister notSupported — romdev_setreg missing on fceumm?");
+  assert.equal(sr.notSupported, undefined, "setRegister notSupported - romdev_setreg missing on fceumm?");
   assert.equal((sr.valueRaw & 0xFF), 0x42, "setRegister (A) didn't round-trip: " + JSON.stringify(sr));
 
   // watchRange catches the per-frame write to $20 with pc/addr/value.

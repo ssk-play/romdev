@@ -1,4 +1,4 @@
-// compile.js — compile ONE candidate for ONE function inside its real
+// compile.js - compile ONE candidate for ONE function inside its real
 // translation unit, with the project's own compiler invocation, in an isolated
 // work directory; then extract the function from the object and compare it
 // against the target assembled from the extracted asm.
@@ -162,7 +162,7 @@ export async function ensureTarget(project, fn) {
   // The cache key must change when the PARSER changes, not only when the asm
   // does. A target assembled before the end-label fix kept reporting 37
   // instructions / 148 bytes for a 34-instruction function, and neither
-  // `refresh` nor `noCache:true` repaired it — both leave this file alone.
+  // `refresh` nor `noCache:true` repaired it - both leave this file alone.
   // Bumping this tag invalidates every stale target on first use.
   const tc = project.m.toolchain;
   const profile = profileFor(project.m.splatPlatform ?? project.m.platform);
@@ -232,7 +232,7 @@ export async function compileAndCompare(project, fn, opts) {
   const tuText = await readFile(opts.ownerPath ? opts.ownerPath : project.abs(tuRel), "utf8");
   // m2c drafts use M2C_* helper macros; supply the ones the candidate references
   // (from m2c's own m2c_macros.h semantics) so a draft can compile as-is. They are
-  // recorded in the result — a matched function must not keep them.
+  // recorded in the result - a matched function must not keep them.
   const injected = m2cMacroDefinitions(opts.candidateText);
   const candidateForTu = injected.text + (opts.declarations ? opts.declarations.replace(/\s*$/, "\n\n") : "") + opts.candidateText;
   let spliced = spliceFunction(tuText, fn.symbol, candidateForTu);
@@ -365,7 +365,7 @@ export async function compileAndCompare(project, fn, opts) {
     const redecl = result.diagnostics.find((d) => /redeclaration of '(\w+)'; previous declaration at line (\d+) in file '([^']+)'/.test(d.message));
     if (redecl && opts.declarations) { const m = /previous declaration at line (\d+) in file '([^']+)'/.exec(redecl.message); result.hint = `the proposed prototype conflicts with the declaration at ${m[2].replace(/^.*\/work\/[0-9a-f]+\//, "")}:${m[1]}; apply the proposal there (a header is not shadowed by the work copy) and compare again without \`declarations\``; }
     else if (result.diagnostics.some((d) => /Selector requires struct\/union/.test(d.message))) result.hint = "a field access through a non-struct pointer: the TU's prototype for this function (or a callee) types the argument as u8*/void*; declare the real struct type in the TU/header and regenerate";
-    else if (/->unk-\d|\.unk-\d/.test(opts.candidateText)) result.hint = "m2c emitted a NEGATIVE field offset (`->unk-N`): the draft advanced a typed pointer and then indexed behind it — rewrite as an array/index expression before compiling";
+    else if (/->unk-\d|\.unk-\d/.test(opts.candidateText)) result.hint = "m2c emitted a NEGATIVE field offset (`->unk-N`): the draft advanced a typed pointer and then indexed behind it - rewrite as an array/index expression before compiling";
     else if (/M2C_ERROR\(/.test(opts.candidateText)) result.hint = "the draft contains M2C_ERROR(...) markers: m2c could not translate those instructions; each needs a hand rewrite";
     // A clearer parse error from the host syntax check, when the project has one.
     const check = inv.steps.find((s) => s.role === "syntax-check");
@@ -556,7 +556,7 @@ export async function compareAgainstRom(project, fn, cstream, csyms) {
     mismatches: uncheckable || linked.unresolved.length ? null : mismatches,
     knownMismatches: mismatches, first, unresolvedSymbols: linked.unresolved.slice(0, 12),
     ...(uncheckable ? { uncheckableWords: uncheckable, uncheckableAt,
-      uncheckableNote: "these words cannot be checked until their relocation targets are resolved, even if their unlinked placeholders equal the ROM. They are neither matching nor mismatching evidence — resolve the symbols (which may be linker-script aliases) and re-compare." } : {}),
+      uncheckableNote: "these words cannot be checked until their relocation targets are resolved, even if their unlinked placeholders equal the ROM. They are neither matching nor mismatching evidence - resolve the symbols (which may be linker-script aliases) and re-compare." } : {}),
     note: "candidate words linked with the project's symbol addresses vs the base ROM bytes at the resolved offset; independent of the extracted asm" };
 }
 
@@ -584,7 +584,7 @@ async function verifyTranslationUnit(project, fn, { objdump, candidateObj, build
   const sizeDiffs = Object.keys({ ...bsec, ...csec }).filter((k) => /^\.(rodata|data|bss|sdata|sbss|text)$/.test(k) && bsec[k] !== csec[k]).map((k) => ({ section: k, build: bsec[k] ?? 0, candidate: csec[k] ?? 0 }));
   const ok = changed.length === 0 && missing.length === 0 && added.length === 0;
   return { status: ok ? "other-functions-unchanged" : "side-effects", otherFunctionsChanged: changed.slice(0, 20), missingSymbols: missing.slice(0, 20), addedSymbols: added.slice(0, 20), sectionSizeDifferences: sizeDiffs,
-    note: ok ? (sizeDiffs.length ? "no other .text symbol changed; section sizes differ (expected when the candidate's rodata/text replaces the asm's) — full-ROM verify is the final word" : "no other .text symbol changed and section sizes are identical") : "the candidate changed code OUTSIDE the target function — a local match would hide this" };
+    note: ok ? (sizeDiffs.length ? "no other .text symbol changed; section sizes differ (expected when the candidate's rodata/text replaces the asm's) - full-ROM verify is the final word" : "no other .text symbol changed and section sizes are identical") : "the candidate changed code OUTSIDE the target function - a local match would hide this" };
 }
 
 /** Pull file:line: message diagnostics out of compiler output (IDO + gcc shapes). */
@@ -631,8 +631,8 @@ export function m2cMacroDefinitions(candidateText) {
  */
 export function lintCandidate(text) {
   const reasons = [], flags = [];
-  if (/\b(__asm__|asm)\s*(volatile\s*)?\(/.test(text)) reasons.push("inline assembly (__asm__/asm) — retained assembly is not recovered C");
-  if (/#pragma\s+GLOBAL_ASM/.test(text)) reasons.push("GLOBAL_ASM pragma inside the candidate — that is the asm, not a translation");
+  if (/\b(__asm__|asm)\s*(volatile\s*)?\(/.test(text)) reasons.push("inline assembly (__asm__/asm) - retained assembly is not recovered C");
+  if (/#pragma\s+GLOBAL_ASM/.test(text)) reasons.push("GLOBAL_ASM pragma inside the candidate - that is the asm, not a translation");
   if (/\.incbin|INCBIN\(/.test(text)) reasons.push("incbin of ROM bytes");
   const hexWords = text.match(/0x[0-9A-Fa-f]{8}\b/g) ?? [];
   if (hexWords.length >= 8 && /\{\s*0x[0-9A-Fa-f]{8}(\s*,\s*0x[0-9A-Fa-f]{8}){7,}/.test(text)) reasons.push("an array of 32-bit words that looks like copied instruction/ROM bytes");
@@ -643,7 +643,7 @@ export function lintCandidate(text) {
 }
 
 /**
- * Compare the function's OWN rodata — jump tables and float/double literals —
+ * Compare the function's OWN rodata - jump tables and float/double literals -
  * between the target object and the candidate object. References are taken
  * from the function's instruction stream in order (HI16/LO16 pairs into
  * .rodata; the target names them jtbl_/D_, IDO emits section+addend locals),
@@ -683,7 +683,7 @@ export async function compareRodata(project, fn, { objdump, targetO, candidateO,
   // candidate's compiler emits its own literal locally and does get a .rodata
   // reference. Comparing the counts then reported "target 0, candidate 1" and
   // set exactFunctionMatch:false on a function whose text, linked bytes and
-  // siblings were all exact — and which integrated byte-exact into the full
+  // siblings were all exact - and which integrated byte-exact into the full
   // ROM. The comparator had not found the target's data; it had not proved the
   // candidate's was wrong.
   //
@@ -697,7 +697,7 @@ export async function compareRodata(project, fn, { objdump, targetO, candidateO,
       limitation: "target-rodata-not-discoverable",
       reason: `the target object declares no .rodata references for this function, while the candidate has ${C.refs.length}. `
         + "In a split build the target's extracted asm names data defined in ANOTHER object, so it is undefined here and "
-        + "carries no section — the reference cannot be enumerated from this object alone. "
+        + "carries no section - the reference cannot be enumerated from this object alone. "
         + "This is a LIMIT OF DISCOVERY, not evidence that the candidate's data is wrong, so it does not make "
         + "exactFunctionMatch false on its own. The ROM-linked comparison is the authority for these bytes."
         + (external.length ? ` Candidate reference(s) to externally-defined symbols: ${external.map((r) => r.symbol).join(", ")}.` : "") };
@@ -753,7 +753,7 @@ async function sectionRelocs(objdump, objPath, section, project) {
 /**
  * ROM-only target: the candidate's rodata references are placed where the
  * linked build put this object's .rodata (linker map), and compared with the
- * base ROM's bytes there — jump-table entries as function-relative offsets
+ * base ROM's bytes there - jump-table entries as function-relative offsets
  * (ROM holds absolute VAs), literals as words. Valid because the same TU
  * links to the same layout; a layout change shows up as a mismatch.
  */
@@ -778,7 +778,7 @@ export async function compareRodataAgainstRom(project, fn, { objdump, candidateO
   }
   // Positively established absence of data: the candidate references no .rodata at all. (The target's
   // rodata cannot be enumerated without asm; a candidate that references none while the target did would
-  // differ in TEXT — the load instructions would be missing — so text exactness covers it.)
+  // differ in TEXT - the load instructions would be missing - so text exactness covers it.)
   if (refs.length === 0) return { compared: true, equal: true, applicable: false, references: { candidate: 0 }, items: [], reason: "the candidate references no .rodata (no jump tables, no literals): nothing to compare" };
   if (!rodataSec) return { compared: false, reason: `the candidate references .rodata but the linker map has no .rodata placement for ${fn.object ?? "the object"}: cannot locate the bytes in the ROM` };
   const items = []; let equal = true;

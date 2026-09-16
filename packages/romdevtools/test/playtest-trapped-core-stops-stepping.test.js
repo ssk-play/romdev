@@ -1,12 +1,12 @@
 // A WASM cart that TRAPS is not a transient failure. Once it traps (typically
-// "memory access out of bounds" — its linear memory hit the maximum its own
+// "memory access out of bounds" - its linear memory hit the maximum its own
 // build declared), every subsequent frame traps identically forever.
 //
 // This actually happened: the OpenArena cart (391 MB of pk3s resident in a
 // 2 GB-capped heap) trapped during a long bot match and the tick loop retried
 // it every tick, burying the cause under identical log lines.
 //
-// The tick loop must still ride through a ONE-tick blip, though — a step error
+// The tick loop must still ride through a ONE-tick blip, though - a step error
 // mid-swap (host being torn down and rebuilt by runSource/loadMedia) is
 // genuinely transient and must not disable the window.
 //
@@ -82,7 +82,7 @@ test("a transient one-tick blip does NOT disable the window", () => {
 
 test("alternating failures never accumulate to the threshold", () => {
   const s = makeStepper();
-  // A core that fails every other frame is degraded, not trapped — the counter
+  // A core that fails every other frame is degraded, not trapped - the counter
   // must reset on each success rather than creeping up to the limit.
   for (let i = 0; i < 20; i++) {
     s.tick(trap);

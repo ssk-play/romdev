@@ -1,8 +1,8 @@
-; ── default-data.asm — symbols required by default.c ───────────────
+; ── default-data.asm - symbols required by default.c ───────────────
 ;
 ; Provides:
-;   tilsprite — one 8×8 4bpp tile (32 bytes), a filled diamond shape
-;   palsprite — sprite palette, 16 colours × 2 bytes BGR555
+;   tilsprite - one 8×8 4bpp tile (32 bytes), a filled diamond shape
+;   palsprite - sprite palette, 16 colours × 2 bytes BGR555
 ;
 ; SNES 4bpp tile layout is bitplane-interleaved:
 ;   bytes 0-15  = rows 0..7 of planes 0+1 (low/hi pair per row)
@@ -14,10 +14,10 @@
 .section ".rodata1" superfree
 
 tilsprite:
-; Plane 0 — diamond shape (colour 1 where bits are set)
+; Plane 0 - diamond shape (colour 1 where bits are set)
 .db $18, $00, $3C, $00, $7E, $00, $FF, $00
 .db $FF, $00, $7E, $00, $3C, $00, $18, $00
-; Plane 1 — zero
+; Plane 1 - zero
 .db $00, $00, $00, $00, $00, $00, $00, $00
 .db $00, $00, $00, $00, $00, $00, $00, $00
 

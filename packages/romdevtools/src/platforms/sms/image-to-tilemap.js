@@ -70,7 +70,7 @@ export function smsImageToTilemap(args) {
       if (idx >= 16) {
         throw new Error(
           `SMS 4bpp BG layer takes ≤16 colors; image quantizes to more. ` +
-          `Use \`magick … -colors 16 -dither FloydSteinberg\` first, or ` +
+          `Use \`magick ... -colors 16 -dither FloydSteinberg\` first, or ` +
           `pre-remap against getPlatformPalettePng({platform:"sms"}).`
         );
       }
@@ -79,7 +79,7 @@ export function smsImageToTilemap(args) {
     pxIdx[i] = idx;
   }
 
-  // 2) Build 32-byte palette (BG only — sprites stay zero).
+  // 2) Build 32-byte palette (BG only - sprites stay zero).
   const palette = new Uint8Array(32);
   for (const [c, idx] of colorIndex) palette[idx] = c;
 
@@ -135,7 +135,7 @@ export function smsImageToTilemap(args) {
   const nametable = new Uint8Array(tilesAcross * tilesDown * 2);
 
   const toKey = (t) => {
-    // Hex string of 32 bytes — small enough for Map keys.
+    // Hex string of 32 bytes - small enough for Map keys.
     let s = "";
     for (let i = 0; i < 32; i++) s += t[i].toString(16).padStart(2, "0");
     return s;
@@ -184,7 +184,7 @@ export function smsImageToTilemap(args) {
   const chrFlat = new Uint8Array(chr.length * 32);
   for (let i = 0; i < chr.length; i++) chrFlat.set(chr[i], i * 32);
 
-  // 5) Preview PNG — re-render from the encoded data so the agent can
+  // 5) Preview PNG - re-render from the encoded data so the agent can
   // sanity-check what the SMS will actually display.
   const preview = new PNG({ width: W, height: H });
   for (let ty = 0; ty < tilesDown; ty++) {

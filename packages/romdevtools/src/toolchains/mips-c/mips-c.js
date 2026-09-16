@@ -1,9 +1,9 @@
-// mips-c — minimal C → MIPS binary builder for PS1 (and N64), the bare
+// mips-c - minimal C → MIPS binary builder for PS1 (and N64), the bare
 // gcc+newlib+libgcc path (no SDK yet). Mirrors genesis-c.js's buildMinimal.
 //
 //   buildMipsC({ source, sources, headers, platform }) →
 //     PS1: a runnable PS-EXE ('PS-X EXE' header + .text at 0x80010000)
-//     N64: a flat .bin (boot glue is libdragon's job — minimal path for now)
+//     N64: a flat .bin (boot glue is libdragon's job - minimal path for now)
 //
 // Pipeline per source: cc1 → as → (link all with crt0 + libc/libm/libgcc) →
 // objcopy → wrap. Endianness from the platform (PS1 little / N64 big).
@@ -84,7 +84,7 @@ export async function buildMipsC(args) {
   // Auto-bundle the platform helper lib so `#include "n64.h"` / `#include "psx.h"`
   // just works (parity with the Dreamcast sh-c path that auto-bundles dc.h). The
   // header is added to the virtual headers; the matching .c is compiled + linked as
-  // an extra source — UNLESS the caller already provides their own (caller wins, and
+  // an extra source - UNLESS the caller already provides their own (caller wins, and
   // we skip auto-linking the .c if a same-named source is already present so there's
   // no duplicate-symbol clash). The helper lives in platforms/<platform>/lib/c/.
   const helperName = platform === "ps1" ? "psx" : platform === "n64" ? "n64" : null;
@@ -115,7 +115,7 @@ export async function buildMipsC(args) {
       const ao = await cb.stage(`as (${cName})`, () => as(cc.asmSource), (r) => r.object);
       userObjs[cName.replace(/\.c$/i, ".o")] = ao.object;
     }
-    // Auto-bundled helper .c (n64.c / psx.c) — compiled with the SAME headers so it can
+    // Auto-bundled helper .c (n64.c / psx.c) - compiled with the SAME headers so it can
     // see its own header, linked alongside the user objects. Skipped when the caller
     // supplied their own helper .c (callerHasC) above.
     if (autoHelperSrc != null) {
@@ -135,7 +135,7 @@ export async function buildMipsC(args) {
     const crt0Src = await readFile(path.join(LIB, crt0Name), "utf-8");
     const crt0As = await cb.stage(`as (${crt0Name})`, () => as(crt0Src), (r) => r.object);
 
-    // softint.c — the few libgcc helpers (64-bit divide/mod) in plain C, so the
+    // softint.c - the few libgcc helpers (64-bit divide/mod) in plain C, so the
     // link doesn't need an endian-specific libgcc.a (the EL libgcc isn't bundled).
     const softSrc = await readFile(path.join(LIB, "softint.c"), "utf-8");
     const softCc = await cb.stage("cc1 (softint.c)", () => cc1(softSrc), (r) => r.asmSource);
@@ -145,7 +145,7 @@ export async function buildMipsC(args) {
     const ldName = platform === "ps1" ? "ps1.ld" : "n64.ld";
     const linkScript = await readFile(path.join(LIB, ldName), "utf-8");
     // newlib + libgcc are endian-specific: el/ (PS1 little) vs be/ (N64 big). libgcc
-    // is only bundled for be/ — softint.c covers the EL case, so libgcc is optional.
+    // is only bundled for be/ - softint.c covers the EL case, so libgcc is optional.
     const libDir = path.join(LIB, endian === "little" ? "el" : "be");
     const [libc, libm] = await Promise.all([
       readFile(path.join(libDir, "libc.a")), readFile(path.join(libDir, "libm.a")),
@@ -156,7 +156,7 @@ export async function buildMipsC(args) {
       const libgcc = await readFile(path.join(libDir, "libgcc.a"));
       archives["libgcc.a"] = new Uint8Array(libgcc);
       libraries.unshift("gcc");
-    } catch { /* no endian libgcc — softint.c provides the needed helpers */ }
+    } catch { /* no endian libgcc - softint.c provides the needed helpers */ }
     const ld = await cb.stage("ld", () => runMipsLd({
       objects: { "crt0.o": crt0As.object, "softint.o": softAs.object, ...userObjs },
       linkScript, endian,

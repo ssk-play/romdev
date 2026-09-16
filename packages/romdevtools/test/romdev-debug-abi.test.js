@@ -1,6 +1,6 @@
 // ABI conformance: every core that consumes the shared romdev_debug.c MUST export
 // the full romdev_* debug ABI the host (LibretroHost.js) feature-detects. This is
-// the test that turns ABI DRIFT into a test failure instead of a runtime surprise —
+// the test that turns ABI DRIFT into a test failure instead of a runtime surprise -
 // the other half of the point of the shared-lib refactor. If a migration drops an
 // export, or a future core links the lib but forgets to list a symbol in
 // EXPORTED_FUNCTIONS, this fails loudly here.
@@ -45,7 +45,7 @@ const SHARED_ABI = [
 ];
 
 // The cores migrated to the shared lib (0.80.0 pilots). As more cores migrate, add
-// them here — the test then guards their ABI too. `extra` = per-core exports that
+// them here - the test then guards their ABI too. `extra` = per-core exports that
 // must ALSO be present (the genuinely per-core debug surface kept in each patch).
 const MIGRATED_CORES = [
   { core: "gambatte_libretro",        extra: ["_romdev_setreg", "_romdev_getreg"] },
@@ -58,14 +58,14 @@ const MIGRATED_CORES = [
   { core: "geargrafx_libretro",       extra: ["_romdev_setreg", "_romdev_getreg", "_romdev_vramwatch_set", "_romdev_vramwatch_get"] },
   { core: "bluemsx_libretro",         extra: ["_romdev_setreg", "_romdev_getreg", "_romdev_vramwatch_set", "_romdev_vramwatch_get"] },
   { core: "mgba_libretro",            extra: ["_romdev_setreg", "_romdev_getreg"] },
-  // handy (Lynx 65C02) — the last inline holdout, now on the shared lib. The CPU_PEEK
+  // handy (Lynx 65C02) - the last inline holdout, now on the shared lib. The CPU_PEEK
   // read hook MUST evaluate the (side-effecting) I/O read exactly once; see the patch.
   { core: "handy_libretro",           extra: ["_romdev_setreg", "_romdev_getreg"] },
   // The newer cores migrated their divergent debug snippets onto the shared lib too.
   // MIPS cores read CPU state via romdev_mips_regs_get (no setReg/getReg); they ship
   // from their own binary packages (resolveWasm falls back to those).
   { core: "parallel_n64_libretro",    extra: ["_romdev_mips_regs_get", "_romdev_ai_get"] },
-  // PS1: beetle_psx_hw is the ONE PS1 core — GPU (GL) + the full debug surface, after
+  // PS1: beetle_psx_hw is the ONE PS1 core - GPU (GL) + the full debug surface, after
   // the pcsx_rearmed split was collapsed. (mips_regs_get/spu_get are the R3000/SPU readers.)
   { core: "beetle_psx_hw_libretro",   extra: ["_romdev_mips_regs_get", "_romdev_spu_get"] },
 ];

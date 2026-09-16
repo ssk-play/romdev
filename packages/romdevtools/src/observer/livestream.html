@@ -101,7 +101,7 @@
   }
   .ansi-card pre {
     margin: 0;
-    /* Courier-family — universally available, true monospace so
+    /* Courier-family - universally available, true monospace so
      * every column lines up regardless of glyph. ui-monospace can
      * substitute a proportional font on some systems and breaks
      * column alignment. */
@@ -208,7 +208,7 @@
   // socket.io's default is the opposite: it opens on HTTP long-polling and
   // upgrades to WebSocket afterwards. On loopback that costs ~19ms and is
   // invisible, which is why this went unnoticed -- the observer was written
-  // assuming loopback ("No auth — loopback only" in server.js). Over a real
+  // assuming loopback ("No auth - loopback only" in server.js). Over a real
   // network the polling handshake and the upgrade are each round trips, and
   // the `replay` that populates the session tabs is delivered on the SLOW
   // transport before the upgrade lands. The page paints immediately and the
@@ -240,11 +240,11 @@
   // bound here exists because the unbounded version grew without limit for as
   // long as the tab stayed open:
   //
-  //   events        — one entry per tool call, forever. A long sweep is tens of
+  //   events        - one entry per tool call, forever. A long sweep is tens of
   //                   thousands of objects, each holding its args/result
   //                   summary, and renderLog() rebuilt a DOM row for EVERY one
   //                   on EVERY event.
-  //   latestByKind  — one full base64 PNG per distinct tool name. Bounded by
+  //   latestByKind  - one full base64 PNG per distinct tool name. Bounded by
   //                   the number of tools (~40), but that is ~40 full-size
   //                   frames pinned in memory, which is tens of MB.
   //
@@ -256,7 +256,7 @@
   // Deliberately generous: many concurrent sessions is a NORMAL romdev shape
   // (a fan-out across carts), and a tab disappearing is worse than a tab you
   // scroll past. What must not happen is any single session growing without
-  // limit — that is what MAX_EVENTS / MAX_IMAGE_KINDS above bound. This is only
+  // limit - that is what MAX_EVENTS / MAX_IMAGE_KINDS above bound. This is only
   // a backstop against unbounded tab accumulation from sessions that never
   // send a disconnect, and it evicts DEAD sessions only.
   const MAX_SESSIONS = 96;
@@ -283,7 +283,7 @@
     }
     // The ring buffer can resurrect sessions that have since been closed/
     // reaped server-side (their connect event is still in the buffer). The
-    // server's `activeSessions` is the source of truth — drop any session
+    // server's `activeSessions` is the source of truth - drop any session
     // we ended up with that the server says is gone, so the page doesn't
     // open showing a pile of dead tabs.
     for (const sk of [...sessions.keys()]) {
@@ -310,7 +310,7 @@
 
   // Record the newest image for a tool, evicting the least-recently-updated
   // kind once we hold too many. Each entry pins a full base64 PNG, so this is
-  // where the page's memory actually goes — one per distinct tool name adds up
+  // where the page's memory actually goes - one per distinct tool name adds up
   // to tens of MB over a long run.
   function setLatestImage(s, ev, img) {
     s.latestByKind[ev.tool] = {
@@ -338,7 +338,7 @@
   }
 
   // Sessions are pruned on disconnect, but only when a disconnect actually
-  // arrives — an agent killed mid-run, or a server restart, leaves its tab (and
+  // arrives - an agent killed mid-run, or a server restart, leaves its tab (and
   // every event and image it retained) behind forever. Cap the total and drop
   // the coldest DISCONNECTED sessions first; a connected session, and whatever
   // the user is currently looking at, are never evicted out from under them.
@@ -370,7 +370,7 @@
       // tracks reality instead of accumulating one tab per session ever
       // seen. Keep it briefly (and never yank the tab the user is actively
       // viewing) so the final state is visible. `suppressUnseen` is true
-      // during initial replay — don't schedule pruning for historical
+      // during initial replay - don't schedule pruning for historical
       // disconnects, just drop them at the next render.
       if (!suppressUnseen) {
         setTimeout(() => {
@@ -384,14 +384,14 @@
     } else if (ev.type === "call" || ev.type === "call_frame") {
       // `call_frame` is a deferred image pushed AFTER a tool returned (e.g. a
       // breakpoint/watch tool that advanced the emulator but didn't return an
-      // image to the agent) — rendered async so it never slowed the agent. It
+      // image to the agent) - rendered async so it never slowed the agent. It
       // carries only images; the matching `call` event already logged the call.
       if (ev.type === "call") pushEvent(s, ev);
       if (ev.images && ev.images.length) {
         for (const img of ev.images) {
           // Replayed events older than the newest few carry `omitted:true`
           // placeholders instead of base64 (the ring drops payloads to stay
-          // under its byte budget — see bus.js). Skip them: rendering one
+          // under its byte budget - see bus.js). Skip them: rendering one
           // would produce a broken data: URI, and a stale placeholder must
           // never evict a real image we already have for this tool.
           if (!img || img.omitted || typeof img.base64 !== "string") continue;
@@ -401,7 +401,7 @@
         }
       }
       // screenshotAscii pushes both the PNG (above) AND the raw ANSI
-      // (here). Keep only the most-recent ANSI per session — older
+      // (here). Keep only the most-recent ANSI per session - older
       // half-block frames aren't useful to stack.
       if (typeof ev.ansi === "string") {
         s.latestAnsi = { ts: ev.ts, tool: ev.tool, ansi: ev.ansi };
@@ -417,7 +417,7 @@
     if (!activeSessionKey && liveKeys.length === 1) {
       selectTab(liveKeys[0]);
     } else if (!activeSessionKey && sessions.size === 1) {
-      // Even disconnected — show the only thing we have.
+      // Even disconnected - show the only thing we have.
       selectTab([...sessions.keys()][0]);
     }
   }
@@ -451,11 +451,11 @@
       tab.className = "tab" + (k === activeSessionKey ? " active" : "")
         + (!s.connected ? " disconnected" : "");
       tab.onclick = () => selectTab(k);
-      // Show the FULL session id — agents pick descriptive ids (e.g.
+      // Show the FULL session id - agents pick descriptive ids (e.g.
       // "scaffold-nes-platformer") and truncating to 8 chars collapsed distinct
       // tasks into identical-looking tabs ("scaffold" × N). Cap very long ids in
       // the middle so the meaningful head+tail both show; full id in the tooltip.
-      const label = k.length > 28 ? k.slice(0, 18) + "…" + k.slice(-8) : k;
+      const label = k.length > 28 ? k.slice(0, 18) + "..." + k.slice(-8) : k;
       const labelSpan = document.createElement("span");
       labelSpan.textContent = label;
       tab.appendChild(labelSpan);
@@ -508,7 +508,7 @@
       card.className = "image-card";
       const dt = new Date(img.ts).toLocaleTimeString();
       const platBadge = img.platform ? `<span class="plat">${escapeHtml(img.platform)}</span> ` : "";
-      const label = img.caption ? `${img.tool} — ${img.caption}` : img.tool;
+      const label = img.caption ? `${img.tool} - ${img.caption}` : img.tool;
       card.innerHTML = `<div class="meta"><span>${platBadge}${escapeHtml(label)}</span><span>${dt}</span></div>`;
       const el = document.createElement("img");
       el.src = `data:${img.mimeType};base64,${img.base64}`;
@@ -523,7 +523,7 @@
   // \x1b[48;2;R;G;Bm SGR sequences + reset + maybe \x1b[K) into safe HTML.
   // Rules:
   //   1. HTML-escape the literal text FIRST (glyphs may include & < > " ').
-  //   2. Normalize line endings — chafa emits \n; tolerate \r\n and strip
+  //   2. Normalize line endings - chafa emits \n; tolerate \r\n and strip
   //      bare \r (browsers don't honor them; terminals do).
   //   3. Walk \x1b[ ... <terminator> sequences. Parse SGR (terminator=m).
   //      Ignore other CSI commands (cursor moves, clear) so we don't
@@ -556,7 +556,7 @@
     };
     const flushText = (text) => {
       if (!text) return;
-      // Split on newline so we can close-and-reopen spans cleanly —
+      // Split on newline so we can close-and-reopen spans cleanly -
       // a styled background should NOT extend across a line break.
       const lines = text.split("\n");
       for (let i = 0; i < lines.length; i++) {
@@ -579,7 +579,7 @@
       flushText(norm.slice(i, escIdx));
       // Parse the CSI sequence starting at escIdx. Slice a small window
       // and feed to the regex; if it doesn't match, just skip the ESC
-      // char and continue (defensive — unrecognized escapes shouldn't
+      // char and continue (defensive - unrecognized escapes shouldn't
       // dump raw bytes into the page).
       const m = norm.slice(escIdx).match(ANSI_RE);
       if (!m) { i = escIdx + 1; continue; }
@@ -591,7 +591,7 @@
       // sitting as a stray glyph in the output.
       i = escIdx + 2 + seq.length;
       if (terminator !== "m") continue; // ignore non-SGR (e.g. \x1b[K)
-      // SGR params — semicolon-separated numbers (chafa truecolor:
+      // SGR params - semicolon-separated numbers (chafa truecolor:
       // "38;2;R;G;B" for fg, "48;2;R;G;B" for bg, "0" for reset).
       const params = seq.slice(0, -1).split(";").map((p) => parseInt(p, 10) || 0);
       let pi = 0;
@@ -608,7 +608,7 @@
           pi += 4;
           closeSpan(); openSpan();
         }
-        // Other SGR codes (8/16-color, bold, etc.) ignored — chafa
+        // Other SGR codes (8/16-color, bold, etc.) ignored - chafa
         // in our setup only emits truecolor + reset.
       }
     }
@@ -618,7 +618,7 @@
 
   function renderLog() {
     logListEl.innerHTML = "";
-    // Full session id above the log — the tab label can be middle-truncated, so
+    // Full session id above the log - the tab label can be middle-truncated, so
     // this is the one place that always shows the EXACT id you're looking at.
     if (logSessionEl) {
       if (activeSessionKey) {
@@ -631,7 +631,7 @@
     }
     if (!activeSessionKey) return;
     const s = sessions.get(activeSessionKey);
-    // Newest first — easier to scan when working live. Only the newest
+    // Newest first - easier to scan when working live. Only the newest
     // MAX_LOG_ROWS become DOM nodes: renderAll() runs on EVERY event, so the
     // cost here is paid per tool call, and building a row for every retained
     // event made a long-lived tab slower the longer it stayed open. Build into
@@ -708,10 +708,10 @@
       if (v == null) display = String(v);
       else if (typeof v === "object") {
         const s = JSON.stringify(v);
-        display = s.length > 80 ? s.slice(0, 78) + "…" : s;
+        display = s.length > 80 ? s.slice(0, 78) + "..." : s;
       } else if (typeof v === "string") {
         display = JSON.stringify(v);
-        if (display.length > 80) display = display.slice(0, 78) + "…\"";
+        if (display.length > 80) display = display.slice(0, 78) + "...\"";
       } else {
         display = String(v);
       }

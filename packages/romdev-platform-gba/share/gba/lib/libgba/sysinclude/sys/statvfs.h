@@ -1,4 +1,4 @@
-/* sys/statvfs.h — POSIX filesystem-statistics struct.
+/* sys/statvfs.h - POSIX filesystem-statistics struct.
  *
  * Bundled so devkitPro's <sys/iosupport.h> compiles: the devoptab_t device
  * table has a statvfs_r() function-pointer member whose signature references

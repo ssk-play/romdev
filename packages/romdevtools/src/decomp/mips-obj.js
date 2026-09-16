@@ -1,4 +1,4 @@
-// mips-obj.js — relocatable-object plumbing for the matching loop: assemble a
+// mips-obj.js - relocatable-object plumbing for the matching loop: assemble a
 // splat .s into a target object, run objdump -dr on any .o, and parse the
 // listing into per-symbol instruction streams that carry their relocations.
 //

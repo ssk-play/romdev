@@ -1,4 +1,4 @@
-# NES — mental model
+# NES - mental model
 
 One page. Read once before you write your first game. The
 TROUBLESHOOTING.md alongside this file is for when something's broken;
@@ -7,9 +7,9 @@ this is the "what's going on" version.
 ## CPU memory map ($0000-$FFFF)
 
 ```
-$0000-$00FF  zero page (fast — ldx/ldy/zp,x addressing)
+$0000-$00FF  zero page (fast - ldx/ldy/zp,x addressing)
 $0100-$01FF  hardware stack (256 bytes)
-$0200-$02FF  shadow OAM — by convention, DMA'd to PPU OAM each vblank
+$0200-$02FF  shadow OAM - by convention, DMA'd to PPU OAM each vblank
 $0300-$07FF  WRAM (general-purpose RAM, 1.5 KB)
 $0800-$1FFF  mirrors of $0000-$07FF
 $2000-$2007  PPU registers (mirrored every 8 bytes through $3FFF)
@@ -25,8 +25,8 @@ The cc65 runtime claims:
 - ZP $1C+ available to your game (with our chr-ram crt0)
 - `$0500-$07FF` (3 pages): cc65 C parameter stack
 
-> **cc65 zero-page starts at $02, not $00 (applies to every cc65 platform —
-> NES, C64, Atari, Lynx, …).** cc65 reserves `$00-$01` for its runtime, so your
+> **cc65 zero-page starts at $02, not $00 (applies to every cc65 platform -
+> NES, C64, Atari, Lynx, ...).** cc65 reserves `$00-$01` for its runtime, so your
 > first `.res 1` in the `ZEROPAGE` segment lands at **$02**, not $00. If you
 > hand-write asm that assumes a zero-page var is at $00 you'll clobber the
 > runtime. Confirm actual addresses with `symbols({op:'map'})` after
@@ -35,8 +35,8 @@ The cc65 runtime claims:
 ## PPU memory map (separate from CPU bus!)
 
 ```
-$0000-$0FFF  pattern table 0 — 256 tiles × 16 bytes (sprite tiles by default)
-$1000-$1FFF  pattern table 1 — 256 tiles × 16 bytes (BG tiles by default)
+$0000-$0FFF  pattern table 0 - 256 tiles × 16 bytes (sprite tiles by default)
+$1000-$1FFF  pattern table 1 - 256 tiles × 16 bytes (BG tiles by default)
 $2000-$23FF  nametable 0 + attribute table 0
 $2400-$27FF  nametable 1 + attribute table 1
 $2800-$2BFF  nametable 2 + attribute table 2 (mirrors NT0 on NROM)
@@ -80,7 +80,7 @@ A nametable is 32×30 = 960 bytes. Each byte selects a tile from the
 BG pattern table.
 
 The attribute table is 64 bytes following each nametable ($23C0..$23FF
-for NT0). Each byte covers a 4×4 tile group — 16 tiles — with 4
+for NT0). Each byte covers a 4×4 tile group - 16 tiles - with 4
 quadrants of 2 bits each:
 
 ```
@@ -98,23 +98,23 @@ tile group within the 4×4 attribute byte shares a palette.** This is
 the single biggest source of NES color confusion.
 
 The `nes_runtime` helper `tile_set_palette(nt, x, y, palette)` does
-the read-modify-write dance and the bit-twiddling — use it instead
+the read-modify-write dance and the bit-twiddling - use it instead
 of writing attributes by hand.
 
 > **256-tile cap per pattern table (the busy-image trap).** The nametable's
 > tile index is 8-bit, so a single pattern table holds at most **256 unique
-> tiles** — and a per-frame BG can therefore use at most 256 distinct tiles.
+> tiles** - and a per-frame BG can therefore use at most 256 distinct tiles.
 > Auto-converting a busy full-screen illustration almost always needs more than
 > 256 unique 8×8 tiles and **overflows**; `encodeArt({stage:'tilemap'})` warns
 > when it does. The only real workaround is mid-frame CHR bank switching
-> (an MMC3-class mapper) — the bundled NROM presets can't do it, so design BG
+> (an MMC3-class mapper) - the bundled NROM presets can't do it, so design BG
 > art to reuse tiles (≤256 unique per table).
 
 ## Palettes
 
 32 bytes at $3F00-$3F1F:
 - $3F00: universal backdrop color
-- $3F01..$3F03: BG palette 0 (colors 1,2,3 — color 0 always backdrop)
+- $3F01..$3F03: BG palette 0 (colors 1,2,3 - color 0 always backdrop)
 - $3F04: mirrors $3F00 (often skipped)
 - $3F05..$3F07: BG palette 1
 - $3F08..$3F0F: BG palettes 2-3
@@ -165,7 +165,7 @@ void main(void) {
         oam_spr(player_x, player_y, player_tile, 0);
         /* Stage VRAM writes via vram_set / tile_set / tile_set_palette. */
 
-        /* Block until vblank — NMI handler will DMA shadow_oam and
+        /* Block until vblank - NMI handler will DMA shadow_oam and
          * flush the VRAM queue. */
         ppu_wait_nmi();
 
@@ -178,7 +178,7 @@ void main(void) {
 ```
 
 **Order matters.** If you stage sprites AFTER `ppu_wait_nmi`, you're
-writing to a shadow_oam that's already been DMA'd a frame earlier —
+writing to a shadow_oam that's already been DMA'd a frame earlier -
 your changes show up a frame late OR not at all (if oam_clear is mid-write
 when the next NMI fires).
 
@@ -201,16 +201,16 @@ in order A, B, Select, Start, Up, Down, Left, Right (bit 0 of each read).
 
 ### Driving input over MCP
 
-fceumm maps `input({op:'set'})` button names **straight through** — verified live, no
+fceumm maps `input({op:'set'})` button names **straight through** - verified live, no
 inversion: `{a}`→A, `{b}`→B, `{select}`/`{start}`, plus the d-pad. The spatial
 names also resolve (east→A, west→B). So `input({op:'set', a: true})` presses NES A as
-expected — unlike the genesis_plus_gx platforms (Genesis/SMS/GG), there's no
+expected - unlike the genesis_plus_gx platforms (Genesis/SMS/GG), there's no
 surprise here.
 
 ## What `examples({op:'fork'})` copies into your project
 
 `examples({op:'fork', example:"nes/hello_sprite"|"nes/tile_engine"|"nes/default", name, path})`
-writes these files into your project directory. **They're yours** — every
+writes these files into your project directory. **They're yours** - every
 byte that compiles is in the repo. Edit, fork, replace; nothing is auto-injected
 at build time.
 
@@ -229,10 +229,10 @@ project README shows the exact incantation.
 
 ## Blank screen? Verify rendering before you guess (no vision needed)
 
-If the screen looks black/blank, don't iterate blind — call
+If the screen looks black/blank, don't iterate blind - call
 **`frame({op:'verify', frames:60})`**. One call fuses a framebuffer pixel scan
 with the live PPU registers and tells you `{verified:true|false|null, issues[]}`:
-- `renderDisabled` → PPUMASK has BG+sprites off (footgun, see below) — set
+- `renderDisabled` → PPUMASK has BG+sprites off (footgun, see below) - set
   PPUMASK bits 3/4.
 - `blankScreen`/`nearlyBlank` but render IS enabled → the PPU is on but nothing's
   in the nametable/OAM/palette: check the loop-order + OAM-DMA footguns below, and
@@ -260,10 +260,10 @@ prompts at **row 27** or earlier.
 ### 2. shadow_oam at $0200 is INITIALIZED to all $FF by the crt0
 
 The bundled crt0 writes `$FF` to every byte of `_shadow_oam`
-($0200-$02FF) at boot — canonical sprite-Y off-screen sentinel.
+($0200-$02FF) at boot - canonical sprite-Y off-screen sentinel.
 `memory({op:'read'}, nes_oam)` returning all `$FF` after a few frames can
 mean "DMA copied the source page faithfully because the source
-was all `$FF` when NMI fired" — NOT "DMA broken."
+was all `$FF` when NMI fired" - NOT "DMA broken."
 
 Sentinel test that proves DMA works before opening a bug:
 ```js
@@ -299,7 +299,7 @@ for (;;) {
 The bundled `chr-ram-runtime.cfg` puts `RAM:` at `$0300-$04FF`
 (512 bytes in real internal RAM between OAM at $0200 and the C
 stack at $0500). DON'T move it to `$6000` unless you also set
-iNES flags6 bit 1 (battery WRAM) — NROM-no-battery has $6000-$7FFF
+iNES flags6 bit 1 (battery WRAM) - NROM-no-battery has $6000-$7FFF
 unmapped, and BSS reads return open bus. Globals look like they
 work but `_nmi_counter` never advances and any "wait until counter
 == target" loop hangs.
@@ -320,47 +320,47 @@ incorrectly aligned."
 
 ## What's NOT done for you
 
-- Music — `sound_init()` + `sound_play_tone(channel, period, vol, length)`
+- Music - `sound_init()` + `sound_play_tone(channel, period, vol, length)`
   + `sound_play_noise(period, vol, length)` + `sound_off()` cover the
   common "beep on event" SFX pattern using the APU's pulse/triangle/noise
   channels. For multi-channel sequenced music with envelopes / vibrato /
-  pattern playback, roll your own — famitone2 is the standard NES sound
+  pattern playback, roll your own - famitone2 is the standard NES sound
   driver but isn't bundled.
   - **Debugging / transcribing sound:** `audioDebug({op:'inspect', chip:"nes"})` decodes
     the live APU register file ($4000-$4017) into per-channel
     {pulse1, pulse2, triangle, noise, dmc} with note names, freq, duty and
-    volume — use it to confirm "is my channel actually playing the pitch I
+    volume - use it to confirm "is my channel actually playing the pitch I
     think?" To capture a note timeline over time (e.g. to port a tune to
     another platform), watch the registers: `watch({on:'mem', region:"nes_apu_regs",
     onChange:"reset", outputPath:...})` logs each note onset, or
     `recordSession({memorySamples:[{region:"nes_apu_regs",...}], sampleEvery:1,
     memoryOutputPath:...})` streams per-frame samples to disk.
-- Mapper support — the homebrew presets target NROM (no PRG banking). For
+- Mapper support - the homebrew presets target NROM (no PRG banking). For
   MMC1/MMC3/UNROM you'll need a different linker config. (For *rebuilding* an
   existing CHR-ROM NROM game byte-identical, see "Rebuilding a CHR-ROM NROM
-  image" below — `inesHeader` / the `chr-rom` preset / `disasm({target:'project'})`.)
-- IRQ — the IRQ vector returns. Most NES games use a custom IRQ
+  image" below - `inesHeader` / the `chr-rom` preset / `disasm({target:'project'})`.)
+- IRQ - the IRQ vector returns. Most NES games use a custom IRQ
   handler for mid-frame scroll splits; you'll need to write that asm.
-- Multi-screen scrolling — the runtime sets one nametable; for big
+- Multi-screen scrolling - the runtime sets one nametable; for big
   scrolling worlds you need to manage the nametable buffer + bank
   switching yourself.
 
 ## MCP debug & inspection tooling
 
-The shipped fceumm core is patched for live introspection — read state
+The shipped fceumm core is patched for live introspection - read state
 instead of guessing:
 
 - **Sprites:** `sprites({op:'inspect'})` decodes live OAM.
 - **Palette:** `palette({source:'live'})` reads the live 32-byte palette RAM.
 - **CPU:** `cpu({op:'read'})` reads the 6502.
 - **Background render state:** `background({view:'renderState'})` decodes
-  PPUCTRL/PPUMASK and resolves the active CHR bank (plus its file offset) —
+  PPUCTRL/PPUMASK and resolves the active CHR bank (plus its file offset) -
   this is what tells you which pattern table BG vs sprites are fetching from
   (the bit-4 footgun above).
 - **Memory regions:** `memory({op:'read'})` exposes OAM, Palette,
-  Nametables (CIRAM — including the 2-bit-per-16x16 attribute data that
+  Nametables (CIRAM - including the 2-bit-per-16x16 attribute data that
   selects each tile group's sub-palette, decoded by `inspectBackgroundMap`),
-  CHR (live MMC1-banked CHR — don't parse the iNES file), CPU_REGS,
+  CHR (live MMC1-banked CHR - don't parse the iNES file), CPU_REGS,
   PPU_REGS, and APU_REGS (the synthesized $4000-$4017 snapshot consumed by
   `audioDebug`).
 
@@ -381,7 +381,7 @@ bit1 battery, high nibble = mapper low nibble), byte 7 = flags7 (high nibble =
 mapper high nibble), bytes 8-15 = 0. NROM is mapper 0; NROM-128 = 1 PRG bank
 (maps at $C000, mirrored to $8000), NROM-256 = 2 PRG banks (maps at $8000).
 
-**1. `build({inesHeader:{...}})` — the parametric, no-glue path (recommended).**
+**1. `build({inesHeader:{...}})` - the parametric, no-glue path (recommended).**
 Pass `inesHeader: {prgBanks, chrBanks, mapper, mirroring}` and the build
 auto-emits the HEADER segment, wires your CHR blob (from `binaryIncludePaths`)
 into a CHARS segment, and uses a flat NROM `.cfg`. You supply only the PRG
@@ -397,18 +397,18 @@ banks). For a BANKED mapper you don't hand-write the glue anymore:
 `disasm({target:'project'})` emits a HEADER segment (the original 16 iNES
 bytes), a `.segment "PRGn"` wrapper per bank, and a multi-bank `nes_rebuild.cfg`
 (switchable banks at $8000, fixed top bank at $C000), all wired into
-`rebuild.json` via `linkerConfigPath` — a one-call byte-exact rebuild.
+`rebuild.json` via `linkerConfigPath` - a one-call byte-exact rebuild.
 
-**2. `linkerConfig:"chr-rom"` — for homebrew C that ships FIXED tile art.**
+**2. `linkerConfig:"chr-rom"` - for homebrew C that ships FIXED tile art.**
 A cc65-C preset (segment split + a CHARS segment in an 8 KB ROM2 bank). Put your
 tiles in `.segment "CHARS"` (`.incbin "tiles.chr"`) + pass the blob via
 `binaryIncludePaths`. It ships a companion crt0 with an 8 KB-CHR-ROM header. For
 other bank configs, prefer `inesHeader`.
 
-**3. `disasm({target:'project'})` — disassemble → rebuild, in two calls.**
+**3. `disasm({target:'project'})` - disassemble → rebuild, in two calls.**
 For NES it extracts the CHR-ROM to `chr.bin`, writes a `rebuild.json` (the
 exact `build({...})` call, with absolute paths) and a `BUILD.md`. NROM gets the
-`inesHeader` one-call form; BANKED mappers (UxROM/MMC1/MMC3…) get per-bank
+`inesHeader` one-call form; BANKED mappers (UxROM/MMC1/MMC3...) get per-bank
 `PRGn` segment wrappers + the original-bytes HEADER segment + a generated
 multi-bank `.cfg` referenced via `linkerConfigPath`. Either way: feed
 `rebuild.json` straight back to `build` and you get a byte-identical ROM. This
@@ -419,7 +419,7 @@ rebuild → `diffRoms` to confirm your patch landed.
 
 The Rizin/Ghidra analysis engine works here like everywhere: `disasm({target:'functions'})` to carve the program, `disasm({target:'cfg'|'xrefs'})` to trace it, `symbols({op:'analyze'})` for a one-shot structural map.
 
-**Decompiler quality on 6502: ROUGH.** Carry-flag idioms and 16-bit math on an 8-bit CPU decompile to noise that only reads cleanly once an LLM folds it — on this CPU the disassembly is often more honest than the pseudocode. `disasm({target:'decompile', address})` returns C-like pseudocode (the `qualityNote` field restates this). Read it to UNDERSTAND a routine; use `disasm({target:'project'})` to actually edit + rebuild. See the cross-platform ROM-hacking playbook §5f for the full loop.
+**Decompiler quality on 6502: ROUGH.** Carry-flag idioms and 16-bit math on an 8-bit CPU decompile to noise that only reads cleanly once an LLM folds it - on this CPU the disassembly is often more honest than the pseudocode. `disasm({target:'decompile', address})` returns C-like pseudocode (the `qualityNote` field restates this). Read it to UNDERSTAND a routine; use `disasm({target:'project'})` to actually edit + rebuild. See the cross-platform ROM-hacking playbook §5f for the full loop.
 
 ## When to drop to asm
 
@@ -428,5 +428,5 @@ Game-loop in C is fine for ~80% of homebrew. Drop to asm when:
 - You need fast inner loops (e.g. soft-render scanlines)
 - You're writing the sound driver
 
-Otherwise stay in C — it's easier to evolve and the cc65 codegen is
+Otherwise stay in C - it's easier to evolve and the cc65 codegen is
 good enough for most game logic.

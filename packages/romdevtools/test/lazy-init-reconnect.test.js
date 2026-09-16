@@ -1,7 +1,7 @@
 // Guards the lazy-init reconnect feature in src/mcp/server.js.
 //
 // After a server restart, a client shows up with a session id we never issued
-// (because WE restarted). Instead of 404-ing it, the server adopts that id —
+// (because WE restarted). Instead of 404-ing it, the server adopts that id -
 // it constructs a StreamableHTTPServerTransport and marks it initialized by
 // setting two fields on the SDK's inner _webStandardTransport: `sessionId`
 // and `_initialized`. That's a deliberate reach into SDK internals (the
@@ -24,7 +24,7 @@ test("SDK transport exposes settable _webStandardTransport.sessionId + _initiali
 
   const inner = transport._webStandardTransport;
   assert.ok(inner && typeof inner === "object",
-    "transport._webStandardTransport must exist — lazyInitTransport reaches into it");
+    "transport._webStandardTransport must exist - lazyInitTransport reaches into it");
 
   // Fresh transport: not yet initialized, no session id.
   assert.equal(inner._initialized, false, "_initialized should start false");

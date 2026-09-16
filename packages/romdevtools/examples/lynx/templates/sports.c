@@ -1,12 +1,12 @@
-/* ── sports.c — Atari Lynx 1P-vs-CPU court game (complete example game) ───────
+/* ── sports.c - Atari Lynx 1P-vs-CPU court game (complete example game) ───────
  *
- * A COMPLETE, working game — PULSE PARRY, a head-to-head court game (Pong
+ * A COMPLETE, working game - PULSE PARRY, a head-to-head court game (Pong
  * lineage) fit to the Lynx's tiny 160x102 screen: title screen, 1P vs a
  * beatable CPU, first-to-N match flow with a result screen, in-session
  * record, MIKEY music + SFX, AND the Lynx's signature party trick:
  * HARDWARE SPRITE SCALING. The ball is a Suzy scalable sprite that GROWS
  * with its speed (a fast volley looms larger), and the result screen does a
- * SCALE POP — a winner glyph swells then eases back — both pure-hardware
+ * SCALE POP - a winner glyph swells then eases back - both pure-hardware
  * "juice" that costs zero CPU pixel work.
  *
  * The game: you are the LEFT paddle; a CPU works the RIGHT. UP/DOWN move you.
@@ -15,37 +15,37 @@
  * every return guarantees no rally loops forever. First side to WIN_SCORE
  * takes the match → a result screen → back to the title.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented Lynx footgun;
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented Lynx footgun;
  *     reshape your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — court art, ball physics, CPU skill, scoring rules:
+ *   GAME LOGIC (clay) - court art, ball physics, CPU skill, scoring rules:
  *     reshape freely.
  *
  * What depends on what:
- *   lynx_sfx.{h,c} — MIKEY 4-voice audio (voice 0 = paddle/score SFX, voice 1 =
+ *   lynx_sfx.{h,c} - MIKEY 4-voice audio (voice 0 = paddle/score SFX, voice 1 =
  *     background melody, voice 2 = wall/whistle SFX, voice 3 = noise/miss).
- *   vendor/cc65/libsrc/lynx/ — the FULL cc65 Lynx driver source shipped into
+ *   vendor/cc65/libsrc/lynx/ - the FULL cc65 Lynx driver source shipped into
  *     your project. The TGI driver (tgi/lynx-160-102-16.s) is REQUIRED
  *     reading when graphics misbehave: every TGI call is itself a Suzy
  *     sprite, and our scaled ball + result pop ride the same engine via
  *     tgi_ioctl(0).
  *
- * NO HARDWARE TILEMAP (read this — it is the platform's biggest "where's the
+ * NO HARDWARE TILEMAP (read this - it is the platform's biggest "where's the
  *   court renderer?" surprise): the Lynx has NO background tilemap. Suzy is a
  *   SPRITE BLITTER, not a tile engine. So the court is drawn the honest way:
  *   the full-redraw TGI loop repaints the whole arena every frame as a stack
- *   of tgi_bar fills + tgi_line markings — cheap on a 160x102 screen. The
+ *   of tgi_bar fills + tgi_line markings - cheap on a 160x102 screen. The
  *   paddles are flat bars; the ball is a Suzy SCALABLE sprite on top.
  *
- * PLAYERS: 1. This is a handheld — head-to-head on real hardware is ComLynx,
+ * PLAYERS: 1. This is a handheld - head-to-head on real hardware is ComLynx,
  *   a cable between TWO physical Lynx units. A single emulator instance has
  *   nobody on the other end of the cable, so this example is honestly 1P vs a
- *   CPU opponent (no fake "P2 VERSUS" that could never work here — contrast
+ *   CPU opponent (no fake "P2 VERSUS" that could never work here - contrast
  *   the NES sports donor, which has a real simultaneous-2P mode).
  *
  * SCREEN: 160x102. The system font is 8x8, so a full row of text is 20
- *   characters — the court + HUD are kept compact to fit.
+ *   characters - the court + HUD are kept compact to fit.
  */
 
 #include <tgi.h>
@@ -54,36 +54,36 @@
 #include <stdint.h>
 #include "lynx_sfx.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it <=16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "PULSE PARRY"
 
-/* ── GAME LOGIC (clay — reshape freely) — court geometry (fits 160x102) ──────
+/* ── GAME LOGIC (clay - reshape freely) - court geometry (fits 160x102) ──────
  * A full-width court with a slim HUD row across the top. COURT_TOP/BOT bound
  * the ball vertically; the paddles ride the left/right edges. */
 #define COURT_TOP   12               /* first playable pixel row              */
 #define COURT_BOT   100              /* first pixel row of the bottom rail    */
 #define PADDLE_H    20               /* paddle height in px (compact court)   */
 #define PADDLE_W    3
-#define PADDLE_X1   5                /* you — left side                       */
-#define PADDLE_X2   (159 - 5 - PADDLE_W)  /* CPU — right side                 */
+#define PADDLE_X1   5                /* you - left side                       */
+#define PADDLE_X2   (159 - 5 - PADDLE_W)  /* CPU - right side                 */
 #define BALL_W      6                /* nominal ball footprint (1.0x sprite)  */
 #define WIN_SCORE   5                /* first to 5 takes the match            */
 
-/* Game states — the shell every example shares: title → play → result. */
+/* Game states - the shell every example shares: title → play → result. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static uint8_t state;
 
-/* ── GAME LOGIC (clay) — match state ── */
+/* ── GAME LOGIC (clay) - match state ── */
 static int16_t p1y, p2y;             /* paddle top Y                          */
 static int16_t bx, by;               /* ball top-left                         */
 static int8_t  bdx, bdy;             /* ball velocity (px/frame)              */
 static uint8_t score_p1, score_p2;
 static uint8_t serve_timer;          /* freeze frames between points          */
 static uint8_t streak;               /* current win streak vs CPU (this run)  */
-static uint8_t best_streak;          /* in-session record — see end_match()   */
+static uint8_t best_streak;          /* in-session record - see end_match()   */
 static uint8_t new_record;           /* result screen shows NEW RECORD        */
 static uint8_t p1_won;               /* who took the match (result screen)    */
 static uint8_t prev_joy;
@@ -93,7 +93,7 @@ static uint8_t prev_joy;
 static uint8_t  pop_timer;
 #define POP_FRAMES 10
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call).
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call).
  * A versus game NEEDS this: the Lynx is fully deterministic, so without a
  * noise source two fixed strategies lock into an infinite rally loop (the
  * exact same cycle, forever). rand8() is ticked once per play frame so
@@ -108,42 +108,42 @@ static uint8_t rand8(void) {
   return (uint8_t)r;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * SUZY HARDWARE SPRITE SCALING — the Lynx signature. Suzy renders every
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * SUZY HARDWARE SPRITE SCALING - the Lynx signature. Suzy renders every
  * sprite through a Sprite Control Block (SCB) it walks in cart/work RAM.
  * Two SCB fields, HSIZE and VSIZE, are 8.8 fixed-point scale factors
  * ($0100 = 1.0): the SAME 8x8 source pixels render at any size, every frame,
  * for free. This game uses it two ways:
- *   - the BALL is a Suzy sprite whose 8.8 scale tracks its SPEED — a slow
- *     serve is a small dot, a fast volley looms larger — recomputed every
+ *   - the BALL is a Suzy sprite whose 8.8 scale tracks its SPEED - a slow
+ *     serve is a small dot, a fast volley looms larger - recomputed every
  *     frame, zero CPU pixel cost (Suzy scales while it blits);
- *   - the RESULT POP — for POP_FRAMES after a match ends, the winner glyph is
+ *   - the RESULT POP - for POP_FRAMES after a match ends, the winner glyph is
  *     redrawn at >1.0x then eased back to 1.0x, a pure-hardware "juice" flash.
  *
  * The SCB, field by field (this is cc65's SCB_REHV_PAL from <_suzy.h>):
  *   sprctl0  bits 7-6 = bits per pixel (11 = 4bpp), bits 2-0 = sprite TYPE.
  *            TYPE_NORMAL (4) draws pens 1-15 and treats pen 0 as
- *            TRANSPARENT — that's how the round ball sits over the court.
+ *            TRANSPARENT - that's how the round ball sits over the court.
  *   sprctl1  bit 7 LITERAL (raw nybbles, no RLE) + bits 5-4 reload depth:
  *            REHV means "this SCB carries HPOS, VPOS, HSIZE, VSIZE". The
- *            reload bits ARE the struct layout — mismatch them and Suzy reads
+ *            reload bits ARE the struct layout - mismatch them and Suzy reads
  *            palette bytes as size words.
  *   sprcoll  $20 = NO_COLLIDE. Ball/paddle collision is done in C on the court
  *            coordinates (the collision buffer knows nothing about gameplay).
  *   next     pointer to the next SCB, 0 = end of chain (one blit per call).
  *   data     sprite pixel data (LITERAL 4bpp format below).
  *   hpos/vpos signed SCREEN position of the sprite's top-left corner.
- *   hsize/vsize 8.8 scale — THE party trick, rewritten per draw.
+ *   hsize/vsize 8.8 scale - THE party trick, rewritten per draw.
  *   penpal[8] 16 nybbles mapping pixel values 0-15 → palette pens. We RECOLOUR
  *            the sprite per draw here (one 8x8 art block, any pen) by pointing
- *            the art's pixel value 1 at the wanted pen — no extra art.
+ *            the art's pixel value 1 at the wanted pen - no extra art.
  *
  * LITERAL 4bpp data format (hand-encodable): each sprite LINE is
  *   [offset byte][width/2 bytes of raw nybble pixels]
  * where offset = 1 + bytes of pixel data; a final offset of 0 ends the sprite.
  * 8 px @ 4bpp = 4 data bytes, so every line starts with 5.
  *
- * Drawing: tgi_sprite(&scb) → tgi_ioctl(0, &scb) — the TGI driver's
+ * Drawing: tgi_sprite(&scb) → tgi_ioctl(0, &scb) - the TGI driver's
  * documented escape hatch (see CONTROL in vendor/cc65/libsrc/lynx/tgi/
  * lynx-160-102-16.s). It points Suzy's SCBNEXT at your SCB, aims VIDBAS at
  * TGI's current DRAW page (so scaled sprites land in the same double-buffered
@@ -151,7 +151,7 @@ static uint8_t rand8(void) {
  * SPRSYS reports the blit done.
  *
  * Requires: the cc65 crt0 Suzy init (already done before main()), and calls
- *   only between the tgi_busy() wait and tgi_updatedisplay() — i.e. while
+ *   only between the tgi_busy() wait and tgi_updatedisplay() - i.e. while
  *   TGI's draw buffer is the blit target. Draw order = paint order: court
  *   fills first, scaled ball/glyph after, HUD text last.
  */
@@ -166,7 +166,7 @@ static SCB_REHV_PAL scb = {
   { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF }   /* identity pens */
 };
 
-/* ── GAME LOGIC (clay) — 8x8 4bpp literal sprite art ────────────────────────
+/* ── GAME LOGIC (clay) - 8x8 4bpp literal sprite art ────────────────────────
  * A round ball in pixel value 1 (plus value $F = white glint). draw_sprite()
  * recolours value 1 → the wanted pen via the SCB penpal, so one art block
  * paints any colour. Each line: 5, then 4 nybble bytes; a final 0 byte ends
@@ -198,7 +198,7 @@ static unsigned char spr_cup[] = {
 /* Draw an 8x8 literal sprite CENTERED on (cx,cy) at the given 8.8 scale,
  * recoloured so art pixel value 1 paints `pen`. Centering matters: hpos/vpos
  * are the TOP-LEFT, so a sprite scaled around its corner would slide as it
- * grows — anchoring the centre keeps a growing ball reading as "coming at
+ * grows - anchoring the centre keeps a growing ball reading as "coming at
  * you", and the result pop as a uniform swell. */
 static void draw_sprite(unsigned char *data, int cx, int cy, uint8_t pen, unsigned scale) {
   unsigned w = (8u * scale) >> 8;
@@ -213,7 +213,7 @@ static void draw_sprite(unsigned char *data, int cx, int cy, uint8_t pen, unsign
 }
 
 /* Ball scale tracks its speed: |bdx|+|bdy| (1..~5) maps onto 0.75x..1.6x.
- * A faster volley genuinely looms larger — the HARDWARE scale is the speed
+ * A faster volley genuinely looms larger - the HARDWARE scale is the speed
  * read-out, not a decoration. */
 static unsigned ball_scale(void) {
   unsigned spd = (unsigned)((bdx < 0 ? -bdx : bdx) + (bdy < 0 ? -bdy : bdy));
@@ -229,7 +229,7 @@ static unsigned pop_scale(void) {
   return 0x0100u + ((unsigned)pop_timer * (POP_SCALE_PEAK - 0x0100u)) / POP_FRAMES;
 }
 
-/* ── GAME LOGIC (clay) — score text (no sprintf: it drags in ~6KB) ── */
+/* ── GAME LOGIC (clay) - score text (no sprintf: it drags in ~6KB) ── */
 static char numbuf[6];
 static char *fmt5(unsigned v) {
   uint8_t i;
@@ -238,7 +238,7 @@ static char *fmt5(unsigned v) {
   return numbuf;
 }
 
-/* ── GAME LOGIC (clay) — serve: ball to centre, toward the chosen side ── */
+/* ── GAME LOGIC (clay) - serve: ball to centre, toward the chosen side ── */
 static void serve_ball(uint8_t to_left) {
   bx = 78;
   by = 48;
@@ -247,7 +247,7 @@ static void serve_ball(uint8_t to_left) {
   serve_timer = 30;                              /* half-second breather */
 }
 
-/* ── GAME LOGIC (clay) — paint the court (full redraw, every frame) ──────────
+/* ── GAME LOGIC (clay) - paint the court (full redraw, every frame) ──────────
  * No hardware tilemap, so the arena is bars + lines: grass fill, end zones,
  * top/bottom rails, the white boundary + dashed centre net + centre circle.
  * Layered tones keep any one colour comfortably under the render-health blank
@@ -284,7 +284,7 @@ static void draw_paddles(void) {
           (unsigned)(p2y + PADDLE_H - 1));
 }
 
-/* ── GAME LOGIC (clay) — start a match ── */
+/* ── GAME LOGIC (clay) - start a match ── */
 static void start_match(void) {
   p1y = 40; p2y = 40;
   score_p1 = 0; score_p2 = 0;
@@ -296,20 +296,20 @@ static void start_match(void) {
   state = ST_PLAY;
 }
 
-/* ── GAME LOGIC (clay) — match over: result + record bookkeeping.
+/* ── GAME LOGIC (clay) - match over: result + record bookkeeping.
  * Persistence choice: for a VERSUS game a raw hi-score is meaningless (every
- * match ends 5-x), so we keep the longest CPU-beating win STREAK — the stat a
- * returning player actually chases — in-session only (see the EEPROM note). */
+ * match ends 5-x), so we keep the longest CPU-beating win STREAK - the stat a
+ * returning player actually chases - in-session only (see the EEPROM note). */
 static void end_match(void) {
   p1_won = (score_p1 >= WIN_SCORE);
   if (p1_won) {
     ++streak;
     if (streak > best_streak) {
-      /* ── In-session record ONLY — and here's the honest why. Real Lynx
+      /* ── In-session record ONLY - and here's the honest why. Real Lynx
        * carts persist via a 93Cxx serial EEPROM on the cart PCB (cc65 even
        * ships lynx_eeprom_read/write for it; see vendor/cc65/libsrc/lynx/
        * eeprom.s). PROBED: the bundled handy core emulates CEEPROM internally
-       * but its libretro build exposes NO save path — retro_get_memory(
+       * but its libretro build exposes NO save path - retro_get_memory(
        * SAVE_RAM) returns NULL/size 0, so nothing survives host.hardReset()
        * and a bit-banged round-trip reads back garbage under the WASM build.
        * Wiring the EEPROM to SAVE_RAM is a future core round; until then a
@@ -328,7 +328,7 @@ static void end_match(void) {
   state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay) — one point scored ── */
+/* ── GAME LOGIC (clay) - one point scored ── */
 static void score_point(uint8_t for_p1) {
   if (for_p1) ++score_p1; else ++score_p2;
   sfx_noise(6);
@@ -336,10 +336,10 @@ static void score_point(uint8_t for_p1) {
   else serve_ball(for_p1);      /* winner of the point receives */
 }
 
-/* ── GAME LOGIC (clay) — paddle hit: deflect by where the ball struck.
+/* ── GAME LOGIC (clay) - paddle hit: deflect by where the ball struck.
  * Centre = flat-ish, edges = steep. A ±1 random "spin" on every return keeps
  * rallies from repeating (see the PRNG note above), so an idle match (you
- * never moving) still ENDS — the CPU eventually wins. */
+ * never moving) still ENDS - the CPU eventually wins. */
 static void deflect(int16_t paddle_y) {
   int16_t rel = (by + BALL_W / 2) - (paddle_y + PADDLE_H / 2);
   bdy = (int8_t)(rel >> 3);
@@ -350,7 +350,7 @@ static void deflect(int16_t paddle_y) {
   sfx_tone(0, 70, 4);
 }
 
-/* ── GAME LOGIC (clay) — HUD: scores + labels across the top band ── */
+/* ── GAME LOGIC (clay) - HUD: scores + labels across the top band ── */
 static void draw_hud(void) {
   tgi_setcolor(COLOR_YELLOW);
   tgi_outtextxy(2, 2, "P1");
@@ -366,14 +366,14 @@ static void draw_hud(void) {
   tgi_outtextxy(84, 2, numbuf);
 }
 
-/* ── GAME LOGIC (clay) — per-state frames. Each runs INSIDE the canonical
+/* ── GAME LOGIC (clay) - per-state frames. Each runs INSIDE the canonical
  * loop below: court already painted, tgi_updatedisplay not yet called. ── */
 
 static unsigned attract_phase;
 
 static void frame_title(uint8_t joy) {
   /* attract: a lone ball in the title's clear zone pulses via the SCALING
-   * idiom — the same swell the speed-scaled ball + result pop use, shown off
+   * idiom - the same swell the speed-scaled ball + result pop use, shown off
    * on the menu. */
   unsigned t = attract_phase < 64 ? attract_phase : (127 - attract_phase);
   unsigned s = 0x00C0u + (t * (0x0220u - 0x00C0u)) / 63u;   /* 0.75x..2.13x */
@@ -428,11 +428,11 @@ static void frame_play(uint8_t joy) {
   /* ── update ── */
   rand8();                       /* tick the noise source every play frame */
 
-  /* you — UP/DOWN, 2px/frame */
+  /* you - UP/DOWN, 2px/frame */
   if ((joy & JOY_UP_MASK)   && p1y > COURT_TOP)            p1y -= 2;
   if ((joy & JOY_DOWN_MASK) && p1y < COURT_BOT - PADDLE_H) p1y += 2;
 
-  /* CPU — chases the ball centre at 1px/frame (half your speed) with a small
+  /* CPU - chases the ball centre at 1px/frame (half your speed) with a small
    * dead zone. Beatable by design: steep edge deflections outrun it. */
   {
     int16_t target = by + BALL_W / 2 - PADDLE_H / 2;
@@ -482,23 +482,23 @@ void main(void) {
   p1_won = 0;
 
   for (;;) {
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-     * CANONICAL LYNX GAME LOOP — full-redraw every frame, in this order:
-     *   1. while (tgi_busy()) { }  — WAIT for the previous frame's page flip.
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+     * CANONICAL LYNX GAME LOOP - full-redraw every frame, in this order:
+     *   1. while (tgi_busy()) { }  - WAIT for the previous frame's page flip.
      *      Skipping this is the #1 "Lynx screen stays blank" trap: drawing
      *      while the swap is pending loses the frame.
-     *   2. Repaint the WHOLE scene with tgi_bar/tgi_line fills — NOT
+     *   2. Repaint the WHOLE scene with tgi_bar/tgi_line fills - NOT
      *      tgi_clear() (which can leave the framebuffer stale on this
      *      toolchain+emulator path). TGI double-buffers; the back buffer holds
      *      the frame from two flips ago, so partial redraws ghost. With no
      *      hardware tilemap, the COURT is repainted every frame.
      *   3. Draw every object (every TGI call and every tgi_sprite() is a
      *      synchronous Suzy blit into the SAME draw page).
-     *   4. tgi_updatedisplay() — request the page flip at next VBL.
-     *   5. sfx_update() IMMEDIATELY after — MIKEY voice writes must land in
+     *   4. tgi_updatedisplay() - request the page flip at next VBL.
+     *   5. sfx_update() IMMEDIATELY after - MIKEY voice writes must land in
      *      vblank: handy reschedules its timer sweep on the spot when a voice
      *      CTL bit-3 write lands, and mid-frame that sweep can preempt an
-     *      in-flight Suzy blit and eat sprites (the R57 bug — history in
+     *      in-flight Suzy blit and eat sprites (the R57 bug - history in
      *      lynx_sfx.c). sfx_tone()/sfx_noise() only STAGE; sfx_update() is
      *      the hardware flush. */
     while (tgi_busy()) { }

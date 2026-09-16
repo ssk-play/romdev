@@ -1,4 +1,4 @@
-// SMS song compiler — note/duration → sms_music.c parallel-array voice table.
+// SMS song compiler - note/duration → sms_music.c parallel-array voice table.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -58,7 +58,7 @@ test("compileSong emits parallel arrays, NO sentinel (SMS-specific shape)", () =
   assert.deepEqual([...len], [18, 18, 9]);
 
   // Raw byte image = freq[] (2 bytes/row LE) THEN len[] (1 byte/row).
-  // No terminator/sentinel byte — total = 3*2 + 3 = 9.
+  // No terminator/sentinel byte - total = 3*2 + 3 = 9.
   assert.equal(bytes.length, 3 * 2 + 3);
   assert.deepEqual([...bytes], [
     254, 0,   // A4 LE
@@ -66,7 +66,7 @@ test("compileSong emits parallel arrays, NO sentinel (SMS-specific shape)", () =
     0, 0,     // rest
     18, 18, 9, // len[]
   ]);
-  // explicitly: there is no 0x00-after-len sentinel — last byte is the last len.
+  // explicitly: there is no 0x00-after-len sentinel - last byte is the last len.
   assert.equal(bytes[bytes.length - 1], 9);
 });
 

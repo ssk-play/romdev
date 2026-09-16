@@ -1,11 +1,11 @@
-// sync32 PCM — WAV (or raw s16) → signed 16-bit mono at a rate that divides
+// sync32 PCM - WAV (or raw s16) → signed 16-bit mono at a rate that divides
 // the console's 48 kHz ring evenly, plus the C array + defines a game's mixer
 // needs. The console has no PCM channel: a game mixes samples into the ring
 // itself, so the encoder's job is the rate decision and the bytes.
 //
 // Default 24 kHz: exactly half the ring rate, so playback is a zero-order hold
 // (each sample twice) with no resampler in the mixer, at half the ROM cost of
-// 48 kHz — the trade every port lands on once it sees the image budget.
+// 48 kHz - the trade every port lands on once it sees the image budget.
 
 import { parseWav, resampleLinear } from "../genesis/xgm2-pcm.js";
 
@@ -18,7 +18,7 @@ export const RING_RATE = 48000;
 export function wavToSync32Pcm(input, opts = {}) {
   const rate = opts.rate ?? 24000;
   if (!Number.isInteger(rate) || rate < 4000 || rate > RING_RATE) throw new Error(`sync32 pcm: rate ${rate} must be 4000..48000`);
-  if (RING_RATE % rate !== 0) throw new Error(`sync32 pcm: rate ${rate} does not divide the 48000 Hz ring evenly — use 48000, 24000, 16000, 12000, 9600, 8000 or 6000 so the mixer can hold each sample an integer number of frames`);
+  if (RING_RATE % rate !== 0) throw new Error(`sync32 pcm: rate ${rate} does not divide the 48000 Hz ring evenly - use 48000, 24000, 16000, 12000, 9600, 8000 or 6000 so the mixer can hold each sample an integer number of frames`);
   let samples, sourceRate;
   if (opts.format === "pcm16") {
     const u = Buffer.from(input);

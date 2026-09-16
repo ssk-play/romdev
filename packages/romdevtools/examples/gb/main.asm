@@ -1,4 +1,4 @@
-; Game Boy hello-world — yellow 'H' on a dark BG, scrollable with A.
+; Game Boy hello-world - yellow 'H' on a dark BG, scrollable with A.
 ;
 ; Boots into ROM0 at $0100, sets up the LCD, uploads one tile + writes
 ; it to the BG map, enables the LCD, then loops reading joypad and

@@ -1,4 +1,4 @@
-/* GG palette loader — uploads 64-byte palette (32 entries × 2 bytes) to CRAM.
+/* GG palette loader - uploads 64-byte palette (32 entries × 2 bytes) to CRAM.
  *
  * GG CRAM: 32 entries × 2 bytes (4-4-4 BGR LE), 64 bytes total.
  *   Entry layout: low byte = $GR (G=high nibble, R=low), high byte = $0B.

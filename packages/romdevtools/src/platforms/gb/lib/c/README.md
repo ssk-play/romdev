@@ -1,7 +1,7 @@
 # GB / GBC C runtime + headers
 
 These are the source files that back the GB/GBC C templates. They're
-**not** auto-injected at build time — `examples({op:'fork', example:"gb/<name>" or
+**not** auto-injected at build time - `examples({op:'fork', example:"gb/<name>" or
 "gbc/<name>", name, path})` copies them into your project directory so the
 project is self-describing. Build calls then point at your project's
 copy of these files via `sourcesPaths` / `includePaths` / `crt0Path`.
@@ -14,34 +14,34 @@ copy of these files via `sourcesPaths` / `includePaths` / `crt0Path`.
 | `gb_crt0.s` | replaces stock SDCC sm83 crt0 (assembled internally) | Lays out a real cartridge: reset/IRQ vectors at $0000-$0060, entry stub at $0100, reserves $0104-$014F as the header window, puts `init:` in `_CODE` at $0150. |
 | `unroll.h` | header `unroll.h` in include path | `UNROLL_2..UNROLL_64` macros for manual loop unrolling. Originally a workaround for the now-fixed sm83 register-allocator crash family; left in for code that still uses it. You don't need it for new code. |
 
-Just `#include "gb_hardware.h"` and (optionally) `#include "gb_runtime.h"` —
+Just `#include "gb_hardware.h"` and (optionally) `#include "gb_runtime.h"` -
 both work in any GB/GBC C build the agent submits. Caller-supplied files
 of the same name win on collision, so you can override.
 
 **Cart header is auto-fixed at build time.** `build({output:'rom'})` / `build({output:'run'})`
-run rgbfix on the linked GB/GBC ROM — valid Nintendo logo at $0104,
+run rgbfix on the linked GB/GBC ROM - valid Nintendo logo at $0104,
 header checksum at $014D, global checksum at $014E, cartridge-type /
 RAM-size bytes, and the CGB flag at $0143 ($00 for `.gb`, $80/$C0 for
 `.gbc`). A freshly built ROM boots on hardware and strict cores with
-**no extra step** — you do not call `romPatch({op:'gbHeader'})` after a normal build.
+**no extra step** - you do not call `romPatch({op:'gbHeader'})` after a normal build.
 
 Reach for header tooling only when working with a ROM the build pipeline
 didn't produce, or to override a field:
 
-- `romPatch({op:'gbHeader', path: "out.gb"})` — romdev tool.
+- `romPatch({op:'gbHeader', path: "out.gb"})` - romdev tool.
   Fixes up / overrides the header of an existing ROM on disk (title, cart
   type, ROM/RAM size, CGB flag, etc.).
-- `node patch-header.js out.gb` — standalone Node script, copied into
+- `node patch-header.js out.gb` - standalone Node script, copied into
   every GB project by `examples({op:'fork'})`. Same logic, no MCP needed.
-- `rgbfix -v -p 0 out.gb` — what the build pipeline runs under the hood;
+- `rgbfix -v -p 0 out.gb` - what the build pipeline runs under the hood;
   RGBDS asm projects can invoke it directly.
 
 ## Companion docs
 
-- **[`../../TROUBLESHOOTING.md`](../../TROUBLESHOOTING.md)** — symptom →
+- **[`../../TROUBLESHOOTING.md`](../../TROUBLESHOOTING.md)** - symptom →
   fix table. Start here when your ROM compiles but doesn't render right
   ("screen blank", "sprite invisible", "wrong colors", "freezes").
-- **[`../../MENTAL_MODEL.md`](../../MENTAL_MODEL.md)** — one-page
+- **[`../../MENTAL_MODEL.md`](../../MENTAL_MODEL.md)** - one-page
   architecture overview: VRAM banks, palettes (DMG vs CGB), sprite
   hardware, OAM DMA timing, joypad layout. Read this before your first
   GB/GBC project.
@@ -69,7 +69,7 @@ Templates ship in `examples/{gb,gbc}/templates/`:
 
 ## SDCC 4.4.0 quirks
 
-**Read first: [`SDCC_GOTCHAS.md`](./SDCC_GOTCHAS.md).** Short doc —
+**Read first: [`SDCC_GOTCHAS.md`](./SDCC_GOTCHAS.md).** Short doc -
 mostly covers C89 syntax requirements. The big "register allocator
 crash family" that motivated this whole document originally was
 diagnosed as an emscripten stack overflow on 2026-05-25; fixed at the

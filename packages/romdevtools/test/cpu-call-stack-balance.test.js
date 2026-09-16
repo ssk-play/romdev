@@ -130,7 +130,7 @@ test("finalRegs still reports the state AT the stop, not the restored state", { 
   assert.equal(await stackPointer(call), before, "the LIVE machine is the restored one");
 });
 
-test("sandbox:true is unaffected — it still restores everything", { skip: TEST_ROM.skip }, async () => {
+test("sandbox:true is unaffected - it still restores everything", { skip: TEST_ROM.skip }, async () => {
   const call = await bootedSession("cpu-call-sandbox-true");
   await call("memory", { op: "write", region: "system_ram", offset: 0x40, hex: "1234" });
   const before = await stackPointer(call);

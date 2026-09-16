@@ -1,4 +1,4 @@
-/* ── gba_sfx.h — minimal GBA sound-effects wrapper ──────────────────
+/* ── gba_sfx.h - minimal GBA sound-effects wrapper ──────────────────
  *
  * Thin DMG-compatible APU wrapper for the GBA's 4 PSG channels. Mirrors
  * the NES/GB scaffold pattern (sound_init + sound_play_tone + ...) so
@@ -8,11 +8,11 @@
  *   1, 2 = square waves (use sfx_tone)
  *   4    = white noise   (use sfx_noise)
  *
- * Channel 3 (wave RAM) is not wrapped — it needs a user-supplied wave
- * table. Direct Sound (PCM via DMA) is also not wrapped — that needs a
+ * Channel 3 (wave RAM) is not wrapped - it needs a user-supplied wave
+ * table. Direct Sound (PCM via DMA) is also not wrapped - that needs a
  * timer + DMA setup + a sample buffer; out of scope for an sfx helper.
  *
- * All functions are non-blocking — they trigger the channel and return
+ * All functions are non-blocking - they trigger the channel and return
  * immediately. The hardware countdowns the length and silences the
  * channel on its own. Calling sfx_tone again before the countdown
  * finishes re-triggers (cuts the previous note).
@@ -45,7 +45,7 @@ void sfx_noise(u8 length_frames);
 /* ── background music ────────────────────────────────────────────────
  * A 16-step square-wave melody loop on channel 2 (so keep one-shot SFX
  * on channel 1 + noise on 4 and nothing fights for the channel).
- * Call sfx_music_tick() once per frame from your main loop — it steps
+ * Call sfx_music_tick() once per frame from your main loop - it steps
  * the melody. ON by default after sfx_init(); sfx_music(0) silences it.
  * "No sound" feedback in playtests is nearly always a missing per-frame
  * tick, not broken registers. */

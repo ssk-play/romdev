@@ -1,5 +1,5 @@
 /*
- * platformer/main.c — BLOCK HOP: a 3D PlayStation platformer.
+ * platformer/main.c - BLOCK HOP: a 3D PlayStation platformer.
  *
  * A 3D character (cube hero) runs and jumps across floating platforms rendered in
  * perspective. Gravity + jump physics in 16.16 fixed point, AABB landing tests

@@ -1,4 +1,4 @@
-/* ── tile_engine.c — GBC starter with a tile map + multiple rooms ──
+/* ── tile_engine.c - GBC starter with a tile map + multiple rooms ──
  *
  * Single-screen-per-room layout (top-down dungeon-crawler / room-puzzle shape).
  *   - 20×18 BG map rendered from a `room[]` array
@@ -7,14 +7,14 @@
  *   - 3 hand-written rooms wired up; extend with more for a real game
  *
  * Boot order follows the GBC "must-do" sequence from
- * src/platforms/gbc/TROUBLESHOOTING.md — do not reorder.
+ * src/platforms/gbc/TROUBLESHOOTING.md - do not reorder.
  *
  * Tile data layout (8×8, 2bpp, 16 bytes per tile):
- *   tile 0 — blank          (always reserved so OAM Y=0 doesn't glitch)
- *   tile 1 — floor          (light)
- *   tile 2 — wall            (dark, solid outline)
- *   tile 3 — door             (different color)
- *   tile 4 — player sprite
+ *   tile 0 - blank          (always reserved so OAM Y=0 doesn't glitch)
+ *   tile 1 - floor          (light)
+ *   tile 2 - wall            (dark, solid outline)
+ *   tile 3 - door             (different color)
+ *   tile 4 - player sprite
  */
 
 #include "gb_hardware.h"
@@ -60,7 +60,7 @@ static const uint16_t bg_pal[4] = {
   0x0C63,  /* 3: dark grey (wall) */
 };
 
-/* Sprite palette — single 4-colour palette in OBJ palette 0. */
+/* Sprite palette - single 4-colour palette in OBJ palette 0. */
 static const uint16_t obj_pal[4] = {
   0x7FFF,  /* 0: transparent */
   0x001F,  /* 1: red */
@@ -76,7 +76,7 @@ static const uint16_t obj_pal[4] = {
 #define ROOMS 3
 
 static const uint8_t rooms[ROOMS][ROWS * COLS] = {
-  /* Room 0: a corridor — door on right */
+  /* Room 0: a corridor - door on right */
   {
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
     2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,
@@ -97,7 +97,7 @@ static const uint8_t rooms[ROOMS][ROWS * COLS] = {
     2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
   },
-  /* Room 1: open hall — doors left and right */
+  /* Room 1: open hall - doors left and right */
   {
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
     2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,
@@ -118,7 +118,7 @@ static const uint8_t rooms[ROOMS][ROWS * COLS] = {
     2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
   },
-  /* Room 2: end room — door on left only */
+  /* Room 2: end room - door on left only */
   {
     2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
     2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,
@@ -143,7 +143,7 @@ static const uint8_t rooms[ROOMS][ROWS * COLS] = {
 
 /* ── Helpers ────────────────────────────────────────────────────── */
 static void copy_to_vram(uint8_t *dst, const uint8_t *src, uint16_t n) {
-  /* Delegate to the runtime's pointer-walk copy — an indexed dst[i]=src[i]
+  /* Delegate to the runtime's pointer-walk copy - an indexed dst[i]=src[i]
    * loop into VRAM is miscompiled by SDCC sm83. */
   memcpy_vram(dst, src, n);
 }
@@ -243,7 +243,7 @@ void main(void) {
     tx = (uint8_t)(nx >> 3);
     ty = (uint8_t)(ny >> 3);
 
-    /* Door — transition to neighbouring room. */
+    /* Door - transition to neighbouring room. */
     if (is_door(current_room, tx, ty)) {
       if (nx >= 152) {        /* right edge → next room */
         if (current_room < ROOMS - 1) {
@@ -270,7 +270,7 @@ void main(void) {
       }
     }
 
-    /* Wall collision — block movement. */
+    /* Wall collision - block movement. */
     if (!solid(current_room, tx, ty)) {
       px = nx;
       py = ny;

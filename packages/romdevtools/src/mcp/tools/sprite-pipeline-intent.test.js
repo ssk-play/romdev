@@ -1,4 +1,4 @@
-// sprite-pipeline-intent.test.js — R17 intent-axis behavior tests.
+// sprite-pipeline-intent.test.js - R17 intent-axis behavior tests.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -24,7 +24,7 @@ function makeFivecolorPng() {
   return PNG.sync.write(png);
 }
 
-test("intent is required — undefined rejects with a helpful error", async () => {
+test("intent is required - undefined rejects with a helpful error", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "intent-req-"));
   try {
     const src = path.join(dir, "src.png");

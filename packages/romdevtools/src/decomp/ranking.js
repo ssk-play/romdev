@@ -1,4 +1,4 @@
-// ranking.js — mechanism-aware candidate ranking.
+// ranking.js - mechanism-aware candidate ranking.
 //
 // Levenshtein distance is fine for rough triage and must not select late-stage
 // winners. A large sweep ranked on one scalar optimises that scalar, and the
@@ -9,7 +9,7 @@
 // between candidates in the SAME gap state.** A gap is an insertion or deletion
 // in the aligned instruction stream. Once two candidates differ in how many
 // gaps they have, their aligned totals were computed over different alignments
-// and comparing them is meaningless — the candidate with more gaps can post a
+// and comparing them is meaningless - the candidate with more gaps can post a
 // lower total precisely because fewer rows lined up to be counted. Ranking a
 // mixed set by aligned_total silently prefers the WORSE candidate.
 //
@@ -139,7 +139,7 @@ export function rankCandidates(candidates, opts = {}) {
     ranked = unique.slice().sort(byFallback);
     rule = "fallback-distance";
     why = `candidates span ${partitions.size} DIFFERENT gap states (${[...partitions.keys()].join(", ")}). `
-      + "aligned_total is computed over an alignment, so totals from different gap states are not comparable — "
+      + "aligned_total is computed over an alignment, so totals from different gap states are not comparable - "
       + "a candidate with more gaps can post a LOWER total simply because fewer rows lined up to be counted. "
       + "Ranked by the alignment-independent distance instead.";
   }

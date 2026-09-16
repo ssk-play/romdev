@@ -1,9 +1,9 @@
-// framebuffer-png.js — PNG encode/transform over the framebuffer decoders.
+// framebuffer-png.js - PNG encode/transform over the framebuffer decoders.
 //
 // Split from framebuffer.js so the isomorphic core surface stays free of
 // pngjs (which drags node:zlib): framebuffer.js keeps the pure typed-array
 // converters; everything that produces or consumes a PNG lives here.
-// LibretroHost preloads this module lazily at loadCore — where it can't load
+// LibretroHost preloads this module lazily at loadCore - where it can't load
 // (a browser bundle without a pngjs shim), screenshot() explains itself and
 // the typed-array surface (getFramebuffer / screenshotRgba) still works.
 
@@ -72,7 +72,7 @@ export function cropPng(pngBase64, crop) {
  * Nearest-neighbor (not averaging/smoothing) is deliberate in both directions:
  * it keeps pixel-art edges crisp and palette colors exact, so a scaled shot
  * still reads accurately. The PNG is fully decoded already (it's a tiny
- * framebuffer), so this is cheap. Platform-agnostic — same pixel scaling for
+ * framebuffer), so this is cheap. Platform-agnostic - same pixel scaling for
  * every core.
  *
  * @param {string} pngBase64 source PNG, base64-encoded

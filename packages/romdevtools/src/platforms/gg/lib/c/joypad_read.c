@@ -1,4 +1,4 @@
-/* GG joypad read — port $DC (D-pad + B1/B2) plus port $00 bit 7 for START.
+/* GG joypad read - port $DC (D-pad + B1/B2) plus port $00 bit 7 for START.
  *
  * Active LOW on the hardware, we invert so pressed = 1. Returned byte
  * layout matches the SMS layout PLUS bit 7 for START:
@@ -22,12 +22,12 @@ uint8_t gg_joypad_read(void) {
 }
 
 /*
- * Player 2 read — for ALTERNATING-TURNS or 2-controller play.
+ * Player 2 read - for ALTERNATING-TURNS or 2-controller play.
  *
  * HONEST NOTE: a real Game Gear has only ONE controller port on the unit; its
  * 2P story is the Gear-to-Gear LINK CABLE (a second console). But the GG VDP
  * and I/O chip are the SMS's, and gpgx wires the SMS's full split-across-
- * $DC/$DD second-controller layout for GG too — so a SECOND PAD does drive
+ * $DC/$DD second-controller layout for GG too - so a SECOND PAD does drive
  * port B in the emulator (and on an SMS-pad adapter), which is exactly what an
  * alternating-turns 2P platformer needs (the two players never play at once).
  *

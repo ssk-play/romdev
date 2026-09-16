@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.struct.YM2612State — tracks/compares YM2612 register state and emits VGM/XGM deltas.
+// Port of sgdk.xgm2tool.struct.YM2612State - tracks/compares YM2612 register state and emits VGM/XGM deltas.
 
 import { getInt8 } from "./util.js";
 import { VGMCommand } from "./vgm-command.js";

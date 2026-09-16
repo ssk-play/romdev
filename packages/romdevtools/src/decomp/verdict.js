@@ -1,4 +1,4 @@
-// verdict.js — ONE aggregate decision for "does this candidate match", and
+// verdict.js - ONE aggregate decision for "does this candidate match", and
 // the public fields are derived from it. A verifier's job is to distinguish
 // evidence of equality from the absence of evidence; every required check
 // therefore has an explicit state, and only positive acceptance on all of them

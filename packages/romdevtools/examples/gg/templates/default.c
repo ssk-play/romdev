@@ -2,7 +2,7 @@
  * a blue BG panel, drops a yellow 'H' tile in its centre, enables
  * display. Pressing P1-B1 scrolls the BG by one pixel per frame.
  *
- * Self-contained — inlines the VDP helpers so this single file plus the
+ * Self-contained - inlines the VDP helpers so this single file plus the
  * bundled gg_crt0.s are all you need to compile and run. For a more
  * modular multi-file project that pulls in the bundled GG runtime,
  * see `hello_sprite` and `tile_engine`.
@@ -109,7 +109,7 @@ static const uint8_t tile_h[32] = {
 };
 /* Tile 2 = solid colour 2 (blue). Tile 3 = solid colour 3 (red). The
  * viewport is painted as a blue/red checkerboard so no single colour
- * dominates the screen — a clear "it works" panel, not a flat fill. */
+ * dominates the screen - a clear "it works" panel, not a flat fill. */
 static const uint8_t tile_fill2[32] = {
   0x00, 0xFF, 0x00, 0x00,  0x00, 0xFF, 0x00, 0x00,
   0x00, 0xFF, 0x00, 0x00,  0x00, 0xFF, 0x00, 0x00,
@@ -141,7 +141,7 @@ static void load_tiles(void) {
 
 /* Clear the whole 32×28 name table, then paint the visible 160×144
  * viewport (cols 6..25, rows 3..20) as a solid blue panel inside a red
- * border frame — a clean "it works" screen that is obviously neither
+ * border frame - a clean "it works" screen that is obviously neither
  * blank nor a single flat colour. */
 static void draw_background(void) {
   uint8_t row, col, fill;
@@ -162,7 +162,7 @@ static void draw_background(void) {
   }
 }
 
-/* Drop the 'H' at name-table (row 11, col 15) — the visible centre. */
+/* Drop the 'H' at name-table (row 11, col 15) - the visible centre. */
 static void place_h(void) {
   vdp_set_addr(0x3800 + (11 * 32 + 15) * 2, VDP_VRAM_WRITE);
   PORT_VDP_DATA = 1;

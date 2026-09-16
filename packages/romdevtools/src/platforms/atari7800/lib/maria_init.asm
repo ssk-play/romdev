@@ -26,12 +26,12 @@
     LDA #>DLL_TABLE
     STA DPPH
 
-    ; CHARBASE — high byte of character map. Set to where your font
+    ; CHARBASE - high byte of character map. Set to where your font
     ; lives in ROM (zero is fine if you're not using character mode).
     LDA #$00
     STA CHARBASE
 
-    ; OFFSET — write 0 unconditionally per the MARIA reference.
+    ; OFFSET - write 0 unconditionally per the MARIA reference.
     LDA #$00
     STA OFFSET
 
@@ -40,7 +40,7 @@
     STA BACKGRND
 
     ; Enable DMA, no border, no color-kill, single-byte chars.
-    LDA #$40 + CTRL_DMA_OFF     ; wait — set to "no DMA" first, then
+    LDA #$40 + CTRL_DMA_OFF     ; wait - set to "no DMA" first, then
     AND #<~CTRL_DMA_OFF         ; clear DMA-off bit to actually enable
     STA CTRL
 

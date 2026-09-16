@@ -1,8 +1,8 @@
 # romdev-core-gametank
 
-gametank — GameTank (Clyde Shaffer's open W65C02S console) emulator core (libretro), as WebAssembly.
+gametank - GameTank (Clyde Shaffer's open W65C02S console) emulator core (libretro), as WebAssembly.
 
-A binary package for [romdev](https://github.com/monteslu/romdev) — it ships the
+A binary package for [romdev](https://github.com/monteslu/romdev) - it ships the
 prebuilt WebAssembly + JS glue and is resolved by the main `romdev` package on
 demand. You normally install `romdev`, not this package directly.
 

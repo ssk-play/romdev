@@ -1,4 +1,4 @@
-; crt0.asm — minimum boot stub for tcc-65816 C programs on SNES.
+; crt0.asm - minimum boot stub for tcc-65816 C programs on SNES.
 ;
 ; What this does (in order):
 ;   1. Reset vector lands here from hdr.asm. CPU starts in emulation mode.
@@ -9,7 +9,7 @@
 ;   6. JSL into main() (the C entry point).
 ;   7. Park CPU forever after main returns (stp).
 ;
-; The "tcc__r*" naming is what tcc-65816 emits in its codegen — those
+; The "tcc__r*" naming is what tcc-65816 emits in its codegen - those
 ; addresses must be in zero page so tcc's `sta.b tcc__r0` works as a
 ; direct-page write (saves a byte on every reg-to-reg move).
 
@@ -74,8 +74,8 @@ EmptyHandler:
 
 tcc__start:
     sei                  ; disable interrupts until init is done
-    clc                  ; clear carry…
-    xce                  ; …then xchg to switch to native mode
+    clc                  ; clear carry...
+    xce                  ; ...then xchg to switch to native mode
     rep   #$18           ; binary mode, X/Y 16-bit
     ldx   #$1FFF
     txs                  ; stack at $1FFF
@@ -120,6 +120,6 @@ bss_clear_done:
     ; ── Call main ─────────────────────────────────────────────────
     jsl   main
 
-    ; ── Park forever — exit code in tcc__r0 ──────────────────────
+    ; ── Park forever - exit code in tcc__r0 ──────────────────────
     stp
 .ENDS

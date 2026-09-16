@@ -4,13 +4,13 @@
 // rebuild.json. A mature annotated project built by that version therefore
 // fails this op, and the old error said:
 //
-//   "no reassemble.json in '…'. This op rebuilds a disasm({target:'project'})
-//    directory — run that first (it writes reassemble.json + original.rom)."
+//   "no reassemble.json in '...'. This op rebuilds a disasm({target:'project'})
+//    directory - run that first (it writes reassemble.json + original.rom)."
 //
 // Two problems. The diagnosis reads as "this was never a disasm project", which
 // is wrong and points at the wrong fix. And the ADVICE is dangerous: re-running
 // disasm({target:'project'}) on an annotated project regenerates the sources and,
-// done into the same directory, destroys months of annotations — on exactly the
+// done into the same directory, destroys months of annotations - on exactly the
 // projects most likely to hit this error.
 
 import { test } from "node:test";

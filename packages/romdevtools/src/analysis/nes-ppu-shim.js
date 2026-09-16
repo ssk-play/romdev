@@ -1,4 +1,4 @@
-// NES-PPU-on-SNES runtime shim — the piece that fills the STUBBED seam left by
+// NES-PPU-on-SNES runtime shim - the piece that fills the STUBBED seam left by
 // the NES→SNES recompile backend (recompile-65816.js). Without it, a recompiled
 // port boots and runs the 6502 logic but renders BLANK, because every NES PPU
 // write the logic makes is trapped to rts. This shim makes the boot picture
@@ -8,21 +8,21 @@
 // (nesTileToSnes4bpp / nesColorToBgr555 / buildSnesAssets) is correct and
 // unit-tested, and the emitted 65816 UPLOAD routine (emitPpuShim →
 // NES_SHIM_PRESENT) now DMAs tiles+tilemap+palette to SNES VRAM/CGRAM and turns
-// the screen on — verified end-to-end on snes9x (test/recompile-shim-render.test.js
+// the screen on - verified end-to-end on snes9x (test/recompile-shim-render.test.js
 // asserts the converted assets land in VRAM/CGRAM; a recompiled NES boot screen
 // renders in color). The recompile op still gates the shim behind withShim:true
-// because phase 1 only draws the STATIC first screen — the recompiled NES logic
+// because phase 1 only draws the STATIC first screen - the recompiled NES logic
 // then runs in emulation mode against a STUBBED PPU seam, so animation/scroll/
 // sprites are not maintained yet (next layer; see the design note below).
 //
 // The bug that made this "experimental" for a while: `rep #$10` makes X 16-bit at
 // runtime, but asar sizes index immediates by the literal and assembled a bare
-// `cpx #32` (the small CGRAM count) as an 8-bit instruction — the CPU then decoded
+// `cpx #32` (the small CGRAM count) as an 8-bit instruction - the CPU then decoded
 // 3 bytes, ate the next opcode, and the whole routine derailed (blank screen +
 // CPU runaway). Fix: `cpx.w` on every loop. The compareRender/findDiverge oracles
 // were the tools that localized it.
 //
-// DESIGN (phase 1 — the STATIC boot picture). Rather than hand-write a full NES
+// DESIGN (phase 1 - the STATIC boot picture). Rather than hand-write a full NES
 // PPU emulator in 65816 asm, the shim is generated at recompile time from the
 // LIVE NES PPU state: the recompiler already boots the original ROM, so we read
 // its CHR (tiles), nametable (the background map), and palette AFTER boot,
@@ -45,7 +45,7 @@ import { decodeTile, nesPaletteIndexToRgb } from "../platforms/nes/ppu.js";
  * Convert one NES 2bpp tile (16 bytes) to one SNES 4bpp tile (32 bytes).
  *
  * NES tile: 8 bytes plane0 then 8 bytes plane1 (bit per pixel each), giving a
- * 2-bit (0-3) index per pixel. SNES 4bpp tile: 32 bytes as TWO bitplane pairs —
+ * 2-bit (0-3) index per pixel. SNES 4bpp tile: 32 bytes as TWO bitplane pairs -
  * bytes 0-15 are planes 0&1 row-interleaved (lo,hi,lo,hi,... per row), bytes
  * 16-31 are planes 2&3 the same way. We map the NES 2-bit index straight into
  * the low two SNES planes; planes 2&3 stay 0 (NES only has 4 colors per tile).
@@ -92,7 +92,7 @@ export function nesColorToBgr555(nesIndex) {
  *
  * @param {Object} state
  * @param {Uint8Array} state.chr        NES pattern data (>=4096 bytes; the BG
- *   pattern table — we take the first 256 tiles / 4KB).
+ *   pattern table - we take the first 256 tiles / 4KB).
  * @param {Uint8Array} state.nametable  one 32x30 NES nametable's tile indices
  *   (960 bytes; the attribute bytes that follow are ignored in phase 1).
  * @param {Uint8Array} state.palette    32-byte NES palette ($3F00-$3F1F). We use
@@ -202,12 +202,12 @@ export function emitPpuShim(assets) {
     "        sta !VMDATAL+1           ; high byte → triggers +1 word",
     "        inx",
     // `cpx.w` forces the 16-bit immediate form. We ran `rep #$10`, so X is
-    // 16-bit at RUNTIME, but asar does NOT track register width across rep/sep —
+    // 16-bit at RUNTIME, but asar does NOT track register width across rep/sep -
     // it sizes index immediates by the literal, defaulting <256 to 8-bit. A bare
     // `cpx #32` would assemble to 2 bytes while the CPU decodes 3, eating the
     // next opcode and derailing the routine. The big tile/map counts (>255)
     // happen to force 16-bit anyway; the small CGRAM count (32) is the one that
-    // bit us — so make ALL three explicit with `.w` and never rely on the value.
+    // bit us - so make ALL three explicit with `.w` and never rely on the value.
     `        cpx.w #${tiles.length}`,
     "        bne -",
     "",

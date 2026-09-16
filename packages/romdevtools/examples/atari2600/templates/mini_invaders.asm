@@ -1,4 +1,4 @@
-; ── mini_invaders.asm — Atari 2600 gallery-shooter scaffold ─────────
+; ── mini_invaders.asm - Atari 2600 gallery-shooter scaffold ─────────
 ;
 ; A fixed-shooter / gallery-shooter 2600 game that uses the RIGHT TIA
 ; objects instead of playfield "barcode" bars (see the note at the bottom).
@@ -8,13 +8,13 @@
 ;   P1  + NUSIZ1 = %011 (3 medium-spaced copies) = a ROW OF INVADERS
 ;          → one GRP1 write draws three aliens, hardware-replicated.
 ;   M0  = the player's shot
-;   PF  = a thin ground line only (NOT the aliens — playfield bits look
+;   PF  = a thin ground line only (NOT the aliens - playfield bits look
 ;          like a barcode; real sprites read as actual invaders).
 ;
 ; The aliens march left/right as a block (move P1's X), drop a step at
 ; the edges, and you shoot upward with the joystick button. This is the
 ; deliberately-small but visually-honest version of the genre on the
-; 2600 — extend it by reusing P1 again lower down for shields, or
+; 2600 - extend it by reusing P1 again lower down for shields, or
 ; adding M1 as an alien bomb.
 ;
 ; NTSC kernel: 3 VSYNC + 37 VBLANK + 192 visible + 30 overscan.
@@ -113,7 +113,7 @@ MAIN:
   LDA #0
   STA VSYNC
 
-  ; ── VBLANK (37 lines) — do all game logic here ──
+  ; ── VBLANK (37 lines) - do all game logic here ──
   LDA #2
   STA VBLANK
   LDX #37
@@ -209,13 +209,13 @@ MAIN:
   ; Reverse direction and step the whole row DOWN one notch. ALIEN_Y is
   ; the row's top scanline; SMALLER Y = lower on screen (Y counts 192→1),
   ; so "drop" means decrement ALIEN_Y. Stop dropping once they reach the
-  ; player's row (game-over territory — kept simple here: clamp).
+  ; player's row (game-over territory - kept simple here: clamp).
   LDA ALIEN_DIR
   EOR #$FE             ; 1 <-> $FF
   STA ALIEN_DIR
   LDA ALIEN_Y
   CMP #30
-  BCC .noMarch         ; already near the bottom — don't go further
+  BCC .noMarch         ; already near the bottom - don't go further
   SEC
   SBC #6
   STA ALIEN_Y
@@ -363,7 +363,7 @@ SHIP:
   .byte %11111111
   .byte %11100111
 
-; 8-row invader silhouette — drawn via P1 with NUSIZ1=%011 so it
+; 8-row invader silhouette - drawn via P1 with NUSIZ1=%011 so it
 ; hardware-replicates into 3 medium-spaced aliens from one GRP1 write.
 ALIEN:
   .byte %00100100

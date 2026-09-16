@@ -27,7 +27,7 @@ import { glStackAvailable } from "romdev-core-host/glOptionalDep.js";
 let _glReady = true;
 try { await import("webgl-node"); } catch { _glReady = false; }
 if (_glReady) _glReady = await glStackAvailable();
-const GUARD = _glReady ? {} : { skip: "no usable GL stack here (headless CI) — GL carts cannot load" };
+const GUARD = _glReady ? {} : { skip: "no usable GL stack here (headless CI) - GL carts cannot load" };
 
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -68,7 +68,7 @@ test("the private context renders IDENTICALLY to the shared one", GUARD, async (
   // The regression this pins: sizing the private context from the cart's
   // pre-init info struct (which a cart that picks its size in wc_init reports
   // as 0) produced a 1x1 context. webgl-node cannot resize, so the cart was
-  // cropped to a single pixel for the whole session — while every attach/swap
+  // cropped to a single pixel for the whole session - while every attach/swap
   // API still reported success.
   const shared = new WasmcartHost();
   const priv = new WasmcartHost();
@@ -88,7 +88,7 @@ test("the private context renders IDENTICALLY to the shared one", GUARD, async (
     assert.deepEqual(
       Array.from(b.pixels.subarray(0, 256)),
       Array.from(a.pixels.subarray(0, 256)),
-      "and the same pixels — the fast path must not change what the cart draws");
+      "and the same pixels - the fast path must not change what the cart draws");
   } finally { shared.destroy(); priv.destroy(); }
 });
 

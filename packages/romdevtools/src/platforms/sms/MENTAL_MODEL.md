@@ -1,4 +1,4 @@
-# Sega Master System / Game Gear — mental model
+# Sega Master System / Game Gear - mental model
 
 One page. Read once before you write your first SMS / GG game. The
 TROUBLESHOOTING.md alongside this file is for when something's broken;
@@ -9,7 +9,7 @@ this is the "what's going on" version.
 ```
 $0000-$BFFF   ROM (typical 48 KB; mapper extends to 4 MB)
 $C000-$DFFF   work RAM (8 KB, mirrored to $E000-$FFFF)
-$DFF0+        stack (grows down) — sms_crt0 sets SP here
+$DFF0+        stack (grows down) - sms_crt0 sets SP here
 $FFFC-$FFFF   mapper registers (Sega mapper, page select per slot)
 ```
 
@@ -28,7 +28,7 @@ NOT via memory-mapped registers.
 ```
 $3E   memory control (cartridge slot + RAM enable)
 $3F   I/O control (joypad direction polarity)
-$7E   V-counter (read)        / PSG (write — sound)
+$7E   V-counter (read)        / PSG (write - sound)
 $7F   H-counter (read)
 $BE   VDP data port
 $BF   VDP control port
@@ -52,7 +52,7 @@ set.
 
 The SMS VDP is a derivative of the TMS9918, with mode-4 (the SMS
 graphics mode) doing most of the lifting. It has its own VRAM
-(16 KB) and CRAM (32 bytes — palette).
+(16 KB) and CRAM (32 bytes - palette).
 
 ```
 VRAM   16 KB    tile patterns + name table + sprite attr table + sprite tile data
@@ -106,7 +106,7 @@ sprite palette ($10-$1F).
 SAT at VRAM $3F00. 64 sprite slots × 4 bytes:
 
 ```
-$3F00-$3F3F:  64 Y bytes — Y = 0xD0 hides all subsequent sprites
+$3F00-$3F3F:  64 Y bytes - Y = 0xD0 hides all subsequent sprites
 $3F80-$3FFF:  64 (X, tile) pairs interleaved
 ```
 
@@ -124,7 +124,7 @@ buffer in WRAM and uploads it to the SAT each vblank.
    table (which has no per-line limit).
 
 2. **SAT $D0 terminator.** The VDP treats Y=$D0 in any OAM Y byte as
-   a HARD terminator — it stops scanning further slots immediately.
+   a HARD terminator - it stops scanning further slots immediately.
    Earlier rounds of `sms_sprite_init()` wrote $D0 to every Y byte
    to "hide" sprites at boot, which caused the classic "I populated
    slots 0..5 and slot 6 was still $D0 so the renderer halted at
@@ -133,22 +133,22 @@ buffer in WRAM and uploads it to the SAT each vblank.
    **The runtime now initialises unused slots to $E0** (off-screen,
    below the 192-line area, but NOT the terminator). Slots you
    don't touch stay invisible AND don't kill the renderer. You only
-   have to worry about $D0 if you write it explicitly — e.g. as an
+   have to worry about $D0 if you write it explicitly - e.g. as an
    early-out optimisation.
 
    If sprites past a certain slot are missing in `sprites({op:'inspect'})`,
    check the live OAM Y bytes for $D0 in a slot before them.
 
 `sprites({op:'inspect'})` shows the live OAM bytes + reports
-`spriteTileDataBase` — trust it over comments when sprites misbehave.
+`spriteTileDataBase` - trust it over comments when sprites misbehave.
 
 ### R6 sprite-tile-base: default is $2000 (0xFF)
 
 `sms_vdp_init()` sets R6 = 0xFF. R6 bit 2 is the SA13 select for
-sprite tile data — bit 2 is **SET** in 0xFF, so sprite tiles read
+sprite tile data - bit 2 is **SET** in 0xFF, so sprite tiles read
 from `$2000-$3FFF`, their **own bank** separate from BG tiles at
 $0000. This matches every bundled example, which uploads sprite
-tiles to `$2000` (`sms_load_tiles(0x2000, …)`) — default and
+tiles to `$2000` (`sms_load_tiles(0x2000, ...)`) - default and
 examples agree, so sprites render.
 
 Watch the bit: 0xFB has SA13 **CLEAR** = sprite tiles at $0000
@@ -187,7 +187,7 @@ need cycle-accurate timing, but for most games polling is fine.
 ## Input
 
 `sms_joypad_read()` returns a packed byte with the buttons inverted
-(active high — pressed = 1). Bits:
+(active high - pressed = 1). Bits:
 
 ```
 JOY_UP    0x01
@@ -200,12 +200,12 @@ JOY_B2    0x20
 
 Edge-detect by AND'ing `pad & !prev`.
 
-### Driving input over MCP — the SMS button map is INVERTED ⚠
+### Driving input over MCP - the SMS button map is INVERTED ⚠
 
 genesis_plus_gx (the SMS core) maps the two face buttons onto libretro the
 *opposite* way you'd guess (verified live against the core):
 
-| Physical button | `input({op:'set', …})`  | spatial / native |
+| Physical button | `input({op:'set', ...})`  | spatial / native |
 |-----------------|-------------------|------------------|
 | Button 1 (TL, main fire) | `{ b: true }` | `{ west: true }` · `input({op:'press', button:'1'})` |
 | Button 2 (TR)            | `{ a: true }` | `{ east: true }` · `input({op:'press', button:'2'})` |
@@ -213,7 +213,7 @@ genesis_plus_gx (the SMS core) maps the two face buttons onto libretro the
 **The trap:** `input({op:'set', a: true})` presses **button 2**, not button 1. For
 the main fire (button 1 / `JOY_B1`) use `{ b: true }` or the spatial
 `{ west: true }`. The **spatial names** and `input({op:'press', button:'1'|'2'})`
-resolve correctly — prefer them over raw a/b. `input({op:'layout', platform:'sms'})`
+resolve correctly - prefer them over raw a/b. `input({op:'layout', platform:'sms'})`
 has the exact map. (Same genesis_plus_gx inversion as Genesis + Game Gear.)
 
 ## Sound
@@ -226,7 +226,7 @@ A full driver is beyond the scope of these example games. For
 playable SFX, manually pulse $7F with the latch-register byte
 followed by data bytes. Real games ship a music driver in WRAM.
 
-**Debugging sound:** `audioDebug({op:'inspect', chip:"psg"})` decodes the live SN76489 —
+**Debugging sound:** `audioDebug({op:'inspect', chip:"psg"})` decodes the live SN76489 -
 3 tone + 1 noise channel state (the same gpgx PSG region serves SMS/GG/Genesis).
 
 ## Cartridge layout
@@ -235,7 +235,7 @@ followed by data bytes. Real games ship a music driver in WRAM.
 $0000-$0037   reset + interrupt vectors (RST jumps)
 $0038         interrupt handler entry (IM 1 mode)
 $0066         NMI entry (pause button on SMS)
-$7FF0-$7FFF   ROM header — "TMR SEGA" trademark + checksum + region/size
+$7FF0-$7FFF   ROM header - "TMR SEGA" trademark + checksum + region/size
 ```
 
 Our minimal templates don't bother with the header (real consoles
@@ -273,48 +273,48 @@ SMS and Game Gear share the genesis_plus_gx (gpgx, patched) core, so the
 inspectors below behave identically on both. This section is the **canonical
 shared reference**; the Game Gear MENTAL_MODEL points back here and only lists
 its own deltas (12-bit CRAM, etc.). Reach for these when something renders
-wrong and you can't see why from the source alone — they read the *live* core
+wrong and you can't see why from the source alone - they read the *live* core
 state, which beats trusting comments.
 
-- **`sprites({op:'inspect'})`** — decodes the live SAT (sprite attribute
+- **`sprites({op:'inspect'})`** - decodes the live SAT (sprite attribute
   table) and renders a sprite-sheet PNG. Reports each slot's X/Y/tile plus
   `spriteTileDataBase` (the VRAM address the VDP is actually fetching sprite
   tiles from). This is the tool that catches the $D0-terminator and the
-  R6/$2000-vs-$0000 sprite-bank footguns described above — trust its bytes
+  R6/$2000-vs-$0000 sprite-bank footguns described above - trust its bytes
   over any comment.
-- **`palette({source:'live'})`** — reads CRAM and converts to RGB. On SMS
+- **`palette({source:'live'})`** - reads CRAM and converts to RGB. On SMS
   that's **6-bit BGR** (2-2-2, 32 bytes). On Game Gear it's **12-bit BGR**
-  (4-4-4, 64 bytes) — see the GG MENTAL_MODEL for that delta.
-- **`tiles({op:'png'})`** — dumps VRAM tile patterns as a sheet. The format
+  (4-4-4, 64 bytes) - see the GG MENTAL_MODEL for that delta.
+- **`tiles({op:'png'})`** - dumps VRAM tile patterns as a sheet. The format
   is 4bpp bitplane-interleaved (32 bytes/tile); the 16 KB VRAM renders as a
   512-tile sheet.
-- **`cpu({op:'read'})`** — Z80 register dump: A/F, BC/DE/HL, IX/IY, the
+- **`cpu({op:'read'})`** - Z80 register dump: A/F, BC/DE/HL, IX/IY, the
   shadow register set, the flag bits, and interrupt state (IM mode / IFF).
-- **`audioDebug({op:'inspect', chip:'psg'})`** — decodes the live SN76489:
+- **`audioDebug({op:'inspect', chip:'psg'})`** - decodes the live SN76489:
   3 tone channels + 1 noise channel. The PSG region is shared by SMS, GG, and
   Genesis (same gpgx region).
-- **`background({view:'renderState'})`** — reads the VDP registers and reports
+- **`background({view:'renderState'})`** - reads the VDP registers and reports
   the derived addresses (name table, BG-tile base, sprite-tile base, SAT base),
   the scroll registers, and the display-enable / mode state. Use this to
   confirm the R2/R4/R5/R6 baseline matches where you actually uploaded data.
 
-### Memory regions (`memory({op:'read', region:…})`)
+### Memory regions (`memory({op:'read', region:...})`)
 
 | Region          | Contents                                             |
 |-----------------|------------------------------------------------------|
-| `sms_vram`      | 16 KB VRAM — tiles + name table + SAT + sprite tiles |
+| `sms_vram`      | 16 KB VRAM - tiles + name table + SAT + sprite tiles |
 | `sms_cram`      | 32-byte palette (2-2-2 BGR)                          |
 | `sms_vdp_regs`  | the 11 VDP control registers ($00-$0A)              |
 | `sms_z80_regs`  | Z80 register snapshot                                |
 | `gg_vram`       | Game Gear VRAM                                        |
 | `gg_cram`       | Game Gear 64-byte palette (4-4-4 BGR)                |
 
-### Disassembly (`disasm({target:…})`)
+### Disassembly (`disasm({target:...})`)
 
 `disasm({target:'rom'})`, `disasm({target:'references'})`, and
 `disasm({target:'project'})` all run the live ROM through the native binutils
-**z80 `objdump`** (WASM, `-m z80`). It has full prefix coverage —
-CB/ED/DD/FD/DDCB/FDCB — and feeds the same auto-label, register-annotation,
+**z80 `objdump`** (WASM, `-m z80`). It has full prefix coverage -
+CB/ED/DD/FD/DDCB/FDCB - and feeds the same auto-label, register-annotation,
 file-offset, and `untilReturn` pipeline used by the NES and SNES
 disassemblers.
 
@@ -323,7 +323,7 @@ every 16 KB bank (bank 0 @ `$0000`, bank 1 @ `$4000`, banks 2+ @ their slot-2
 window `$8000`), refs tagged `romBank`; `disasm({target:'project'})` emits one
 region per bank, and **`build({output:'reassemble', platform:'sms', path})`
 rebuilds the whole cart into a byte-identical ROM in one call** (it assembles each
-bank and splices them back — no bank-by-bank native recipe to run by hand).
+bank and splices them back - no bank-by-bank native recipe to run by hand).
 
 ## Horizontal scrolling (for side-scrollers)
 
@@ -333,15 +333,15 @@ The `platformer` example is single-screen. To make it a side-scroller:
   `-camX & 0xFF` (the reg scrolls the screen; the name table is 32×28 and
   wraps). This gives smooth scrolling through one name-table's worth.
 - **Streaming:** for a world wider than 256 px, rewrite the name-table column
-  about to enter view each time `camX` crosses an 8-px boundary — write the
+  about to enter view each time `camX` crosses an 8-px boundary - write the
   next world column's tile entries into the off-screen column. Do VDP writes
   during vblank.
 - **Fixed HUD / status bar:** VDP register 0 bit 6 ("horizontal scroll lock")
-  freezes the top two rows of the screen regardless of the scroll register —
+  freezes the top two rows of the screen regardless of the scroll register -
   use it for a fixed HUD band while the rest scrolls.
 
 Track `camX` in pixels; actor screen-X = `worldX - camX`. (Game Gear is the
-same VDP — only the visible window differs.)
+same VDP - only the visible window differs.)
 
 ## Reverse-engineering & decompilation
 

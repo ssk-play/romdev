@@ -1,7 +1,7 @@
-/* n64.c — N64 helpers with a GPU (RDP/GBI) drawing backend.
+/* n64.c - N64 helpers with a GPU (RDP/GBI) drawing backend.
  *
  * WHY THIS IS NOT A SOFTWARE RASTERIZER: the shipping N64 core renders through
- * glide64 (a GL HLE plugin) — it presents the game's RDP/GBI **display lists** on
+ * glide64 (a GL HLE plugin) - it presents the game's RDP/GBI **display lists** on
  * the real GPU, NOT a raw CPU-written framebuffer. A software rasterizer that pokes
  * pixels into RDRAM shows BLACK on glide64 (and would be <1fps even if it didn't).
  * So this lib builds a GBI display list each frame and kicks the RSP/RDP; glide64
@@ -12,7 +12,7 @@
  *    hands the display list to glide64.
  *  - glide64 picks its command table by CRC-summing 3072 bytes of the task's
  *    "ucode" region and matching a known-ucode CRC. The bytes are NEVER executed
- *    (HLE), only summed — so we embed a 3072-byte blob that SUMS to a real F3DEX2
+ *    (HLE), only summed - so we embed a 3072-byte blob that SUMS to a real F3DEX2
  *    CRC (0x5d3099f1). glide64 then interprets our list as standard F3DEX2.
  *  - We emit standard F3DEX2 GBI: set color image / scissor / fill rectangles for
  *    clear+rects, and shaded vertex triangles for tri2d/tri3d. Solid colors only.
@@ -57,7 +57,7 @@ static inline void dl_w(unsigned int w0, unsigned int w1)
 void n64_init(void)
 {
     int i;
-    /* NTSC 320x240 16bpp VI setup, scanning out FB_ADDR — glide64 reads our color
+    /* NTSC 320x240 16bpp VI setup, scanning out FB_ADDR - glide64 reads our color
        image from the SetColorImage GBI cmd, but the VI must still be programmed so
        there is a valid display target. */
     VI(0)  = 0x0000320E; VI(2) = 320; VI(3) = 2; VI(5) = 0x03E52239;
@@ -119,7 +119,7 @@ static void dl_end_and_run(void)
        and BROKE are clear after the write: bit0 (0x1) clears HALT, bit2 (0x4) clears
        BROKE. Setting interrupt-on-break (0x100) makes the task signal completion.
        The RSP-HLE then reads the OSTask at DMEM 0xFC0, sees type==1, and forwards
-       our display list to glide64. (SP_PC at 0xA4080000 is irrelevant under HLE —
+       our display list to glide64. (SP_PC at 0xA4080000 is irrelevant under HLE -
        the ucode never executes; only the OSTask fields + the CRC matter.) */
     SP(SP_STATUS) = 0x00105;   /* clear HALT (0x1) + clear BROKE (0x4) + intr-on-break (0x100) */
 }
@@ -150,7 +150,7 @@ void n64_rect(int x, int y, int w, int h, unsigned short col)
 /* Triangle: a flat-shaded, screen-space triangle. The verts are already projected
    to 2D pixels by the 3D pipeline. Rather than drive glide64's full F3DEX2 vertex/
    matrix/combine pipeline (heavy state), we scan-convert the triangle into a span of
-   GPU FILL RECTANGLES — one per scanline. These are the SAME hardware-accelerated
+   GPU FILL RECTANGLES - one per scanline. These are the SAME hardware-accelerated
    fill-rects that clear/rect use (rasterized by glide64 on the GPU, NOT CPU pixels),
    so it stays fast + renders correctly under the fill-cycle render state. The
    examples draw a handful of large flat quads, so the per-scanline rect count is low. */

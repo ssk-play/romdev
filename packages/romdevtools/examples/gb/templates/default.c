@@ -1,23 +1,23 @@
-/* ── default.c — minimal Game Boy (DMG) starter ───────────────────
+/* ── default.c - minimal Game Boy (DMG) starter ───────────────────
  *
  * A "hello, it works!" screen: a tiled background (a dithered field with
  * two bands + a centre box) plus a sprite that bounces around. The very
- * first build shows recognizable content — not a flat colour. The DMG
+ * first build shows recognizable content - not a flat colour. The DMG
  * background palette (BGP, $FF47) also cycles through 4 shade
  * arrangements so you can SEE the palette path is alive. Use this as the
  * starting point when you're not yet sure what you want to build.
  *
  * GB-specific notes for the agent:
  *   - You MUST put tiles in VRAM *and* enable the BG (LCDC bit 0) or the
- *     screen stays one flat colour — the #1 GB "why is it blank" footgun.
+ *     screen stays one flat colour - the #1 GB "why is it blank" footgun.
  *     We upload tiles to $8000 and select LCDC_TILE_DATA_LO (unsigned
  *     $8000 addressing) so tile index N lives at $8000 + N*16.
- *   - DMG uses the BGP/OBP0/OBP1 registers — NOT the CGB BCPS/BCPD
+ *   - DMG uses the BGP/OBP0/OBP1 registers - NOT the CGB BCPS/BCPD
  *     palette RAM. The GBC tree's default uses BCPS; don't copy that
  *     into a DMG project or your screen will stay one shade.
  *   - patchGbHeader writes $0143 = $00 by default on .gb files (DMG-
  *     only). If your ROM ever shows up white in gambatte, check that
- *     header byte first — $FF or $80 there forces CGB mode which
+ *     header byte first - $FF or $80 there forces CGB mode which
  *     silently ignores BGP/OBP*.
  *   - lcd_init_default() (from gb_runtime.c) sets BGP = 0xE4 (the
  *     "normal" arrangement: 11=black 10=dark 01=light 00=white) and
@@ -25,10 +25,10 @@
  *     the palette is alive.
  *
  * For something more game-shaped, peek at other templates in this dir:
- *   - hello_sprite — sprite + d-pad movement
- *   - tile_engine  — multi-room tile map with collision + transitions
- *   - shmup / platformer / puzzle / sports / racing — genre scaffolds
- *   - music_demo   — bundled hUGEDriver music driver demo
+ *   - hello_sprite - sprite + d-pad movement
+ *   - tile_engine  - multi-room tile map with collision + transitions
+ *   - shmup / platformer / puzzle / sports / racing - genre scaffolds
+ *   - music_demo   - bundled hUGEDriver music driver demo
  */
 
 #include "gb_hardware.h"
@@ -37,14 +37,14 @@
 /* Six 8×8 tiles, 2bpp (16 bytes each: row N = byte 2N low-plane, 2N+1
  * high-plane). The colour index per pixel (0..3) selects a shade through
  * BGP. We spread indices 1, 2 and 3 across the screen spatially so no
- * single shade ever fills the frame — regardless of the BGP arrangement.
- *   tile 0 — blank   (all index 0)
- *   tile 1 — solid index 1   (top band)
- *   tile 2 — solid index 2   (bottom band)
- *   tile 3 — dither idx1/idx2 (the textured backdrop — mixes two shades
+ * single shade ever fills the frame - regardless of the BGP arrangement.
+ *   tile 0 - blank   (all index 0)
+ *   tile 1 - solid index 1   (top band)
+ *   tile 2 - solid index 2   (bottom band)
+ *   tile 3 - dither idx1/idx2 (the textured backdrop - mixes two shades
  *            inside every cell so the field is never flat)
- *   tile 4 — solid index 3   (centre box + border)
- *   tile 5 — sprite diamond (index 3) */
+ *   tile 4 - solid index 3   (centre box + border)
+ *   tile 5 - sprite diamond (index 3) */
 static const uint8_t tiles[6 * 16] = {
   /* 0: blank */
   0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0,
@@ -54,7 +54,7 @@ static const uint8_t tiles[6 * 16] = {
   /* 2: solid index 2 (low plane off, high plane on) */
   0x00,0xFF, 0x00,0xFF, 0x00,0xFF, 0x00,0xFF,
   0x00,0xFF, 0x00,0xFF, 0x00,0xFF, 0x00,0xFF,
-  /* 3: dither — checkerboard of index 1 and index 2 */
+  /* 3: dither - checkerboard of index 1 and index 2 */
   0x55,0xAA, 0xAA,0x55, 0x55,0xAA, 0xAA,0x55,
   0x55,0xAA, 0xAA,0x55, 0x55,0xAA, 0xAA,0x55,
   /* 4: solid index 3 (both planes on) */

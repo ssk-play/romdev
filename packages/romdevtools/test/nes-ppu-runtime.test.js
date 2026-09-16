@@ -1,10 +1,10 @@
-// NES-PPU-on-SNES per-frame runtime (phase 2) — unit + e2e tests.
+// NES-PPU-on-SNES per-frame runtime (phase 2) - unit + e2e tests.
 //
 // Unit: the emitted runtime defines the right labels + seam, and the asm shape is
 // stable. E2E (the real gate): assemble a tiny SNES ROM that wires the runtime's
 // NMI handler to a synthetic "game" whose NMI writes an animating sprite to the
 // shadow OAM, boot it in snes9x, and assert the sprite (a) reaches SNES OAM in the
-// converted format and (b) ANIMATES frame-to-frame — i.e. the per-vblank flush +
+// converted format and (b) ANIMATES frame-to-frame - i.e. the per-vblank flush +
 // game-NMI path actually runs live, not a static one-shot.
 
 import { test } from "node:test";
@@ -31,7 +31,7 @@ test("emitPpuRuntime: defines the NMI handler, init, flush + its own seam", () =
   // enables the vblank NMI
   assert.match(asm, /sta !NMITIMEN/);
   // The two index loops in the flush run with 16-bit X/Y (rep #$10), so their
-  // counters MUST be width-explicit (.w) — the exact footgun the shim hit.
+  // counters MUST be width-explicit (.w) - the exact footgun the shim hit.
   const wide = (asm.match(/\b(cpx|cpy)\.w #\$[0-9a-f]+/gi) || []);
   assert.ok(wide.length >= 2, `both flush-loop counters are .w: found ${JSON.stringify(wide)}`);
   // No BARE 16-bit-context loop counter should slip through as 8-bit. The only
@@ -119,7 +119,7 @@ ${runtime}
     assert.equal(a[0], 0x40, "SNES OAM[0] = X (NES X=$40)");
     assert.equal(a[2], 0x01, "SNES OAM[2] = tile");
     assert.equal(a[3], 0x00, "SNES OAM[3] = attr (no flip, palette 0)");
-    // The Y must climb monotonically — that's the per-frame flush + game NMI live.
+    // The Y must climb monotonically - that's the per-frame flush + game NMI live.
     assert.ok(a[1] < b[1] && b[1] < c[1],
       `sprite0 Y must animate (flush runs every vblank): got ${a[1]} → ${b[1]} → ${c[1]}`);
     // And the NMI ran enough to move it a visible amount.

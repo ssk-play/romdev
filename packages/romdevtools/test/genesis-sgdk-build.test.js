@@ -1,4 +1,4 @@
-// sgdk.test.js — Genesis C build via the bundled SGDK runtime.
+// sgdk.test.js - Genesis C build via the bundled SGDK runtime.
 //
 // Confirms the WASM toolchain chains correctly through SGDK's link
 // requirements: rom_header.c → .o → .bin (256-byte cart header),

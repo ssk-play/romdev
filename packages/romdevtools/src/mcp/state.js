@@ -5,7 +5,7 @@
 // other's loaded ROM, screenshots, memory reads, etc.
 //
 // Tool handlers receive a `sessionKey` (an opaque string) at register
-// time — they pass it to getHost(key) / resetHost(key) / etc. The key is
+// time - they pass it to getHost(key) / resetHost(key) / etc. The key is
 // minted once per McpServer instance in registerTools(); the transport
 // layer is responsible for calling clearHost(key) on session close.
 
@@ -49,14 +49,14 @@ export function playtestCheckpointPath(sessionKey, mediaPath, kind = "state") {
 // tool uses by default; slot B exists for the ONE workflow that needs two cores
 // live at once: side-by-side comparison (e.g. an original ROM vs. its port).
 // loadMedia({slot:'b'}) loads here; frame({op:'sideBySide'}) captures both. It
-// is entirely opt-in — a session that never loads slot B pays nothing, and the
+// is entirely opt-in - a session that never loads slot B pays nothing, and the
 // per-session teardown below clears both slots together.
 /** @type {Map<string, LibretroHost>} */
 const hostsB = new Map();
 
 // What this session last loaded, kept OUTSIDE the host map so it SURVIVES a
 // host eviction (server restart / session reconnect / unload). The host itself
-// is gone in those cases, so the "No ROM loaded" error has nothing to read —
+// is gone in those cases, so the "No ROM loaded" error has nothing to read -
 // this is the breadcrumb that lets the error tell the agent exactly how to
 // recover ("you last loaded <X>; re-run loadMedia to pick back up") instead of
 // a generic wipe. Set by loadMedia on success; never cleared on eviction.
@@ -80,14 +80,14 @@ export function getHost(sessionKey) {
   const host = hosts.get(sessionKey);
   if (!host) {
     // If THIS session loaded media before, the host was evicted (restart /
-    // reconnect / unload) — lead with the exact recovery call instead of the
+    // reconnect / unload) - lead with the exact recovery call instead of the
     // generic "you're in the wrong session" guidance, which doesn't apply here.
     const prev = lastMedia.get(sessionKey);
     if (prev && (prev.path || prev.fromBase64)) {
       const recall = prev.path
         ? `loadMedia({ platform: "${prev.platform}", path: "${prev.path}" })`
-        : `loadMedia({ platform: "${prev.platform}", base64: ... })  (your ROM came from base64 — re-supply the bytes)`;
-      // If a playtest window was open, a rolling auto-checkpoint may be on disk —
+        : `loadMedia({ platform: "${prev.platform}", base64: ... })  (your ROM came from base64 - re-supply the bytes)`;
+      // If a playtest window was open, a rolling auto-checkpoint may be on disk -
       // restoring it recovers the human's MANUAL progress, not just a fresh boot.
       // Check BOTH checkpoint flavours: a libretro core rolls a whole-machine
       // `.state`, a wasmcart rolls its SRAM as `.sav`, and each is restored by
@@ -101,14 +101,14 @@ export function getHost(sessionKey) {
         ? `\nA playtest auto-checkpoint is on disk (your last ~15s of play): after the load above, run\n  state({ op: "${ckpt === ckptSram ? "importSram" : "load"}", path: "${ckpt}" })\nto restore the human's progress instead of replaying from boot.`
         : "";
       throw new Error(
-        "No ROM loaded in this session — the host was evicted (the server restarted, " +
+        "No ROM loaded in this session - the host was evicted (the server restarted, " +
         "your session reconnected, or the media was unloaded). Emulator state lives in " +
         "server memory only, so it did not survive. RECOVER by re-running your last load:\n  " +
         recall +
         ckptHint +
         "\nThen replay any boot/navigate steps to get back to where you were. " +
         "(If instead you expected a DIFFERENT session, you may be sending an inconsistent " +
-        "`x-romdev-session` header — reuse one stable id on every call.)",
+        "`x-romdev-session` header - reuse one stable id on every call.)",
       );
     }
     // A MINTED session is the one case where "call loadMedia first" is actively
@@ -118,32 +118,32 @@ export function getHost(sessionKey) {
     // agent round the loop of retrying a load that will keep "working".
     if (wasMinted(sessionKey)) {
       throw new Error(
-        "No ROM loaded in this session — and this session was AUTO-MINTED because " +
+        "No ROM loaded in this session - and this session was AUTO-MINTED because " +
         "your request carried no session handle, so EVERY request of yours lands in " +
         "a brand-new empty session. That is why loadMedia can report `loaded:true` " +
         "and the very next call still says no ROM (and why catalog({op:'status'}) " +
-        "can show `loaded:false` next to `liveHosts:1` — the host from your previous " +
+        "can show `loaded:false` next to `liveHosts:1` - the host from your previous " +
         "request is alive, just not reachable from this one).\n" +
-        "FIX (pick one): (1) every tool takes an optional `session` argument — pass ONE stable, " +
+        "FIX (pick one): (1) every tool takes an optional `session` argument - pass ONE stable, " +
         "descriptive slug (e.g. session:\"nes-platformer\") on EVERY call, starting with the " +
         "loadMedia you re-run now; every result also ends with a `session: <id>` line you can " +
         "copy back. (2) Over plain HTTP, send the same value as the `x-romdev-session` header " +
-        "on every call AND reuse the Mcp-Session-Id from ONE initialize — re-initializing per " +
+        "on every call AND reuse the Mcp-Session-Id from ONE initialize - re-initializing per " +
         "call mints a fresh session even with the header set (that is how a duplicate playtest " +
         "window gets opened with the first one orphaned). (3) On a 2026-07-28 MCP request, " +
         "`_meta[\"dev.romdev/sessionHandle\"]`. Then re-run loadMedia({path}) once and your ROM will stay put.",
       );
     }
     throw new Error(
-      "No ROM loaded in this session — call loadMedia({path}) first. " +
+      "No ROM loaded in this session - call loadMedia({path}) first. " +
       "If you DID loadMedia and still see this, your calls are landing in DIFFERENT " +
       "sessions: pass the same `session` argument on every call (each result ends with " +
       "a `session: <id>` line naming the one it ran in), or over plain HTTP/skill send " +
       "the SAME `x-romdev-session` header on every call and reuse ONE Mcp-Session-Id " +
-      "(pick one stable id and reuse it) — a new/missing id is a fresh empty session each time. " +
+      "(pick one stable id and reuse it) - a new/missing id is a fresh empty session each time. " +
       "If you WERE mid-session and just got reconnected (the server restarted or " +
       "your session expired): emulator state is held in server memory only, so it " +
-      "did not survive — re-run loadMedia({path}) with your ROM (still on disk) to " +
+      "did not survive - re-run loadMedia({path}) with your ROM (still on disk) to " +
       "pick back up. A fresh boot is the recovery point.",
     );
   }
@@ -168,11 +168,11 @@ export function getHostOrNull(sessionKey) {
 //     just exit never close their transport at all. Two kernel OOM kills on
 //     2026-08-19, ~5.4 GB RSS each, one agent.
 //  2. It is about to be impossible. MCP 2026-07-28 removes protocol sessions
-//     entirely — there is no connection close to hang eviction on. See
+//     entirely - there is no connection close to hang eviction on. See
 //     internal-romdev/PLAN_mcp_v2_stateless_and_host_lifetime.md.
 //
 // So: stamp every host access, evict on host inactivity, and cap the total.
-// An evicted session self-heals — `lastMedia` survives eviction and getHost
+// An evicted session self-heals - `lastMedia` survives eviction and getHost
 // tells the agent exactly which loadMedia to re-run.
 
 /** @type {Map<string, number>} */
@@ -250,7 +250,7 @@ export function reapIdleHosts(now = Date.now()) {
 
 /**
  * Make room before creating a host: while at the cap, evict the oldest-idle
- * evictable session. Never refuses to create — a refusal would surface as a
+ * evictable session. Never refuses to create - a refusal would surface as a
  * mysterious tool failure, while an eviction self-heals via loadMedia.
  * @param {string} incomingKey the session about to get a host (never evicted)
  * @returns {string[]} keys evicted
@@ -319,13 +319,13 @@ export function resetHost(sessionKey) {
 }
 
 /** Tear down whatever host kind is present (LibretroHost.unloadMedia or a native
- *  host's destroy) — WasmcartHost/JsGameHost don't have unloadMedia. */
+ *  host's destroy) - WasmcartHost/JsGameHost don't have unloadMedia. */
 function teardownHost(existing) {
   if (!existing) return;
   try {
     // LibretroHost.dispose() releases the CORE (and its WASM linear memory),
     // not just the ROM. unloadMedia() alone leaves the Emscripten module
-    // resident, so a discarded host kept its whole heap forever — the
+    // resident, so a discarded host kept its whole heap forever - the
     // mechanism behind the 2026-08-19 OOM kills. Prefer dispose when the host
     // kind offers it; fall back for older/other host kinds.
     if (typeof existing.dispose === "function") {
@@ -383,14 +383,14 @@ export function clearHost(sessionKey) {
   teardownHost(existing);
   hosts.delete(sessionKey);
   lastUsed.delete(sessionKey);
-  // A session shutdown tears down BOTH slots — slot B is part of the same
+  // A session shutdown tears down BOTH slots - slot B is part of the same
   // session's footprint and must not outlive it.
   clearHostB(sessionKey);
 }
 
 // --- Secondary host slot ("B") ----------------------------------------------
 // Same lifecycle helpers as the primary, scoped to the hostsB map. getHostB
-// throws a slot-specific error (no recovery breadcrumb — slot B is transient
+// throws a slot-specific error (no recovery breadcrumb - slot B is transient
 // scratch for a comparison, not the session's main ROM).
 
 /** @param {string} sessionKey @returns {LibretroHost} */
@@ -398,7 +398,7 @@ export function getHostB(sessionKey) {
   const host = hostsB.get(sessionKey);
   if (!host) {
     throw new Error(
-      "No ROM loaded in comparison slot B for this session — load one with " +
+      "No ROM loaded in comparison slot B for this session - load one with " +
       "loadMedia({ slot: 'b', platform, path }). Slot B is the second core used " +
       "by frame({op:'sideBySide'}); it is not the session's primary ROM.",
     );

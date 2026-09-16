@@ -1,4 +1,4 @@
-// romdev-toolchain-mips-gcc — binary package: mips-elf gcc backend (cc1),
+// romdev-toolchain-mips-gcc - binary package: mips-elf gcc backend (cc1),
 // assembler, linker, objcopy, objdump (WASM). Big-endian (N64 R4300) and
 // little-endian (PS1 R3000) both emit from this one toolchain via -EB/-EL.
 // emcc emits ESM (EXPORT_ES6=1) so the glue uses .mjs extensions.

@@ -1,7 +1,7 @@
 // Unit tests for the Game Boy (DMG/CGB) and Game Boy Advance APU register
 // decoders. We synthesize the raw register pages (`gb_io` 128 bytes, and the
 // `gba_io_regs` 0x400-byte IO page) with known values and assert the decoded
-// per-channel musical state — freqHz, note, duty, volume, panning, etc.
+// per-channel musical state - freqHz, note, duty, volume, panning, etc.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

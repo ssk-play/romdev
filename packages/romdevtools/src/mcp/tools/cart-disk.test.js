@@ -1,4 +1,4 @@
-// cart({op:'packDisk'}) + cart({op:'extract'}) on a C64 .d64 — the disk
+// cart({op:'packDisk'}) + cart({op:'extract'}) on a C64 .d64 - the disk
 // distribution path. packDisk wraps a built .prg into the .d64 the C64 Ultimate
 // hardware and the homebrew scene load; extract reads files back off a disk.
 

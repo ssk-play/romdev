@@ -1,4 +1,4 @@
-; chr_ram_header.s — replace cc65's default HEADER + skip the NESfont
+; chr_ram_header.s - replace cc65's default HEADER + skip the NESfont
 ; CHARS bundle, so the cart boots in CHR-RAM mode.
 ;
 ; USE WITH: build({output:'rom'})({platform:"nes", linkerConfig:"chr-ram", ...})
@@ -10,7 +10,7 @@
 ; Add this file to your `sources` (or `includes` if you use .include
 ; from another .s). The .segment "HEADER" here replaces the stock
 ; HEADER emission. Pair it with a custom crt0 if you also need to drop
-; the NESfont — for the simplest path, just don't include any cc65 lib
+; the NESfont - for the simplest path, just don't include any cc65 lib
 ; routines that touch CHARS (printf/conio family) and the unused font
 ; gets DCE'd out by ld65.
 
@@ -27,6 +27,6 @@
 ; Call: lda #<tile_data : sta src : lda #>tile_data : sta src+1 : jsr write_chr
 ; Or for cc65 C: extern void __fastcall__ write_chr(unsigned tile_idx, const unsigned char *data);
 ;
-; Most projects don't need this — they write CHR inline with their own
+; Most projects don't need this - they write CHR inline with their own
 ; PPUADDR/PPUDATA setup. Including for reference.
 ; ----------------------------------------------------------------------

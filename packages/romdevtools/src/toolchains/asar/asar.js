@@ -1,4 +1,4 @@
-// asar — bundled 65816 assembler (SNES).
+// asar - bundled 65816 assembler (SNES).
 //
 // asar normally patches an existing ROM file. We give it an empty 32KB scratch
 // ROM so the agent can author from scratch and asar fills it in via `org $XXXX`
@@ -72,8 +72,8 @@ export async function runAsar(args) {
   // asar exits a NORMAL error build via its C++ exception path (quit throws a
   // numeric heap pointer, not a clean status), so the worker appends a generic
   // `[worker] Abort in WASM: <ptr>` line even though asar DID write proper
-  // diagnostics (e.g. `…: error: (Elabel_not_found): …`). That line reads as a
-  // silent crash + the heap-pointer "<number>" looks like an OOM/trap — it cost
+  // diagnostics (e.g. `...: error: (Elabel_not_found): ...`). That line reads as a
+  // silent crash + the heap-pointer "<number>" looks like an OOM/trap - it cost
   // real diagnosis time (v0.70.0 feedback #5). When the log already has a real
   // asar diagnostic, this was an ordinary error exit: drop the misleading line.
   if (exitCode !== 0 && /:\s*(error|warning)\s*:/i.test(log)) {
@@ -82,7 +82,7 @@ export async function runAsar(args) {
 
   // Silent-fail recovery. When asar throws a numeric value through Emscripten's
   // C++-exception path, that "number" is a heap pointer to the thrown object,
-  // not an exit code — and we've lost the actual error message. Under
+  // not an exit code - and we've lost the actual error message. Under
   // subprocess isolation the throw kills the worker entirely, and the pool
   // surfaces a synthetic `[crash]` log; treat that the same as the legacy
   // empty-log case so the verbose-retry path still runs.
@@ -112,13 +112,13 @@ export async function runAsar(args) {
     // that way (the canonical commercial-disassembly asset-conversion idiom, e.g.
     // an incpal macro converting many .pal palettes) can abort with no diagnostic
     // (v0.70.0 feedback #1). Surfacing the count turns a silent dead-end into a
-    // lead. (incbin of the same files does NOT trip it — only readfile1/filesize.)
+    // lead. (incbin of the same files does NOT trip it - only readfile1/filesize.)
     const distinctReadfileFiles = countReadfileFiles(source);
     const readfileHint = distinctReadfileFiles >= READFILE_DISTINCT_WARN
-      ? ` This source reads ${distinctReadfileFiles} DISTINCT files via readfile1/filesize/canreadfile — asar-WASM can abort with no diagnostic above a threshold of distinct files read that way (a known limitation). If you're converting assets at assemble time (e.g. .pal -> 15-bit), pre-convert them to .bin blobs offline and incbin those instead (incbin does NOT leak) — the output is byte-identical.`
+      ? ` This source reads ${distinctReadfileFiles} DISTINCT files via readfile1/filesize/canreadfile - asar-WASM can abort with no diagnostic above a threshold of distinct files read that way (a known limitation). If you're converting assets at assemble time (e.g. .pal -> 15-bit), pre-convert them to .bin blobs offline and incbin those instead (incbin does NOT leak) - the output is byte-identical.`
       : "";
     const hint = (looksLikeHeapPointer
-      ? "Exit code looks like a heap pointer, not a real exit code — likely a C++ exception that escaped without writing to stderr. Common causes: bank-border-crossed, section overlap, ROM size exceeded, or out-of-memory while assembling."
+      ? "Exit code looks like a heap pointer, not a real exit code - likely a C++ exception that escaped without writing to stderr. Common causes: bank-border-crossed, section overlap, ROM size exceeded, or out-of-memory while assembling."
       : "asar exited non-zero with no output.") + readfileHint;
 
     const layoutText = formatLayout(summarizeWrittenRegions(verboseBinary, baseRom, { flatBinary }));
@@ -164,7 +164,7 @@ export async function runAsar(args) {
   // Summarize binaryIncludes by name → byte length. The workaround for
   // asar's label-arith-across-banks bug requires the agent to hardcode
   // asset sizes; surface them here so they don't need a separate `stat`
-  // call. Cheap — we already have the bytes in hand.
+  // call. Cheap - we already have the bytes in hand.
   const includesInfo = {};
   for (const [name, blob] of Object.entries(binaryIncludes)) {
     const size = blob instanceof Uint8Array ? blob.length : Buffer.from(blob, "base64").length;
@@ -172,13 +172,13 @@ export async function runAsar(args) {
   }
 
   // Proactive advisory: even when THIS build squeaked by, a source reading many
-  // distinct files via readfile1/filesize is at risk of the asar-WASM abort —
+  // distinct files via readfile1/filesize is at risk of the asar-WASM abort -
   // surface it (non-fatal) so a growing disassembly doesn't dead-end later.
   {
     const distinct = countReadfileFiles(source);
     if (distinct >= READFILE_DISTINCT_WARN && !/readfile.*distinct files/i.test(log)) {
       log =
-        `[asar advisory] this source reads ${distinct} distinct files via readfile1/filesize — ` +
+        `[asar advisory] this source reads ${distinct} distinct files via readfile1/filesize - ` +
         `asar-WASM can abort (no diagnostic) above a threshold of distinct files read that way. ` +
         `If you're converting assets at assemble time, prefer pre-converting them to .bin and ` +
         `'incbin' (byte-identical, no leak).\n` + log;
@@ -240,7 +240,7 @@ async function assembleOnce({ source, includes, binaryIncludes, baseRom, extraOp
 // Walk the ROM byte-for-byte vs the baseRom and emit contiguous runs where
 // asar wrote something different. For LoROM, map file offsets to CPU
 // addresses ($00:8000..$00:FFFF = file 0..$7FFF, $01:8000..$01:FFFF =
-// file $8000..$FFFF, etc). Skip in flat-binary mode — sentinel-trim later
+// file $8000..$FFFF, etc). Skip in flat-binary mode - sentinel-trim later
 // handles that case and CPU addressing doesn't apply.
 function summarizeWrittenRegions(binary, baseRom, { flatBinary }) {
   if (!binary || !baseRom || flatBinary) return null;
@@ -269,13 +269,13 @@ function summarizeWrittenRegions(binary, baseRom, { flatBinary }) {
 function formatLayout(runs) {
   if (!runs) return "";
   if (runs.length === 0) {
-    return "  (no bytes differ from base ROM — asar may have died before writing anything)";
+    return "  (no bytes differ from base ROM - asar may have died before writing anything)";
   }
   return runs.map((r) => {
     const len = r.fileEnd - r.fileStart + 1;
     const cpu = lorom(r.fileStart, r.fileEnd);
     return `  file 0x${r.fileStart.toString(16).padStart(6, "0")}..0x${r.fileEnd.toString(16).padStart(6, "0")} ` +
-           `(LoROM ${cpu}) — ${len} bytes`;
+           `(LoROM ${cpu}) - ${len} bytes`;
   }).join("\n");
 }
 
@@ -378,7 +378,7 @@ function asarPreflight(source, { binaryIncludes = {}, includes = {} } = {}) {
   // -----------------------------------------------------------------------
   // Header-overlap detection: an `incbin "foo.bin"` whose span would reach
   // $00FFC0 clobbers the LoROM header during pass 2. **The LoROM header lives
-  // ONLY in bank $00** ($00FFC0..$00FFFF) — for banks $01+, $XXFFC0 is ordinary
+  // ONLY in bank $00** ($00FFC0..$00FFFF) - for banks $01+, $XXFFC0 is ordinary
   // ROM, and games (e.g. SMW's GFX banks 08-0B) legitimately fill across those
   // boundaries under `check bankcross off`. So only flag BANK $00 (v0.70.0 #6:
   // the old check false-positived on every bank as "$08FFC0 header"). Also honor
@@ -386,7 +386,7 @@ function asarPreflight(source, { binaryIncludes = {}, includes = {} } = {}) {
   //
   // We only check incbin's pointing at files in binaryIncludes (size known) and
   // assume each is preceded by an `org $008000`. Note: this scans only the entry
-  // source — `incbin`s inside `incsrc`'d files aren't seen (so the check is a
+  // source - `incbin`s inside `incsrc`'d files aren't seen (so the check is a
   // best-effort early warning, not full coverage).
   // -----------------------------------------------------------------------
   const incbinDirective = /^\s*incbin\s+"([^"]+)"/;
@@ -574,7 +574,7 @@ function asarPreflight(source, { binaryIncludes = {}, includes = {} } = {}) {
 }
 
 // asar-WASM aborts (no diagnostic) once readfile1/filesize/canreadfile touch
-// enough DISTINCT files — the canonical commercial-disassembly asset-conversion
+// enough DISTINCT files - the canonical commercial-disassembly asset-conversion
 // idiom (an incpal-style macro converting many .pal palettes at assemble time).
 // We can't always predict the exact ceiling, so warn above this many distinct
 // files so the build doesn't silently dead-end (v0.70.0 feedback #1).
@@ -590,7 +590,7 @@ const READFILE_DISTINCT_WARN = 40;
 function countReadfileFiles(source) {
   const names = new Set();
   // readfile1("x",..) / readfile2(...) / readfile3 / readfile4 / filesize("x")
-  // / canreadfile("x",..) / canreadfile1..4 — first string arg is the filename.
+  // / canreadfile("x",..) / canreadfile1..4 - first string arg is the filename.
   const re = /\b(?:readfile[1-4]|canreadfile[1-4]?|filesize)\s*\(\s*"([^"]+)"/gi;
   let m;
   while ((m = re.exec(source)) !== null) names.add(m[1]);

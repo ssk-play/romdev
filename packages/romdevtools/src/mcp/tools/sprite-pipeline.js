@@ -1,13 +1,13 @@
-// sprite-pipeline.js — R15 cross-game sprite-lift tools.
+// sprite-pipeline.js - R15 cross-game sprite-lift tools.
 //
 // Three primitives that close the gap between extractSpriteSheet and
 // loadSpriteSheet for cross-platform sprite imports:
 //
-//   1. cropSpriteSheet         — slice a tile-cell region from an existing
+//   1. cropSpriteSheet         - slice a tile-cell region from an existing
 //                                tile-grid PNG; preserves PLTE.
-//   2. quantizePngForPlatform  — quantize an RGBA PNG to the target
+//   2. quantizePngForPlatform  - quantize an RGBA PNG to the target
 //                                platform's per-subpalette index limit.
-//   3. (followup) crossPlatformSpriteImport — extract+crop+quantize+manifest
+//   3. (followup) crossPlatformSpriteImport - extract+crop+quantize+manifest
 //                                in one call. Lives here when shipped.
 //
 
@@ -32,12 +32,12 @@ const PLATFORM_LIMITS = {
   sms:        { maxColors: 16,  reason: "SMS VDP is 4bpp; one 16-color palette for BG, one for sprites." },
   gg:         { maxColors: 16,  reason: "Game Gear VDP is 4bpp; one 16-color palette for BG, one for sprites." },
   genesis:    { maxColors: 16,  reason: "Genesis VDP is 4bpp; 4 palette lines × 16 colors each." },
-  snes:       { maxColors: 16,  reason: "SNES default — assumes 4bpp tiles. For 2bpp pass maxColors=4 explicitly; for 8bpp pass maxColors=256." },
-  gba:        { maxColors: 16,  reason: "GBA default — 4bpp tiles. Mode 4 uses 256-color tiles; pass maxColors=256 for that case." },
+  snes:       { maxColors: 16,  reason: "SNES default - assumes 4bpp tiles. For 2bpp pass maxColors=4 explicitly; for 8bpp pass maxColors=256." },
+  gba:        { maxColors: 16,  reason: "GBA default - 4bpp tiles. Mode 4 uses 256-color tiles; pass maxColors=256 for that case." },
   atari7800:  { maxColors: 4,   reason: "MARIA palette select uses 2bpp tiles by default; per-palette 4 colors." },
   pce:        { maxColors: 16,  reason: "PC Engine HuC6270 is 4bpp; 16 BG sub-palettes + 16 SPR sub-palettes, 16 colors each (9-bit GRB)." },
   msx:        { maxColors: 16,  reason: "MSX V9938 is 4bpp on bitmap modes; MSX1 screen-2 uses the fixed 16-color TMS9918 palette (2 colors per 8-pixel row)." },
-  sync32:     { maxColors: 255, reason: "sync32 draws 8-bit indices through ONE 256-entry RGB565 palette; index 0 is the sprite transparent key, so 255 colours are usable — and a game usually BANKS them (player 16-47, objects 48-79, terrain 80-159, background 160-255) so per-level swaps keep shared sheets valid: pass maxColors for the bank size and, at stage:'tiles', baseIndex for its first slot." },
+  sync32:     { maxColors: 255, reason: "sync32 draws 8-bit indices through ONE 256-entry RGB565 palette; index 0 is the sprite transparent key, so 255 colours are usable - and a game usually BANKS them (player 16-47, objects 48-79, terrain 80-159, background 160-255) so per-level swaps keep shared sheets valid: pass maxColors for the bank size and, at stage:'tiles', baseIndex for its first slot." },
 };
 
 /**
@@ -66,7 +66,7 @@ function readPng(buf) {
  */
 function writeIndexedPng(width, height, indices, palette) {
   // pngjs doesn't have first-class indexed output. We emit RGBA from
-  // the palette table — the result is the same pixel data even if not
+  // the palette table - the result is the same pixel data even if not
   // colortype-3. Callers that want strict PLTE can re-encode externally;
   // for our use cases (cross-tool transport) RGBA is equivalent.
   const out = new PNG({ width, height });
@@ -156,7 +156,7 @@ async function cropSpriteSheetImpl({ path, tileX, tileY, tileW, tileH, tileSize 
     paletteEntries: png.palette ? png.palette.length : null,
     note: png.palette
       ? "Source PLTE preserved via nearest-neighbour remap."
-      : "Source was truecolor — output is also truecolor. Use quantizePngForPlatform to reduce to an indexed palette.",
+      : "Source was truecolor - output is also truecolor. Use quantizePngForPlatform to reduce to an indexed palette.",
   };
 }
 
@@ -175,10 +175,10 @@ function liftObserverImages(r) {
 /**
  * Quantize an RGBA PNG down to the target platform's index limit.
  * Modes:
- *   "frequency"  — pick the N most-used colors; nearest-match the rest.
- *   "luminance"  — same picking as frequency, but sort palette by luma so
+ *   "frequency"  - pick the N most-used colors; nearest-match the rest.
+ *   "luminance"  - same picking as frequency, but sort palette by luma so
  *                  index 0 is the lightest color (convention: backdrop).
- *   "platform-master" — (NES only for now) snap to the NES master
+ *   "platform-master" - (NES only for now) snap to the NES master
  *                  palette before picking N. Future platforms TBD.
  *
  * @param {{path:string, platform:string, outputPath:string, mode?:string, maxColors?:number}} args
@@ -212,7 +212,7 @@ async function quantizePngForPlatformImpl({ path, platform, outputPath, intent, 
     const r = png.rgba[i * 4 + 0];
     const g = png.rgba[i * 4 + 1];
     const b = png.rgba[i * 4 + 2];
-    // Treat fully-transparent pixels as a special "skip" — they don't
+    // Treat fully-transparent pixels as a special "skip" - they don't
     // need a color slot, just an alpha=0 mark in output.
     const key = (r << 16) | (g << 8) | b;
     counts.set(key, (counts.get(key) ?? 0) + 1);
@@ -357,13 +357,13 @@ async function crossPlatformSpriteImportImpl(args) {
     sessionKey,
   } = args;
   const d = resolveIntent(intent);
-  // Under rom-hack, skip the auto-quantize step — preserve source bytes
+  // Under rom-hack, skip the auto-quantize step - preserve source bytes
   // verbatim (just re-encode for the target platform's tile bit layout).
   // Under homebrew, run with quantize on; default quantizeMode comes
   // from intent if caller didn't override.
   const resolvedQuantizeMode = quantizeMode ?? d.quantizeMode;
 
-  // Lazy imports — keep this module's top-level light.
+  // Lazy imports - keep this module's top-level light.
   const { readFile, writeFile, mkdir } = await import("node:fs/promises");
   const path = await import("node:path");
   const { renderTilesGrid } = await import("../../platforms/common/render-tiles.js");
@@ -435,14 +435,14 @@ async function crossPlatformSpriteImportImpl(args) {
       } else if (paletteFromEmulator === true) {
         // Caller EXPLICITLY asked for the emulator palette but no ROM
         // is loaded. Surface the issue instead of silently falling back
-        // — they asked for live colors, we can't give them, that's a
+        // - they asked for live colors, we can't give them, that's a
         // real error worth knowing about. Mirrors the same behavior in
         // extractSpriteSheet (see rom-id.js).
         throw new Error("crossPlatformSpriteImport: paletteFromEmulator:true requires a loaded ROM. Call loadMedia first.");
       } else if (d.colorMode === "live-or-platform") {
         // Intent default kicked in (no explicit paletteFromEmulator)
         // and no ROM is loaded. Fall back to the per-platform default
-        // palette so the agent still gets COLOR, not grayscale —
+        // palette so the agent still gets COLOR, not grayscale -
         // better artist experience than the ramp.
         const { getDefaultPalette, DEFAULT_PALETTES } = await import("../../platforms/common/default-palette.js");
         if (DEFAULT_PALETTES[sourcePlatform]) {
@@ -479,7 +479,7 @@ async function crossPlatformSpriteImportImpl(args) {
   // ── Step 5: quantize to the target platform's palette ──────────
   // Under intent:"homebrew" (d.autoQuantize=true) we re-quantize to the
   // target platform's per-subpalette limit. Under rom-hack we copy the
-  // cropped PNG verbatim — preserves source bytes for forensic workflows
+  // cropped PNG verbatim - preserves source bytes for forensic workflows
   // where the caller is doing palette work outside the pipeline.
   let quantResult;
   if (d.autoQuantize) {
@@ -505,7 +505,7 @@ async function crossPlatformSpriteImportImpl(args) {
         ? cropPng.palette.map((c) => "#" + [c[0], c[1], c[2]].map((v) => v.toString(16).padStart(2, "0")).join(""))
         : [],
       mode: "preserved (rom-hack: no quantize)",
-      note: "intent:rom-hack — auto-quantize skipped, source bytes preserved verbatim.",
+      note: "intent:rom-hack - auto-quantize skipped, source bytes preserved verbatim.",
     };
   }
 
@@ -526,7 +526,7 @@ async function crossPlatformSpriteImportImpl(args) {
     manifestInfo = { path: outputManifest, frames: Object.keys(frames).length };
   }
 
-  // Cleanup intermediate files — keep the result small.
+  // Cleanup intermediate files - keep the result small.
   const { unlink } = await import("node:fs/promises");
   await unlink(bankTmp).catch(() => {});
   await unlink(cropTmp).catch(() => {});
@@ -548,8 +548,8 @@ async function crossPlatformSpriteImportImpl(args) {
     sourcePaletteSource: paletteSource,
     manifest: manifestInfo,
     nextStep: outputManifest
-      ? `loadSpriteSheet({ pngPath:"${outputPng}", manifestPath:"${outputManifest}", platform:"${targetPlatform}", intent:"${d.intent}" }) — produces tile bytes ready to link into your ROM.`
-      : `Pass outputManifest:"..." next time to get a TexturePacker-style manifest, or hand-author one — minimal shape is {frames:{name:{frame:{x,y,w,h}}}}.`,
+      ? `loadSpriteSheet({ pngPath:"${outputPng}", manifestPath:"${outputManifest}", platform:"${targetPlatform}", intent:"${d.intent}" }) - produces tile bytes ready to link into your ROM.`
+      : `Pass outputManifest:"..." next time to get a TexturePacker-style manifest, or hand-author one - minimal shape is {frames:{name:{frame:{x,y,w,h}}}}.`,
   };
 }
 
@@ -574,7 +574,7 @@ async function sync32ArtCore(stage, { pngPath, pngBase64, outputDir, inline, max
   if (stage === "tiles") {
     out.pixelsBytes = r.pixels.length;
     cSource = art.emitSheetC(ident, r);
-    out.note = `Row-major 8-bit indices for sheet_load(pixels, ${r.width}, ${r.height}); ${r.colors} RGB565 entries to copy into your palette at index ${r.baseIndex} (LE u16 in palette.bin). Index 0 = transparent (${r.transparentPixels} px). Remember rect()/clear() snap to the palette too — register the colours you draw with.`;
+    out.note = `Row-major 8-bit indices for sheet_load(pixels, ${r.width}, ${r.height}); ${r.colors} RGB565 entries to copy into your palette at index ${r.baseIndex} (LE u16 in palette.bin). Index 0 = transparent (${r.transparentPixels} px). Remember rect()/clear() snap to the palette too - register the colours you draw with.`;
     if (inline) { out.pixelsBase64 = Buffer.from(r.pixels).toString("base64"); out.paletteBase64 = Buffer.from(r.paletteBytes).toString("base64"); }
     if (outputDir) {
       await mkdir(outputDir, { recursive: true });
@@ -609,56 +609,56 @@ async function sync32ArtCore(stage, { pngPath, pngBase64, outputDir, inline, max
 export function registerSpritePipelineTools(server, z, _sessionKey) {
   server.tool(
     "encodeArt",
-    "Encode a PNG into a platform's native art format, one tool keyed by `stage` — the PNG→tiles pipeline. " +
-    "tiles/tilemap read `pngPath` (preferred — server reads it, no base64 token cost) or `pngBase64`, write to `outputDir` (or `inline`). " +
+    "Encode a PNG into a platform's native art format, one tool keyed by `stage` - the PNG→tiles pipeline. " +
+    "tiles/tilemap read `pngPath` (preferred - server reads it, no base64 token cost) or `pngBase64`, write to `outputDir` (or `inline`). " +
     "quantize/crop instead take `path` (source PNG) + `outputPath`. " +
     "**Image width & height must be multiples of 8.** **GENESIS: a 17th color (palette index > 15) leaking into the tile " +
-    "words builds fine but renders GARBAGE — run stage:'validate' on generated Genesis tiles.**\n" +
-    "• stage:'quantize' — reduce an RGBA PNG to a platform's per-subpalette color limit, emit an indexed PNG (with a PLTE " +
+    "words builds fine but renders GARBAGE - run stage:'validate' on generated Genesis tiles.**\n" +
+    "• stage:'quantize' - reduce an RGBA PNG to a platform's per-subpalette color limit, emit an indexed PNG (with a PLTE " +
     "loadSpriteSheet picks up). The bridge from 'imported with another platform's colors' to 'lands with the right index " +
     "layout'. `mode`: frequency | luminance (index 0 = lightest backdrop) | platform-master (NES snap). `maxColors` overrides the per-platform default. (`platform`, `path`, `outputPath` required.)\n" +
-    "• stage:'crop' — crop a rectangular region of tile CELLS (not pixels; `tileSize` default 8) out of an existing tile-grid PNG (e.g. pull one sprite out of an extracted CHR bank). Preserves PLTE via nearest-neighbour remap. Platform-agnostic. (`path`, `tileX/Y/W/H`, `outputPath` required.)\n" +
-    "• stage:'tiles' — convert a PNG to native tile bytes — raw tiles, no tilemap. Programmable-palette platforms also return a suggested palette. MSX returns TWO streams (pattern.bin + color.bin for screen-2's per-row 2-color format). For multi-cell SPRITES (Genesis/Lynx) pass `tileOrder:'sprite'` — hardware reads a sprite's tiles COLUMN-major (top-to-bottom then right), NOT the row-major BG layout. Writes tiles.bin (+ palette.bin) to outputDir, or inline. **sync32** (flat 8bpp, one 256-entry RGB565 palette) writes pixels.bin (row-major indices, ready for sheet_load) + palette.bin (the bank's RGB565 LE entries) + preview.png, quantized to `maxColors` colours placed at `baseIndex`.. (default 1: index 0 is the transparent key and alpha<128 pixels become 0) — BANKED quantization for per-level palette swaps; `name`+`outputCPath` also emit a C file with the arrays + PAL_BASE/COUNT defines.\n" +
-    "• stage:'tilemap' — render a large PNG (title screen, world map) to tile graphics + tilemap (the platform's screen-map form: NES nametable, SNES/SMS/GG tilemap, Genesis/GB/GBC BG map, C64 screen RAM, PCE BAT, MSX name+pattern+color) + per-cell palette/attribute + palette table, with flip-aware tile dedup. NOT 2600/7800 (no fixed tilemap — errors). PREREQUISITE: the PNG must already be sized to the platform's native screen and quantized to its palette. `dedup`/`singlePalette`/`backdrop`/`maxTiles`. **sync32** has no tilemap hardware but a 320x240 background stored flat is 76 800 B against a 311 296 B image budget, so this stage dedupes it to 8x8 chr cells (chr.bin, 64 B each, 8bpp) + a uint8 map (nametable.bin; uint16 with flip bits when `flip:true` or >256 cells) + the palette bank — ~11 KB per theme; `name`+`outputCPath` emit the C.\n" +
-    "• stage:'validate' — validate generated Genesis 4bpp tile data and/or palette against the VDP's hard limits — catches the 'builds fine, renders garbage' bug. `tileDataPath` (raw 4bpp .bin) and/or `paletteJson` (lines of colors). Returns {ok, errors[], warnings[], stats}.",
+    "• stage:'crop' - crop a rectangular region of tile CELLS (not pixels; `tileSize` default 8) out of an existing tile-grid PNG (e.g. pull one sprite out of an extracted CHR bank). Preserves PLTE via nearest-neighbour remap. Platform-agnostic. (`path`, `tileX/Y/W/H`, `outputPath` required.)\n" +
+    "• stage:'tiles' - convert a PNG to native tile bytes - raw tiles, no tilemap. Programmable-palette platforms also return a suggested palette. MSX returns TWO streams (pattern.bin + color.bin for screen-2's per-row 2-color format). For multi-cell SPRITES (Genesis/Lynx) pass `tileOrder:'sprite'` - hardware reads a sprite's tiles COLUMN-major (top-to-bottom then right), NOT the row-major BG layout. Writes tiles.bin (+ palette.bin) to outputDir, or inline. **sync32** (flat 8bpp, one 256-entry RGB565 palette) writes pixels.bin (row-major indices, ready for sheet_load) + palette.bin (the bank's RGB565 LE entries) + preview.png, quantized to `maxColors` colours placed at `baseIndex`.. (default 1: index 0 is the transparent key and alpha<128 pixels become 0) - BANKED quantization for per-level palette swaps; `name`+`outputCPath` also emit a C file with the arrays + PAL_BASE/COUNT defines.\n" +
+    "• stage:'tilemap' - render a large PNG (title screen, world map) to tile graphics + tilemap (the platform's screen-map form: NES nametable, SNES/SMS/GG tilemap, Genesis/GB/GBC BG map, C64 screen RAM, PCE BAT, MSX name+pattern+color) + per-cell palette/attribute + palette table, with flip-aware tile dedup. NOT 2600/7800 (no fixed tilemap - errors). PREREQUISITE: the PNG must already be sized to the platform's native screen and quantized to its palette. `dedup`/`singlePalette`/`backdrop`/`maxTiles`. **sync32** has no tilemap hardware but a 320x240 background stored flat is 76 800 B against a 311 296 B image budget, so this stage dedupes it to 8x8 chr cells (chr.bin, 64 B each, 8bpp) + a uint8 map (nametable.bin; uint16 with flip bits when `flip:true` or >256 cells) + the palette bank - ~11 KB per theme; `name`+`outputCPath` emit the C.\n" +
+    "• stage:'validate' - validate generated Genesis 4bpp tile data and/or palette against the VDP's hard limits - catches the 'builds fine, renders garbage' bug. `tileDataPath` (raw 4bpp .bin) and/or `paletteJson` (lines of colors). Returns {ok, errors[], warnings[], stats}.",
     {
       stage: z.enum(["quantize", "crop", "tiles", "tilemap", "validate"])
         .describe("quantize=reduce colors to the platform limit; crop=slice tile cells from a grid PNG; tiles=PNG→raw native tiles; tilemap=PNG→tiles+screen/attr map; validate=check Genesis 4bpp tiles/palette."),
       platform: z.string().optional().describe("Target platform id. Required for quantize/tiles/tilemap (validate is Genesis-only; crop is platform-agnostic)."),
       // shared PNG inputs (tiles/tilemap)
-      pngBase64: z.string().optional().describe("stage:tiles/tilemap — base64 PNG. Prefer `pngPath`."),
-      pngPath: z.string().optional().describe("stage:tiles/tilemap — absolute path to a PNG on disk (no base64 cost)."),
+      pngBase64: z.string().optional().describe("stage:tiles/tilemap - base64 PNG. Prefer `pngPath`."),
+      pngPath: z.string().optional().describe("stage:tiles/tilemap - absolute path to a PNG on disk (no base64 cost)."),
       // quantize/crop single-file input
-      path: z.string().optional().describe("stage:quantize/crop — absolute path to the source PNG."),
-      outputPath: z.string().optional().describe("stage:quantize/crop — absolute path to write the output PNG (required)."),
-      outputDir: z.string().optional().describe("stage:tiles (tiles.bin/palette.bin) / stage:tilemap (chr/nametable/attr/palette/preview) — output dir. Required for tiles unless inline."),
-      inline: z.boolean().default(false).describe("stage:tiles — return base64 in the response instead of writing to disk."),
+      path: z.string().optional().describe("stage:quantize/crop - absolute path to the source PNG."),
+      outputPath: z.string().optional().describe("stage:quantize/crop - absolute path to write the output PNG (required)."),
+      outputDir: z.string().optional().describe("stage:tiles (tiles.bin/palette.bin) / stage:tilemap (chr/nametable/attr/palette/preview) - output dir. Required for tiles unless inline."),
+      inline: z.boolean().default(false).describe("stage:tiles - return base64 in the response instead of writing to disk."),
       // quantize
-      mode: z.enum(["frequency", "luminance", "platform-master"]).optional().describe("stage:quantize — palette strategy. Default from `intent` (homebrew → platform-master, rom-hack → frequency)."),
-      maxColors: z.number().int().min(1).max(256).optional().describe("stage:quantize — override the per-platform default (SNES 2bpp=4, 8bpp=256). sync32 stage:tiles/tilemap — the bank size (colours quantized to; default fills 256-baseIndex)."),
+      mode: z.enum(["frequency", "luminance", "platform-master"]).optional().describe("stage:quantize - palette strategy. Default from `intent` (homebrew → platform-master, rom-hack → frequency)."),
+      maxColors: z.number().int().min(1).max(256).optional().describe("stage:quantize - override the per-platform default (SNES 2bpp=4, 8bpp=256). sync32 stage:tiles/tilemap - the bank size (colours quantized to; default fills 256-baseIndex)."),
       // crop
-      tileX: z.number().int().min(0).optional().describe("stage:crop — leftmost tile column to include (0 = first)."),
-      tileY: z.number().int().min(0).optional().describe("stage:crop — topmost tile row to include (0 = first)."),
-      tileW: z.number().int().min(1).optional().describe("stage:crop — crop width in tile cells."),
-      tileH: z.number().int().min(1).optional().describe("stage:crop — crop height in tile cells."),
-      tileSize: z.number().int().min(1).max(64).default(8).describe("stage:crop — tile cell side length in pixels (8 for nearly every platform)."),
+      tileX: z.number().int().min(0).optional().describe("stage:crop - leftmost tile column to include (0 = first)."),
+      tileY: z.number().int().min(0).optional().describe("stage:crop - topmost tile row to include (0 = first)."),
+      tileW: z.number().int().min(1).optional().describe("stage:crop - crop width in tile cells."),
+      tileH: z.number().int().min(1).optional().describe("stage:crop - crop height in tile cells."),
+      tileSize: z.number().int().min(1).max(64).default(8).describe("stage:crop - tile cell side length in pixels (8 for nearly every platform)."),
       // tiles
-      tileOrder: z.enum(["row", "sprite"]).default("row").describe("stage:tiles — 'row' (default, BG tilemap order) or 'sprite' (column-major, the order multi-cell hardware sprites read on Genesis/Lynx). Ignored for MSX."),
+      tileOrder: z.enum(["row", "sprite"]).default("row").describe("stage:tiles - 'row' (default, BG tilemap order) or 'sprite' (column-major, the order multi-cell hardware sprites read on Genesis/Lynx). Ignored for MSX."),
       // sync32 banked quantization + C emit (tiles/tilemap)
-      baseIndex: z.number().int().min(1).max(255).optional().describe("sync32 stage:tiles/tilemap — first palette slot the image's colours occupy (default 1; index 0 is reserved as the transparent key). With maxColors this defines the BANK, so a per-level palette swap can overlay terrain at 80..159 while shared art keeps 16..79."),
-      flip: z.boolean().default(false).describe("sync32 stage:tilemap — also dedupe X/Y-flipped cells (map becomes uint16 with flip bits 14/15)."),
-      name: z.string().optional().describe("sync32 stage:tiles/tilemap — C identifier for the emitted arrays (`<name>`, `<name>_pal`, `<name>_chr`, `<name>_map`); with outputCPath the C file is written, else `cSource` is returned inline only when `inline`."),
-      outputCPath: z.string().optional().describe("sync32 stage:tiles/tilemap — write the generated C (arrays + W/H/PAL_BASE/PAL_COUNT defines) here."),
+      baseIndex: z.number().int().min(1).max(255).optional().describe("sync32 stage:tiles/tilemap - first palette slot the image's colours occupy (default 1; index 0 is reserved as the transparent key). With maxColors this defines the BANK, so a per-level palette swap can overlay terrain at 80..159 while shared art keeps 16..79."),
+      flip: z.boolean().default(false).describe("sync32 stage:tilemap - also dedupe X/Y-flipped cells (map becomes uint16 with flip bits 14/15)."),
+      name: z.string().optional().describe("sync32 stage:tiles/tilemap - C identifier for the emitted arrays (`<name>`, `<name>_pal`, `<name>_chr`, `<name>_map`); with outputCPath the C file is written, else `cSource` is returned inline only when `inline`."),
+      outputCPath: z.string().optional().describe("sync32 stage:tiles/tilemap - write the generated C (arrays + W/H/PAL_BASE/PAL_COUNT defines) here."),
       // tiles + tilemap caps
       maxTiles: z.number().int().min(1).max(8192).optional().describe("stage:tiles (default 512) / stage:tilemap (cap on unique tiles when dedup; defaults to the platform's pattern-table limit)."),
       // tilemap
-      backdrop: z.number().int().min(0).optional().describe("stage:tilemap — force a master-palette index for the universal backdrop (default: most-common color)."),
-      dedup: z.boolean().default(true).describe("stage:tilemap — collapse identical tile bitmaps to one CHR entry (default true)."),
-      singlePalette: z.boolean().default(false).describe("stage:tilemap — every attribute cell uses one identical palette (limits to 4 total colors)."),
+      backdrop: z.number().int().min(0).optional().describe("stage:tilemap - force a master-palette index for the universal backdrop (default: most-common color)."),
+      dedup: z.boolean().default(true).describe("stage:tilemap - collapse identical tile bitmaps to one CHR entry (default true)."),
+      singlePalette: z.boolean().default(false).describe("stage:tilemap - every attribute cell uses one identical palette (limits to 4 total colors)."),
       // validate
-      tileDataPath: z.string().optional().describe("stage:validate — absolute path to raw 4bpp Genesis tile bytes (length a multiple of 32; each pixel an index 0-15)."),
-      paletteJson: z.array(z.any()).optional().describe("stage:validate — palette as lines (array of lines, each an array of colors). Flags any line with >16 colors."),
-      maxPaletteIndex: z.number().int().min(0).max(15).default(15).describe("stage:validate — highest palette index the art may use (default 15; pass 14 if you reserve index 15)."),
+      tileDataPath: z.string().optional().describe("stage:validate - absolute path to raw 4bpp Genesis tile bytes (length a multiple of 32; each pixel an index 0-15)."),
+      paletteJson: z.array(z.any()).optional().describe("stage:validate - palette as lines (array of lines, each an array of colors). Flags any line with >16 colors."),
+      maxPaletteIndex: z.number().int().min(0).max(15).default(15).describe("stage:validate - highest palette index the art may use (default 15; pass 14 if you reserve index 15)."),
       intent: intentZod(z),
     },
     safeTool(async (args) => {

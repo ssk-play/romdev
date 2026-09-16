@@ -1,8 +1,8 @@
-// Meta-sprite capture tools — lift a live character (composed of multiple
+// Meta-sprite capture tools - lift a live character (composed of multiple
 // hardware sprites / OAM entries) into a reusable homebrew asset, preserving
 // each piece's position/size/tile-order/palette/flips. Works on every
 // tile-based sprite platform: genesis, snes, nes, gb, gbc, sms, gg.
-// (C64 MOBs are 24×21 bitmaps, not tiles — not supported; the adapter
+// (C64 MOBs are 24×21 bitmaps, not tiles - not supported; the adapter
 // throws a clear explanation.)
 
 import { mkdir, writeFile, readFile } from "node:fs/promises";
@@ -85,7 +85,7 @@ async function spritesGroup(sessionKey, { platform, rect, gap }) {
     platform: p, groupCount: groups.length, groups,
     hint: groups.length
       ? `Pick a group → sprites({op:'capture', platform:"${p}", slots:[${groups[0].slots.join(",")}], outputDir:"..."}). Sorted largest-first.`
-      : "No on-screen sprites — step to a gameplay frame with the character visible, or widen `rect`.",
+      : "No on-screen sprites - step to a gameplay frame with the character visible, or widen `rect`.",
   });
 }
 
@@ -95,7 +95,7 @@ async function spritesPreview(sessionKey, { platform, gap, maxGroups, outputDir,
   const { groupVisibleSprites, captureMetaSprite } = await import("../../platforms/common/metasprite.js");
   const { groups } = await groupVisibleSprites(host, p, { gap });
   if (!groups.length) {
-    return jsonContent({ platform: p, groupCount: 0, note: "No on-screen sprites — step to a gameplay frame with the character visible." });
+    return jsonContent({ platform: p, groupCount: 0, note: "No on-screen sprites - step to a gameplay frame with the character visible." });
   }
   if (!inline && !outputDir) {
     throw new Error("sprites({op:'preview'}): pass outputDir (write per-group thumbnail PNGs to disk, returns thumbnailPath per group) or inline:true (return the thumbnails in the response).");
@@ -110,7 +110,7 @@ async function spritesPreview(sessionKey, { platform, gap, maxGroups, outputDir,
     try {
       const cap = await captureMetaSprite(host, p, { slots: g.slots, name: "preview" });
       thumb = cap.previewPng;
-    } catch { /* group may not be capturable (e.g. odd sizes) — still list it */ }
+    } catch { /* group may not be capturable (e.g. odd sizes) - still list it */ }
     const entry = {
       slots: g.slots,
       bounds: g.bounds,
@@ -180,44 +180,44 @@ export function registerMetaSpriteTools(server, z, sessionKey) {
   server.tool(
     "sprites",
     "Hardware-sprite (OAM/SAT) inspection + the meta-sprite asset pipeline, one tool keyed by `op`.\n" +
-    "• op:'inspect' — list the loaded ROM's active sprite table as {slot,x,y,tile,palette,priority,flipH,flipV,size,visible}[] (each platform's adapter reads its native OAM and normalizes). `maxSlots`/`slots[]` shrink the response (real slot indices kept). " +
-    "JSON always returned; sms/gg, gb/gbc, atari2600/7800 also render a sprite PNG (`outputPath` or `inline:true`); nes/snes/genesis/c64/gba/pce/msx/lynx are JSON-only. (lynx/atari7800 have no fixed OAM — inspect returns the SCB-list head / MARIA display-list pointer to walk instead.)\n" +
-    "• op:'group' — cluster the current frame's on-screen sprites into likely objects (player/enemy/projectile/HUD) by proximity, sorted largest-first, so you pick a coherent character to capture.\n" +
-    "• op:'preview' — group + a thumbnail per group + a ready-to-paste capture call for each: the fast 'what's on screen, which do I lift?' step. JSON always returned; thumbnails to `outputDir/group-<i>.png` or `inline:true`.\n" +
-    `• op:'capture' — lift a visible character as a reusable meta-sprite the RIGHT way (NOT a screenshot crop, NOT crossPlatformSpriteImport): preserves the real hardware composition (each OAM/SAT entry's pos/size/tile/palette/flips) and per-platform multi-cell tile order, so you AVOID the 'looks right cropped, garbage in-game' bug. Select pieces by \`slots\` (from op:'inspect'/'group') or pixel \`rect\`; emits tiles+palette+layout.json + a preview RE-RENDERED from the exported data (+ idiomatic C with \`emit:'c'|'both'\`). Step to a frame where the character is fully visible first.\n` +
-    "• op:'render' — re-render a captured meta-sprite to PNG from its tiles.bin + layout.json WITHOUT rebuilding a ROM. Verifies a capture (or hand-edited layout) reconstructs correctly.\n" +
-    "• op:'emitC' — generate platform-idiomatic C (Genesis SGDK VDP_setSprite chain; NES/GB/GBC shadow-OAM cell tables; SNES PVSnesLib oamSet pieces; SMS/GG SAT tables) from a layout.json. Use when you captured with emit:'json' and now want the C glue.\n" +
-    `• op:'extractScreenshot' — LOSSY fallback when op:'capture' can't be used (no clean OAM/SAT composition): crop a screenshot region + flood-fill the background away. Emits a transparent PNG + debug PNG (magenta = removed) so you can tune \`tolerance\`. Prefer op:'capture' whenever sprite groups exist.\n` +
-    `group/preview/capture work on ${SPRITE_PLATFORMS}; render/emitC are file-driven (layout.json's \`platform\` selects the emitter). C64 MOBs are 24×21 bitmaps not tiles — capture throws there; use op:'inspect' + the sprite-data pointers and author MOB bitmaps directly.`,
+    "• op:'inspect' - list the loaded ROM's active sprite table as {slot,x,y,tile,palette,priority,flipH,flipV,size,visible}[] (each platform's adapter reads its native OAM and normalizes). `maxSlots`/`slots[]` shrink the response (real slot indices kept). " +
+    "JSON always returned; sms/gg, gb/gbc, atari2600/7800 also render a sprite PNG (`outputPath` or `inline:true`); nes/snes/genesis/c64/gba/pce/msx/lynx are JSON-only. (lynx/atari7800 have no fixed OAM - inspect returns the SCB-list head / MARIA display-list pointer to walk instead.)\n" +
+    "• op:'group' - cluster the current frame's on-screen sprites into likely objects (player/enemy/projectile/HUD) by proximity, sorted largest-first, so you pick a coherent character to capture.\n" +
+    "• op:'preview' - group + a thumbnail per group + a ready-to-paste capture call for each: the fast 'what's on screen, which do I lift?' step. JSON always returned; thumbnails to `outputDir/group-<i>.png` or `inline:true`.\n" +
+    `• op:'capture' - lift a visible character as a reusable meta-sprite the RIGHT way (NOT a screenshot crop, NOT crossPlatformSpriteImport): preserves the real hardware composition (each OAM/SAT entry's pos/size/tile/palette/flips) and per-platform multi-cell tile order, so you AVOID the 'looks right cropped, garbage in-game' bug. Select pieces by \`slots\` (from op:'inspect'/'group') or pixel \`rect\`; emits tiles+palette+layout.json + a preview RE-RENDERED from the exported data (+ idiomatic C with \`emit:'c'|'both'\`). Step to a frame where the character is fully visible first.\n` +
+    "• op:'render' - re-render a captured meta-sprite to PNG from its tiles.bin + layout.json WITHOUT rebuilding a ROM. Verifies a capture (or hand-edited layout) reconstructs correctly.\n" +
+    "• op:'emitC' - generate platform-idiomatic C (Genesis SGDK VDP_setSprite chain; NES/GB/GBC shadow-OAM cell tables; SNES PVSnesLib oamSet pieces; SMS/GG SAT tables) from a layout.json. Use when you captured with emit:'json' and now want the C glue.\n" +
+    `• op:'extractScreenshot' - LOSSY fallback when op:'capture' can't be used (no clean OAM/SAT composition): crop a screenshot region + flood-fill the background away. Emits a transparent PNG + debug PNG (magenta = removed) so you can tune \`tolerance\`. Prefer op:'capture' whenever sprite groups exist.\n` +
+    `group/preview/capture work on ${SPRITE_PLATFORMS}; render/emitC are file-driven (layout.json's \`platform\` selects the emitter). C64 MOBs are 24×21 bitmaps not tiles - capture throws there; use op:'inspect' + the sprite-data pointers and author MOB bitmaps directly.`,
     {
       op: z.enum(["inspect", "group", "preview", "capture", "render", "emitC", "extractScreenshot"])
         .describe("inspect=list OAM; group=cluster on-screen sprites; preview=group+thumbnails+capture calls; capture=lift a meta-sprite the right way; render=re-render a saved capture; emitC=generate C from a layout; extractScreenshot=lossy screenshot-crop fallback."),
-      platform: z.string().optional().describe(`op:inspect/group/preview/capture — defaults to the loaded host. One of: ${SPRITE_PLATFORMS} (inspect also: atari2600/7800, c64, gba, pce, msx, lynx).`),
+      platform: z.string().optional().describe(`op:inspect/group/preview/capture - defaults to the loaded host. One of: ${SPRITE_PLATFORMS} (inspect also: atari2600/7800, c64, gba, pce, msx, lynx).`),
       // inspect
-      maxSlots: z.number().int().min(1).max(128).optional().describe("op:inspect — first N sprite slots (OAM order). Omit for all."),
+      maxSlots: z.number().int().min(1).max(128).optional().describe("op:inspect - first N sprite slots (OAM order). Omit for all."),
       // capture/render/emitC selection + assets
-      rect: rectShape.optional().describe("op:capture — select sprites whose on-screen bounds intersect this pixel rect (mutually exclusive with `slots`). op:group — only consider sprites intersecting this rect."),
-      slots: z.array(z.number().int().min(0).max(127)).optional().describe("op:inspect — only these slot indices (non-contiguous OK); wins over maxSlots. op:capture — OAM/SAT slot numbers to lift (mutually exclusive with `rect`)."),
-      includePartials: z.boolean().default(true).describe("op:capture with `rect` — include sprites only partially inside it."),
-      name: z.string().optional().describe("op:capture — asset name (layout.json, filenames, C identifiers; default 'metasprite'). op:emitC — C identifier base (default: layout's name)."),
-      emit: z.enum(["json", "c", "both"]).default("json").describe("op:capture — 'json' = tiles/palette/layout/preview only; 'c'|'both' also emit platform-idiomatic C (<name>.h)."),
-      gap: z.number().int().min(0).default(8).describe("op:group/preview — max pixel gap between two sprites' bounds to join one group. Larger = looser."),
-      maxGroups: z.number().int().min(1).max(20).default(8).describe("op:preview — max groups to render thumbnails for (largest-first)."),
-      tilesPath: z.string().optional().describe("op:render/emitC — absolute path to tiles.bin."),
-      palettePath: z.string().optional().describe("op:emitC — absolute path to palette.bin."),
-      layoutPath: z.string().optional().describe("op:render/emitC — absolute path to layout.json (its `platform` selects the emitter; also carries bpp, palettes, pieces)."),
+      rect: rectShape.optional().describe("op:capture - select sprites whose on-screen bounds intersect this pixel rect (mutually exclusive with `slots`). op:group - only consider sprites intersecting this rect."),
+      slots: z.array(z.number().int().min(0).max(127)).optional().describe("op:inspect - only these slot indices (non-contiguous OK); wins over maxSlots. op:capture - OAM/SAT slot numbers to lift (mutually exclusive with `rect`)."),
+      includePartials: z.boolean().default(true).describe("op:capture with `rect` - include sprites only partially inside it."),
+      name: z.string().optional().describe("op:capture - asset name (layout.json, filenames, C identifiers; default 'metasprite'). op:emitC - C identifier base (default: layout's name)."),
+      emit: z.enum(["json", "c", "both"]).default("json").describe("op:capture - 'json' = tiles/palette/layout/preview only; 'c'|'both' also emit platform-idiomatic C (<name>.h)."),
+      gap: z.number().int().min(0).default(8).describe("op:group/preview - max pixel gap between two sprites' bounds to join one group. Larger = looser."),
+      maxGroups: z.number().int().min(1).max(20).default(8).describe("op:preview - max groups to render thumbnails for (largest-first)."),
+      tilesPath: z.string().optional().describe("op:render/emitC - absolute path to tiles.bin."),
+      palettePath: z.string().optional().describe("op:emitC - absolute path to palette.bin."),
+      layoutPath: z.string().optional().describe("op:render/emitC - absolute path to layout.json (its `platform` selects the emitter; also carries bpp, palettes, pieces)."),
       // extractScreenshot
-      pngPath: z.string().optional().describe("op:extractScreenshot — absolute path to the source screenshot PNG."),
-      crop: rectShape.optional().describe("op:extractScreenshot — region to crop, in source-image pixels."),
-      seed: z.object({ x: z.number().int().min(0), y: z.number().int().min(0) }).optional().describe("op:extractScreenshot — a point ON the sprite, in CROP-relative coords. If given, keep only the connected non-background component containing it."),
-      backgroundMode: z.enum(["edge-flood", "color"]).default("edge-flood").describe("op:extractScreenshot — 'edge-flood' (default): flood inward from the crop border. 'color': remove everything near `bgColor` anywhere."),
-      bgColor: z.array(z.number().int().min(0).max(255)).length(3).optional().describe("op:extractScreenshot — [r,g,b] background for 'color' mode (default: top-left crop pixel)."),
-      tolerance: z.number().min(0).max(441).default(24).describe("op:extractScreenshot — color-match tolerance (0-441). Raise if background leaks into the sprite; lower if sprite pixels get removed."),
-      previewScale: z.number().int().min(1).max(8).default(1).describe("op:extractScreenshot — integer upscale for the output + debug PNGs."),
+      pngPath: z.string().optional().describe("op:extractScreenshot - absolute path to the source screenshot PNG."),
+      crop: rectShape.optional().describe("op:extractScreenshot - region to crop, in source-image pixels."),
+      seed: z.object({ x: z.number().int().min(0), y: z.number().int().min(0) }).optional().describe("op:extractScreenshot - a point ON the sprite, in CROP-relative coords. If given, keep only the connected non-background component containing it."),
+      backgroundMode: z.enum(["edge-flood", "color"]).default("edge-flood").describe("op:extractScreenshot - 'edge-flood' (default): flood inward from the crop border. 'color': remove everything near `bgColor` anywhere."),
+      bgColor: z.array(z.number().int().min(0).max(255)).length(3).optional().describe("op:extractScreenshot - [r,g,b] background for 'color' mode (default: top-left crop pixel)."),
+      tolerance: z.number().min(0).max(441).default(24).describe("op:extractScreenshot - color-match tolerance (0-441). Raise if background leaks into the sprite; lower if sprite pixels get removed."),
+      previewScale: z.number().int().min(1).max(8).default(1).describe("op:extractScreenshot - integer upscale for the output + debug PNGs."),
       // shared output
-      outputPath: z.string().optional().describe("op:inspect (sprite PNG)/render/emitC — write the result here; else return inline/path per op."),
-      outputDir: z.string().optional().describe("Output directory — op:capture (tiles/palette/layout/preview + <name>.h), op:preview (group-<i>.png), op:extractScreenshot (sprite.png + debug.png). Without it those ops inline base64 (op:preview instead needs inline:true)."),
-      inline: z.boolean().default(false).describe("op:inspect/preview — return the image(s) in the response instead of writing to disk."),
+      outputPath: z.string().optional().describe("op:inspect (sprite PNG)/render/emitC - write the result here; else return inline/path per op."),
+      outputDir: z.string().optional().describe("Output directory - op:capture (tiles/palette/layout/preview + <name>.h), op:preview (group-<i>.png), op:extractScreenshot (sprite.png + debug.png). Without it those ops inline base64 (op:preview instead needs inline:true)."),
+      inline: z.boolean().default(false).describe("op:inspect/preview - return the image(s) in the response instead of writing to disk."),
     },
     safeTool(async (args) => {
       switch (args.op) {
@@ -244,7 +244,7 @@ export function registerMetaSpriteTools(server, z, sessionKey) {
 }
 
 /**
- * encodeArt({stage:'validate'}) — validate Genesis 4bpp tile data/palette
+ * encodeArt({stage:'validate'}) - validate Genesis 4bpp tile data/palette
  * against the VDP's hard limits. Exported so the `encodeArt` router
  * (sprite-pipeline.js) can call it. Returns a plain object.
  */

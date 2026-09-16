@@ -1,16 +1,16 @@
 /*
- * sprite_move/main.c — PS1 starter (mips-elf-gcc + the bundled psx.h helper).
+ * sprite_move/main.c - PS1 starter (mips-elf-gcc + the bundled psx.h helper).
  *
  * Boots a visible 320x240 display and animates a colored box bouncing around the
- * screen — the canonical "GPU is alive, here's a moving primitive" PS1 starter.
+ * screen - the canonical "GPU is alive, here's a moving primitive" PS1 starter.
  * Exercises the whole helper lib: psx_init (GPU bring-up), psx_clear + psx_rect
  * (flat polygons), psx_vsync (pacing).
  *
- * Build with: build({ platform:"ps1", language:"c" }) — language defaults to C.
+ * Build with: build({ platform:"ps1", language:"c" }) - language defaults to C.
  * Output is a PS-EXE the HLE BIOS loads at 0x80010000; main() loops forever
  * (no OS to return to).
  *
- * PS1 NOTE: there is no tile/sprite/nametable hardware — the GPU draws polygons
+ * PS1 NOTE: there is no tile/sprite/nametable hardware - the GPU draws polygons
  * into a framebuffer. A "sprite" here is a textured/flat quad you draw each frame.
  */
 #include "psx.h"

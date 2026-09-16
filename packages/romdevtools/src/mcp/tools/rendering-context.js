@@ -1,10 +1,10 @@
-// getRenderingContext — decode the current PPU/VDP state into structured
+// getRenderingContext - decode the current PPU/VDP state into structured
 // fields + a universal English summary. The big win: tell the agent which
 // CHR bank the BG and sprites are fetching from RIGHT NOW, plus the file
 // offset so direct patchFile works first-try.
 //
 // NES uses fceumm's `nes_ppu_regs` 4-byte region (PPU[0..3] = PPUCTRL,
-// PPUMASK, PPUSTATUS, OAMADDR). Other platforms TBD — the call shape is
+// PPUMASK, PPUSTATUS, OAMADDR). Other platforms TBD - the call shape is
 // already universal, so adding SNES/Genesis/GB is a future incremental.
 
 import { readFileSync } from "node:fs";
@@ -28,7 +28,7 @@ function nesContext(host, area) {
   // PPUCTRL bits:
   //   0-1: base nametable address (00=$2000, 01=$2400, 10=$2800, 11=$2C00)
   //   2:   VRAM increment (0 = +1 across, 1 = +32 down)
-  //   3:   sprite pattern table base (0 = $0000, 1 = $1000) — for 8x8 sprites only
+  //   3:   sprite pattern table base (0 = $0000, 1 = $1000) - for 8x8 sprites only
   //   4:   BG pattern table base (0 = $0000, 1 = $1000)
   //   5:   sprite size (0 = 8x8, 1 = 8x16; for 8x16 the bit is per-tile)
   //   7:   NMI enable on vblank
@@ -65,7 +65,7 @@ function nesContext(host, area) {
   const sprite0Hit = !!(ppustatus & 0x40);
   const vblank = !!(ppustatus & 0x80);
 
-  // CHR file offset math — works for NROM (mapper 0) directly. For banked
+  // CHR file offset math - works for NROM (mapper 0) directly. For banked
   // mappers (MMC1/MMC3/etc.) the agent should treat this as the offset
   // RELATIVE to whatever CHR bank is currently mapped; the live bytes
   // returned by readMemory("nes_chr", ...) already reflect banking.
@@ -85,7 +85,7 @@ function nesContext(host, area) {
         }
       }
     } catch {
-      // Bytes-loaded ROM (no path) — leave file offset null.
+      // Bytes-loaded ROM (no path) - leave file offset null.
     }
   }
 
@@ -100,7 +100,7 @@ function nesContext(host, area) {
       `BG is fetching from CHR bank ${bgPatternBank} (PPU $${bgPatternPpuBase.toString(16).toUpperCase().padStart(4,"0")}` +
       (bgChrFileOffset != null
         ? `, file offset 0x${bgChrFileOffset.toString(16).toUpperCase()}`
-        : `, file offset unknown — no mediaPath or CHR-RAM cart`) +
+        : `, file offset unknown - no mediaPath or CHR-RAM cart`) +
       `)`
     );
   }
@@ -124,7 +124,7 @@ function nesContext(host, area) {
     );
     if (mapperNum != null && mapperNum !== 0) {
       summary.push(
-        `iNES mapper ${mapperNum} — for banked-CHR mappers (MMC1/MMC3/etc.), the file-offset answer above ` +
+        `iNES mapper ${mapperNum} - for banked-CHR mappers (MMC1/MMC3/etc.), the file-offset answer above ` +
         `assumes the active CHR bank covers PPU $0000-$1FFF. If your mapper does 1KB/2KB bank switching, ` +
         `treat the live readMemory('nes_chr', 0, 8192) bytes as authoritative.`
       );
@@ -176,7 +176,7 @@ function nesContext(host, area) {
  * TM/TS/color-math from the snes_fillram register shadow (snes9x mirrors the
  * write-only $2100-$213f register file into Memory.FillRAM, indexed by full
  * register address) and derives the active BG tilemap + char bases per layer
- * and the OBJ tile base — the same answer NES/GB/Genesis give.
+ * and the OBJ tile base - the same answer NES/GB/Genesis give.
  */
 async function snesContext(host, area) {
   const { decodePpuRegs, ppuRegsPopulated } = await import("../../platforms/snes/ppu.js");
@@ -188,7 +188,7 @@ async function snesContext(host, area) {
   const regsLive = ppuRegsPopulated(fillram);
   const ppu = regsLive ? decodePpuRegs(fillram) : null;
 
-  // How much CGRAM / VRAM is non-zero — a cheap "has the game set things up
+  // How much CGRAM / VRAM is non-zero - a cheap "has the game set things up
   // yet?" signal so the agent knows whether to step more frames.
   const cgramNonZero = cgram.some((b) => b !== 0);
   let vramNonZero = 0;
@@ -229,19 +229,19 @@ async function snesContext(host, area) {
         .join(", ") || "none enabled";
       summary.push(
         `SNES BG mode ${ppu.bgMode}. Active layers: ${active}. ` +
-        `Brightness ${ppu.brightness}/15${ppu.forcedBlank ? " (FORCED BLANK — screen off!)" : ""}. ` +
+        `Brightness ${ppu.brightness}/15${ppu.forcedBlank ? " (FORCED BLANK - screen off!)" : ""}. ` +
         `Feed a layer's tilemapBaseByte/tileBaseByte/bpp/mapWidth/mapHeight straight into ` +
         `inspectBackgroundMap({platform:'snes', ...}).`
       );
     } else {
       summary.push(
-        "SNES PPU registers not yet populated (FillRAM shadow is empty/uniform) — step more " +
+        "SNES PPU registers not yet populated (FillRAM shadow is empty/uniform) - step more " +
         "frames so the game writes $2100-$213f, then the BG mode / tilemap base / char base will decode."
       );
     }
     summary.push(
-      `VRAM has ${vramNonZero} non-zero bytes / 65536 — ${vramNonZero === 0 ? "EMPTY (step more frames; the game hasn't uploaded tiles yet)" : "populated"}. ` +
-      `CGRAM (palette) is ${cgramNonZero ? "set" : "all zero (no palette uploaded yet — step more frames)"}.`
+      `VRAM has ${vramNonZero} non-zero bytes / 65536 - ${vramNonZero === 0 ? "EMPTY (step more frames; the game hasn't uploaded tiles yet)" : "populated"}. ` +
+      `CGRAM (palette) is ${cgramNonZero ? "set" : "all zero (no palette uploaded yet - step more frames)"}.`
     );
   }
   if (area === "all" || area === "sprites") {
@@ -255,7 +255,7 @@ async function snesContext(host, area) {
       );
     } else {
       summary.push(
-        `OAM: ${onscreenSprites} of 128 slots on-screen (Y<0xE0). OBSEL not populated yet — step more frames. ` +
+        `OAM: ${onscreenSprites} of 128 slots on-screen (Y<0xE0). OBSEL not populated yet - step more frames. ` +
         `inspectSprites({platform:'snes'}) gives the full decoded list.`
       );
     }
@@ -263,7 +263,7 @@ async function snesContext(host, area) {
   if (area === "all") {
     summary.push(
       "Readable SNES regions: snes_cgram (512B palette), snes_oam (544B), video_ram (64KB VRAM), " +
-      "snes_aram (64KB SPC700), snes_fillram (32KB PPU/DMA register shadow — $2100-$213f decoded above). " +
+      "snes_aram (64KB SPC700), snes_fillram (32KB PPU/DMA register shadow - $2100-$213f decoded above). " +
       "For CPU/audio state use getCPUState / getAudioState."
     );
   }
@@ -275,7 +275,7 @@ async function snesContext(host, area) {
       ppuRegistersAvailable: regsLive,
       ppuRegistersNote: regsLive
         ? "Decoded from snes_fillram ($2100-$213f shadow). bgMode/layers/obj below are live."
-        : "snes_fillram register shadow is empty/uniform — step more frames so the game writes the PPU registers.",
+        : "snes_fillram register shadow is empty/uniform - step more frames so the game writes the PPU registers.",
       bgMode: ppu ? ppu.bgMode : null,
       brightness: ppu ? ppu.brightness : null,
       forcedBlank: ppu ? ppu.forcedBlank : null,
@@ -304,7 +304,7 @@ async function snesContext(host, area) {
  * file) and decodes plane A/B/window name-table bases, sprite-attribute
  * table base, h-scroll table base, plane size, backdrop, and display mode.
  *
- * Unlike the NES, the Genesis has no "CHR bank" — tiles are addressed by
+ * Unlike the NES, the Genesis has no "CHR bank" - tiles are addressed by
  * a flat 11-bit index into VRAM (tileIndex × 32 bytes). So the useful
  * answer here is WHERE each plane's name table lives and how big the
  * plane is, which is exactly what inspectBackgroundMap consumes.
@@ -326,7 +326,7 @@ async function genesisContext(host, area) {
     );
     summary.push(
       `Tiles are a flat 11-bit index into VRAM (tile N = VRAM offset 0x${(0).toString(16)} + N×32, 4bpp). ` +
-      `There is no CHR bank — a name-table entry's low 11 bits ARE the VRAM tile address. ` +
+      `There is no CHR bank - a name-table entry's low 11 bits ARE the VRAM tile address. ` +
       `Use inspectBackgroundMap({plane:'A'|'B'}) to render either plane's composite.`
     );
   }
@@ -344,11 +344,11 @@ async function genesisContext(host, area) {
     summary.push(
       `Display ${vdp.displayEnabled ? "ENABLED" : "OFF"}, mode ${vdp.hMode}/${vdp.vMode}, ` +
       `vblank IRQ ${vdp.vblankInt ? "on" : "off"}, hblank IRQ ${vdp.hblankInt ? "on" : "off"}. ` +
-      `(${vdp.mode5 ? "Mode 5 — Genesis native" : "Mode 4 — SMS-compat"}.)`
+      `(${vdp.mode5 ? "Mode 5 - Genesis native" : "Mode 4 - SMS-compat"}.)`
     );
     summary.push(
       "NOTE: gpgx snapshots the VDP register file at save-state time. Step the " +
-      "ROM past startup (stepFrames(120)+) before calling — power-on register " +
+      "ROM past startup (stepFrames(120)+) before calling - power-on register " +
       "state won't match what the title screen renders."
     );
   }
@@ -456,7 +456,7 @@ async function gbContext(host, area, platform) {
   const summary = [];
   if (area === "all" || area === "bg") {
     summary.push(
-      `BG tile data: ${lcdc.bgTileDataBase} (${lcdc.bgTileDataMode === "8000_unsigned" ? "unsigned indexing — 256 tiles 0..255" : "signed indexing — tile id is int8, so 0..127 maps to $9000+, 128..255 to $8800+"}).`
+      `BG tile data: ${lcdc.bgTileDataBase} (${lcdc.bgTileDataMode === "8000_unsigned" ? "unsigned indexing - 256 tiles 0..255" : "signed indexing - tile id is int8, so 0..127 maps to $9000+, 128..255 to $8800+"}).`
     );
     summary.push(
       `BG tile map: ${lcdc.bgTileMapBase} (32×32 = 1024 byte indices). BG ${lcdc.bgEnable ? "visible" : "OFF"}, scroll (${scx}, ${scy}).`
@@ -471,7 +471,7 @@ async function gbContext(host, area, platform) {
   if (area === "all" || area === "window") {
     summary.push(
       `Window ${lcdc.windowEnable ? "visible" : "OFF"} at tile map ${lcdc.windowTileMapBase}, position (${wx}, ${wy}). ` +
-      `WX is offset by 7 — WX=7 means window starts at screen x=0.`
+      `WX is offset by 7 - WX=7 means window starts at screen x=0.`
     );
   }
   if (area === "all") {
@@ -482,7 +482,7 @@ async function gbContext(host, area, platform) {
     );
     if (isCgb) {
       const speed = (key1 & 0x80) ? "double-speed (CGB)" : "normal";
-      summary.push(`GBC: VRAM bank ${vbk} active, ${speed} mode${(key1 & 0x01) ? " — speed switch pending" : ""}.`);
+      summary.push(`GBC: VRAM bank ${vbk} active, ${speed} mode${(key1 & 0x01) ? " - speed switch pending" : ""}.`);
       summary.push(`GBC BG palette index: $${bgpi.toString(16).toUpperCase().padStart(2, "0")} (auto-inc ${(bgpi & 0x80) ? "on" : "off"}). OBJ palette index: $${obpi.toString(16).toUpperCase().padStart(2, "0")}.`);
     }
   }
@@ -509,8 +509,8 @@ async function gbContext(host, area, platform) {
 }
 
 export async function getRenderingContextCore({ platform, area = "all", sessionKey, host: explicitHost }) {
-  // `host` lets a caller (e.g. frame compareRender) decode a SPECIFIC host —
-  // the slot-B comparison host — instead of the session's slot-A default.
+  // `host` lets a caller (e.g. frame compareRender) decode a SPECIFIC host -
+  // the slot-B comparison host - instead of the session's slot-A default.
   const host = explicitHost ?? getHost(sessionKey);
   const p = platform ?? host.getStatus().platform;
   switch (p) {
@@ -545,7 +545,7 @@ async function gbaContext(host, area) {
   const io = host.readMemory("gba_io_regs", 0, 0x400);
   const ctx = decodeGbaRenderingContext(io);
   const summary = [];
-  if (ctx.forcedBlank) summary.push("FORCED BLANK is on (DISPCNT bit7) — the screen is white; clear it to see output.");
+  if (ctx.forcedBlank) summary.push("FORCED BLANK is on (DISPCNT bit7) - the screen is white; clear it to see output.");
   summary.push(`BG mode ${ctx.bgMode}. BG layers enabled: ${ctx.displayBg.map((on, i) => on ? i : null).filter((x) => x != null).join(",") || "none"}. OBJ ${ctx.displayObj ? "on" : "off"}.`);
   for (const bg of ctx.bgLayers.filter((b) => b.enabled)) {
     summary.push(`BG${bg.bg}: priority ${bg.priority}, charBase block ${bg.charBase} ($${(0x6000000 + bg.charBase * 0x4000).toString(16)}), mapBase block ${bg.mapBase} ($${(0x6000000 + bg.mapBase * 0x800).toString(16)}), ${bg.colorMode ? "256-color" : "16-color"}, size code ${bg.size}.`);
@@ -558,9 +558,9 @@ async function lynxContext(host, area) {
   const hw = host.readMemory("lynx_hw_regs", 0, 0x200);
   const ctx = decodeLynxRenderingContext(hw);
   const summary = [];
-  if (!ctx.displayDmaEnable) summary.push("Display DMA is OFF (DISPCTL bit0) — Mikey isn't refreshing the LCD from the display buffer; nothing will show.");
+  if (!ctx.displayDmaEnable) summary.push("Display DMA is OFF (DISPCTL bit0) - Mikey isn't refreshing the LCD from the display buffer; nothing will show.");
   else summary.push(`Display DMA on. Buffer at ${ctx.displayAddress}. ${ctx.fourColour ? "4-color" : "4bpp/16-color"} mode${ctx.flip ? ", flipped" : ""}.`);
-  summary.push("Lynx has no tilemap/nametable — the framebuffer is a linear bitmap in RAM at displayAddress; sprites are SCB-drawn into it by Suzy (see inspectSprites).");
+  summary.push("Lynx has no tilemap/nametable - the framebuffer is a linear bitmap in RAM at displayAddress; sprites are SCB-drawn into it by Suzy (see inspectSprites).");
   return { platform: "lynx", area, ...ctx, summary };
 }
 
@@ -577,9 +577,9 @@ async function pceContext(host, area) {
   const bgScrollY = u16(8) & 0x1ff;
   const satbSrc = u16(19);
   const summary = [];
-  if (!bgEnable && !spEnable) summary.push("BG and SPR are BOTH disabled (VDC R5 bits 7/6 clear) — the screen shows only the backdrop color; enable them to see output.");
+  if (!bgEnable && !spEnable) summary.push("BG and SPR are BOTH disabled (VDC R5 bits 7/6 clear) - the screen shows only the backdrop color; enable them to see output.");
   else summary.push(`BG ${bgEnable ? "on" : "off"}, SPR ${spEnable ? "on" : "off"} (VDC R5=$${cr.toString(16)}). BG scroll (${bgScrollX},${bgScrollY}). SATB DMA src $${satbSrc.toString(16)}.`);
-  summary.push("PCE has no nametable region — the BG map lives in VRAM (pce_vdc_vram); MWR (R9) selects the virtual screen size. Sprites are in the SATB (inspectSprites).");
+  summary.push("PCE has no nametable region - the BG map lives in VRAM (pce_vdc_vram); MWR (R9) selects the virtual screen size. Sprites are in the SATB (inspectSprites).");
   return {
     platform: "pce", area,
     screenEnabled: bgEnable || spEnable,
@@ -596,9 +596,9 @@ async function msxContext(host, area) {
   const status = host.readMemory("msx_vdp_status", 0, 16);
   const m = decodeMsxVideoMode(regs);
   const summary = [];
-  if (!m.screenEnabled) summary.push("Display is DISABLED (VDP R1 bit6 / BLANK) — the screen is the border color; set R1 bit6 to enable.");
+  if (!m.screenEnabled) summary.push("Display is DISABLED (VDP R1 bit6 / BLANK) - the screen is the border color; set R1 bit6 to enable.");
   else summary.push(`Display on, ${m.mode}. R0=$${m.regs.r0.toString(16)} R1=$${m.regs.r1.toString(16)}.`);
-  // Table base addresses (× their alignment) — the agent needs these to find tiles/map in VRAM.
+  // Table base addresses (× their alignment) - the agent needs these to find tiles/map in VRAM.
   const r2 = regs[2] ?? 0, r3 = regs[3] ?? 0, r4 = regs[4] ?? 0, r5 = regs[5] ?? 0, r6 = regs[6] ?? 0;
   const patternName = (r2 & 0x7f) << 10;
   const colorTable = ((r3 & 0xff) | ((r10(regs) & 0x07) << 8)) << 6;
@@ -617,7 +617,7 @@ async function msxContext(host, area) {
   };
 }
 
-/** V9938 R10 (color-table high bits) — index 10 in vdpRegs. */
+/** V9938 R10 (color-table high bits) - index 10 in vdpRegs. */
 function r10(regs) { return regs[10] ?? 0; }
 
 async function c64Context(host, area) {
@@ -669,7 +669,7 @@ async function c64Context(host, area) {
 }
 
 /**
- * Atari 2600 rendering context — TIA snapshot decoded into structured form.
+ * Atari 2600 rendering context - TIA snapshot decoded into structured form.
  * The 2600 has no persistent "rendering setup" the way other platforms do;
  * the kernel re-writes TIA per scanline. This is a moment-in-time snapshot.
  */
@@ -708,7 +708,7 @@ async function atari2600Context(host, area) {
     );
     summary.push(
       "NOTE: 2600 'rendering state' is per-scanline. The kernel changes TIA " +
-      "registers as the beam scans — this is the state at the moment of " +
+      "registers as the beam scans - this is the state at the moment of " +
       "capture, not the per-frame composition. To watch a specific scanline, " +
       "pause + step + sample at that beam position."
     );
@@ -717,7 +717,7 @@ async function atari2600Context(host, area) {
 }
 
 /**
- * Atari 7800 rendering context — MARIA registers decoded.
+ * Atari 7800 rendering context - MARIA registers decoded.
  */
 async function atari7800Context(host, area) {
   const { decodeMariaRegs } = await import("../../platforms/atari7800/maria.js");
@@ -740,7 +740,7 @@ async function atari7800Context(host, area) {
     summary.push(
       `Display list pointer (DPP @ $84/$85): $${dpp.toString(16).toUpperCase().padStart(4, "0")}. ` +
       `CHARBASE @ $87: $${charBase.toString(16).toUpperCase().padStart(2, "0")} (high byte of character pattern base address). ` +
-      `Sprites are emitted via the display list at this pointer — parse it to enumerate active drawables for the current zone.`
+      `Sprites are emitted via the display list at this pointer - parse it to enumerate active drawables for the current zone.`
     );
   }
   if (area === "all") {
@@ -778,25 +778,25 @@ export function registerRenderingContextTools(server, z, sessionKey) {
   server.tool(
     "background",
     "Background/tilemap inspection + render state, one tool keyed by `view`.\n" +
-    "• view:'map' — the loaded ROM's background tile map. NES render:false returns DECODED structured data: " +
+    "• view:'map' - the loaded ROM's background tile map. NES render:false returns DECODED structured data: " +
     "a per-tile `tiles` grid, a per-tile `subPaletteGrid` (BG sub-palette 0-3, already decoded from the attribute " +
     "table so you never hand-decode the 2-bit-per-16×16-block format), and `distinctTiles`. `region:{x,y,w,h}` " +
     "(tiles) clips it; `attributesOnly:true` returns just the sub-palette grid + raw attr bytes; `tilesOnly:true` " +
     "just the tile grid (mutually exclusive). NES render:true returns a PNG composite. GB/GBC/SMS/GG/Genesis " +
     "return a PNG of the full BG plane/nametable (scroll shown but NOT applied); `which`/`window`/`plane` select " +
     "the map. SNES returns a PNG but needs the BG params (`tilemapBaseByte`/`tileBaseByte`/`bpp`/`mapWidth`/`mapHeight`); " +
-    "they default to a Mode-1 BG1 best-guess — get the real ones from view:'renderState' first. " +
+    "they default to a Mode-1 BG1 best-guess - get the real ones from view:'renderState' first. " +
     "Image paths require `outputPath` (or `inline:true`).\n" +
-    "• view:'renderState' — decode the current PPU/VDP rendering state into structured fields + a plain-English " +
+    "• view:'renderState' - decode the current PPU/VDP rendering state into structured fields + a plain-English " +
     "`summary[]`, including WHICH CHR/tile bank BG and sprites are fetching from right now plus the file offset " +
     "ready for patchFile (so you don't patch the wrong half of CHR). NES decodes PPUCTRL/MASK/STATUS bit-by-bit + " +
     "derived `chrFileOffsetForActiveBgBank` (for banked mappers, live `readMemory('nes_chr',...)` is authoritative). " +
     "SNES decodes BG mode/layer tilemap+char bases/OBSEL from the snes_fillram register shadow. `area` limits the " +
-    "summary (bg/sprites/window/all). GOTCHA: step past startup (stepFrames(120)+) first — power-on PPU/VDP state " +
+    "summary (bg/sprites/window/all). GOTCHA: step past startup (stepFrames(120)+) first - power-on PPU/VDP state " +
     "won't match the title screen.\n" +
-    "• view:'rendered' — map tile IDs → game assets: walk the current frame's BG nametable + OAM and return the set " +
+    "• view:'rendered' - map tile IDs → game assets: walk the current frame's BG nametable + OAM and return the set " +
     "of tile IDs actually being drawn ({background, sprite, combined}, each with ids/idsHex/ranges). ROM-hack trick: " +
-    "call it at the title screen, then again in gameplay, and SUBTRACT the sets — what's unique to gameplay is your " +
+    "call it at the title screen, then again in gameplay, and SUBTRACT the sets - what's unique to gameplay is your " +
     "in-game art. SNES auto-scans every enabled BG layer from the live PPU registers; pass `snesTilemapBaseByte` " +
     "(+`snesMapWidth`/`snesMapHeight`) only to scan one specific tilemap instead.",
     {
@@ -804,19 +804,19 @@ export function registerRenderingContextTools(server, z, sessionKey) {
         .describe("map=BG tilemap (decoded grid or PNG); renderState=decoded PPU/VDP state + which CHR bank is active; rendered=tile IDs actually drawn this frame."),
       platform: z.string().optional().describe("Override platform; defaults to the loaded ROM's."),
       // view:'renderState'
-      area: z.enum(["bg", "sprites", "window", "all"]).default("all").describe("view:renderState — limit the summary to one area (honored on NES/SNES/Genesis/SMS/GG/GB/GBC; other platforms always return the full summary)."),
+      area: z.enum(["bg", "sprites", "window", "all"]).default("all").describe("view:renderState - limit the summary to one area (honored on NES/SNES/Genesis/SMS/GG/GB/GBC; other platforms always return the full summary)."),
       // view:'map' shared
-      outputPath: z.string().optional().describe("view:map — absolute path for the composite PNG (required unless inline). NES render:false: writes the full decoded JSON (tiles+subPaletteGrid) here and returns a compact summary + distinctTiles."),
-      inline: z.boolean().default(false).describe("view:map — return the BG image in the response instead of writing to disk (image-producing paths only)."),
-      render: z.boolean().default(false).describe("view:map NES only: true returns a rendered PNG composite instead of decoded structured data. Ignored on GB/GBC/SMS/GG/Genesis/SNES — those always render a PNG."),
+      outputPath: z.string().optional().describe("view:map - absolute path for the composite PNG (required unless inline). NES render:false: writes the full decoded JSON (tiles+subPaletteGrid) here and returns a compact summary + distinctTiles."),
+      inline: z.boolean().default(false).describe("view:map - return the BG image in the response instead of writing to disk (image-producing paths only)."),
+      render: z.boolean().default(false).describe("view:map NES only: true returns a rendered PNG composite instead of decoded structured data. Ignored on GB/GBC/SMS/GG/Genesis/SNES - those always render a PNG."),
       region: regionShape.optional().describe("view:map NES render:false only: clip to this tile sub-rectangle (clamped to 32×30). Omit for the whole nametable."),
       attributesOnly: z.boolean().default(false).describe("view:map NES render:false only: return just the decoded subPaletteGrid + raw attribute table. Mutually exclusive with tilesOnly."),
       tilesOnly: z.boolean().default(false).describe("view:map NES render:false only: return just the tile-index grid + distinctTiles. Mutually exclusive with attributesOnly."),
-      which: z.number().int().min(0).max(1).default(0).describe("view:map — which BG map. NES: 1KB nametable (0=$2000, 1=$2400). GB/GBC: 0=$9800, 1=$9C00. Default 0."),
+      which: z.number().int().min(0).max(1).default(0).describe("view:map - which BG map. NES: 1KB nametable (0=$2000, 1=$2400). GB/GBC: 0=$9800, 1=$9C00. Default 0."),
       window: z.boolean().default(false).describe("view:map GB/GBC only: render the Window tile map (LCDC.6 base) instead of the BG map."),
       plane: z.enum(["A", "B"]).default("A").describe("view:map Genesis only: which scroll plane to render. Default A."),
       // view:'map' SNES + view:'rendered' SNES
-      tilemapBaseByte: z.number().int().min(0).default(0).describe("view:map SNES only: VRAM byte offset of the BG tilemap (BGxSC base). Default 0. This path doesn't auto-detect — pass your game's BG1 tilemap address (get it from view:renderState)."),
+      tilemapBaseByte: z.number().int().min(0).default(0).describe("view:map SNES only: VRAM byte offset of the BG tilemap (BGxSC base). Default 0. This path doesn't auto-detect - pass your game's BG1 tilemap address (get it from view:renderState)."),
       tileBaseByte: z.number().int().min(0).default(0).describe("view:map SNES only: VRAM byte offset of tile 0 (BG character base / BGxNBA). Default 0."),
       bpp: z.union([z.literal(2), z.literal(4), z.literal(8)]).default(4).describe("view:map SNES only: tile bit-depth. Mode 1 BG1/BG2 = 4bpp (default), BG3 = 2bpp."),
       mapWidth: z.union([z.literal(32), z.literal(64)]).default(32).describe("view:map SNES only: tilemap width in tiles. Default 32."),

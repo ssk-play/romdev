@@ -1,7 +1,7 @@
-// NES-PPU-on-SNES shim — CONVERSION unit tests. These cover the correct,
+// NES-PPU-on-SNES shim - CONVERSION unit tests. These cover the correct,
 // finished half: NES 2bpp tile → SNES 4bpp, NES palette index → BGR555 CGRAM,
 // and the asset packer. The emitted 65816 upload routine is EXPERIMENTAL (it
-// doesn't yet reliably finish on hardware — see the module header) and is gated
+// doesn't yet reliably finish on hardware - see the module header) and is gated
 // off by default in disasm({target:'recompile'}); it is not asserted here as a
 // working render.
 
@@ -21,7 +21,7 @@ test("nesTileToSnes4bpp: 2bpp → 4bpp planes, upper planes zero", () => {
   assert.equal(snes.length, 32, "SNES 4bpp tile is 32 bytes");
   assert.equal(snes[0], 0xff, "row0 plane0 set");
   assert.equal(snes[1], 0xff, "row0 plane1 set");
-  // planes 2&3 (bytes 16-31) all zero — NES only has 4 colors/tile
+  // planes 2&3 (bytes 16-31) all zero - NES only has 4 colors/tile
   for (let i = 16; i < 32; i++) assert.equal(snes[i], 0, `byte ${i} (plane 2/3) zero`);
   // row 1 untouched
   assert.equal(snes[2], 0);
@@ -75,7 +75,7 @@ test("emitPpuShim: produces the routine + data labels (asm shape)", () => {
 
 test("emitPpuShim: every upload-loop cpx uses the .w (16-bit) form", () => {
   // REGRESSION GUARD. The routine runs `rep #$10` (X is 16-bit at runtime), but
-  // asar does NOT track register width across rep/sep — it sizes an index
+  // asar does NOT track register width across rep/sep - it sizes an index
   // immediate by the literal, defaulting values <256 to 8-bit. A bare `cpx #32`
   // (the CGRAM count) then assembles to 2 bytes while the CPU decodes 3, eating
   // the next opcode and derailing the whole routine (blank render + CPU runaway).

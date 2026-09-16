@@ -1,6 +1,6 @@
-/* ── gba_hello.c — Game Boy Advance libgba starter ──────────────────
+/* ── gba_hello.c - Game Boy Advance libgba starter ──────────────────
  *
- * Idiomatic GBA C against the devkitPro libgba SDK — same shape every
+ * Idiomatic GBA C against the devkitPro libgba SDK - same shape every
  * published devkitARM tutorial uses. Mode 3 (240×160 bitmap) framebuffer:
  * draws a navy sky + green ground + a yellow box you move with the d-pad.
  *
@@ -10,10 +10,10 @@
  *
  * NOTE: the DEFAULT GBA runtime is libtonc (use `tonc_hello.c` instead
  * for the Tonc-tutorial-aligned starter). This file is the libgba
- * opt-in path — pass `runtime: "libgba"` to use it.
+ * opt-in path - pass `runtime: "libgba"` to use it.
  *
  * The bundled libgba runtime gives you:
- *   - <gba.h>     umbrella header — pulls in every other libgba header
+ *   - <gba.h>     umbrella header - pulls in every other libgba header
  *   - REG_DISPCNT, MODE_3, BG2_ON, etc.   display registers + flags
  *   - MODE3_FB[]                          framebuffer at 0x06000000
  *   - RGB5(r,g,b)                         pack a 15-bit color
@@ -25,10 +25,10 @@
  *
  * ⚠️  IRQ INIT IS REQUIRED. VBlankIntrWait() is a BIOS function that
  *    halts the CPU until a vblank IRQ fires. Without irqInit() +
- *    irqEnable(IRQ_VBLANK) the BIOS halts forever — ROM appears to
+ *    irqEnable(IRQ_VBLANK) the BIOS halts forever - ROM appears to
  *    load but freezes on frame 1. Single most common GBA gotcha.
  *
- * ⚠️  iprintf-style stdio (console.c) is NOT bundled — see
+ * ⚠️  iprintf-style stdio (console.c) is NOT bundled - see
  *    TROUBLESHOOTING.md for workarounds. The libtonc default runtime
  *    provides TTE which sidesteps the issue entirely.
  */
@@ -54,7 +54,7 @@ int main(void) {
     /* MODE_3: 240×160 framebuffer, 15-bit color, BG2 = the framebuffer. */
     REG_DISPCNT = MODE_3 | BG2_ON;
 
-    /* IRQ table — REQUIRED for VBlankIntrWait() to function. */
+    /* IRQ table - REQUIRED for VBlankIntrWait() to function. */
     irqInit();
     irqEnable(IRQ_VBLANK);
 

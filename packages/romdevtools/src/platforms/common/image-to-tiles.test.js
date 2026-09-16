@@ -70,6 +70,6 @@ test("tileOrder:'sprite' emits column-major (Genesis multi-cell sprite order)", 
   assert.deepEqual([0, 1, 2, 3].map((i) => firstNibble(row.tiles, i)), [0, 1, 2, 3]);
 
   const spr = rgbaToTiles("genesis", { width: W, height: H, pixels: px, paletteHint: hint, tileOrder: "sprite" });
-  // Column-major: TL(0), BL(2), TR(1), BR(3) — down the first column, then the next.
+  // Column-major: TL(0), BL(2), TR(1), BR(3) - down the first column, then the next.
   assert.deepEqual([0, 1, 2, 3].map((i) => firstNibble(spr.tiles, i)), [0, 2, 1, 3]);
 });

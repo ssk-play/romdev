@@ -1,4 +1,4 @@
-/* sms_sfx.c — SN76489 PSG driver for SMS / Game Gear.
+/* sms_sfx.c - SN76489 PSG driver for SMS / Game Gear.
  *
  * SN76489 latch protocol (write-only via port $7F):
  *   Latch byte (bit 7 = 1):

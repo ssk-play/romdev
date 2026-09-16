@@ -24,7 +24,7 @@ test("m68k objdump decodes move-sr / muls / divu (the m68kdasm gaps)", async () 
   const r = await runObjdump({ bytes, arch: "m68k", startAddress: 0x200 });
   assert.equal(r.available, true);
   assert.equal(r.exitCode, 0);
-  // No .dc.w fallbacks — every one is a real instruction.
+  // No .dc.w fallbacks - every one is a real instruction.
   assert.doesNotMatch(r.asm, /\.dc\.w/, "native objdump must not emit .dc.w for valid opcodes");
   assert.match(r.asm, /move\w*\s+%sr/i, "move sr decoded");
   assert.match(r.asm, /muls/i, "muls decoded");
@@ -38,7 +38,7 @@ test("multi-word opcodes keep the stream aligned (no desync cascade)", async () 
   const bytes = Uint8Array.from([0x4E, 0xB9, 0x00, 0x00, 0x02, 0x12, 0x4E, 0x75]);
   const r = await runObjdump({ bytes, arch: "m68k", startAddress: 0x200 });
   assert.match(r.asm, /jsr/i, "jsr decoded");
-  assert.match(r.asm, /\brts\b/i, "rts after the 6-byte jsr decoded — stream stayed aligned");
+  assert.match(r.asm, /\brts\b/i, "rts after the 6-byte jsr decoded - stream stayed aligned");
 });
 
 test("normalizeObjdump shapes objdump output to romdev's asm (labels + $/offset)", () => {
@@ -58,7 +58,7 @@ test("normalizeObjdump shapes objdump output to romdev's asm (labels + $/offset)
 });
 
 test("disassembleRom on a built Genesis ROM yields real mnemonics, not .dc.w spam", async () => {
-  // A C ROM via SGDK pulls in real m68k (mul/div, movem, link/unlk, …).
+  // A C ROM via SGDK pulls in real m68k (mul/div, movem, link/unlk, ...).
   const src = `#include <genesis.h>
 int mul(int a,int b){return a*b;}
 int main(){ VDP_init(); volatile int x=3; for(;;){ x=mul(x,7); VDP_waitVSync(); } return 0; }`;

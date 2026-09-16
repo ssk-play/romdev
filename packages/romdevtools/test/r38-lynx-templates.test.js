@@ -1,4 +1,4 @@
-// R38 — Atari Lynx tier-1: 7 templates + MIKEY sfx wrapper.
+// R38 - Atari Lynx tier-1: 7 templates + MIKEY sfx wrapper.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

@@ -1,4 +1,4 @@
-// romdev-platform-snes — binary package: snes9x core + asar / tcc816 /
+// romdev-platform-snes - binary package: snes9x core + asar / tcc816 /
 // wla-dx (wla-65816 + wlalink) toolchains. These ship together because the
 // SNES platform is the only consumer of all of them.
 // Exports absolute paths to the bundled WASM so romdev's resolvers can load
@@ -11,7 +11,7 @@ const WASM = path.join(__dirname, "wasm");
 
 export const platform = "snes";
 
-// Emulator core (libretro) — glue .js + .wasm.
+// Emulator core (libretro) - glue .js + .wasm.
 export const core = {
   name: "snes9x",
   jsPath: path.join(WASM, "snes9x_libretro.js"),

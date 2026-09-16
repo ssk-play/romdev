@@ -28,7 +28,7 @@ async function readSource(rel) {
 test("R22 SMS SDCC z80 templates: all compile to valid ROMs", { timeout: 300000 }, async () => {
   const { buildForPlatform } = await import("../src/toolchains/index.js");
 
-  // R35: sms_sfx.c is a new runtime sibling — supply it whenever the
+  // R35: sms_sfx.c is a new runtime sibling - supply it whenever the
   // scaffold references it.
   const runtimes = {
     "vdp_init.c":     await readSource("src/platforms/sms/lib/c/vdp_init.c"),
@@ -50,7 +50,7 @@ test("R22 SMS SDCC z80 templates: all compile to valid ROMs", { timeout: 300000 
     const main = await readSource(mainPath);
     /* The default template inlines everything; the others depend on the
      * runtime helpers under src/platforms/sms/lib/c/. We pass the
-     * runtime files for all of them — the linker drops unreferenced
+     * runtime files for all of them - the linker drops unreferenced
      * symbols, so it's harmless for default. */
     const r = await buildForPlatform({
       platform: "sms",

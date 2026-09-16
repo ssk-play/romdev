@@ -1,8 +1,8 @@
-// Genesis RE primitives round 2 (gpgx/m68k) — end to end.
+// Genesis RE primitives round 2 (gpgx/m68k) - end to end.
 //   - setRegister / callSubroutine  (item 1: drive the ROM's own routine, capture output)
 //   - watchRange                    (item 2a: log every read/write in a range)
-//   - logPCRange                    (item 2b: coverage trace — distinct PCs in a window)
-//   - watchDma                      (item 3: targeted VDP-DMA log — vramDest + ROM source)
+//   - logPCRange                    (item 2b: coverage trace - distinct PCs in a window)
+//   - watchDma                      (item 3: targeted VDP-DMA log - vramDest + ROM source)
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -24,8 +24,8 @@ async function startClient() {
 }
 const toJSON = (res) => { assert.equal(res.isError, undefined, "isError: " + JSON.stringify(res)); return JSON.parse(res.content[0].text); };
 
-// A reg-args asm subroutine (reg_copy: A0=src, A1=dst, D0=wordCount-1) — the shape
-// real decompressors use — plus a deterministic per-frame write to $FF2000.
+// A reg-args asm subroutine (reg_copy: A0=src, A1=dst, D0=wordCount-1) - the shape
+// real decompressors use - plus a deterministic per-frame write to $FF2000.
 const SRC = `
 #include <genesis.h>
 void reg_copy(void);
@@ -78,7 +78,7 @@ test("Genesis RE primitives: callSubroutine + watchRange + logPCRange + watchDma
 
   // dst lives in work RAM; SGDK placed it at the $E0FF00xx mirror → system_ram
   // offset = low 16 bits. The .bss line gives 0xE0FF00xx; use 0x48 (matches the
-  // build's layout) — but to be robust, find it from the map's dst address.
+  // build's layout) - but to be robust, find it from the map's dst address.
   const dstAddr = symAddr(map, "dst") ?? 0xE0FF0048;
   const dstOff = dstAddr & 0xFFFF;                 // system_ram offset
   const dstCpu = 0xFF0000 | dstOff;                // 68k work-RAM CPU address
@@ -103,10 +103,10 @@ test("Genesis RE primitives: callSubroutine + watchRange + logPCRange + watchDma
 
   // ── item 1: setRegister round-trips ──
   const sr = toJSON(await client.callTool({ name: "cpu", arguments: { op: "setReg",  regId: 8, value: 0xDEADBEEF } }));
-  assert.equal(sr.notSupported, undefined, "setRegister notSupported — romdev_setreg missing?");
+  assert.equal(sr.notSupported, undefined, "setRegister notSupported - romdev_setreg missing?");
   assert.equal((sr.valueRaw >>> 0), 0xDEADBEEF, "setRegister didn't take");
 
-  // ── item 1: callSubroutine drives reg_copy and the copy lands (run LAST — it
+  // ── item 1: callSubroutine drives reg_copy and the copy lands (run LAST - it
   //    hijacks the CPU; sandbox:false leaves it at the sentinel) ──
   await client.callTool({ name: "memory", arguments: { op: "write", region: "system_ram", offset: dstOff, hex: "0000000000000000" } });
   const cs = toJSON(await client.callTool({
@@ -119,10 +119,10 @@ test("Genesis RE primitives: callSubroutine + watchRange + logPCRange + watchDma
   const dstAfter = toJSON(await client.callTool({ name: "memory", arguments: { op: "read", region: "system_ram", offset: dstOff, length: 8 } }));
   // system_ram is normalized to CPU byte order now (the host un-swaps gpgx's
   // host-LE word storage), so the copy reads back EXACTLY as the 68k wrote it.
-  // (The old expectation here was the swapped form — the bug baked into a test.)
+  // (The old expectation here was the swapped form - the bug baked into a test.)
   assert.equal(dstAfter.hex.toLowerCase(), "cafebabe11223344", "callSubroutine copy wrong: " + dstAfter.hex);
 
-  // ── the WATCHDOG: an infinite-loop routine must NOT hang — it returns
+  // ── the WATCHDOG: an infinite-loop routine must NOT hang - it returns
   //    { returned:false, watchdog:true, finalPC } with the spin address. This is
   //    the fix for the agent's black-box hang (now: progress on timeout). ──
   const spin = symAddr(map, "spin_forever");
@@ -140,9 +140,9 @@ test("Genesis RE primitives: callSubroutine + watchRange + logPCRange + watchDma
   //    on a non-returning routine BEFORE maxFrames is exhausted. The old default
   //    (maxFrames*500k) was always larger than maxFrames-worth of real m68k
   //    execution, so a wrong-entry free-run silently hit maxFrames with
-  //    watchdog:false — the agent couldn't tell "wrong entry" from "long routine".
+  //    watchdog:false - the agent couldn't tell "wrong entry" from "long routine".
   //    The default is now a fixed 4M, which any real codec clears but a free-run
-  //    trips in ~tens of frames. Pass NO maxInstructions here — that's the point. ──
+  //    trips in ~tens of frames. Pass NO maxInstructions here - that's the point. ──
   const wdDefault = toJSON(await client.callTool({
     name: "cpu",
     arguments: { op: "call",  pc: spin, maxFrames: 600, sandbox: false },

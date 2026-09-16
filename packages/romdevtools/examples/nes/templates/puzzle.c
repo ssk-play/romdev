@@ -1,6 +1,6 @@
-/* ── puzzle.c — NES falling-gem versus puzzle (complete example game) ─────────
+/* ── puzzle.c - NES falling-gem versus puzzle (complete example game) ─────────
  *
- * A COMPLETE, working game — title screen, 1P marathon and 2P simultaneous
+ * A COMPLETE, working game - title screen, 1P marathon and 2P simultaneous
  * VERSUS modes, levels, score + persistent hi-score (battery SRAM), music +
  * SFX, and a background-tile playfield driven through the queued VRAM path
  * (the load-bearing trick of every NES puzzle game).
@@ -10,8 +10,8 @@
  * straight run of 3+ same-coloured gems (horizontal, vertical, or diagonal)
  * clears; survivors fall and cascades chain for multiplied score.
  *
- * 2P VERSUS design (simultaneous, split board): two 6x12 wells side by side —
- * P1 left, P2 right — each driven by its own controller, both falling at
+ * 2P VERSUS design (simultaneous, split board): two 6x12 wells side by side -
+ * P1 left, P2 right - each driven by its own controller, both falling at
  * once. Clears ATTACK: every chain step you score sends one garbage row
  * (random gems with one gap, capped at 4 per attack) rising from the bottom
  * of the opponent's well. First player whose stack reaches the top loses.
@@ -19,33 +19,33 @@
  * are background tiles and only the two falling trios are sprites (6 OAM
  * entries total).
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented NES footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented NES footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — match rules, garbage, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - match rules, garbage, tuning, art: reshape freely.
  *
  * What depends on what:
- *   nes_runtime.{h,c} — rendering/input/sound/text/hi-score library.
- *   chr-ram-runtime.crt0.s — boot + NMI + iNES header (BATTERY bit feeds
+ *   nes_runtime.{h,c} - rendering/input/sound/text/hi-score library.
+ *   chr-ram-runtime.crt0.s - boot + NMI + iNES header (BATTERY bit feeds
  *     hiscore_load/save). Load-bearing; edit with TROUBLESHOOTING open.
  *
- * Frame budget (NTSC, 60fps): steady state is tiny — input + gravity for two
+ * Frame budget (NTSC, 60fps): steady state is tiny - input + gravity for two
  * pieces, ≤6 sprites, ≤11 queued VRAM bytes (one board row + one HUD number).
  * The spike is resolve_board() at lock time (full 4-direction match scan over
  * 72 cells in cc65 code): it can spill a frame or two past vblank. That's
- * fine — the NMI keeps rendering and the queue keeps draining, so it shows
+ * fine - the NMI keeps rendering and the queue keeps draining, so it shows
  * as (at most) a one-frame hitch on the falling pieces, never corruption.
  */
 
 #include "nes_runtime.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "GEM DUEL"
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * Board geometry. The wells are placed on EVEN tile coordinates on purpose —
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * Board geometry. The wells are placed on EVEN tile coordinates on purpose -
  * see the attribute-table idiom below before moving them. */
 #define GRID_W   6
 #define GRID_H   12
@@ -56,11 +56,11 @@
 
 #define EMPTY 0               /* cell colours 1..3 = white/green/red */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Tile art. Each 8x8 tile = 16 bytes: 8 plane-0 rows then 8 plane-1 rows
- * (2bpp — plane0-only pixels use colour 1, plane1-only colour 2, both = 3).
+ * (2bpp - plane0-only pixels use colour 1, plane1-only colour 2, both = 3).
  * KEY TRICK: the three gem tiles are the SAME shape on different planes, so
- * a cell changes colour by changing its TILE — no attribute-table rewrite
+ * a cell changes colour by changing its TILE - no attribute-table rewrite
  * (attributes cover 16x16 px, way coarser than one 8x8 cell). */
 static const uint8_t tile_blank[16] = { 0 };
 static const uint8_t tile_gem1[16] = {          /* colour 1 (white) */
@@ -75,7 +75,7 @@ static const uint8_t tile_gem3[16] = {          /* colour 3 (red) */
   0x3C, 0x7E, 0xFF, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C,
   0x3C, 0x7E, 0xFF, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C,
 };
-/* BG furniture (background pattern table $1000 — separate from the sprite
+/* BG furniture (background pattern table $1000 - separate from the sprite
  * table at $0000; the runtime's PPUCTRL setup makes that split). */
 static const uint8_t tile_wall[16] = {          /* well frame, colour 3 */
   0xFF, 0xFF, 0xE7, 0xC3, 0xC3, 0xE7, 0xFF, 0xFF,
@@ -109,22 +109,22 @@ static const uint8_t palette[32] = {
   0x0F, 0x30, 0x2A, 0x16,
 };
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Big arrays live OUTSIDE the linker's RAM area. The chr-ram-runtime preset
  * places C BSS in $0300-$04FF (512 bytes), and the runtime's own statics
- * (256-byte shadow attribute table + VRAM queue) already eat most of it —
+ * (256-byte shadow attribute table + VRAM queue) already eat most of it -
  * two 72-byte boards plus a 72-byte match mask would overflow the segment
  * and the LINK fails. The preset reserves $0500-$05FF as the USER SCRATCH
  * PAGE for exactly this (the linker never places anything there); these
  * three arrays use 216 of its 256 bytes. DO NOT stray past $05FF: the cc65
  * C parameter stack owns $0600-$06FF and the music driver's scratch page
- * is $0700-$07FF — writes there corrupt live state silently. Bonus: fixed
+ * is $0700-$07FF - writes there corrupt live state silently. Bonus: fixed
  * addresses make the boards trivially inspectable from the debugger
  * (P1 board at $0500, P2 at $0548, match mask at $0590). */
 #define grid_of(p) ((uint8_t (*)[GRID_W])((p) ? 0x0548 : 0x0500))
 #define matched    ((uint8_t (*)[GRID_W])0x0590)
 
-/* ── GAME LOGIC (clay — reshape freely) ── small state (fits normal BSS). */
+/* ── GAME LOGIC (clay - reshape freely) ── small state (fits normal BSS). */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
@@ -148,7 +148,7 @@ static uint16_t rng = 0xACE1;
 #define VS_FALL_DELAY 24           /* 2P: fixed gravity (frames per row) */
 #define GARBAGE_CAP   4            /* max garbage rows per attack */
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call) ── */
 static uint8_t random8(void) {
   uint16_t r = rng;
   r ^= r << 7;
@@ -171,20 +171,20 @@ static void mark_all_dirty(uint8_t p) {
   dirty_rows[p] = 0x0FFF;          /* all 12 rows */
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * The board is BACKGROUND TILES, updated only through the QUEUED path
  * (tile_set / text_draw). The NMI drains at most 16 queue entries per
- * vblank — that is the entire write bandwidth you get while rendering is on.
+ * vblank - that is the entire write bandwidth you get while rendering is on.
  * NEVER vram_unsafe_set while rendering: raw $2007 traffic mid-frame
  * corrupts the PPU address latch and shears the screen.
  *
  * So repaints are BUDGETED: board changes mark rows dirty, and this drainer
- * repaints ONE row (6 cells) + ONE HUD number (5 digits) per frame — 11
+ * repaints ONE row (6 cells) + ONE HUD number (5 digits) per frame - 11
  * entries, safely inside the 16. A full-board repaint (cascade + gravity)
- * spreads over up to 12 frames per player (~0.2s) — you SEE the well sweep
+ * spreads over up to 12 frames per player (~0.2s) - you SEE the well sweep
  * top-to-bottom, which puzzle players read as a clear animation. Free juice.
- * (Overflowing the queue doesn't corrupt anything — tile_set blocks until
- * the NMI drains a slot — but every blocked push silently costs a whole
+ * (Overflowing the queue doesn't corrupt anything - tile_set blocks until
+ * the NMI drains a slot - but every blocked push silently costs a whole
  * frame, so a naive 72-cell repaint would freeze the game for ~4 frames.) */
 static void drain_vram_budget(void) {
   uint8_t p, r, c;
@@ -201,12 +201,12 @@ static void drain_vram_budget(void) {
           tile_set(0, (uint8_t)(well_tx[p] + c), (uint8_t)(WELL_TY + r),
                    bg_tile_for(g[r][c]));
         dirty_rows[p] &= (uint16_t)~((uint16_t)1 << r);
-        break;                     /* one row per frame — that's the budget */
+        break;                     /* one row per frame - that's the budget */
       }
     }
   }
   /* One HUD number per frame. HUD LAYOUT RULE (overscan): nametable row 0
-   * is cropped on NTSC — all HUD text sits on rows 1-2, never row 0. */
+   * is cropped on NTSC - all HUD text sits on rows 1-2, never row 0. */
   if (hud_dirty[0]) {
     text_draw_u16(0, 2, 2, score[0]);
     hud_dirty[0] = 0;
@@ -217,9 +217,9 @@ static void drain_vram_budget(void) {
   }
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Match scan: mark every straight run of 3+ same-coloured gems in all 4
- * directions (a cell can belong to several runs — the mask de-dupes), and
+ * directions (a cell can belong to several runs - the mask de-dupes), and
  * return how many cells matched. This is the resolve-time spike the header's
  * frame-budget note talks about. */
 static const int8_t DIRS4[4][2] = { {0,1}, {1,0}, {1,1}, {1,-1} };
@@ -273,16 +273,16 @@ static void apply_gravity(uint8_t p) {
   }
 }
 
-/* ── GAME LOGIC (clay) — end of game (top-out). `loser` topped out. ── */
+/* ── GAME LOGIC (clay) - end of game (top-out). `loser` topped out. ── */
 static void game_end(uint8_t loser) {
   uint16_t best = score[0];
   if (two_player && score[1] > best) best = score[1];
   if (best > hiscore) {
     hiscore = best;
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
      * Persists via battery PRG-RAM at $6000; works because the crt0's iNES
      * header sets the BATTERY bit. See nes_runtime.c for the magic+checksum
-     * layout (first boot reads garbage — the checksum rejects it). ── */
+     * layout (first boot reads garbage - the checksum rejects it). ── */
     hiscore_save(hiscore);
   }
   sound_play_noise(8, 12, 16);                 /* game-over rumble */
@@ -293,7 +293,7 @@ static void game_end(uint8_t loser) {
   state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay) — clear matches, drop survivors, chain cascades.
+/* ── GAME LOGIC (clay) - clear matches, drop survivors, chain cascades.
  * Returns the chain depth (0 = the lock matched nothing). Score and repaints
  * happen here; the actual VRAM writes trickle out via drain_vram_budget. */
 static uint8_t resolve_board(uint8_t p) {
@@ -312,7 +312,7 @@ static uint8_t resolve_board(uint8_t p) {
     if (chain > 1) amt *= chain;               /* cascades pay multiplied */
     score[p] += amt;
     hud_dirty[p] = 1;
-    /* clear chime — rises with chain depth */
+    /* clear chime - rises with chain depth */
     sound_play_tone(0, (uint16_t)(0x120 - ((uint16_t)chain << 4)), 8, 8);
     apply_gravity(p);
     mark_all_dirty(p);                         /* gravity moved everything */
@@ -327,8 +327,8 @@ static uint8_t resolve_board(uint8_t p) {
   return chain;
 }
 
-/* ── GAME LOGIC (clay) — VERSUS attack: garbage rows rise from the bottom of
- * the victim's well (random gems with one gap — matchable, so a skilled
+/* ── GAME LOGIC (clay) - VERSUS attack: garbage rows rise from the bottom of
+ * the victim's well (random gems with one gap - matchable, so a skilled
  * victim digs out). The victim's stack rising into row <0 territory means
  * the falling trio shifts up one to stay aligned; if the rim row is already
  * occupied, the victim tops out and loses. ── */
@@ -376,7 +376,7 @@ static void spawn_piece(uint8_t p) {
   if (!can_place(p, (int8_t)piece_x[p], piece_y[p])) game_end(p);
 }
 
-/* ── GAME LOGIC (clay) — land the trio, resolve, attack, respawn. ── */
+/* ── GAME LOGIC (clay) - land the trio, resolve, attack, respawn. ── */
 static void lock_piece(uint8_t p) {
   int8_t i, y;
   uint8_t chain;
@@ -399,9 +399,9 @@ static void lock_piece(uint8_t p) {
   spawn_piece(p);
 }
 
-/* ── GAME LOGIC (clay) — per-player input + gravity. Edge-triggered moves
+/* ── GAME LOGIC (clay) - per-player input + gravity. Edge-triggered moves
  * (one cell per press), held DOWN soft-drops. A/B cycle the trio's colours
- * — the classic trio "rotate". ── */
+ * - the classic trio "rotate". ── */
 static void update_player(uint8_t p) {
   uint8_t pad, newp, fd, t;
   pad = pad_poll(p);
@@ -438,7 +438,7 @@ static void update_player(uint8_t p) {
   }
 }
 
-/* Stage the falling trio's sprites (board gems are BG tiles, NOT sprites —
+/* Stage the falling trio's sprites (board gems are BG tiles, NOT sprites -
  * only what moves every frame earns OAM slots). */
 static void stage_piece(uint8_t p) {
   uint8_t i;
@@ -453,7 +453,7 @@ static void stage_piece(uint8_t p) {
 }
 
 /* 5-digit number with the PPU off (the queued text_draw_u16 would deadlock
- * before rendering is enabled — same rule as text_draw_unsafe). */
+ * before rendering is enabled - same rule as text_draw_unsafe). */
 static void text_u16_unsafe(uint16_t addr, uint16_t v) {
   uint8_t d[5], i;
   for (i = 0; i < 5; i++) { d[i] = v % 10; v /= 10; }
@@ -461,13 +461,13 @@ static void text_u16_unsafe(uint16_t addr, uint16_t v) {
     vram_unsafe_set((uint16_t)(addr + i), (uint8_t)(0x40 + d[4 - i]));
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Attribute table = palette per 16x16-PIXEL area (one 2-bit quadrant per
  * 2x2 TILES). The wells use BG palette 0 (gem colours) and everything else
- * palette 1 (text/frame/dither) — which only works because the wells are
+ * palette 1 (text/frame/dither) - which only works because the wells are
  * aligned to EVEN tile coordinates (WELL_TY=8; well columns 4/12/22), so
  * every attribute quadrant is fully inside or fully outside a well. Move a
- * well to an odd column and its edge quadrants straddle the boundary —
+ * well to an odd column and its edge quadrants straddle the boundary -
  * half-recoloured gems. Keep wells 2-aligned (or budget palettes so
  * neighbouring regions share one). */
 static uint8_t quad_pal(uint8_t tc, uint8_t tr) {
@@ -491,9 +491,9 @@ static void paint_attributes(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — the title screen ──────────────────────────────────
+/* ── GAME LOGIC (clay) - the title screen ──────────────────────────────────
  * Painted with the PPU OFF (text_draw_unsafe = raw VRAM writes; the queued
- * variant would deadlock with rendering disabled — see TROUBLESHOOTING). */
+ * variant would deadlock with rendering disabled - see TROUBLESHOOTING). */
 static void paint_title(void) {
   uint8_t r, c;
   ppu_off();
@@ -513,7 +513,7 @@ static void paint_title(void) {
   ppu_on_all();
 }
 
-/* ── GAME LOGIC (clay) — paint the playfield: cabinet dither, well frames,
+/* ── GAME LOGIC (clay) - paint the playfield: cabinet dither, well frames,
  * recessed interiors, HUD labels + starting numbers. PPU off throughout. ── */
 static void paint_well(uint8_t p) {
   uint8_t r, c, x0;
@@ -536,7 +536,7 @@ static void paint_play(void) {
   uint8_t r, c;
   ppu_off();
   /* Cabinet dither everywhere; rows 0-2 blank (row 0 = overscan-cropped,
-   * rows 1-2 = the HUD band — keep text on a clean background). */
+   * rows 1-2 = the HUD band - keep text on a clean background). */
   for (r = 0; r < 30; r++)
     for (c = 0; c < 32; c++)
       vram_unsafe_set((uint16_t)(0x2000 + (uint16_t)r * 32 + c),
@@ -544,7 +544,7 @@ static void paint_play(void) {
   paint_well(0);
   if (two_player) paint_well(1);
   paint_attributes();
-  /* HUD: labels row 1, numbers row 2 (row 0 NEVER — overscan). */
+  /* HUD: labels row 1, numbers row 2 (row 0 NEVER - overscan). */
   text_draw_unsafe(0x2000 + 32 + 4,  two_player ? "P1" : "SC");
   text_draw_unsafe(0x2000 + 32 + 14, "HI");
   text_draw_unsafe(0x2000 + 32 + 24, two_player ? "P2" : "LV");
@@ -556,7 +556,7 @@ static void paint_play(void) {
   ppu_on_all();
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_game(uint8_t versus) {
   uint8_t p, r, c;
   uint8_t (*g)[GRID_W];
@@ -589,12 +589,12 @@ static void start_game(uint8_t versus) {
 void main(void) {
   uint8_t pad, newp;
 
-  /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
    * Init order: PPU off → CHR upload → palette → nametable (raw writes) →
    * OAM clear → rendering on. CHR/palette/nametable writes REQUIRE the PPU
    * off (raw $2007 traffic during rendering corrupts the address latch
    * mid-frame). The runtime's ppu_off/ppu_on_all pair owns the PPUCTRL/
-   * PPUMASK bits — don't poke those registers directly alongside it. */
+   * PPUMASK bits - don't poke those registers directly alongside it. */
   ppu_off();
   chr_ram_upload(0x0000, tile_blank,  16);     /* sprite table: trio gems */
   chr_ram_upload(0x0010, tile_gem1,   16);
@@ -610,14 +610,14 @@ void main(void) {
   palette_load(palette);
   sound_init();
 
-  hiscore = hiscore_load();        /* battery SRAM — 0 on first boot */
+  hiscore = hiscore_load();        /* battery SRAM - 0 on first boot */
   state = ST_TITLE;
   prev_pad[0] = 0xFF;
   paint_title();
 
   for (;;) {
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: A/START = 1P, B = 2P versus ── */
+      /* ── GAME LOGIC (clay) - title: A/START = 1P, B = 2P versus ── */
       oam_clear();
       ppu_wait_nmi();
       sound_music_tick();
@@ -655,7 +655,7 @@ void main(void) {
 
     /* ── ST_PLAY ─────────────────────────────────────────────────────── */
 
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
      * Stage ALL sprites BEFORE ppu_wait_nmi(). The NMI DMAs shadow OAM →
      * real OAM at the START of vblank, copying whatever shadow OAM holds AT
      * THAT MOMENT. Stage-then-wait; flipping it shows stale/empty sprites. */
@@ -666,7 +666,7 @@ void main(void) {
     ppu_wait_nmi();
     sound_music_tick();
 
-    /* ── GAME LOGIC (clay — reshape freely) ── */
+    /* ── GAME LOGIC (clay - reshape freely) ── */
     update_player(0);
     if (two_player && state == ST_PLAY) update_player(1);
     if (state == ST_PLAY) drain_vram_budget();

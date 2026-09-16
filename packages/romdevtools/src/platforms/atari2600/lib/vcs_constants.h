@@ -5,7 +5,7 @@
 ; ── TIA write registers ($00-$2C) ──────────────────────────────────
 VSYNC     equ $00     ; vertical sync set/clear (bit 1)
 VBLANK    equ $01     ; vertical blank + input dump
-WSYNC     equ $02     ; wait for horizontal blank — block until next line
+WSYNC     equ $02     ; wait for horizontal blank - block until next line
 RSYNC     equ $03     ; reset horizontal sync counter
 NUSIZ0    equ $04     ; player 0 + missile 0 size/count
 NUSIZ1    equ $05     ; player 1 + missile 1 size/count

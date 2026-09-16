@@ -1,4 +1,4 @@
-# PC Engine — catch_game
+# PC Engine - catch_game
 
 Part of the PCE example set. Builds against the PCE helper lib
 (`src/platforms/pce/lib/c/`: pce_hw.h + pce_video.c + pce_input.c + pce_sound.c).

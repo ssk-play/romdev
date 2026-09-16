@@ -1,8 +1,8 @@
-// frame({op:'compareRam'}) — the RAM-diff oracle. Diffs slot-A vs slot-B
+// frame({op:'compareRam'}) - the RAM-diff oracle. Diffs slot-A vs slot-B
 // work-RAM at the same game-moment to prove a logic port is correct independent
 // of graphics. Two real hosts (no mocks): the SAME ROM in both slots must read
 // IDENTICAL; DIFFERENT ROMs must DIVERGE. Returns a digested verdict (matchPct
-// + RLE ranges), not raw bytes — the "smart-enough agent" design.
+// + RLE ranges), not raw bytes - the "smart-enough agent" design.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -37,7 +37,7 @@ test("compareRam: identical ROMs match 100%, different ROMs diverge", { timeout:
     await tools.loadMedia({ platform: "nes", path: rom });
     await tools.loadMedia({ platform: "nes", path: rom, slot: "b" });
 
-    // requires slot B — sanity: both loaded.
+    // requires slot B - sanity: both loaded.
     const same = parse(await tools.frame({ op: "compareRam", frames: 60 }));
     assert.equal(same.op, "compareRam");
     assert.equal(same.region, "system_ram");

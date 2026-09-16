@@ -1,9 +1,9 @@
-/* ── puzzle.c — Game Boy Advance falling-jewel match-3 (complete game) ────────
+/* ── puzzle.c - Game Boy Advance falling-jewel match-3 (complete game) ────────
  *
- * FACET FALL — a COMPLETE, working game: press-start title, a falling-trio
+ * FACET FALL - a COMPLETE, working game: press-start title, a falling-trio
  * match-3 in a 6x12 well, cascade chains, levels that speed the fall, score +
  * persistent hi-score (cartridge SRAM), and DMA/PSG music + SFX. The jewels
- * are VIVID — the GBA's 15-bit palette gives 32768 colours, so each gem reads
+ * are VIVID - the GBA's 15-bit palette gives 32768 colours, so each gem reads
  * as a faceted stone (a bright glint, a mid body, a dark rim) rather than a
  * flat block, and the well sits in a framed cabinet.
  *
@@ -14,41 +14,41 @@
  * clears; survivors fall and cascades chain for multiplied score. Clear enough
  * and the level ticks up and the fall quickens. Stack to the rim and it's over.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented GBA footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented GBA footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — match rules, tuning, art, scoring: reshape freely.
+ *   GAME LOGIC (clay) - match rules, tuning, art, scoring: reshape freely.
  *
  * What depends on what:
- *   gba_sfx.{h,c} — PSG sound: sfx_tone/sfx_noise one-shots + the music loop
- *     (sfx_music_tick once per frame — forget it and the game is silent).
- *   libtonc (the build links it) — VBlankIntrWait/key_poll/TTE/tonccpy.
+ *   gba_sfx.{h,c} - PSG sound: sfx_tone/sfx_noise one-shots + the music loop
+ *     (sfx_music_tick once per frame - forget it and the game is silent).
+ *   libtonc (the build links it) - VBlankIntrWait/key_poll/TTE/tonccpy.
  *
  * HANDHELD, SO SINGLE-PLAYER ONLY (honest note): 2P versus on the GBA means a
- * link cable between two units — a second emulator instance this environment
+ * link cable between two units - a second emulator instance this environment
  * can't provide. So FACET FALL is a 1P MARATHON: clear, chain, level up, and
  * push your hi-score. (Contrast the NES/Genesis puzzle templates, which ARE
- * split-screen 2P versus — two controllers on one machine.)
+ * split-screen 2P versus - two controllers on one machine.)
  *
- * BANDWIDTH NOTE — and a TEACHING POINT vs the GB/NES version of this game
+ * BANDWIDTH NOTE - and a TEACHING POINT vs the GB/NES version of this game
  * (examples/nes/templates/puzzle.c): on the NES a full-board repaint must
  * squeeze through a ~16-entry vblank tile queue, BUDGETED across 12 frames of
- * dirty-row-bitmask tricks. The GBA has no such famine — its BG tilemap is
+ * dirty-row-bitmask tricks. The GBA has no such famine - its BG tilemap is
  * plain VRAM you write whenever you like. So FACET FALL just REPAINTS THE
  * WHOLE WELL (72 cells = 72 u16 SE writes) every time the board changes, in
  * one go, no queue, no dirty-row gymnastics. Same genre, two bandwidth
- * worlds — fork accordingly.
+ * worlds - fork accordingly.
  */
 
 #include <tonc.h>
 #include "gba_sfx.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "FACET FALL"
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Board geometry. The well is 6 wide x 12 tall, each cell ONE 8x8 BG tile.
  * Origin in BG-tile coords: the playfield sits at pixel (well_tx*8, WELL_TY*8)
  * with the HUD above and the controls hint below. */
@@ -59,12 +59,12 @@
 
 #define EMPTY 0               /* cell colours 1..3 = ruby / emerald / sapphire */
 
-/* ── GAME LOGIC (clay) — BG tile art (regular Mode-0 4bpp BG tiles).
+/* ── GAME LOGIC (clay) - BG tile art (regular Mode-0 4bpp BG tiles).
  * Each 8x8 4bpp tile is 8 u32 rows; each nibble is a palette index within the
  * BG palbank we use (bank 0). Index 0 = transparent → shows the backdrop
  * colour. KEY TRICK: the three jewel tiles are the SAME faceted SHAPE drawn on
  * three different palette indices (glint/body/rim per colour), so a cell
- * changes colour by changing its TILE id — no palette rewrite, no attribute
+ * changes colour by changing its TILE id - no palette rewrite, no attribute
  * juggling. The faceted look (a 1-3-1 nibble gradient) is what makes the
  * jewels pop on the GBA's wide palette. */
 #define BG_BACK   1   /* cabinet backdrop dither                              */
@@ -106,7 +106,7 @@ static const u32 gem_shape[8] = {
 };
 static u32 gem_ram[3][8];                   /* colours 1..3, built at boot   */
 
-/* ── GAME LOGIC (clay) — remap the one jewel shape into three vivid colours.
+/* ── GAME LOGIC (clay) - remap the one jewel shape into three vivid colours.
  * Shape nibble n in {1,2,3} → palette index (3*k + n) for colour k, so each
  * jewel uses its own 3-index slice of the palbank (glint/body/rim). */
 static void build_gem_tiles(void) {
@@ -123,13 +123,13 @@ static void build_gem_tiles(void) {
         }
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — game state (plain BSS; the GBA has
+/* ── GAME LOGIC (clay - reshape freely) - game state (plain BSS; the GBA has
  * 256 KB of EWRAM + 32 KB of IWRAM, so none of the NES version's
  * absolute-address scratch-page gymnastics).
  * NOTE for headless verification: unlike the Genesis template (whose work-RAM
  * globals are readable by symbol name), the GBA libretro core exposes NO
  * IWRAM/EWRAM region, so a headless agent reads game state from what's ON
- * HARDWARE — the BG0 tilemap (the locked well, in VRAM), OAM (the falling
+ * HARDWARE - the BG0 tilemap (the locked well, in VRAM), OAM (the falling
  * trio), and save_ram (the hi-score). The verify harness decodes those. */
 #define ST_TITLE 0
 #define ST_PLAY  1
@@ -147,7 +147,7 @@ static u8  level;                  /* 1..9, speeds up the fall                */
 static u8  matched[GRID_H][GRID_W];/* match scan scratch                      */
 static u16 fall_t;                 /* frames until next gravity step          */
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (a handful of ARM instructions) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (a handful of ARM instructions) ── */
 static u16 rng = 0xACE1;
 static u8 random8(void) {
     u16 r = rng;
@@ -158,20 +158,20 @@ static u8 random8(void) {
     return (u8)r;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * PERSISTENT SRAM at 0x0E000000. Two footguns, both fatal-but-silent:
- *   1. The SRAM bus is 8 BITS WIDE. Byte reads/writes only — a u16/u32
+ *   1. The SRAM bus is 8 BITS WIDE. Byte reads/writes only - a u16/u32
  *      access doesn't fault, it just reads the same byte mirrored (and a
  *      wide write stores one byte), so your data "almost" round-trips and
  *      then the checksum never matches. Every access below is via vu8.
  *   2. Emulators and flashcarts detect the SAVE TYPE by scanning the ROM
  *      image for a marker string. Without "SRAM_V" in the ROM, mGBA gives
  *      the cart NO save memory at all and writes to 0x0E000000 vanish.
- *      The aligned, (used)-attributed const below plants that marker —
+ *      The aligned, (used)-attributed const below plants that marker -
  *      delete it and persistence dies even though this code is untouched.
- * Layout: 'V' 'X' score-lo score-hi checksum (xor ^ 0xA5) — magic+checksum
+ * Layout: 'V' 'X' score-lo score-hi checksum (xor ^ 0xA5) - magic+checksum
  * so a fresh (0xFF-filled) cart reads as "no record" instead of garbage.
- * requires: nothing else — self-contained; safe to transplant whole. */
+ * requires: nothing else - self-contained; safe to transplant whole. */
 #define SRAM_BYTE ((volatile u8 *)0x0E000000)
 __attribute__((used, aligned(4))) static const char sram_type_marker[] = "SRAM_V113";
 
@@ -192,10 +192,10 @@ static void hiscore_save(u16 v) {
     SRAM_BYTE[4] = (u8)((u8)v ^ (u8)(v >> 8) ^ 0xA5);
 }
 
-/* ── GAME LOGIC (clay) — TTE text helpers ────────────────────────────────────
+/* ── GAME LOGIC (clay) - TTE text helpers ────────────────────────────────────
  * Draw right-aligned decimal digits at pixel (x,y) WITHOUT tte_printf. The
  * bundled libtonc's tte_printf with a %d conversion is broken (it routes
- * through a vsnprintf path that isn't wired in this build — it garbles
+ * through a vsnprintf path that isn't wired in this build - it garbles
  * output AND wedges the loop when called per-frame, GBA-1). We build the
  * string ourselves and use tte_write, which processes the #{P:x,y} position
  * command but does NO format conversion → safe every frame. */
@@ -216,18 +216,18 @@ static void draw_num(int x, int y, unsigned v, int digits) {
     tte_write(buf);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * THE WELL IS BACKGROUND TILES on BG0 (Mode 0, a REGULAR text BG). A 32x32
  * map (BG_REG_32x32) is one screenblock; each map entry is a u16: tile id
  * (10 bits) + hflip/vflip + a 4-bit palbank. SE_BUILD(tile, palbank, hf, vf)
  * packs it. Footguns this dodges:
  *   - VRAM IGNORES BYTE WRITES (a u8 store duplicates the byte into both
  *     halves of the 16-bit lane). We only ever write whole u16 SE entries
- *     (via this helper) and tonccpy() tile data — both VRAM-safe.
+ *     (via this helper) and tonccpy() tile data - both VRAM-safe.
  *   - TTE owns BG1 (CBB 2 / SBB 30). Keep this map (SBB 28) and our tile
  *     graphics (CBB 0) clear of those blocks or text and well corrupt each
  *     other.
- * Unlike the NES, there is NO vblank-queue famine here — set_cell can run
+ * Unlike the NES, there is NO vblank-queue famine here - set_cell can run
  * any time, so paint_well() just rewrites all 72 cells when the board changes.
  * requires: REG_BG0CNT → CBB 0 / SBB 28 (set in main), DCNT_BG0 enabled. */
 static SCR_ENTRY *const well_map = se_mem[28];
@@ -235,7 +235,7 @@ static void set_cell(int tx, int ty, u16 tile) {
     well_map[ty * 32 + tx] = SE_BUILD(tile, 0, 0, 0);
 }
 
-/* Repaint the whole well interior from the grid (cheap on GBA — see idiom). */
+/* Repaint the whole well interior from the grid (cheap on GBA - see idiom). */
 static void paint_well(void) {
     int r, c;
     for (r = 0; r < GRID_H; r++)
@@ -261,7 +261,7 @@ static void paint_cabinet(void) {
     }
 }
 
-/* ── GAME LOGIC (clay) — HUD / screens (TTE on BG1, priority 0) ── */
+/* ── GAME LOGIC (clay) - HUD / screens (TTE on BG1, priority 0) ── */
 static void draw_hud_numbers(void) {
     tte_erase_rect(28, 4, 70, 12);   draw_num(28, 4, score, 5);
     tte_erase_rect(116, 4, 158, 12); draw_num(116, 4, hiscore, 5);
@@ -312,7 +312,7 @@ static void enter_over(void) {
     state = ST_OVER;
     if (score > hiscore) {
         hiscore = score;
-        hiscore_save(hiscore);   /* byte-wise SRAM write — see the SRAM idiom  */
+        hiscore_save(hiscore);   /* byte-wise SRAM write - see the SRAM idiom  */
         draw_hud_numbers();
     }
     sfx_noise(20);                                  /* game-over rumble        */
@@ -320,10 +320,10 @@ static void enter_over(void) {
     tte_write("#{P:76,80}PRESS START");
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Match scan: mark every straight run of 3+ same-coloured jewels in all 4
- * directions (a cell can belong to several runs — the mask de-dupes), and
- * return how many cells matched. Runs flat-out on the ARM7 — no need to smear
+ * directions (a cell can belong to several runs - the mask de-dupes), and
+ * return how many cells matched. Runs flat-out on the ARM7 - no need to smear
  * it across frames like the cc65 (NES) version. */
 static const s8 DIRS4[4][2] = { {0,1}, {1,0}, {1,1}, {1,-1} };
 
@@ -374,7 +374,7 @@ static void apply_gravity(void) {
     }
 }
 
-/* ── GAME LOGIC (clay) — clear matches, drop survivors, chain cascades.
+/* ── GAME LOGIC (clay) - clear matches, drop survivors, chain cascades.
  * Returns the chain depth (0 = the lock matched nothing). Score, level and the
  * full-well repaint happen here. */
 static u8 resolve_board(void) {
@@ -391,7 +391,7 @@ static u8 resolve_board(void) {
         amt = (u16)n * 10;
         if (chain > 1) amt *= chain;                 /* cascades pay multiplied */
         if (score < 65000u) score += amt;
-        /* clear chime — pitch rises with chain depth (bigger freq code = higher) */
+        /* clear chime - pitch rises with chain depth (bigger freq code = higher) */
         sfx_tone(1, (u16)(1500 + ((u16)chain << 6)), 8);
         apply_gravity();
         cleared_total += n;
@@ -424,7 +424,7 @@ static void spawn_piece(void) {
     if (!can_place(piece_x, piece_y)) enter_over();   /* well full → game over */
 }
 
-/* ── GAME LOGIC (clay) — land the trio, resolve, respawn. ── */
+/* ── GAME LOGIC (clay) - land the trio, resolve, respawn. ── */
 static void lock_piece(void) {
     s16 i, y;
     for (i = 0; i < 3; i++) {
@@ -439,10 +439,10 @@ static void lock_piece(void) {
     spawn_piece();
 }
 
-/* ── GAME LOGIC (clay) — input + gravity. Edge-triggered moves (key_hit = one
+/* ── GAME LOGIC (clay) - input + gravity. Edge-triggered moves (key_hit = one
  * cell per press), held DOWN soft-drops, A/B cycle the trio's colours, START
  * hard-drops. libtonc's key_poll() (called once per frame in main) maintains
- * the curr/prev key state that key_hit/key_held read — that's the idiomatic
+ * the curr/prev key state that key_hit/key_held read - that's the idiomatic
  * Tonc edge-trigger, no hand-rolled prev-mask needed. May end the game
  * (lock → top-out). ── */
 static void update_play(void) {
@@ -476,9 +476,9 @@ static void update_play(void) {
     }
 }
 
-/* ── GAME LOGIC (clay) — stage the falling trio's sprites. The LOCKED well is
+/* ── GAME LOGIC (clay) - stage the falling trio's sprites. The LOCKED well is
  * BG tiles (only what moves every frame earns OAM slots): 3 sprites for the
- * trio. Cells above the rim aren't drawn — they'd poke out over the HUD band.
+ * trio. Cells above the rim aren't drawn - they'd poke out over the HUD band.
  * Off-screen / inactive slots park at y=200. ── */
 static OBJ_ATTR obj_buffer[128];
 #define TILE_TRIO 1   /* OBJ tile 1 = the faceted jewel sprite (4bpp 8x8)     */
@@ -504,16 +504,16 @@ static void stage_sprites(void) {
 int main(void) {
     int k;
 
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
      * Init order: tiles/palettes → oam_init → irq_init + II_VBLANK → TTE init
      * → DISPCNT last. VBlankIntrWait() HANGS FOREVER without the vblank IRQ
      * registered (the #1 "frozen on frame 1" cause), and enabling DISPCNT
      * layers before their tiles/maps exist flashes garbage. TTE owns BG1
-     * (CBB 2 / SBB 30) — keep other layers off those blocks.
+     * (CBB 2 / SBB 30) - keep other layers off those blocks.
      * requires: nothing prior; this IS the boot. */
 
     /* BG palette (bank 0). Vivid faceted jewels: each colour gets a 3-index
-     * slice — body / glint / rim. The GBA's 15-bit RGB gives saturated stones
+     * slice - body / glint / rim. The GBA's 15-bit RGB gives saturated stones
      * the GB/NES can only hint at. */
     pal_bg_mem[0]  = RGB15(2, 2, 5);      /* backdrop / transparent base       */
     pal_bg_mem[1]  = RGB15(7, 7, 10);     /* cabinet dither A                  */
@@ -527,7 +527,7 @@ int main(void) {
     pal_bg_mem[3*1+1] = RGB15(4, 24, 8);  pal_bg_mem[3*1+2] = RGB15(20, 31, 18); pal_bg_mem[3*1+3] = RGB15(1, 11, 4);
     pal_bg_mem[3*2+1] = RGB15(6, 12, 30); pal_bg_mem[3*2+2] = RGB15(20, 24, 31); pal_bg_mem[3*2+3] = RGB15(2, 4, 14);
 
-    /* BG tile graphics → char-block 0 (TTE uses CBB 2 — kept clear). */
+    /* BG tile graphics → char-block 0 (TTE uses CBB 2 - kept clear). */
     tonccpy(&tile_mem[0][BG_BACK],  bg_tile_back,  sizeof(bg_tile_back));
     tonccpy(&tile_mem[0][BG_BAND],  bg_tile_band,  sizeof(bg_tile_band));
     tonccpy(&tile_mem[0][BG_FRAME], bg_tile_frame, sizeof(bg_tile_frame));
@@ -543,7 +543,7 @@ int main(void) {
     /* The sprite tile uses the RAW gem_shape (nibbles 1/2/3 = body/glint/rim),
      * so the trio's colour is picked by the OBJ PALBANK at draw time: bank k
      * carries colour-(k+1)'s body/glint/rim at indices 1/2/3. One tile, three
-     * vivid jewels — exactly mirroring the BG jewel palette slices. */
+     * vivid jewels - exactly mirroring the BG jewel palette slices. */
     for (k = 0; k < 3; k++) {
         pal_obj_bank[k][1] = pal_bg_mem[3*k+1];       /* body  */
         pal_obj_bank[k][2] = pal_bg_mem[3*k+2];       /* glint */
@@ -565,7 +565,7 @@ int main(void) {
     REG_BG1CNT |= BG_PRIO(0);
     REG_DISPCNT = DCNT_MODE0 | DCNT_BG0 | DCNT_BG1 | DCNT_OBJ | DCNT_OBJ_1D;
 
-    hiscore = hiscore_load();          /* cartridge SRAM — 0 on first boot     */
+    hiscore = hiscore_load();          /* cartridge SRAM - 0 on first boot     */
     enter_title();
 
     while (1) {

@@ -1,10 +1,10 @@
-// gba-c.js — Game Boy Advance C build pipeline.
+// gba-c.js - Game Boy Advance C build pipeline.
 //
 // Orchestrates the full chain through the worker pool:
-//   cc1.wasm     — C source → ARM assembly (Thumb-interwork)
-//   as.wasm      — assembly → .o ELF object
-//   ld.wasm      — link user .o + gba_crt0.o + libgba.a + libgcc → .elf
-//   objcopy.wasm — strip ELF down to raw .gba ROM
+//   cc1.wasm     - C source → ARM assembly (Thumb-interwork)
+//   as.wasm      - assembly → .o ELF object
+//   ld.wasm      - link user .o + gba_crt0.o + libgba.a + libgcc → .elf
+//   objcopy.wasm - strip ELF down to raw .gba ROM
 //
 // Each WASM tool runs in a fresh worker (R12 subprocess isolation), so
 // a crash in one stage doesn't take out the server.
@@ -12,31 +12,31 @@
 // ENV INJECTION (0.95.0, browser IDEs): pass `env` to run the identical
 // pipeline in a non-node host (a Web Worker). All seams optional; omitting
 // `env` gives the node behavior (worker pool + fs share reads):
-//   env.runTool  — the 4 tool runs (see common/gcc-toolchain.js ToolJob);
+//   env.runTool  - the 4 tool runs (see common/gcc-toolchain.js ToolJob);
 //                  the host owns WASM instantiation + MEMFS mounting.
-//   env.share    — the share/gba/lib tree as a {relPath: string|Uint8Array}
+//   env.share    - the share/gba/lib tree as a {relPath: string|Uint8Array}
 //                  manifest (stage it with common/share-fs.js
-//                  buildShareManifest so key ORDER matches node — order
+//                  buildShareManifest so key ORDER matches node - order
 //                  feeds compile order → ar member order → ROM bytes).
-//   env.hash     — async {name:text}→hex digest for the SDK seed check
+//   env.hash     - async {name:text}→hex digest for the SDK seed check
 //                  (browser: crypto.subtle; required when env is given).
-//   env.sdkCache — optional {get(key), put(key,bytes)} rebuild cache.
-// NO top-level node imports here — node bits load lazily on the default
+//   env.sdkCache - optional {get(key), put(key,bytes)} rebuild cache.
+// NO top-level node imports here - node bits load lazily on the default
 // paths only, so a browser bundle can load this module untouched.
 //
 // Two runtime modes:
 //
-//   libgba: true (default) — idiomatic GBA homebrew. Links against the
+//   libgba: true (default) - idiomatic GBA homebrew. Links against the
 //     bundled libgba runtime (libgba.a + gba_crt0.s + gba_cart.ld + the
 //     gba.h umbrella header). `#include <gba.h>` works out of the box;
-//     agents get the canonical devkitARM API — BG / sprite / DMA /
+//     agents get the canonical devkitARM API - BG / sprite / DMA /
 //     interrupts / sound / input / BIOS calls. ONE caveat:
-//     iprintf-style stdio output (libgba's console.c) is NOT included —
+//     iprintf-style stdio output (libgba's console.c) is NOT included -
 //     see the GBA TROUBLESHOOTING doc and the long comment block in
 //     scripts/build-libgba.sh for the trade-off rationale and
 //     three workaround paths.
 //
-//   libgba: false (minimum-viable) — bare gcc + newlib only. User writes
+//   libgba: false (minimum-viable) - bare gcc + newlib only. User writes
 //     against the raw GBA hardware registers (0x04000000-0x04000208).
 //     Useful for educational builds or when you want zero SDK overhead.
 
@@ -49,8 +49,8 @@ import { mapShare, dirShare } from "../common/share-fs.js";
 // ── environment resolution ──────────────────────────────────────────────────
 
 /** Node default: resolve THIS package's share/gba/lib and wrap it. The GBA C
- *  library tree ships in this package's share/ so a standalone consumer —
- *  e.g. the gba-lua SDK — imports buildGbaC from "romdev-platform-gba" and
+ *  library tree ships in this package's share/ so a standalone consumer -
+ *  e.g. the gba-lua SDK - imports buildGbaC from "romdev-platform-gba" and
  *  drags in nothing else. Primary resolution is package self-reference; the
  *  fallback is this file's own package root (build/gba-c/ → two up). */
 let _nodeShare = null;
@@ -80,7 +80,7 @@ async function buildCtx(env) {
     ? (typeof env.share.text === "function" ? env.share : mapShare(env.share))
     : await defaultShare();
   // Seed + rebuild-cache io, addressed by share-RELATIVE paths (so the seed
-  // hash is machine-independent — hashing absolute paths broke the seed check
+  // hash is machine-independent - hashing absolute paths broke the seed check
   // every time the tree moved). writeSeed (the seed generator) is node-only.
   const io = {
     readSeed: async (rel) => { try { return await share.bytes(rel); } catch { return null; } },
@@ -108,20 +108,20 @@ async function buildCtx(env) {
  *
  * Three runtime modes:
  *
- *   runtime: "libtonc" (default) — idiomatic Tonc-tutorial-aligned
+ *   runtime: "libtonc" (default) - idiomatic Tonc-tutorial-aligned
  *     GBA homebrew. Links against the bundled libtonc.a + Tonc Text
  *     Engine (TTE). `#include <tonc.h>` works; agents get
  *     `tte_init_chr4c`, `tte_write`, `tte_printf`, `tonccpy`,
  *     `REG_DISPCNT`, the canonical Tonc API every published GBA
  *     tutorial uses. Caveat: tte_iohook (iprintf auto-routing) is
- *     excluded — use `tte_printf` directly instead. R28.
+ *     excluded - use `tte_printf` directly instead. R28.
  *
- *   runtime: "libgba" — devkitPro's libgba SDK. Different API
+ *   runtime: "libgba" - devkitPro's libgba SDK. Different API
  *     surface (`SetMode`, `oamSet`, etc.), more "thin wrapper over
  *     hardware registers" style. Same iprintf caveat (console.c
  *     excluded). R24.
  *
- *   runtime: "none" — minimum-viable. Bare gcc + newlib only. User
+ *   runtime: "none" - minimum-viable. Bare gcc + newlib only. User
  *     writes against raw GBA hardware registers. Smallest binaries.
  *
  * Legacy `libgba: true | false` arg still accepted for back-compat
@@ -137,19 +137,19 @@ async function buildCtx(env) {
  *   that `.incbin`s the soundbank under the global symbol `soundbank_bin` is auto-emitted.
  * @param {string[]} [args.cc1Options]
  * @param {"libtonc"|"libgba"|"none"} [args.runtime="libtonc"]
- * @param {boolean} [args.libgba] legacy flag — true = libgba, false = none
- * @param {Object} [args.env] injected environment (browser hosts) — see header
+ * @param {boolean} [args.libgba] legacy flag - true = libgba, false = none
+ * @param {Object} [args.env] injected environment (browser hosts) - see header
  * @returns {Promise<{ok:boolean, binary:Uint8Array|null, log:string, exitCode:number, stage:string, runtime:string}>}
  */
 export async function buildGbaC(args) {
   const headers = args.headers ?? {};
   // -ffunction-sections/-fdata-sections give every function + global (incl.
   // `static` file-local ones) its own section, so the GNU ld map carries a
-  // per-symbol `.bss.<name>`/`.data.<name>` line — that's what lets
+  // per-symbol `.bss.<name>`/`.data.<name>` line - that's what lets
   // symbols({op:'resolve'}) turn a static C global's name into an address on GBA
   // (same as SGDK does for Genesis). Pure metadata; no codegen change to what's kept.
   // -Wall -Wextra so the agent SEES warnings (unused vars, implicit decls,
-  // sign-compare, etc.) — they're parsed into structured issues[]. Without these
+  // sign-compare, etc.) - they're parsed into structured issues[]. Without these
   // gcc is silent and agents build blind. -Wno-unused-parameter keeps the common
   // intentional `(void)`-style scaffold params from being noise. Applied to USER
   // .c only (the libtonc/maxmod SDK is a prebuilt seed, not recompiled here).
@@ -171,7 +171,7 @@ export async function buildGbaC(args) {
   if (runtime === "libtonc") return buildWithLibtonc(opts);
   if (runtime === "libgba")  return buildWithLibgba(opts);
   if (runtime === "none")    return buildMinimal(opts);
-  throw new Error(`buildGbaC: unknown runtime '${runtime}' — expected 'libtonc' | 'libgba' | 'none'`);
+  throw new Error(`buildGbaC: unknown runtime '${runtime}' - expected 'libtonc' | 'libgba' | 'none'`);
 }
 
 function normalizeGbaSources(args) {
@@ -181,11 +181,11 @@ function normalizeGbaSources(args) {
 }
 
 /**
- * libtonc (the default) — Tonc-tutorial-aligned GBA homebrew.
+ * libtonc (the default) - Tonc-tutorial-aligned GBA homebrew.
  *
  * Same pipeline shape as buildWithLibgba but links against
  * libtonc.a + uses libtonc's headers (the ones from gbadev.net/tonc
- * — `tte_init_chr4c`, `tte_write`, `tonccpy`, etc.).
+ * - `tte_init_chr4c`, `tte_write`, `tonccpy`, etc.).
  *
  * Pipeline:
  *   1. cc1 each user .c → .s (with libtonc's include/ in the -I path)
@@ -206,7 +206,7 @@ async function buildWithLibtonc({ tools, share, io, sources, headers, cc1Options
   // `soundbank.bin` binary include AND opts into maxmod. The stub
   // .incbin's the file under the canonical `soundbank_bin` symbol
   // expected by mmInitDefault. This mirrors the asm stub every
-  // maxmod-examples Makefile generates with bin2s — we just do it
+  // maxmod-examples Makefile generates with bin2s - we just do it
   // ourselves so users don't need to author it by hand.
   const hasSoundbank = maxmod && Object.prototype.hasOwnProperty.call(binaryIncludes, "soundbank.bin");
   if (hasSoundbank) {
@@ -215,7 +215,7 @@ async function buildWithLibtonc({ tools, share, io, sources, headers, cc1Options
 
   const libtoncHeaders = await loadHeaderTree(share, "libtonc/include");
   const sysHeaders     = await loadHeaderTree(share, "libgba/sysinclude");
-  // Maxmod headers (maxmod.h + mm_types.h) — only loaded when the
+  // Maxmod headers (maxmod.h + mm_types.h) - only loaded when the
   // user opts into music with `maxmod: true`.
   const maxmodHeaders  = maxmod ? await loadFlatHeaders(share, "maxmod/include", /\.h$/i) : {};
 
@@ -248,7 +248,7 @@ async function buildWithLibtonc({ tools, share, io, sources, headers, cc1Options
     // `end` here as tiny data-section labels. Points at end of EWRAM.
     //
     // For real games you'd want sbrk to start the heap at __end__ and
-    // track it dynamically — this stub gives a fixed bound which is
+    // track it dynamically - this stub gives a fixed bound which is
     // fine for the small allocations newlib does internally.
     const fakeHeapEndStub = await cb.stage("as (fake_heap_end stub)", () => runArmAs({
       source: `
@@ -257,9 +257,9 @@ async function buildWithLibtonc({ tools, share, io, sources, headers, cc1Options
       .global end
       .align 2
       fake_heap_end:
-        .word 0x02040000   /* end of EWRAM — 256 KB after 0x02000000 */
+        .word 0x02040000   /* end of EWRAM - 256 KB after 0x02000000 */
       end:
-        .word 0x02000000   /* start of EWRAM — sbrk grows from here */
+        .word 0x02000000   /* start of EWRAM - sbrk grows from here */
     `,
     }), (r) => r.object);
     objects["fake_heap_end.o"] = fakeHeapEndStub.object;
@@ -284,7 +284,7 @@ async function buildWithLibtonc({ tools, share, io, sources, headers, cc1Options
       objects["soundbank.o"] = soundbankStub.object;
     }
 
-    // ── Stage B4: resolve libtonc (and maxmod) — seed by default, or compile
+    // ── Stage B4: resolve libtonc (and maxmod) - seed by default, or compile
     // from source when rebuildSdk is set. Edits to the vendored SDK source take
     // effect with rebuildSdk:true; without it, the fast prebuilt seed is used and
     // an edit is flagged (sdkEditIgnored), never silently dropped.
@@ -389,7 +389,7 @@ async function buildWithLibtonc({ tools, share, io, sources, headers, cc1Options
 }
 
 /**
- * Idiomatic GBA path — link against libgba.
+ * Idiomatic GBA path - link against libgba.
  *
  * Pipeline:
  *   1. cc1 each user .c → .s (with libgba's include/ in the -I path)
@@ -443,7 +443,7 @@ async function buildWithLibgba({ tools, share, io, sources, headers, cc1Options,
     // devkitARM's libsysbase normally provides both `fake_heap_end`
     // (used by sbrk's heap tracking) and the linker script defines
     // `end` (start of heap). We excluded libsysbase so we provide
-    // both as tiny data labels — gba_cart.ld defines `__end__` but not
+    // both as tiny data labels - gba_cart.ld defines `__end__` but not
     // bare `end` which newlib sbrk needs.
     const fakeHeapEndStub = await cb.stage("as (fake_heap_end stub)", () => runArmAs({
       source: `
@@ -452,9 +452,9 @@ async function buildWithLibgba({ tools, share, io, sources, headers, cc1Options,
       .global end
       .align 2
       fake_heap_end:
-        .word 0x02040000   /* end of EWRAM — 256 KB after 0x02000000 */
+        .word 0x02040000   /* end of EWRAM - 256 KB after 0x02000000 */
       end:
-        .word 0x02000000   /* start of EWRAM — sbrk grows from here */
+        .word 0x02000000   /* start of EWRAM - sbrk grows from here */
     `,
     }), (r) => r.object);
     objects["fake_heap_end.o"] = fakeHeapEndStub.object;
@@ -545,7 +545,7 @@ async function buildWithLibgba({ tools, share, io, sources, headers, cc1Options,
 }
 
 /**
- * Minimum-viable path — no libgba runtime. Caller writes against the
+ * Minimum-viable path - no libgba runtime. Caller writes against the
  * raw GBA registers. Useful for tiny tests or when you want zero SDK
  * overhead.
  *
@@ -564,7 +564,7 @@ async function buildMinimal({ tools, sources, headers, cc1Options }) {
       objects[name.replace(/\.c$/, ".o")] = asm.object;
     }
 
-    // Minimum-viable linker script — single .text region at GBA cart base.
+    // Minimum-viable linker script - single .text region at GBA cart base.
     const ld = await cb.stage("ld", () => runArmLd({
       objects,
       linkScript: `OUTPUT_FORMAT("elf32-littlearm")
@@ -594,7 +594,7 @@ function shareCache(share) {
 
 /**
  * Load every header (.h/.inc) under a share subtree into a {relName: contents}
- * map suitable for passing as `headers` to cc1 — keys relative to the subtree
+ * map suitable for passing as `headers` to cc1 - keys relative to the subtree
  * root (e.g. "tonc.h", "sys/types.h"). Cached per share instance.
  */
 async function loadHeaderTree(share, prefix) {
@@ -611,7 +611,7 @@ async function loadHeaderTree(share, prefix) {
 }
 
 /** Load headers from ONE directory level (no recursion into subdirs), keyed by
- *  bare filename — the maxmod include/asm_include shape. Cached. */
+ *  bare filename - the maxmod include/asm_include shape. Cached. */
 async function loadFlatHeaders(share, prefix, pattern) {
   const cache = shareCache(share);
   const key = "flat:" + prefix + ":" + pattern;
@@ -627,7 +627,7 @@ async function loadFlatHeaders(share, prefix, pattern) {
 }
 
 /**
- * Read libgcc.a + libc.a + libnosys.a — the 3 ARM target archives bundled in
+ * Read libgcc.a + libc.a + libnosys.a - the 3 ARM target archives bundled in
  * the share tree (self-contained, like Genesis-C does it; previously read from
  * the 14 GB build/arm-toolchain/install tree, which coupled the package to the
  * build workspace). Cached per share instance.
@@ -674,7 +674,7 @@ const _sdkObjCache = new Map();
 async function compileSdkObjects({ share, tools, key, srcDirs, headers, cppDefines = [], cc1Options = [] }) {
   const { runCc1arm, runArmAs } = tools;
   // Gather source files (preserve sub-path in the object name to avoid clashes).
-  // Also collect .s/.inc files as AVAILABLE INCLUDES — GAS asm often #includes
+  // Also collect .s/.inc files as AVAILABLE INCLUDES - GAS asm often #includes
   // sibling .s "type" files (e.g. libtonc's tte_types.s) and .inc macro files.
   const files = [];
   const localIncludes = {};
@@ -704,7 +704,7 @@ async function compileSdkObjects({ share, tools, key, srcDirs, headers, cppDefin
   for (const f of files) {
     const src = srcTexts[f.sub];
     // Short, unique member name (ar short-name field is 16 bytes incl. the GNU
-    // "/" terminator). Member names don't affect linking — only symbols do —
+    // "/" terminator). Member names don't affect linking - only symbols do -
     // so a sequential id keeps every name well under the limit.
     const objName = "o" + (objIdx++) + ".o";
     let asmText;
@@ -715,7 +715,7 @@ async function compileSdkObjects({ share, tools, key, srcDirs, headers, cppDefin
       }
       asmText = cc1.asmSource;
     } else {
-      // .s: GAS "assembler-with-cpp" — preprocess with cc1 -E (expands #include
+      // .s: GAS "assembler-with-cpp" - preprocess with cc1 -E (expands #include
       // of .inc/.s macro+type files + #define), then assemble. -D__ASSEMBLER__=1
       // so asm-only headers (e.g. libtonc tonc_asminc.h) take their asm branch.
       const pp = await runCc1arm({ source: src, headers, options: [...defineOpts, "-D__ASSEMBLER__=1", "-E"] });
@@ -737,7 +737,7 @@ async function compileSdkObjects({ share, tools, key, srcDirs, headers, cppDefin
 
 /** Read every .c/.s/.h/.inc source under the given share dirs into a
  *  {relpath: text} map (for hashing). Keys are share-RELATIVE (stable across
- *  machines and tree moves — hashing absolute paths broke the seed check). */
+ *  machines and tree moves - hashing absolute paths broke the seed check). */
 async function readSdkSources(share, srcDirs) {
   const out = {};
   for (const dir of srcDirs) {

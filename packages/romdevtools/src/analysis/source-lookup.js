@@ -1,9 +1,9 @@
-// source-lookup — find the project's OWN annotated source lines covering a CPU
+// source-lookup - find the project's OWN annotated source lines covering a CPU
 // address range, by matching the trailing address comment the disassembler
-// emits per line (`… ; E4DB 20 E4 D2`). The single most-repeated navigation
+// emits per line (`... ; E4DB 20 E4 D2`). The single most-repeated navigation
 // op in an annotation session: "show me my commented source for $E4DB".
 //
-// v0.98.0 feedback #1 (headline): the alternatives all miss —
+// v0.98.0 feedback #1 (headline): the alternatives all miss -
 // target:'rom' re-decodes fresh (loses the annotations + re-decodes data as
 // code), target:'source' is PICO-8-only, symbols({op:'lookup'}) gives the
 // enclosing symbol name but not the text. The fallback was a hand-built
@@ -19,7 +19,7 @@ import path from "node:path";
 const SOURCE_EXT = new Set([".asm", ".s", ".inc", ".a65", ".a68", ".z80"]);
 
 /** Trailing address comment the disassembler emits, e.g. "; E4DB 20 E4 D2"
- *  or "; 00E4DB …" (6-hex on 24-bit CPUs). We take the FIRST hex token after
+ *  or "; 00E4DB ..." (6-hex on 24-bit CPUs). We take the FIRST hex token after
  *  a `;` that looks like an address (4 or 6 hex, followed by space + hex byte
  *  or end), which is exactly the da65 `--comments 4` / objdump layout the rest
  *  of the RE tools already parse. */
@@ -116,7 +116,7 @@ export async function sourceLookupCore({ projectDir, startAddress, endAddress, c
     note: results.length
       ? "Each result is your project's OWN source (annotations intact), matched on the trailing address comment the disassembler emits. `hit:true` lines are inside the requested range; the rest are context."
       : filesWithAddrComments === 0
-        ? "No source line carries a trailing address comment (e.g. `; E4DB 20 E4 D2`). This project wasn't emitted by disasm({target:'project'}) with address comments, so there's nothing to match on — use symbols({op:'lookup', address}) to get the enclosing label, then open that source region yourself."
+        ? "No source line carries a trailing address comment (e.g. `; E4DB 20 E4 D2`). This project wasn't emitted by disasm({target:'project'}) with address comments, so there's nothing to match on - use symbols({op:'lookup', address}) to get the enclosing label, then open that source region yourself."
         : "No source line's address annotation falls in this range (the address may live in a data table with no per-line comment, or in a bank whose file wasn't found). Widen the range or check the bank.",
   };
 }

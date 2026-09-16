@@ -1,6 +1,6 @@
 // Unit tests for the SNES PPU-register / OAM decoders that drive
 // getRenderingContext + inspectSprites. These are pure functions over
-// synthetic FillRAM / OAM / CGRAM buffers — no emulator needed — so they
+// synthetic FillRAM / OAM / CGRAM buffers - no emulator needed - so they
 // pin the exact bit math (OBSEL size table, BGxSC/BGxNBA addressing,
 // renderable-vs-hidden classification, uninitialized-palette detection).
 
@@ -81,7 +81,7 @@ test("decodeOAM classifies renderable vs hidden (off-screen-top, off-left, off-r
   // slot 1: parked off-screen-top at Y=0xF0
   put(1, 100, 0xF0, 0, 0x00);
   // slot 2: off the right edge (X=250, width 16 → still partly on at 250? no:
-  //   16×16 means sx=250, 250<256 so onX true) — use X=0x1FF (sign → -1, off left)
+  //   16×16 means sx=250, 250<256 so onX true) - use X=0x1FF (sign → -1, off left)
   put(3, 0xFF, 80, 0, 0x00, 0, 1); // xHigh=1 → fullX=0x1FF → sx = -1, w=8 → -1+8=7>0 still on; nudge
   const sprites = decodeOAM(oam, { smallSize: [8, 8], largeSize: [16, 16] });
   assert.equal(sprites[0].renderable, true);
@@ -155,7 +155,7 @@ test("checkObjPalettes flags NON-ZERO junk: a uniform/flat-fill line is suspicio
 
 test("checkObjPalettes flags a referenced line ABOVE the uploaded block (contiguity)", () => {
   // Only line 0 authored; a sprite references line 3 (never uploaded) holding
-  // non-zero leftover gradient — the exact Asteroids failure mode.
+  // non-zero leftover gradient - the exact Asteroids failure mode.
   const cgram = new Uint8Array(512);
   setObjLine(cgram, 0, AUTHORED);
   // line 3 = a smooth ramp of distinct non-zero values (default-looking)

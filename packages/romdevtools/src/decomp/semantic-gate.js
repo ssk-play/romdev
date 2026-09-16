@@ -1,4 +1,4 @@
-// semantic-gate.js — a byte-exact candidate is not automatically a correct one.
+// semantic-gate.js - a byte-exact candidate is not automatically a correct one.
 //
 // THE DISTINCTION THIS FILE EXISTS TO PRESERVE. A permuter or sweep optimises a
 // SCORE. It will happily reach zero by writing code that no human wrote and no
@@ -54,25 +54,25 @@ function artificialConstructs(src) {
   const out = [];
   const s = stripLiterals(src);
 
-  // `x = x;` — claims a register without changing anything.
+  // `x = x;` - claims a register without changing anything.
   for (const m of s.matchAll(/(?<![\w.>])([A-Za-z_]\w*)\s*=\s*\1\s*;/g)) {
     out.push({ id: "self-assignment", severity: "artificial", confidence: "high",
       message: `'${m[1]} = ${m[1]};' is a self-assignment: it exists to claim a register, not to compute anything`,
       evidence: m[0], line: lineOf(s, m.index) });
   }
-  // `if (...) { }` / `else { }` — an empty branch shifts scheduling only.
+  // `if (...) { }` / `else { }` - an empty branch shifts scheduling only.
   for (const m of s.matchAll(/\b(if|else|while|for)\s*(\([^;{}]*\))?\s*\{\s*\}/g)) {
     out.push({ id: "empty-branch", severity: "artificial", confidence: "high",
       message: `empty '${m[1]}' body: it changes scheduling or block layout and nothing else`,
       evidence: m[0].replace(/\s+/g, " ").slice(0, 80), line: lineOf(s, m.index) });
   }
-  // `(x, 0)` — a comma expression discarding its left operand.
+  // `(x, 0)` - a comma expression discarding its left operand.
   for (const m of s.matchAll(/\(\s*[A-Za-z_]\w*\s*,\s*0\s*\)/g)) {
     out.push({ id: "comma-zero", severity: "artificial", confidence: "high",
       message: "comma-zero expression: the left operand's value is discarded; this is a codegen lever, not logic",
       evidence: m[0], line: lineOf(s, m.index) });
   }
-  // A declared local that is never read again — often a claimed stack slot.
+  // A declared local that is never read again - often a claimed stack slot.
   for (const m of s.matchAll(/\b(?:s32|u32|f32|s16|u16|s8|u8|int|float|void\s*\*)\s+(pad\w*|unused\w*|dummy\w*|sp[0-9A-Fa-f]+)\s*;/g)) {
     out.push({ id: "claimed-slot", severity: "review", confidence: "medium",
       message: `'${m[1]}' looks like a claimed stack slot rather than a real local`,
@@ -143,7 +143,7 @@ function behaviouralDeltas(baseline, candidate) {
   // output pointer is silently no longer given one. Bytes can still match; the
   // callee no longer writes where the original wrote.
   // Scan with a paren counter rather than a regex: `guMtxIdent((Mtx*)0)` has
-  // parentheses INSIDE its argument list, and `\(([^()]*)\)` cannot match it —
+  // parentheses INSIDE its argument list, and `\(([^()]*)\)` cannot match it -
   // so a cast NULL, the most natural way to write this defect in C, was
   // invisible while a bare NULL was caught.
   const callArgs = (src) => {
@@ -194,7 +194,7 @@ function behaviouralDeltas(baseline, candidate) {
       if (aArgs[i] === bArgs[i]) continue;
       if (NULLISH(bArgs[i]) && !NULLISH(aArgs[i])) {
         out.push({ id: "output-argument-nulled", severity: "artificial", confidence: "high",
-          message: `'${name}' argument ${i + 1} became ${bArgs[i]} where the baseline passed '${aArgs[i]}'. A helper given NULL instead of a destination does not write its result — the bytes can still match while the behaviour does not`,
+          message: `'${name}' argument ${i + 1} became ${bArgs[i]} where the baseline passed '${aArgs[i]}'. A helper given NULL instead of a destination does not write its result - the bytes can still match while the behaviour does not`,
           evidence: `${name}(... ${aArgs[i]} ...) -> ${name}(... ${bArgs[i]} ...)` });
       }
     }
@@ -215,7 +215,7 @@ function behaviouralDeltas(baseline, candidate) {
 
   // A WRITE to a global the baseline never wrote. Storing to a `D_`/`g`-prefixed
   // symbol to nudge register allocation changes memory another function reads;
-  // the bytes can match while the game does not. Assignments only — a global
+  // the bytes can match while the game does not. Assignments only - a global
   // that is merely READ more often is not a behaviour change.
   const GLOBAL_WRITE = /\b((?:D_|g[A-Z])\w*)\s*(?:\[[^\]]*\]|\.\w+|->\w+)*\s*(?:=(?!=)|\+\+|--|[-+*/&|^]=|<<=|>>=)/g;
   const writesA = new Set([...a.matchAll(GLOBAL_WRITE)].map((m) => m[1]));
@@ -260,6 +260,6 @@ export function semanticGate({ candidateText, baselineText = null, exactFunction
     policy: "exactness and source quality are SEPARATE dimensions and this gate never erases the exactness result. "
       + "'byte-exact/artificial' means the bytes match and the source contains constructs whose only purpose is the match. "
       + "Behavioural findings are advisory: a lexical pass cannot prove pointer provenance or aliasing, and claiming otherwise "
-      + "would be worse than not checking — each finding carries its own confidence.",
+      + "would be worse than not checking - each finding carries its own confidence.",
   };
 }

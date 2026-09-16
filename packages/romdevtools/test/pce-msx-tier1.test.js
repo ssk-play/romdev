@@ -7,7 +7,7 @@
 //   4. The inspect adapters decode that data: getCPUState, inspectPalette,
 //      inspectSprites, getRenderingContext.
 //
-// These are the platforms' real Tier-1 receipts — when this passes, an agent
+// These are the platforms' real Tier-1 receipts - when this passes, an agent
 // can build, run, AND debug a PCE/MSX game through the same MCP surface as the
 // original 12 platforms.
 
@@ -46,7 +46,7 @@ test("PCE tier-1: hello_pce scaffold builds, runs, and exposes regions + decoder
   const vram = host.readMemory("pce_vdc_vram", 0, host.regionSize("pce_vdc_vram"));
   let vramNonZero = 0;
   for (const b of vram) if (b) vramNonZero++;
-  assert.ok(vramNonZero > 1000, `pce VRAM looks empty (${vramNonZero} nonzero) — scaffold didn't render`);
+  assert.ok(vramNonZero > 1000, `pce VRAM looks empty (${vramNonZero} nonzero) - scaffold didn't render`);
 
   // CPU decoder.
   const cpu = getCPUState(host, "pce");
@@ -71,7 +71,7 @@ test("MSX tier-1: hello_msx scaffold (main + crt0) builds, boots C-BIOS, exposes
   const main = await readFile(path.join(PLAT, "msx", "lib", "c", "hello_msx.c"), "utf8");
   const crt0 = await readFile(path.join(PLAT, "msx", "lib", "c", "msx_crt0.s"), "utf8");
 
-  // The SDCC worker pool can transiently fail a translation unit — retry a few.
+  // The SDCC worker pool can transiently fail a translation unit - retry a few.
   let build;
   for (let attempt = 0; attempt < 3; attempt++) {
     build = await buildForPlatform({
@@ -90,12 +90,12 @@ test("MSX tier-1: hello_msx scaffold (main + crt0) builds, boots C-BIOS, exposes
 
   const core = resolveCore("msx");
   assert.ok(core, "blueMSX core not resolvable");
-  // No systemDir / machine option passed — the host must auto-resolve the
+  // No systemDir / machine option passed - the host must auto-resolve the
   // bundled C-BIOS and force the MSX2+ machine (zero-setup Tier-1 boot).
   const host = new LibretroHost();
   await host.loadCore(core.jsPath, core.wasmPath);
   await host.loadMedia({ platform: "msx", bytes: build.binary });
-  // C-BIOS shows its logo before calling INIT — step well past it.
+  // C-BIOS shows its logo before calling INIT - step well past it.
   for (let i = 0; i < 300; i++) host.stepFrames(1);
 
   const fb = host.getFramebuffer();
@@ -133,7 +133,7 @@ test("PCE asset pipeline: tile codec round-trips and matches planar-pairs", asyn
   const dec = decodePceTile(enc);
   assert.deepEqual([...dec], [...tile], "PCE tile round-trip is not identity");
 
-  // imageToTiles('pce') uses the SNES planar-pairs layout — verify a real PNG.
+  // imageToTiles('pce') uses the SNES planar-pairs layout - verify a real PNG.
   const { imageToTiles } = await import("../src/platforms/common/image-to-tiles.js");
   const { PNG } = await import("pngjs");
   const img = new PNG({ width: 8, height: 8 });
@@ -158,7 +158,7 @@ test("PCE audio: getAudioState decodes the HuC6280 PSG (6 channels)", async () =
   await host.loadMedia({ platform: "pce", bytes: build.binary });
   for (let i = 0; i < 30; i++) host.stepFrames(1);
   const psg = getPcePsgState(host);
-  assert.ok(psg, "PCE PSG region not exposed — is the patched geargrafx core staged?");
+  assert.ok(psg, "PCE PSG region not exposed - is the patched geargrafx core staged?");
   assert.equal(psg.chip, "pce");
   assert.equal(psg.channels.length, 6);
   assert.equal(psg.channels[4].canNoise, true, "PCE ch4 should support noise");
@@ -174,7 +174,7 @@ test("MSX audio: getAudioState decodes the AY-3-8910 (3 channels + envelope)", a
   await host.loadMedia({ platform: "msx", bytes: build.binary });
   for (let i = 0; i < 120; i++) host.stepFrames(1);
   const ay = getMsxAyState(host);
-  assert.ok(ay, "MSX PSG region not exposed — is the patched blueMSX core staged?");
+  assert.ok(ay, "MSX PSG region not exposed - is the patched blueMSX core staged?");
   assert.equal(ay.chip, "ay8910");
   assert.equal(ay.channels.length, 3);
   assert.ok(["A", "B", "C"].includes(ay.channels[0].channel));
@@ -199,7 +199,7 @@ test("findReferences: disassembles PCE (huc6280) and MSX (z80) ROMs", async () =
   const os = await import("node:os");
   const tmp = await mkdtemp(path.join(os.tmpdir(), "fr-"));
 
-  // PCE — disassemble the conio hello and find refs to the reset-vector region.
+  // PCE - disassemble the conio hello and find refs to the reset-vector region.
   const pceSrc = await readFile(path.join(PLAT, "pce", "lib", "c", "hello_pce.c"), "utf8");
   const pceBuild = await buildForPlatform({ platform: "pce", source: pceSrc, sourceName: "main.c" });
   const pcePath = path.join(tmp, "game.pce");
@@ -207,7 +207,7 @@ test("findReferences: disassembles PCE (huc6280) and MSX (z80) ROMs", async () =
   const pceRefs = await findReferencesCore({ path: pcePath, platform: "pce", address: 0xe000 });
   assert.ok(typeof pceRefs.refsFound === "number", "PCE findReferences returned no result shape");
 
-  // MSX — the hello calls INITXT ($006C); there should be a ref to it.
+  // MSX - the hello calls INITXT ($006C); there should be a ref to it.
   const main = await readFile(path.join(PLAT, "msx", "lib", "c", "hello_msx.c"), "utf8");
   const crt0 = await readFile(path.join(PLAT, "msx", "lib", "c", "msx_crt0.s"), "utf8");
   let msxBuild;
@@ -322,7 +322,7 @@ test("createProject default scaffolds for ALL 14 platforms (no missing default)"
   for (const p of ALL) {
     const dir = await mkdtemp(path.join(os.tmpdir(), `def-${p}-`));
     // No template arg → must resolve a sensible default (GBA's first key is
-    // tonc_hello, not "default" — this caught a real bug).
+    // tonc_hello, not "default" - this caught a real bug).
     const r = await createProjectImpl({ platform: p, name: "g", path: dir, overwrite: true });
     assert.ok((r.writtenFiles || r.files || []).length > 0, `${p}: default scaffold wrote no files`);
   }

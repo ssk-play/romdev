@@ -1,4 +1,4 @@
-// decomp-verdict.test.js — the verifier's contract: "could not check" is never
+// decomp-verdict.test.js - the verifier's contract: "could not check" is never
 // "exact". Tests the PRODUCTION assembler (assembleVerdictFields, the function
 // compileAndCompare calls) with injected evidence, plus the cache gate.
 import { test } from "node:test";

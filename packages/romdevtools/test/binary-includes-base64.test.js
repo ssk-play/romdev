@@ -2,12 +2,12 @@
 // SAME bytes as passing raw Uint8Arrays (the in-process contract).
 //
 // The defect (the GBA maxmod-silence saga, internal-gbalua): binaryFile() in
-// _worker/run.js did `Buffer.from(bytes)` — a base64 STRING decoded as UTF-8 —
+// _worker/run.js did `Buffer.from(bytes)` - a base64 STRING decoded as UTF-8 -
 // so the base64 TEXT itself became the mounted file's contents and .incbin
 // embedded ~4/3-inflated garbage into the ROM. Every MCP route delivers strings
 // (inline binaryIncludes AND binaryIncludePaths both arrive base64), so every
 // server-side GBA soundbank was corrupt while direct Uint8Array callers were
-// fine — "same source, different ROM" between sessions. asar/cc65/vasm68k/wladx
+// fine - "same source, different ROM" between sessions. asar/cc65/vasm68k/wladx
 // each carried their own either/or guard; binaryFile now carries it too, which
 // also covers the generic gcc runner (Genesis/MIPS/SH .incbin paths).
 
@@ -53,7 +53,7 @@ test("GBA binaryIncludes: base64 STRING builds byte-identical to Uint8Array (sou
 
   // The two contracts must produce the SAME ROM.
   assert.equal(Buffer.compare(Buffer.from(asBytes.binary), Buffer.from(asString.binary)), 0,
-    `base64-string build differs from bytes build (${asString.binary.length} vs ${asBytes.binary.length} bytes) — the string was embedded as text, not decoded`);
+    `base64-string build differs from bytes build (${asString.binary.length} vs ${asBytes.binary.length} bytes) - the string was embedded as text, not decoded`);
 
   // And the ROM must contain the DECODED bank, never its base64 text.
   const rom = Buffer.from(asString.binary);

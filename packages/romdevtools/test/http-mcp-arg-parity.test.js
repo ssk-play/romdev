@@ -1,4 +1,4 @@
-// http-mcp-arg-parity.test.js — a tool must receive the SAME arguments
+// http-mcp-arg-parity.test.js - a tool must receive the SAME arguments
 // whichever transport called it.
 //
 // The HTTP path used to `safeParse` for VALIDATION and then hand the handler

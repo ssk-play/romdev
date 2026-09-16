@@ -1,7 +1,7 @@
-// script-grammar decoder — the declarative bytecode decode (disasm
+// script-grammar decoder - the declarative bytecode decode (disasm
 // target:'script'). Fixture is a generic level-script-shaped format:
 // per-record trigger word prefix, flag-gated fields with implied defaults,
-// a counted entry list, a terminated pair list, and a chain/stop command —
+// a counted entry list, a terminated pair list, and a chain/stop command -
 // the shapes real game script interpreters use.
 
 import { test } from "node:test";

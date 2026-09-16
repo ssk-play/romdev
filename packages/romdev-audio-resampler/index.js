@@ -1,8 +1,8 @@
-/* ── resampler/index.mjs — JS wrapper for the WASM+SIMD audio resampler ────────
+/* ── resampler/index.mjs - JS wrapper for the WASM+SIMD audio resampler ────────
  *
  * Loads the WASM module once and exposes resampleS16Stereo(buf, src, dst) that
  * resamples an interleaved S16LE stereo Node Buffer. Used by the playtest audio
- * sink for low-rate cores (the GameTank ACP at ~13983 Hz) — see resampler.c for
+ * sink for low-rate cores (the GameTank ACP at ~13983 Hz) - see resampler.c for
  * the why (libretro frontends resample; only GameTank is low enough to need it).
  *
  * The WASM scratch buffers are sized once to the largest chunk seen and reused.

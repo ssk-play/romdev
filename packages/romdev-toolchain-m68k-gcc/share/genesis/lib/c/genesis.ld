@@ -1,10 +1,10 @@
-/* genesis.ld — minimum-viable linker script for Sega Genesis ROMs.
+/* genesis.ld - minimum-viable linker script for Sega Genesis ROMs.
  *
  * Memory layout:
  *   rom  : $00000000 - $003FFFFF  (4 MB max cart size)
  *   ram  : $00FF0000 - $00FFFFFF  (64 KB main work RAM)
  *
- * Section ordering: vectors at $0 (mandatory — 68000 reads SSP + reset
+ * Section ordering: vectors at $0 (mandatory - 68000 reads SSP + reset
  * vector from $000000/$000004), then ROM header at $100, then code,
  * then read-only data. .bss + .data live in ram.
  *

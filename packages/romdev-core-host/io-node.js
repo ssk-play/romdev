@@ -1,8 +1,8 @@
-// io-node.js — the Node I/O adapter for romdev-core-host.
+// io-node.js - the Node I/O adapter for romdev-core-host.
 //
 // Everything that touches the host machine (disk, temp dirs, installed-package
 // resolution) lives here. LibretroHost lazily `await import()`s this module on
-// the PATH-BASED code paths only — a bytes-based session (the browser
+// the PATH-BASED code paths only - a bytes-based session (the browser
 // contract) never loads it, which is what keeps LibretroHost.js itself free of
 // top-level `node:` imports (romdevtools/test/browser-surface-imports.test.js
 // enforces that). This module may import node builtins freely.
@@ -40,7 +40,7 @@ export function writeNoderawfsTmp(bytes, ext) {
  * Detect a NODERAWFS core build: its WASM FS is Node's REAL fs, so a write to
  * a real temp path via FS lands on the host disk. MEMFS builds throw or write
  * nowhere real. (The build still registers FS.filesystems either way, so
- * that's not a tell — this probe is the reliable one.)
+ * that's not a tell - this probe is the reliable one.)
  * @param {any} FS the core module's FS
  */
 export function probeNoderawfs(FS) {
@@ -75,7 +75,7 @@ export function resolveBundledDir(pkg, subdir) {
 /**
  * Recursively copy a host directory into the emscripten virtual FS so a core's
  * fopen() can read it (BIOS / machine-config trees). emscripten FILESYSTEM=1
- * MEMFS is enough — no NODEFS rebuild needed.
+ * MEMFS is enough - no NODEFS rebuild needed.
  * @param {any} FS the core module's FS
  * @param {string} hostDir absolute host path
  * @param {string} fsDir destination path inside the wasm FS (e.g. "/system")

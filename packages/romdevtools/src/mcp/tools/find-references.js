@@ -1,7 +1,7 @@
-// findReferences — given a target CPU address, find every instruction in a
+// findReferences - given a target CPU address, find every instruction in a
 // ROM that references it.
 //
-// Built on top of the disassembler — we run the full PRG / ROM through
+// Built on top of the disassembler - we run the full PRG / ROM through
 // da65 then scan the asm text for operands that match the target address.
 // Also walks the vector table so reset/nmi/irq references show up even
 // though they're not "instructions" per se.
@@ -36,7 +36,7 @@ function classify(mnemonic) {
  * da65 lines look like:
  *   `        jsr     LC184                           ; C2F0 20 84 C1`
  * with the trailing comment giving the CPU address of THIS instruction
- * and the raw bytes. We don't have to re-decode operands — we just match
+ * and the raw bytes. We don't have to re-decode operands - we just match
  * `$NNNN` literals in the source column AND da65's auto-generated `LXXXX`
  * labels (whose value matches the target address).
  */
@@ -76,7 +76,7 @@ function scanAsmForReferences(asm, targetAddr, sourceLabels) {
     // OR the LXXXX auto-label for the target address, OR a named label.
     let matched = false;
     for (const m of operand.matchAll(/(#?)\$([0-9A-Fa-f]+)\b/g)) {
-      if (m[1] === "#") continue;   /* immediate (`lda #$02`) — a value, not an address */
+      if (m[1] === "#") continue;   /* immediate (`lda #$02`) - a value, not an address */
       const v = parseInt(m[2], 16);
       if (v === targetAddr || v === (targetAddr & 0xFFFF)) { matched = true; break; }
     }
@@ -106,7 +106,7 @@ function scanAsmForReferences(asm, targetAddr, sourceLabels) {
 //
 // findReferences answers "which instructions NAME this exact address"; the
 // accessScan answers the harder RE question "which instructions can REACH this
-// byte" — including indexed forms whose operand BASE is below the target
+// byte" - including indexed forms whose operand BASE is below the target
 // (`sta $0181,y` reaching $0182; `lda $0100,y` reaching anywhere in page 1)
 // and, on Z80/m68k where memory access goes through register bases, the
 // pointer LOADS that take the address (`ld hl,$C123` / `lea $FF8000,a0`).
@@ -142,7 +142,7 @@ function accessKind(mnemonic, family, operand, litStart) {
   }
   if (family === "sm83" || family === "z80") {
     const inParens = isInsideParens(operand, litStart);
-    if (!inParens) return "pointerLoad";           // ld hl,$C123 — address taken
+    if (!inParens) return "pointerLoad";           // ld hl,$C123 - address taken
     const comma = operand.indexOf(",");
     if (m.startsWith("ld")) {
       if (comma < 0) return "use";
@@ -244,7 +244,7 @@ export function scanAsmForAccess(asm, targetAddr, { family, window = 2 }) {
 
 /**
  * Vector-table references for SMS / Game Gear. The Z80 has fixed
- * "vectors" — actually rst handler entry points — at $0000, $0008,
+ * "vectors" - actually rst handler entry points - at $0000, $0008,
  * $0010, $0018, $0020, $0028, $0030, $0038, plus NMI at $0066. If the
  * target address matches any of these, report a pseudo-ref.
  */
@@ -303,7 +303,7 @@ function gbVectorRefs(data, targetAddr) {
 
 /**
  * Vector-table references for Atari 2600 / 7800. Both use 6502 vectors at
- * $FFFA (NMI), $FFFC (RESET), $FFFE (IRQ) — at the very end of cart ROM.
+ * $FFFA (NMI), $FFFC (RESET), $FFFE (IRQ) - at the very end of cart ROM.
  */
 function atariVectorRefs(data, targetAddr) {
   if (data.length < 6) return [];
@@ -354,12 +354,12 @@ function nesVectorRefs(data, targetAddr) {
 }
 
 /**
- * Scan the raw ROM bytes for the target address encoded as a 16-bit POINTER —
+ * Scan the raw ROM bytes for the target address encoded as a 16-bit POINTER -
  * the inline-jump-table / trampoline case that a control-flow operand scan can't
  * see. A dispatcher reads a word table and jumps to (or rts-tricks into) the
  * entry, so the handler is reached with NO jsr/jmp/branch ever naming it; da65
  * also mis-decodes the table bytes as instructions, hiding them from `references`.
- * We surface every byte position whose LE or BE 16-bit word equals the target —
+ * We surface every byte position whose LE or BE 16-bit word equals the target -
  * and ALSO target-1, the 6502 "RTS trick" (push addr-1, rts → jumps to addr).
  *
  * @param {Uint8Array} data       full ROM image (incl. any header)
@@ -389,7 +389,7 @@ function scanPointerTableHits(data, targetAddr, headerSkip = 0, rtsTrick = true)
 }
 
 /**
- * Bytes of file header before the code image, per platform — so the pointer-table
+ * Bytes of file header before the code image, per platform - so the pointer-table
  * scan reports a fileOffset into the actual code, and (more importantly) doesn't
  * skip real data. Most platforms are headerless; the exceptions: NES (16-byte
  * iNES), SNES (512-byte copier header iff size%1024==512), Atari 7800 (.a78 has a
@@ -449,7 +449,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
   // Disassemble the whole code area. Flat platforms produce one asm blob;
   // BANKED carts (NES mappers, SNES LoROM, GB MBC, Sega mapper, MSX megaROM,
   // 2600 F8/F6/F4, 7800 SuperGame, >32KB HuCards) produce one segment PER
-  // BANK (segments[]) — a flat-blob disasm mis-addresses everything past the
+  // BANK (segments[]) - a flat-blob disasm mis-addresses everything past the
   // first bank and lets instructions straddle bank edges, which corrupts the
   // decode stream (the 0.27.0 refsFound:0 bug, fixed for NES first and now
   // applied to every banked platform). Refs from a segment carry a bank tag.
@@ -457,7 +457,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
   /** @type {{asm: string, bank: number}[] | null} */
   let segments = null;
   // Bound the per-bank da65/objdump fan-out on huge carts. 64 banks covers
-  // 1MB (16KB banks) / 512KB (8KB pages) — beyond that we scan the first 64
+  // 1MB (16KB banks) / 512KB (8KB pages) - beyond that we scan the first 64
   // and SAY SO in notes rather than silently truncating.
   const SEGMENT_CAP = 64;
   let segmentsCapped = 0;
@@ -472,7 +472,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
     } else {
       // Banked PRG (>32KB, e.g. UxROM/MMC1/MMC3): the old code disassembled
       // the whole PRG as ONE flat blob at $8000, which mis-addresses every
-      // bank past the first — a 128KB mapper-2 scan returned refsFound:0
+      // bank past the first - a 128KB mapper-2 scan returned refsFound:0
       // for bytes referenced in dozens of places (0.27.0 feedback #3).
       // Disassemble each 16KB bank separately: switchable banks at $8000,
       // the (conventionally fixed) last bank at $C000; tag refs with the
@@ -488,7 +488,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
     }
   } else if (resolved === "snes") {
     // LoROM: 32KB banks each mapped at $xx:8000. The old code disassembled
-    // ONLY the first 32KB bank — a 1MB cart's other 31 banks were invisible.
+    // ONLY the first 32KB bank - a 1MB cart's other 31 banks were invisible.
     // Scan every 32KB bank at $8000 (absolute 16-bit operands are bank-window
     // addresses on LoROM), tagged with the bank index.
     const hasHeader = (data.length % 1024) === 512;
@@ -519,7 +519,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
     }
   } else if (resolved === "sms" || resolved === "gg") {
     // Sega mapper: slots 0+1 ($0000-$7FFF) hold banks 0-1; slot 2 ($8000-
-    // $BFFF) pages in banks 2+. The old code scanned only the first 32KB —
+    // $BFFF) pages in banks 2+. The old code scanned only the first 32KB -
     // every bank past 1 was invisible. Scan bank 0 @ $0000, bank 1 @ $4000,
     // banks 2+ @ $8000 (their pageable window), tagged with the bank index.
     const { runObjdump } = await import("../../toolchains/objdump.js");
@@ -539,7 +539,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
     }
   } else if (resolved === "gb" || resolved === "gbc") {
     // MBC banking: bank 0 fixed at $0000, banks 1+ page into $4000-$7FFF.
-    // The old code scanned only the first 32KB (banks 0-1) — a 128KB MBC1
+    // The old code scanned only the first 32KB (banks 0-1) - a 128KB MBC1
     // cart's other 6 banks were invisible. Scan every 16KB bank (bank 0 @
     // $0000, banks 1+ @ $4000), tagged with the bank index.
     const { runObjdump } = await import("../../toolchains/objdump.js");
@@ -559,8 +559,8 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
     }
   } else if (resolved === "atari2600") {
     // 2600 cart maps to $F000-$FFFF. Banked carts (F8=8KB, F6=16KB, F4=32KB,
-    // …) page 4KB banks into the SAME $F000 window. The old code scanned only
-    // the boot bank — fixed: scan every 4KB bank at $F000, tagged.
+    // ...) page 4KB banks into the SAME $F000 window. The old code scanned only
+    // the boot bank - fixed: scan every 4KB bank at $F000, tagged.
     const { runDa65 } = await import("../../toolchains/cc65/da65.js");
     if (data.length <= 0x1000) {
       const mapped = mapAtari2600Address(data, 0xF000, 0x1000, 0);
@@ -577,10 +577,10 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
       }
     }
   } else if (resolved === "atari7800") {
-    // 7800: flat carts (≤48KB) map at the top of the address space — scan the
+    // 7800: flat carts (≤48KB) map at the top of the address space - scan the
     // WHOLE cart (the old code scanned only $C000-$FFFF, hiding code at
     // $4000-$BFFF on 32/48KB carts). SuperGame banked carts (>48KB) page
-    // 16KB banks into $8000-$BFFF with the last bank fixed at $C000 — scan
+    // 16KB banks into $8000-$BFFF with the last bank fixed at $C000 - scan
     // per-bank, tagged. A 128-byte .a78 header is stripped if present.
     const hasA78 = data.length >= 17 &&
       String.fromCharCode(...data.subarray(1, 10)) === "ATARI7800";
@@ -634,9 +634,9 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
   } else if (resolved === "pce") {
     // PC Engine HuCard: HuC6280 (65C02 superset), 8KB pages mapped via the
     // MPRs. ≤32KB images map flat at the top of the address space (the old
-    // assumption — correct there). Bigger HuCards are banked: the old code
-    // computed a WRAPPED start address (garbage for >64KB) — fixed: scan
-    // every 8KB page, page 0 at $E000 (where MPR7 maps it at reset — the
+    // assumption - correct there). Bigger HuCards are banked: the old code
+    // computed a WRAPPED start address (garbage for >64KB) - fixed: scan
+    // every 8KB page, page 0 at $E000 (where MPR7 maps it at reset - the
     // vectors live there), pages 1+ at $8000 (a neutral MPR4 window; the
     // base only affects branch-target/auto-label matching, absolute operands
     // match regardless). A 512-byte copier header is stripped if present.
@@ -662,7 +662,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
     }
   } else if (resolved === "msx") {
     // MSX cartridge maps at $4000-$BFFF. MegaROMs (>32KB) page 16KB banks via
-    // an ASCII16-style mapper — the old code scanned only the first 32KB.
+    // an ASCII16-style mapper - the old code scanned only the first 32KB.
     // Scan bank 0 at $4000 (its fixed home, header skipped) and banks 1+ at
     // $8000 (the conventional second window), tagged with the bank index.
     const hdr = data.length >= 2 && data[0] === 0x41 && data[1] === 0x42;
@@ -703,8 +703,8 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
   if (accessScan) {
     const family = accessFamilyFor(resolved);
     const window = accessScan.window ?? 2;
-    // Bank filter. A cart's DATA banks decode as fiction — arbitrary tile bytes
-    // disassemble into plausible instructions — and on 6502 a zero-page target
+    // Bank filter. A cart's DATA banks decode as fiction - arbitrary tile bytes
+    // disassemble into plausible instructions - and on 6502 a zero-page target
     // makes that fiction hit constantly, because the two-byte encodings
     // (`C6 C0` = dec $C0, `01 C0` = ora ($C0,x)) are ordinary byte pairs in
     // level data. One reported scan returned 249 sites, nearly all from a
@@ -720,7 +720,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
     const keptBanks = [], skippedBanks = [];
     let sites = [];
     // Per-bank site counts and sizes for the density rollup, kept even when no
-    // filter was requested — density is the signal that lets a caller discard a
+    // filter was requested - density is the signal that lets a caller discard a
     // flooded bank WITHOUT reading its rows, so it should not require knowing
     // to ask for it.
     const perBankRaw = new Map();
@@ -795,9 +795,9 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
     }
     const famNote =
       family === "6502" || family === "65816"
-        ? "Indexed bases (abs,X / abs,Y) within `window` below the target are matched, plus the page base ($xx00,idx) for the target's page. Indirect forms (($nn),y) match only exactly — their base is a pointer LOCATION, not the array base; find the pointer's writers instead."
+        ? "Indexed bases (abs,X / abs,Y) within `window` below the target are matched, plus the page base ($xx00,idx) for the target's page. Indirect forms (($nn),y) match only exactly - their base is a pointer LOCATION, not the array base; find the pointer's writers instead."
         : family === "sm83" || family === "z80"
-          ? "Memory access on this CPU flows through register pairs, so besides direct ($nnnn) operands the scan reports pointerLoad sites (ld rr,$nnnn) whose base is within `window` of the target — the load that TAKES the address is the lead. hl-relative stores themselves are statically invisible: confirm with watch({on:'range'})."
+          ? "Memory access on this CPU flows through register pairs, so besides direct ($nnnn) operands the scan reports pointerLoad sites (ld rr,$nnnn) whose base is within `window` of the target - the load that TAKES the address is the lead. hl-relative stores themselves are statically invisible: confirm with watch({on:'range'})."
           : "m68k: direct absolute operands + pointerLoad (lea/pea/movea) bases within `window`. d16(An)/(An)+ accesses are register-relative and statically invisible: confirm with watch({on:'range'}).";
     return {
       path,
@@ -809,7 +809,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
       truncated: sites.length > returnedSites.length
         ? `${sites.length - returnedSites.length} additional sites not returned` +
           (perBankCapped.length
-            ? ` — ${perBankCapped.map((b) => `bank ${b.bank} capped at ${maxSitesPerBank} of ${b.sites}`).join(", ")}. A flooded DATA bank would otherwise consume the whole budget and truncate away the real hits from the code banks; every bank now gets its own slice. Raise maxSitesPerBank for more rows from one bank, or rerun with banks:[…] to scan only the code banks.`
+            ? ` - ${perBankCapped.map((b) => `bank ${b.bank} capped at ${maxSitesPerBank} of ${b.sites}`).join(", ")}. A flooded DATA bank would otherwise consume the whole budget and truncate away the real hits from the code banks; every bank now gets its own slice. Raise maxSitesPerBank for more rows from one bank, or rerun with banks:[...] to scan only the code banks.`
             : ` (raise maxRefsReturned).`)
         : undefined,
       summary,
@@ -817,15 +817,15 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
       ...(bankFiltered ? { banksScanned: keptBanks, banksSkipped: skippedBanks } : {}),
       notes: [
         famNote,
-        "This bounds DIRECT + near-base indexed access only — table-driven writes (lda tbl,y / sta base,x with a far base) and fully indirect access need the live census: watch({on:'range', kind:'write'}).",
+        "This bounds DIRECT + near-base indexed access only - table-driven writes (lda tbl,y / sta base,x with a far base) and fully indirect access need the live census: watch({on:'range', kind:'write'}).",
         // Only worth saying when the numbers actually look lopsided. Emit the
         // measurement and let the caller conclude; a bank can legitimately be
         // both dense and code.
         !bankFiltered && perBank && perBank.length > 1 && perBank[0].sites >= 20 &&
         perBank[0].per1kLines >= 4 * (perBank[perBank.length - 1].per1kLines || 0.1)
-          ? `Site density varies sharply across banks (see perBank: bank ${perBank[0].bank} has ${perBank[0].sites} sites at ${perBank[0].per1kLines}/1k lines). A DATA bank decodes as fiction that still boundary-verifies, and on 6502 a zero-page target hits constantly in tile/level data. If you know which banks hold code, rerun with banks:[…] (or excludeBanks:[…]) — that is the static fix for a flooded scan, ahead of the dynamic backstop below.`
+          ? `Site density varies sharply across banks (see perBank: bank ${perBank[0].bank} has ${perBank[0].sites} sites at ${perBank[0].per1kLines}/1k lines). A DATA bank decodes as fiction that still boundary-verifies, and on 6502 a zero-page target hits constantly in tile/level data. If you know which banks hold code, rerun with banks:[...] (or excludeBanks:[...]) - that is the static fix for a flooded scan, ahead of the dynamic backstop below.`
           : null,
-        segmentsCapped > 0 ? `Scan covered the first ${SEGMENT_CAP} banks only — ${segmentsCapped} additional bank(s) were NOT scanned.` : null,
+        segmentsCapped > 0 ? `Scan covered the first ${SEGMENT_CAP} banks only - ${segmentsCapped} additional bank(s) were NOT scanned.` : null,
       ].filter(Boolean).join(" "),
     };
   }
@@ -861,7 +861,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
   // Pointer-table / trampoline scan. The operand scan above only finds DIRECT
   // control-flow (jsr/jmp/branch naming the address). When a handler is reached
   // ONLY through an inline word table (computed jump / RTS-trick dispatcher), no
-  // instruction names it — so when the direct scan comes up empty (or the caller
+  // instruction names it - so when the direct scan comes up empty (or the caller
   // asks), scan the raw bytes for the address as a 16-bit pointer (LE/BE, direct
   // and the RTS-trick addr-1 form). This is the case the v0.41.0 feedback hit
   // where the only "ref" was an inline `B5 8E` table entry da65 mis-decoded.
@@ -892,14 +892,14 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
       refs.length === 0
         ? `No DIRECT control-flow references (jsr/jmp/branch naming $${address.toString(16).toUpperCase()}).` +
           (tableHits && tableHits.length
-            ? ` BUT ${tableHits.length} pointer-table hit(s) — the address appears as a 16-bit word in the ROM (an inline jump-table / trampoline reaches it via a computed jump). See tableHits: fileOffset is where the pointer sits; convention 'rts+1' is the 6502 RTS-trick (table holds addr-1).`
-            : ` No pointer-table hits either — likely unreached, or a register/computed target this scan can't resolve.`)
+            ? ` BUT ${tableHits.length} pointer-table hit(s) - the address appears as a 16-bit word in the ROM (an inline jump-table / trampoline reaches it via a computed jump). See tableHits: fileOffset is where the pointer sits; convention 'rts+1' is the 6502 RTS-trick (table holds addr-1).`
+            : ` No pointer-table hits either - likely unreached, or a register/computed target this scan can't resolve.`)
         : null,
       refs.length > 0 && tableHits && tableHits.length
-        ? `Also ${tableHits.length} pointer-table hit(s) (the address also appears as a raw 16-bit pointer — see tableHits).`
+        ? `Also ${tableHits.length} pointer-table hit(s) (the address also appears as a raw 16-bit pointer - see tableHits).`
         : null,
       segmentsCapped > 0
-        ? `Scan covered the first ${SEGMENT_CAP} banks only — ${segmentsCapped} additional bank(s) were NOT scanned (very large cart).`
+        ? `Scan covered the first ${SEGMENT_CAP} banks only - ${segmentsCapped} additional bank(s) were NOT scanned (very large cart).`
         : null,
     ].filter(Boolean).join(" ") || undefined,
   };

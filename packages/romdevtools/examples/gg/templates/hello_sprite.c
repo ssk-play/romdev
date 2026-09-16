@@ -1,4 +1,4 @@
-/* ── hello_sprite.c — Game Gear starter (one sprite + d-pad) ────────
+/* ── hello_sprite.c - Game Gear starter (one sprite + d-pad) ────────
  *
  * Drives one sprite around the Game Gear screen with the directional
  * pad. Uses the bundled GG runtime helpers (gg_vdp_init, gg_load_tiles,
@@ -11,7 +11,7 @@
  *   - Sprite tile data at VRAM $2000 (R6 = 0xFF → SA13 set → $2000)
  *   - 64 sprite slots × 4 bytes (Y / X / tile / unused)
  *
- * Multi-file project — main.c plus the runtime .c files. Build with:
+ * Multi-file project - main.c plus the runtime .c files. Build with:
  *   build({ output: "rom", platform:"gg", language:"c",
  *                sources: { "main.c": ..., "vdp_init.c": ..., ... },
  *                includes: { "gg_hw.h": ... }})
@@ -52,7 +52,7 @@ static const uint8_t palette[64] = {
 
 /* One dithered BG tile (BG bank $0000): plane0/plane1 alternate so pixels
  * flip between colour 1 (teal) and colour 2 (blue). Filling the name table
- * with it gives a two-tone backdrop so the frame is never a flat colour —
+ * with it gives a two-tone backdrop so the frame is never a flat colour -
  * a uniform fill still reads as a blank screen. The dither fills the whole
  * 256x192 frame, so it shows in the GG's centered 160x144 window too. */
 static const uint8_t bg_tile[32] = {
@@ -101,7 +101,7 @@ void main(void) {
 
   gg_sprite_init();
   sfx_init();
-  sfx_tone(0, 220, 12);  /* boot chime — confirms sound works */
+  sfx_tone(0, 220, 12);  /* boot chime - confirms sound works */
   gg_sprite_set(0, x, y, /*tile*/ 0);
   gg_sat_upload();
 
@@ -111,7 +111,7 @@ void main(void) {
     uint8_t pad;
     gg_vblank_wait();
     sfx_update();
-    /* Stage sprite for the next frame BEFORE we read input — the SAT
+    /* Stage sprite for the next frame BEFORE we read input - the SAT
      * upload below pushes the staging buffer to VRAM at vblank. */
     gg_sprite_set(0, x, y, 0);
     gg_sat_upload();

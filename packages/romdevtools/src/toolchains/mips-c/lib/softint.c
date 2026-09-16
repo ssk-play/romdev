@@ -1,4 +1,4 @@
-/* softint.c — the few libgcc helpers a fixed-point game needs, in plain C, so the
+/* softint.c - the few libgcc helpers a fixed-point game needs, in plain C, so the
    build doesn't depend on an endian-specific libgcc.a. Compiled per-build with the
    target endian. Currently: 64-bit signed/unsigned divide + modulo (__divdi3 etc).
    MIPS has native 32x32->64 multiply, so __muldi3 isn't needed. */

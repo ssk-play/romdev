@@ -1,4 +1,4 @@
-// splat-map.js — the ONE address resolver for a splat-based decompilation
+// splat-map.js - the ONE address resolver for a splat-based decompilation
 // project. Reads the splat yaml's segment table (ROM offset ↔ virtual address,
 // per segment, overlays included), the symbol_addrs files and the linker map,
 // and answers "where is VA X" with explicit segment identity.
@@ -8,7 +8,7 @@
 // 0xA95D0 / VRAM 0x801DAFA0) and overlays (nineteen of them sharing VRAM
 // 0x802C5800) are invisible to `fileOff = va - entry + 0x1000`, and the wrong
 // offset still lands inside the 8 MiB image, so a bounds check cannot catch it.
-// Every decomp op — resolve, decompile, xrefs, runtime symbolization — goes
+// Every decomp op - resolve, decompile, xrefs, runtime symbolization - goes
 // through here so they cannot disagree.
 import { readFile } from "node:fs/promises";
 import fs from "node:fs";
@@ -84,7 +84,7 @@ export class SplatMap {
 
   /**
    * Resolve a virtual address. Returns every segment that maps it; the caller
-   * (or a `segment` hint) disambiguates overlays — never silently picks one.
+   * (or a `segment` hint) disambiguates overlays - never silently picks one.
    * @param {number} va
    * @param {{segment?:string}} [opts]
    */
@@ -120,7 +120,7 @@ export class SplatMap {
     }
     if (candidates.length > 1) {
       return { ok: false, code: "AMBIGUOUS_OVERLAY", va, vaHex: hx(va), candidates, ambiguous: true,
-        error: `VA ${hx(va)} is mapped by ${candidates.length} overlapping segments (${candidates.map((c) => c.segment).join(", ")}). Pass segment:'<one of them>' — the resolver never guesses which overlay is loaded.` };
+        error: `VA ${hx(va)} is mapped by ${candidates.length} overlapping segments (${candidates.map((c) => c.segment).join(", ")}). Pass segment:'<one of them>' - the resolver never guesses which overlay is loaded.` };
     }
     return { ok: true, resolved: candidates[0], candidates, ambiguous: false };
   }
@@ -304,7 +304,7 @@ export function parseSplatAsm(text) {
   let padWords = 0;
   for (const line of text.split("\n")) {
     let m;
-    // `.section .text, "ax"` — the name ENDS at the comma. Capturing \S+ took
+    // `.section .text, "ax"` - the name ENDS at the comma. Capturing \S+ took
     // the comma with it, so `section === ".text"` was false for every file that
     // spells the directive with attributes, and EVERY instruction in it was
     // silently dropped. The symbol still resolved, so the result was a real

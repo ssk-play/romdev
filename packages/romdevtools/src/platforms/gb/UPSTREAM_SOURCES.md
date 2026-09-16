@@ -1,11 +1,11 @@
-# Game Boy — source you can read
+# Game Boy - source you can read
 
 Trust hierarchy:
 
 1. **Bundled examples** (`examples/gb/templates/*.c`).
-2. **Bundled runtime** — `src/platforms/gb/lib/c/gb_runtime.c`,
+2. **Bundled runtime** - `src/platforms/gb/lib/c/gb_runtime.c`,
    `gb_crt0.s`, `patch-header.js`, `hUGEDriver.c` (full source).
-3. **SDCC sm83 port** — we ship the WASM compiler but NOT the SDCC
+3. **SDCC sm83 port** - we ship the WASM compiler but NOT the SDCC
    source tree. For SDCC bugs, see upstream below.
 4. **Upstream GitHub**:
 
@@ -28,7 +28,7 @@ Trust hierarchy:
 
 See `src/platforms/gb/lib/c/hUGEDriver.c` header comment + the
 upstream README. Songs are exported from hUGETracker
-(https://github.com/SuperDisk/hUGETracker) as `.c` files —
+(https://github.com/SuperDisk/hUGETracker) as `.c` files -
 `song_data.c` in our bundle is one such export.
 
 ## When to use what
@@ -38,6 +38,6 @@ upstream README. Songs are exported from hUGETracker
 - "BGP write does nothing" → check $0143 (CGB flag) via
   `romPatch({op:'gbHeader'})` + Pan Docs § "The Cartridge Header"
 - "How does hUGEDriver process a song row?" → `hUGEDriver.c`
-  `hUGE_dosound` body — fully readable
+  `hUGE_dosound` body - fully readable
 - "Why is gambatte refusing my ROM?" → check the header, then
   libretro-gambatte source for the load path

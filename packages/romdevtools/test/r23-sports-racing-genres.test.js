@@ -39,7 +39,7 @@ test("R23 NES sports + racing templates build via buildForPlatform", { timeout: 
 
 test("R23 Genesis sports + racing templates build via buildGenesisC", { timeout: 180000 }, async () => {
   const { buildGenesisC } = await import("romdev-toolchain-m68k-gcc");
-  // R30: scaffolds now include genesis_sfx — provide it.
+  // R30: scaffolds now include genesis_sfx - provide it.
   const sfxH = await readSource("../romdev-toolchain-m68k-gcc/share/genesis/lib/c/genesis_sfx.h");
   const sfxC = await readSource("../romdev-toolchain-m68k-gcc/share/genesis/lib/c/genesis_sfx.c");
   for (const t of ["sports", "racing"]) {
@@ -75,7 +75,7 @@ test("R23e GB sports + racing templates build via buildForPlatform", { timeout: 
 
 test("R23e SNES sports + racing templates build via buildSnesC", { timeout: 180000 }, async () => {
   const { buildSnesC } = await import("../src/toolchains/snes-c/snes-c.js");
-  // R31: SNES sports + racing now use snes_sfx — provide it.
+  // R31: SNES sports + racing now use snes_sfx - provide it.
   const sfxH = await readSource("src/platforms/snes/lib/c/snes_sfx.h");
   const sfxC = await readSource("src/platforms/snes/lib/c/snes_sfx.c");
   const sfxDataAsm = await readSource("src/platforms/snes/lib/c/snes_sfx_data.asm");
@@ -169,7 +169,7 @@ test("R23e createGame rejects an unknown template with a clear error", { timeout
   const projPath = await mkdtemp(join(tmpdir(), "r23-bad-"));
   // The 14×5 grid is complete (2026-06-11): every platform now ships all five
   // canonical genres, including atari2600/puzzle (TILE TWINS, a memory match-
-  // pairs game). So there's no longer a canonical genre any platform LACKS —
+  // pairs game). So there's no longer a canonical genre any platform LACKS -
   // the rejection path is exercised with a genuinely unknown template name.
   await assert.rejects(
     () => createProjectImpl({

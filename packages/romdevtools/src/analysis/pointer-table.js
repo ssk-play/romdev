@@ -2,8 +2,8 @@
 // handler?" map, the static complement to the LIVE breakpoint({on:'jumptable'})
 // resolver. Handles the three forms a real dispatcher uses (v0.41.0 feedback N2):
 //
-//   1. CONTIGUOUS little-endian words — `dw handler0, handler1, …` at one base.
-//   2. SPLIT lo/hi — low bytes in one array, high bytes in a SEPARATE array at a
+//   1. CONTIGUOUS little-endian words - `dw handler0, handler1, ...` at one base.
+//   2. SPLIT lo/hi - low bytes in one array, high bytes in a SEPARATE array at a
 //      different base: handler = (hi[i] << 8) | lo[i]. (Common on NES shooters.)
 //   3. The 6502 RTS-trick (`+1`): the stored value is handler-1 (push, rts → +1),
 //      so the real handler = storedWord + 1.

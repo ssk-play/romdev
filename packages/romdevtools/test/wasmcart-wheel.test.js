@@ -43,7 +43,7 @@ test("setInput forwards {wheel} to cart.wheel with the raw 1/120 deltas", () => 
   assert.deepEqual(calls, [{ dx: 0, dy: 120 }]);
 });
 
-test("repeated setInput ACCUMULATES — a flick is many events, one frame", () => {
+test("repeated setInput ACCUMULATES - a flick is many events, one frame", () => {
   const { host, calls } = hostWithStubCart();
   host.setInput({ wheel: { dx: 0, dy: 120 } });
   host.setInput({ wheel: { dx: 0, dy: 120 } });
@@ -57,7 +57,7 @@ test("repeated setInput ACCUMULATES — a flick is many events, one frame", () =
 
 test("a wheel-less cart is a no-op, not a throw (older wasmcart resolved)", () => {
   const host = new WasmcartHost();
-  host.cart = { setPointer: () => {} };   // no .wheel — pre-0.22.0
+  host.cart = { setPointer: () => {} };   // no .wheel - pre-0.22.0
   assert.doesNotThrow(() => host.setInput({ wheel: { dx: 0, dy: 120 } }));
 });
 
@@ -89,14 +89,14 @@ test("one notch is 120 units, and positive is UP", () => {
   assert.deepEqual(toRaw(-1), { dx: 0, dy: -120 });
 });
 
-test("fractions survive — a trackpad is not rounded to a click", () => {
+test("fractions survive - a trackpad is not rounded to a click", () => {
   assert.deepEqual(toRaw(0.25), { dx: 0, dy: 30 });
   // ROUNDED, not truncated: 0.1 notches is 12 units, and truncation toward
   // zero would make small smooth scrolls vanish entirely.
   assert.deepEqual(toRaw(0.1), { dx: 0, dy: 12 });
 });
 
-test("axes are independent — horizontal does not leak into vertical", () => {
+test("axes are independent - horizontal does not leak into vertical", () => {
   assert.deepEqual(toRaw(0, 1), { dx: 120, dy: 0 });
   assert.deepEqual(toRaw(2, -1), { dx: -120, dy: 240 });
 });

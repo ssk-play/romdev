@@ -221,7 +221,7 @@ test("the truncation note names the capped banks and both escape hatches", async
   });
   assert.match(r.truncated, /capped at 3 of/, "says which banks were capped, and out of how many");
   assert.match(r.truncated, /maxSitesPerBank/, "names the row-cap knob");
-  assert.match(r.truncated, /banks:\[/, "names the better fix — scan only the code banks");
+  assert.match(r.truncated, /banks:\[/, "names the better fix - scan only the code banks");
 });
 
 test("an unbanked ROM is unaffected by the per-bank cap", { skip: TEST_ROM.skip }, async () => {
@@ -264,7 +264,7 @@ function makeSmsRom() {
 
 const SMS_ROM = makeSmsRom();
 
-test("SMS/Z80: the flood reproduces and banks:[…] cuts it down", async () => {
+test("SMS/Z80: the flood reproduces and banks:[...] cuts it down", async () => {
   const all = await findReferencesCore({
     path: SMS_ROM, platform: "sms", address: 0xC000,
     accessScan: { window: 2 }, maxRefsReturned: 8192, maxSitesPerBank: 4096,

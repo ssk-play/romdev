@@ -75,9 +75,9 @@ __sfr __at 0xFF04 DIV;
 __sfr __at 0xFF05 TIMA;
 __sfr __at 0xFF06 TMA;
 __sfr __at 0xFF07 TAC;
-__sfr __at 0xFF0F IF_REG;      /* interrupt flag — IF is reserved */
+__sfr __at 0xFF0F IF_REG;      /* interrupt flag - IF is reserved */
 
-/* IE is at $FFFF — not addressable via __sfr __at (that's the 8-bit-port
+/* IE is at $FFFF - not addressable via __sfr __at (that's the 8-bit-port
  * space at $FF00-$FF7F). Read/write via:
  *   *(volatile unsigned char *)0xFFFF = 0x01;
  */

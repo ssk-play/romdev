@@ -4,7 +4,7 @@
 // u16 little-endian): indices 0-255 are the 16 background sub-palettes
 // (16 colors each), 256-511 are the 16 sprite sub-palettes. Each entry is a
 // 9-bit GRB value `0bGGG_RRR_BBB` (geargrafx huc6260.cpp:74-76 is canonical):
-//   green = (v >> 6) & 7,  red = (v >> 3) & 7,  blue = v & 7   — each ×255/7.
+//   green = (v >> 6) & 7,  red = (v >> 3) & 7,  blue = v & 7   - each ×255/7.
 // Color 0 of each 16-entry sub-palette is the transparent/backdrop slot.
 
 /** Scale a 3-bit (0-7) channel to 8-bit (0-255). */

@@ -1,7 +1,7 @@
-# Atari 2600 / VCS — troubleshooting
+# Atari 2600 / VCS - troubleshooting
 
 > **A build failed? Read `issues[]` FIRST.** Every build/compile call returns
-> `issues: [{file, line, col, severity, message, stage}]` — the structured error
+> `issues: [{file, line, col, severity, message, stage}]` - the structured error
 > list. It almost always names the exact line to fix. Read that before matching a
 > symptom below or touching your source. Fall back to the raw `log` only if
 > `issues[]` is empty but `ok:false`.
@@ -32,7 +32,7 @@ Use the cycle counter from `stella -trace` (or our `frame({op:'step'})` +
 Two scanlines = one TIA pixel of vertical resolution at minimum,
 but the GRP0/GRP1 register stays valid until you change it. If you
 write GRP0 once and don't reset to 0 on the next line, the sprite
-"smears down" — extending to the bottom of the screen.
+"smears down" - extending to the bottom of the screen.
 
 The fix: explicitly write `STA GRP0` with 0 on every line where
 the player isn't drawn. Or write it ONCE for the scanlines you
@@ -57,11 +57,11 @@ want, and zero AFTER:
 
 The X-position routine has cycle-count gotchas:
 
-1. **`STA RESP0` itself takes 3 cycles** — the actual reset happens
+1. **`STA RESP0` itself takes 3 cycles** - the actual reset happens
    at cycle 3 of the instruction, not cycle 0. Fine X via HMP0 +
    HMOVE compensates.
 2. **HMOVE itself takes 8 cycles to execute** and triggers a
-   "missing horizontal blank" — if HMOVE runs after pixel 56 of
+   "missing horizontal blank" - if HMOVE runs after pixel 56 of
    the current scanline, the right-hand side of the next scanline
    has 8 black pixels.
 3. **Your delay loop has variable cycle count** depending on
@@ -85,7 +85,7 @@ BEQ .not_up
 ```
 
 The `default.asm` template uses `ASL` + `BCS` which checks the
-high bit directly without explicit inversion — also valid, just
+high bit directly without explicit inversion - also valid, just
 different idiom.
 
 ## "ROM works in stella but wrong on real hardware"
@@ -112,7 +112,7 @@ where:
 freq_hz = 30030 / (audf + 1)
 ```
 
-(approx, for AUDC tone shape 4 — pure tone.)
+(approx, for AUDC tone shape 4 - pure tone.)
 
 So `AUDF0 = 7` → ~3.75 kHz. Higher AUDF = lower pitch. Most
 tutorials list a lookup table; the bundled `lib/` directory has
@@ -163,10 +163,10 @@ Expected. dasm cold-load is ~500ms. Steady-state builds < 100ms.
 
 ## Pressing RIGHT also "presses" LEFT (or the player can't move at all)
 
-The classic `LDA SWCHA / ASL / BCS … / ASL / BCS …` carry-chain only works if
+The classic `LDA SWCHA / ASL / BCS ... / ASL / BCS ...` carry-chain only works if
 NOTHING between the shifts touches A. The moment a branch body does
 `LDA P_X` (a bounds check, a compare), the next `ASL` shifts your *position*
-instead of SWCHA — and since positions are < $80, carry comes back clear and
+instead of SWCHA - and since positions are < $80, carry comes back clear and
 the "other direction" fires too. Net effect: moves cancel, the sprite sticks
 to one edge. **Re-load SWCHA and AND a single bit per direction instead:**
 
@@ -186,7 +186,7 @@ to one edge. **Re-load SWCHA and AND a single bit per direction instead:**
 
 Signed-velocity clamps must check the SIGN first. An unsigned
 `CMP #$F8 / BCS keep` "terminal velocity" clamp also catches every POSITIVE
-(rising) velocity — +6 is less than $F8 unsigned — so the jump impulse is
+(rising) velocity - +6 is less than $F8 unsigned - so the jump impulse is
 instantly slammed to falling and the whole arc resolves inside one frame
 (SFX plays, screen blips, no visible jump). Clamp only while falling:
 

@@ -13,42 +13,42 @@
 import { toolJsonSchema } from "./tool-registry.js";
 
 /**
- * MCP-channel preamble — prepended to the shared AGENTS body when the server
+ * MCP-channel preamble - prepended to the shared AGENTS body when the server
  * hands instructions to an MCP client. Talks ONLY about MCP tool-calling.
  */
 export const mcpPreamble = [
-  "romdev: homebrew retro game development + reverse-engineering for coding agents — 19 platforms (NES through GBA, C64, GameTank, sync32, + the 3D consoles N64/PlayStation/Dreamcast).",
-  "HARD RULE: NEVER install a host compiler or emulator (no clang/gcc/Xcode/devkitPro/brew/apt, no downloaded emulator). romdev BUNDLES every compiler (cc65, sdcc, gcc, arm/m68k/mips/sh-gcc, tcc, wla, rgbds, vasm, asar, dasm) + every emulator core as WASM and runs them through these tools — build({output:'rom'|'run'}) compiles, loadMedia+frame runs. If you're about to install or call a host toolchain, STOP and use the romdev build tool instead; an install kicking off is a DEFECT to report.",
-  "All ~32 tools register at session init — call any by name directly, no loading step. Each is a domain VERB with an operation axis: memory({op}), build({output}), breakpoint({on}), cpu({op}), sprites({op}), tiles({op}), disasm({target}), romPatch({op}), …",
+  "romdev: homebrew retro game development + reverse-engineering for coding agents - 19 platforms (NES through GBA, C64, GameTank, sync32, + the 3D consoles N64/PlayStation/Dreamcast).",
+  "HARD RULE: NEVER install a host compiler or emulator (no clang/gcc/Xcode/devkitPro/brew/apt, no downloaded emulator). romdev BUNDLES every compiler (cc65, sdcc, gcc, arm/m68k/mips/sh-gcc, tcc, wla, rgbds, vasm, asar, dasm) + every emulator core as WASM and runs them through these tools - build({output:'rom'|'run'}) compiles, loadMedia+frame runs. If you're about to install or call a host toolchain, STOP and use the romdev build tool instead; an install kicking off is a DEFECT to report.",
+  "All ~32 tools register at session init - call any by name directly, no loading step. Each is a domain VERB with an operation axis: memory({op}), build({output}), breakpoint({on}), cpu({op}), sprites({op}), tiles({op}), disasm({target}), romPatch({op}), ...",
   "RE engine (all 18 platforms): disasm({target:'functions'}) auto-detects functions, disasm({target:'cfg'}) graphs control flow, disasm({target:'xrefs'}) finds cross-references, disasm({target:'decompile'}) emits Ghidra C pseudocode, symbols({op:'analyze'}) maps a ROM's structure in one call.",
   "catalog({op:'categories'}) maps the tools by purpose (a guide, not a gate); catalog({op:'status'}) is a session re-orient.",
 ].join("\n");
 
 /**
- * Skill-channel preamble — talks ONLY about the HTTP routes. No MCP.
+ * Skill-channel preamble - talks ONLY about the HTTP routes. No MCP.
  */
 export const skillPreamble = [
-  "romdev gives you homebrew retro game development + reverse-engineering for 19 platforms (NES, SNES, Game Boy, Genesis, GBA, Atari, C64, GameTank, sync32, the 3D consoles N64/PlayStation/Dreamcast, and more) — build, run, screenshot, inspect, patch, disassemble, convert assets, drive emulators.",
-  "It also ships a full RE analysis engine (Rizin + Ghidra, all 18 platforms): control-flow graphs, cross-references, auto-detected functions, a one-shot structural map, and a C-pseudocode decompiler — `disasm({target:'cfg'|'xrefs'|'functions'|'decompile'})` and `symbols({op:'analyze'})`.",
+  "romdev gives you homebrew retro game development + reverse-engineering for 19 platforms (NES, SNES, Game Boy, Genesis, GBA, Atari, C64, GameTank, sync32, the 3D consoles N64/PlayStation/Dreamcast, and more) - build, run, screenshot, inspect, patch, disassemble, convert assets, drive emulators.",
+  "It also ships a full RE analysis engine (Rizin + Ghidra, all 18 platforms): control-flow graphs, cross-references, auto-detected functions, a one-shot structural map, and a C-pseudocode decompiler - `disasm({target:'cfg'|'xrefs'|'functions'|'decompile'})` and `symbols({op:'analyze'})`.",
   "",
-  "## HARD RULE: never install a compiler or emulator — romdev already bundles every one",
-  "Every compiler/assembler/linker (cc65, sdcc, gcc, arm/m68k/mips/sh-gcc, tcc, wla, rgbds, vasm, asar, dasm) and every emulator core ships as WASM INSIDE romdev and runs in-process through these tools — `build({output:'rom'|'run'})` compiles, `loadMedia`+`frame` runs. You do NOT need, and must NOT install, a host `clang`/`gcc`/Xcode/Command-Line-Tools/devkitPro/`brew`/`apt` compiler or any emulator to build or run a ROM here. If you catch yourself about to install or invoke a host compiler/emulator — STOP. That's never the move: use the romdev `build` tool. (`platform({op:'toolchains'})` lists what's bundled for each platform.) A compiler/emulator install kicking off while using romdev is a DEFECT to report, not a step to take.",
+  "## HARD RULE: never install a compiler or emulator - romdev already bundles every one",
+  "Every compiler/assembler/linker (cc65, sdcc, gcc, arm/m68k/mips/sh-gcc, tcc, wla, rgbds, vasm, asar, dasm) and every emulator core ships as WASM INSIDE romdev and runs in-process through these tools - `build({output:'rom'|'run'})` compiles, `loadMedia`+`frame` runs. You do NOT need, and must NOT install, a host `clang`/`gcc`/Xcode/Command-Line-Tools/devkitPro/`brew`/`apt` compiler or any emulator to build or run a ROM here. If you catch yourself about to install or invoke a host compiler/emulator - STOP. That's never the move: use the romdev `build` tool. (`platform({op:'toolchains'})` lists what's bundled for each platform.) A compiler/emulator install kicking off while using romdev is a DEFECT to report, not a step to take.",
   "",
   "## Prerequisite: romdev runs LOCALLY (same machine as you)",
-  "The romdev SERVER hosts all that bundled WASM in-process; start it once with `npx romdevtools` (listens on http://localhost:7331 — that single `npx` is the ONLY install, and it pulls the toolchains/cores as bundled WASM, never a host compiler). If a call gets connection-refused, the server isn't running — start it.",
-  "**romdev runs on the SAME machine as you, and tools take FILESYSTEM PATHS** (`path`, `outputPath`, `modulePath`, `vgmPath`, …) — those are paths on the local disk romdev shares with you, NOT uploads. Pass an absolute local path; romdev reads/writes it directly. (This is also why it's localhost-only and needs no auth.) Likewise output paths land on the local disk where you can read them back.",
+  "The romdev SERVER hosts all that bundled WASM in-process; start it once with `npx romdevtools` (listens on http://localhost:7331 - that single `npx` is the ONLY install, and it pulls the toolchains/cores as bundled WASM, never a host compiler). If a call gets connection-refused, the server isn't running - start it.",
+  "**romdev runs on the SAME machine as you, and tools take FILESYSTEM PATHS** (`path`, `outputPath`, `modulePath`, `vgmPath`, ...) - those are paths on the local disk romdev shares with you, NOT uploads. Pass an absolute local path; romdev reads/writes it directly. (This is also why it's localhost-only and needs no auth.) Likewise output paths land on the local disk where you can read them back.",
   "",
   "## How to call romdev",
   "Each capability is an HTTP route on the local romdev server (default http://localhost:7331):",
-  "  • POST /tool/{name}  — run a tool. The JSON request body is the arguments. The response is JSON.",
-  "  • GET  /tool/{name}/schema — that tool's JSON Schema (the exact parameters + types).",
-  "  • GET  /openapi.json — the full machine-readable API; GET /documentation — a browsable console.",
+  "  • POST /tool/{name}  - run a tool. The JSON request body is the arguments. The response is JSON.",
+  "  • GET  /tool/{name}/schema - that tool's JSON Schema (the exact parameters + types).",
+  "  • GET  /openapi.json - the full machine-readable API; GET /documentation - a browsable console.",
   "",
-  "## Sessions — IMPORTANT for stateful work (load → step → read)",
-  "**Pick ONE session id for yourself and send it as the `x-romdev-session` header on EVERY call.** Make it UNIQUE and DESCRIPTIVE of what you're doing — e.g. `nes-platformer-build`, `rpg-romhack-text`, `gba-sprite-debug` (a slug, optionally with a short random suffix to stay unique). A human may be watching the live observer at /livestream, where your session id is the label for all your activity — a descriptive id tells them at a glance which agent/task each call belongs to; a bare uuid or `default` is opaque. The emulator/host is per-session: the ROM you `loadMedia` lives in YOUR session, and the next `frame`/`memory`/`cpu` call only sees it if it carries the SAME id. Do NOT send a new id each call — that's a fresh empty session every time (your loaded ROM vanishes; \"No ROM loaded\"). Several agents can share one server safely: each just sends a DIFFERENT id, so nobody clobbers another's ROM (another reason to make yours distinctive). The header is REQUIRED on every `/tool/{name}` call — omit it and you get a **401** (the server will NOT silently run you in a throwaway session). Pure file tools (romPatch/cart/encodeAudio) still need the header; just reuse your one id everywhere.",
+  "## Sessions - IMPORTANT for stateful work (load → step → read)",
+  "**Pick ONE session id for yourself and send it as the `x-romdev-session` header on EVERY call.** Make it UNIQUE and DESCRIPTIVE of what you're doing - e.g. `nes-platformer-build`, `rpg-romhack-text`, `gba-sprite-debug` (a slug, optionally with a short random suffix to stay unique). A human may be watching the live observer at /livestream, where your session id is the label for all your activity - a descriptive id tells them at a glance which agent/task each call belongs to; a bare uuid or `default` is opaque. The emulator/host is per-session: the ROM you `loadMedia` lives in YOUR session, and the next `frame`/`memory`/`cpu` call only sees it if it carries the SAME id. Do NOT send a new id each call - that's a fresh empty session every time (your loaded ROM vanishes; \"No ROM loaded\"). Several agents can share one server safely: each just sends a DIFFERENT id, so nobody clobbers another's ROM (another reason to make yours distinctive). The header is REQUIRED on every `/tool/{name}` call - omit it and you get a **401** (the server will NOT silently run you in a throwaway session). Pure file tools (romPatch/cart/encodeAudio) still need the header; just reuse your one id everywhere.",
   "",
-  "Each tool is a domain VERB keyed by an operation axis — e.g. POST /tool/memory {\"op\":\"read\",…},",
-  "POST /tool/build {\"output\":\"rom\",…}, POST /tool/romPatch {\"op\":\"findPointer\",…}. The full per-tool",
+  "Each tool is a domain VERB keyed by an operation axis - e.g. POST /tool/memory {\"op\":\"read\",...},",
+  "POST /tool/build {\"output\":\"rom\",...}, POST /tool/romPatch {\"op\":\"findPointer\",...}. The full per-tool",
   "parameter list is in the TOOL REFERENCE at the end of this doc (and /openapi.json).",
 ].join("\n");
 
@@ -62,7 +62,7 @@ export function buildSkillDoc({ registry, agentsBody, version }) {
   const frontmatter = [
     "---",
     "name: romdev",
-    "description: Homebrew retro game development and ROM reverse-engineering for 19 platforms (NES, SNES, Game Boy/Color, Genesis, GBA, Atari 2600/7800, Lynx, C64, SMS, Game Gear, PC Engine, MSX, GameTank, sync32, N64, PlayStation, Dreamcast). Use when building, running, debugging, disassembling, asset-converting, or romhacking a retro game — drives bundled emulators and toolchains over HTTP. NEVER install a host compiler/emulator; romdev bundles all of them as WASM (use the build tool).",
+    "description: Homebrew retro game development and ROM reverse-engineering for 19 platforms (NES, SNES, Game Boy/Color, Genesis, GBA, Atari 2600/7800, Lynx, C64, SMS, Game Gear, PC Engine, MSX, GameTank, sync32, N64, PlayStation, Dreamcast). Use when building, running, debugging, disassembling, asset-converting, or romhacking a retro game - drives bundled emulators and toolchains over HTTP. NEVER install a host compiler/emulator; romdev bundles all of them as WASM (use the build tool).",
     `metadata:`,
     `  version: "${version ?? "0.0.0"}"`,
     "---",
@@ -72,7 +72,7 @@ export function buildSkillDoc({ registry, agentsBody, version }) {
   const body = sanitizeForSkillChannel((agentsBody || "").trim());
   const reference = skillToolReference(registry);
 
-  // Update note — stamped with the running server's version. A saved skill is a
+  // Update note - stamped with the running server's version. A saved skill is a
   // static snapshot (it doesn't auto-update), but this doc is GENERATED live from
   // the running server, so re-fetching always gives the current version. An agent
   // can check the running version two ways: the tool call POST /tool/catalog
@@ -80,10 +80,10 @@ export function buildSkillDoc({ registry, agentsBody, version }) {
   const v = version ?? "0.0.0";
   const updateNote = [
     "## Keeping this skill current",
-    `This skill was generated by romdev **v${v}** (it's a snapshot — it does not auto-update). ` +
+    `This skill was generated by romdev **v${v}** (it's a snapshot - it does not auto-update). ` +
     "romdev generates it live from the running server, so to update: run the latest `npx romdevtools`, " +
     `then re-fetch \`GET http://localhost:7331/skills/romdev/SKILL.md\` and overwrite your saved copy. ` +
-    "To check whether you're stale, ask the running server its version — `POST /tool/catalog {\"op\":\"status\"}` " +
+    "To check whether you're stale, ask the running server its version - `POST /tool/catalog {\"op\":\"status\"}` " +
     "returns `romdevVersion` (or `GET /healthz` → `version`); if it's newer than the `metadata.version` above, re-fetch.",
   ].join("\n");
 
@@ -99,7 +99,7 @@ export function buildSkillDoc({ registry, agentsBody, version }) {
 
 /**
  * Sanitize the shared AGENTS body for the SKILL channel: drop MCP-protocol-
- * specific INSTRUCTIONS (session-id headers, re-initialize, 404 reconnect — none
+ * specific INSTRUCTIONS (session-id headers, re-initialize, 404 reconnect - none
  * of which apply to the HTTP/skill surface), and soften the few descriptive
  * "these MCP tools" mentions to channel-neutral wording. We do NOT try to scrub
  * every letters-"MCP" occurrence by force (that risks mangling meaning); we
@@ -113,7 +113,7 @@ export function sanitizeForSkillChannel(text) {
   const lines = text.split("\n");
   const kept = [];
   for (const line of lines) {
-    // Drop whole lines that are MCP-PROTOCOL or MCP-CONNECTION framing — they
+    // Drop whole lines that are MCP-PROTOCOL or MCP-CONNECTION framing - they
     // mislead a skill reader (a skill is read/invoked, not "connected to", and
     // there's no session-id header / reconnect / "connect your agent" step here;
     // the skillPreamble already gives the skill-appropriate intro + prereq).

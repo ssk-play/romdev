@@ -1,6 +1,6 @@
-// frame({op:'sideBySide'}) — capture both hosts (slot A + the slot-B comparison
+// frame({op:'sideBySide'}) - capture both hosts (slot A + the slot-B comparison
 // host) into one composited PNG. Two layers of test:
-//   1. PURE: compositeSideBySide / pixelSummary on synthetic framebuffers —
+//   1. PURE: compositeSideBySide / pixelSummary on synthetic framebuffers -
 //      deterministic geometry + content checks, no core build needed.
 //   2. WIRING: the secondary host slot (loadMedia slot:'b' equivalent) +
 //      _liveHostCount across both slots + per-session teardown clears both.

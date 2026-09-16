@@ -67,7 +67,7 @@ for (const [name, winW, winH] of CASES) {
     assert.ok(Math.abs((winW - r.w) / 2 - r.x) <= 1, "horizontally centred");
     assert.ok(Math.abs((winH - r.h) / 2 - r.y) <= 1, "vertically centred");
 
-    // FILLS one axis — a correct fit always touches two opposite edges.
+    // FILLS one axis - a correct fit always touches two opposite edges.
     assert.ok(r.w === winW || r.h === winH || Math.abs(r.w - winW) <= 1 || Math.abs(r.h - winH) <= 1,
       "must fill at least one axis (else it is scaled down for no reason)");
 

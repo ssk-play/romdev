@@ -1,7 +1,7 @@
-// experiment.js — a campaign experiment as a durable, falsifiable record.
+// experiment.js - a campaign experiment as a durable, falsifiable record.
 //
 // THE PROBLEM THIS SOLVES. One function in a real campaign accumulated 264 candidate
-// files. The directory records what was BUILT; it records nothing about why —
+// files. The directory records what was BUILT; it records nothing about why -
 // which hypothesis was under test, which single lever was varied, which source
 // families were already exhausted, or whether a later agent is about to repeat
 // a dead one. That knowledge lived in prose, in a handoff that grew by
@@ -13,7 +13,7 @@
 //   ONE causal hypothesis, stated before the run and falsifiable.
 //   The single source LEVER being varied (varying two proves nothing).
 //   Baseline identities: source, object, target, toolchain.
-//   REQUIRED controls — positive, negative and determinism. A run whose
+//   REQUIRED controls - positive, negative and determinism. A run whose
 //     negative control also "passes" has measured nothing, and the record says
 //     so instead of reporting a win.
 //   Per-candidate results with the semantic gate's verdict alongside exactness.
@@ -75,8 +75,8 @@ export const CONTROL_KINDS = Object.freeze({
  */
 export async function createExperiment(project, { symbol, hypothesis, lever, family, baseline, parentId = null, notes }) {
   if (!symbol) throw Object.assign(new Error("experiment: `symbol` is required"), { code: "BAD_ARGS" });
-  if (!hypothesis) throw Object.assign(new Error("experiment: a `hypothesis` is required — an experiment without a falsifiable claim is just a sweep, and a sweep is what produced 264 undifferentiated candidates."), { code: "BAD_ARGS" });
-  if (!lever) throw Object.assign(new Error("experiment: a single `lever` is required — varying more than one source change at a time cannot attribute the result."), { code: "BAD_ARGS" });
+  if (!hypothesis) throw Object.assign(new Error("experiment: a `hypothesis` is required - an experiment without a falsifiable claim is just a sweep, and a sweep is what produced 264 undifferentiated candidates."), { code: "BAD_ARGS" });
+  if (!lever) throw Object.assign(new Error("experiment: a single `lever` is required - varying more than one source change at a time cannot attribute the result."), { code: "BAD_ARGS" });
 
   await mkdir(dir(project), { recursive: true });
   const id = `exp-${symbol}-${randomUUID()}`;
@@ -146,7 +146,7 @@ async function recordCandidateLocked(project, id, { candidatePath, candidateSha,
 /**
  * Close an experiment.
  *
- * A conclusion is REFUSED while a required control is missing or failing —
+ * A conclusion is REFUSED while a required control is missing or failing -
  * that is the whole point of declaring them. "The metric improved" means
  * nothing if the negative control also improved.
  */
@@ -163,7 +163,7 @@ async function concludeExperimentLocked(project, id, { verdict, scope, rationale
       `experiment '${id}' cannot conclude: `
       + (missing.length ? `controls not run: ${missing.join(", ")}. ` : "")
       + (failed.length ? `controls FAILED: ${failed.join(", ")}. ` : "")
-      + "A conclusion drawn without its controls is not evidence — a negative control that moves means the metric is responding to noise, "
+      + "A conclusion drawn without its controls is not evidence - a negative control that moves means the metric is responding to noise, "
       + "and a determinism control that differs means nothing in this run is reproducible. "
       + "Run them, or pass force:true to record the conclusion WITH its unverified status attached."),
       { code: "CONTROLS_INCOMPLETE", missing, failed });
@@ -201,7 +201,7 @@ export async function listExperiments(project, { symbol, includeClosed = true } 
 
 /**
  * Which source families have already been tried for a symbol, and how they
- * ended — the question "am I about to repeat a dead end?" that the candidate
+ * ended - the question "am I about to repeat a dead end?" that the candidate
  * directory could not answer.
  */
 export async function exhaustedFamilies(project, symbol) {

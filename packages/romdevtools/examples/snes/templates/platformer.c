@@ -1,45 +1,45 @@
-/* ── platformer.c — SNES side-scrolling platformer (complete example game) ───
+/* ── platformer.c - SNES side-scrolling platformer (complete example game) ───
  *
- * CRAG CAPER — a COMPLETE, working game: title screen, 1P mode and 2P
+ * CRAG CAPER - a COMPLETE, working game: title screen, 1P mode and 2P
  * ALTERNATING-TURNS mode (arcade-classic: players swap on death; each player
  * has their own score and own 3 lives; player 2 plays on CONTROLLER 2),
  * coins + distance scoring, persistent hi-score (battery SRAM), SPC music +
  * SFX, and the SNES's answer to the fixed-HUD-over-scrolling-field problem:
  * the HUD is simply ANOTHER BACKGROUND LAYER with its own scroll register.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented SNES footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented SNES footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — level layout, physics tuning, scoring, art: reshape
+ *   GAME LOGIC (clay) - level layout, physics tuning, scoring, art: reshape
  *     freely.
  *
  * What depends on what:
- *   data.asm — font + sprite/level tiles, sram_read16/write16 (battery SRAM
+ *   data.asm - font + sprite/level tiles, sram_read16/write16 (battery SRAM
  *     needs 24-bit addressing tcc can't emit), and the bank-$7E telem block.
  *     Load-bearing.
- *   hdr.asm — THIS PROJECT OVERRIDES the stock header to declare battery
+ *   hdr.asm - THIS PROJECT OVERRIDES the stock header to declare battery
  *     SRAM (CARTRIDGETYPE $02 + SRAMSIZE $01). Delete that file and saves
- *     silently stop existing — the build still succeeds.
- *   snes_sfx.{h,c} + snes_sfx_data.asm + apu_blob.bin — the SPC700 sound
+ *     silently stop existing - the build still succeeds.
+ *   snes_sfx.{h,c} + snes_sfx_data.asm + apu_blob.bin - the SPC700 sound
  *     driver (music + 2 one-shot samples). #include'd, not separately built.
  *
  * ── THE TWO-LAYER SPLIT (the SNES bonus this example teaches) ───────────────
  * Mode 1 gives three independent background layers, EACH with its own
  * H/V scroll registers. So a fixed HUD over a scrolling playfield is just:
- *   BG0 (text console) — HUD + all menu text. Its scroll stays (0,0). Ever.
- *   BG1 — the level. One register write per frame (bgSetScroll) moves it.
+ *   BG0 (text console) - HUD + all menu text. Its scroll stays (0,0). Ever.
+ *   BG1 - the level. One register write per frame (bgSetScroll) moves it.
  * Zero raster tricks, zero CPU. Contrast the NES platformer example (this
  * game's direct ancestor): the NES has ONE scroll for the WHOLE frame, so
- * its fixed HUD costs a sprite-0-hit polling spin — ~35 scanlines of CPU
+ * its fixed HUD costs a sprite-0-hit polling spin - ~35 scanlines of CPU
  * burned EVERY frame waiting for the beam to clear the HUD before rewriting
  * PPUSCROLL mid-frame. On SNES you only reach for that kind of mid-frame
- * machinery (HDMA) when one layer must be two things at once — see the
+ * machinery (HDMA) when one layer must be two things at once - see the
  * racing example's Mode 1/Mode 7 split.
  *
  * The level itself: a 256-px-wide COLUMN MAP (ground height + one-way
  * platforms + pits) painted once into a 32x32 tilemap. 256 px is exactly
- * the map's width, so a uint8 scroll wraps seamlessly — an endless looping
+ * the map's width, so a uint8 scroll wraps seamlessly - an endless looping
  * run of pits, platforms, coins and spikes. Coins/spikes are sprites that
  * drift with the scroll (world-anchored while on screen, respawning at the
  * right edge).
@@ -48,7 +48,7 @@
 #include <snes.h>
 #include "snes_sfx.c"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "CRAG CAPER"
 
@@ -60,13 +60,13 @@ extern char tilbg, palbg;              /* level tiles + sky/dirt/grass colours*/
  * No public prototype in console.h, so declare it; call once per frame. */
 extern void consoleVblank(void);
 
-/* data.asm exports — battery SRAM accessors ($70:0000 long addressing) and
+/* data.asm exports - battery SRAM accessors ($70:0000 long addressing) and
  * the bank-$7E telemetry block a headless test can find by scanning. */
 extern u16 sram_read16(u16 offset);
 extern void sram_write16(u16 offset, u16 value);
 extern u8 telem[];
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * VRAM budget (word addresses):
  *   $0000 OBJ tiles, $2000 level tiles, $3000 HUD font,
  *   $4000 level map (BG1), $6800 HUD/console text map (BG0).
@@ -79,10 +79,10 @@ extern u8 telem[];
 #define BG_DIRT    2
 #define BG_GRASS   3   /* also used for floating platforms (grass slabs)    */
 
-/* ── GAME LOGIC (clay) — the level ───────────────────────────────────────────
+/* ── GAME LOGIC (clay) - the level ───────────────────────────────────────────
  * A 32-column map; world x = (screen x + scroll) mod 256.
- *   ground_row[c] — tilemap row of the ground's grass top, 0xFF = pit.
- *   plat_row[c]   — row of a one-way floating platform, 0 = none.
+ *   ground_row[c] - tilemap row of the ground's grass top, 0xFF = pit.
+ *   plat_row[c]   - row of a one-way floating platform, 0 = none.
  * Rows are tilemap rows (y = row*8). The SNES screen shows rows 0-27. */
 #define NO_GROUND 0xFF
 static const u8 ground_row[32] = {
@@ -98,10 +98,10 @@ static const u8 plat_row[32] = {
   0, 21, 21, 21, 0, 0, 0, 0,                       /* slab near the loop  */
 };
 
-/* ── GAME LOGIC (clay) — physics + tuning ── */
+/* ── GAME LOGIC (clay) - physics + tuning ── */
 #define GRAVITY_Q44    1    /* +1/16 px per frame per frame                */
 #define JUMP_VEL_Q44 (-40)  /* launch vy (Q4.4) → ~50 px / ~6 tile apex    */
-#define MAX_VY_Q44    80    /* terminal velocity, 5 px/frame — MUST stay   *
+#define MAX_VY_Q44    80    /* terminal velocity, 5 px/frame - MUST stay   *
                              * under 6: the landing probe's 6-px window    *
                              * can't catch a faster fall (tunnelling)      */
 #define MOVE_SPEED     2    /* px/frame walk + scroll speed                */
@@ -116,25 +116,25 @@ static const u8 plat_row[32] = {
  * Magic is written LAST in hi_save so a torn write never validates. */
 #define SRAM_MAGIC 0x4743u
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 
 static u8  state;
 static u8  px;                 /* player screen x                          */
-static u16 py_q44;             /* player y, Q4.4 fixed point — gravity adds
+static u16 py_q44;             /* player y, Q4.4 fixed point - gravity adds
                                 * <1 px/frame near the jump apex, so we
                                 * need sub-pixel precision                 */
 static s8  vy_q44;
 static u8  on_ground;
-static u8  scroll_x;           /* level scroll — u8 wraps at 256 = exactly *
+static u8  scroll_x;           /* level scroll - u8 wraps at 256 = exactly *
                                 * one level loop (seamless)                */
 static u8  dist_sub;           /* sub-counter: 64 px scrolled = +1 pt      */
 static u8  coin_x[NUM_COINS], coin_y[NUM_COINS];
 static u8  spike_x[NUM_SPIKES], spike_active[NUM_SPIKES];
 
-/* Players: index 0 = P1 (controller 1), 1 = P2 (controller 2 — alternating
+/* Players: index 0 = P1 (controller 1), 1 = P2 (controller 2 - alternating
  * turns, arcade-classic style). Each has own score + own lives; the HUD
  * shows the CURRENT player's numbers. */
 static u8  two_player;
@@ -151,7 +151,7 @@ static char tbuf[8];           /* 5-digit score formatter output           */
 
 static u16 bg_map[32 * 32];    /* level tilemap staging (DMA'd at boot)    */
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call) ── */
 static u8 random8(void) {
   u16 r = rng;
   r ^= r << 7;
@@ -165,7 +165,7 @@ static u8 dist8(u8 a, u8 b) {
   return (a > b) ? (u8)(a - b) : (u8)(b - a);
 }
 
-/* ── GAME LOGIC (clay) — battery SRAM hi-score (see sram_* in data.asm) ───── */
+/* ── GAME LOGIC (clay) - battery SRAM hi-score (see sram_* in data.asm) ───── */
 static u16 hi_load(void) {
   u16 v;
   if (sram_read16(0) != SRAM_MAGIC) return 0;
@@ -177,10 +177,10 @@ static u16 hi_load(void) {
 static void hi_save(u16 v) {
   sram_write16(2, v);
   sram_write16(4, (u16)(v ^ 0x5AC3u));
-  sram_write16(0, SRAM_MAGIC);      /* magic LAST — torn write = no record */
+  sram_write16(0, SRAM_MAGIC);      /* magic LAST - torn write = no record */
 }
 
-/* ── GAME LOGIC (clay) — text helpers ──────────────────────────────────────── */
+/* ── GAME LOGIC (clay) - text helpers ──────────────────────────────────────── */
 static void fmt_u16(u16 v) {        /* 5 right-aligned digits into tbuf */
   u8 i;
   for (i = 0; i < 5; i++) { tbuf[4 - i] = (char)('0' + v % 10); v /= 10; }
@@ -196,7 +196,7 @@ static void clear_rows(u16 a, u16 b) {
   for (y = a; y <= b; y++) clear_row(y);
 }
 
-/* HUD row 1, on BG0 — fixed because BG0's scroll never moves (see the
+/* HUD row 1, on BG0 - fixed because BG0's scroll never moves (see the
  * two-layer split note up top). Layout: "P1 L3 SC 00000 HI 00000". */
 static void draw_hud(void) {
   consoleDrawText(1, 1, cur_player ? "P2" : "P1");
@@ -213,7 +213,7 @@ static void draw_hud_labels(void) {
   consoleDrawText(20, 1, tbuf);
 }
 
-/* ── GAME LOGIC (clay) — paint the level from the column map ─────────────────
+/* ── GAME LOGIC (clay) - paint the level from the column map ─────────────────
  * Composed once in WRAM and DMA'd to VRAM at boot (bgInitMapSet). The level
  * is static; only the scroll register moves it. Rows 0-2 stay sky so the
  * HUD text floats over clean backdrop. Map entries are plain tile numbers
@@ -238,7 +238,7 @@ static void paint_level(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — coins + spikes (sprite objects in the world) ── */
+/* ── GAME LOGIC (clay) - coins + spikes (sprite objects in the world) ── */
 static const u8 coin_heights[4] = { 184, 160, 128, 152 };
 static void respawn_coin(u8 i) {
   coin_x[i] = (u8)(232 + (random8() & 15));        /* enter at the right  */
@@ -262,9 +262,9 @@ static void hide_actors(void) {
   for (i = 0; i < 24; i += 4) oamSetVisible(i, OBJ_HIDE);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Stage ALL sprites BEFORE WaitForVBlank. PVSnesLib's NMI handler DMAs the
- * shadow OAM to the real OAM every vblank (on channel 7 — never park HDMA
+ * shadow OAM to the real OAM every vblank (on channel 7 - never park HDMA
  * there), copying whatever the shadow holds AT THAT MOMENT. Stage-then-wait;
  * flipping it shows stale/empty sprites. oamSet rewrites x/y, which is also
  * what un-hides a sprite after OBJ_HIDE (hide just parks it off-screen). */
@@ -286,7 +286,7 @@ static void stage_actors(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — state entries ─────────────────────────────────────── */
+/* ── GAME LOGIC (clay) - state entries ─────────────────────────────────────── */
 static void title_enter(void) {
   bgSetEnable(1);                /* the level scrolls behind the title      */
   hide_actors();
@@ -300,7 +300,7 @@ static void title_enter(void) {
   state = ST_TITLE;
 }
 
-/* ── GAME LOGIC (clay) — start a turn / a run ── */
+/* ── GAME LOGIC (clay) - start a turn / a run ── */
 static void begin_turn(void) {
   px = 24;
   py_q44 = (u16)(GROUND_TOP - 8) << 4;
@@ -312,9 +312,9 @@ static void begin_turn(void) {
   coin_x[1] = 152; coin_y[1] = 160;
   coin_x[2] = 216; coin_y[2] = 128;
   spike_x[0] = 136; spike_active[0] = 1;   /* both anchored on ground at  */
-  spike_x[1] = 224; spike_active[1] = 1;   /* scroll 0 — see ground_row   */
+  spike_x[1] = 224; spike_active[1] = 1;   /* scroll 0 - see ground_row   */
   turn_pause = 48;                         /* "P1/P2 GO" breather         */
-  prev_padP = 0xFFFF;  /* swallow held buttons across the turn change —
+  prev_padP = 0xFFFF;  /* swallow held buttons across the turn change -
                         * without this the A that picked 1P on the title
                         * instantly jumps (classic edge-detect reuse bug) */
   draw_hud();
@@ -358,7 +358,7 @@ static void game_over(void) {
   state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay) — death + alternating-turn handoff ── */
+/* ── GAME LOGIC (clay) - death + alternating-turn handoff ── */
 static void kill_player(void) {
   u8 other;
   if (sound_ok) sfx_play(2);
@@ -374,9 +374,9 @@ static void kill_player(void) {
   begin_turn();
 }
 
-/* ── GAME LOGIC (clay) — landing probe against the column map ──────────────
+/* ── GAME LOGIC (clay) - landing probe against the column map ──────────────
  * One-way platforms, classic style: only catch the player while FALLING
- * through a narrow window at the surface. The window is 6 px tall —
+ * through a narrow window at the surface. The window is 6 px tall -
  * top-1 (the standing snap parks feet at top, and gravity's sub-pixel
  * trickle doesn't move the integer Y every frame; without the -1 slack the
  * player "stands" with on_ground=0 most frames, so jumps only register on
@@ -397,7 +397,7 @@ static u8 land_top(u8 c, u8 feet) {
   return 0;
 }
 
-/* ── GAME LOGIC (clay) — one frame of gameplay ─────────────────────────────── */
+/* ── GAME LOGIC (clay) - one frame of gameplay ─────────────────────────────── */
 static void play_update(void) {
   u16 pad;
   u8 i, delta, y8, feet, c0, c1, top, killed;
@@ -409,10 +409,10 @@ static void play_update(void) {
     return;
   }
 
-  /* Input — the CURRENT player's controller (alternating turns: P2 is on
-   * controller 2 — padsCurrent(1); that one index IS the 2P wiring). Past
+  /* Input - the CURRENT player's controller (alternating turns: P2 is on
+   * controller 2 - padsCurrent(1); that one index IS the 2P wiring). Past
    * SCROLL_WALL the world scrolls instead of the player (the camera never
-   * scrolls back — the classic one-way camera). */
+   * scrolls back - the classic one-way camera). */
   pad = padsCurrent(cur_player);
   delta = 0;
   if (pad & KEY_RIGHT) {
@@ -459,7 +459,7 @@ static void play_update(void) {
     return;
   }
 
-  /* Landing — probe the two level columns under the player's feet. */
+  /* Landing - probe the two level columns under the player's feet. */
   if (vy_q44 >= 0) {
     feet = (u8)(y8 + 8);
     c0 = (u8)(px + scroll_x) >> 3;
@@ -497,7 +497,7 @@ static void play_update(void) {
   stage_actors();
 }
 
-/* Headless-test telemetry — written once per frame into the bank-$7E telem
+/* Headless-test telemetry - written once per frame into the bank-$7E telem
  * block (data.asm). A test harness finds it by scanning WRAM for the
  * "CG"+0xBD signature, then plays the game from real state instead of
  * parsing pixels. spike_x is always even (spawns at 248, drifts by 2), so
@@ -522,11 +522,11 @@ static void telem_update(void) {
 int main(void) {
   u16 pad;
 
-  /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
    * Init order: console text pointers FIRST, then mode, then VRAM uploads
-   * while the screen is still off (forced blank — VRAM DMA during active
+   * while the screen is still off (forced blank - VRAM DMA during active
    * display is lost or corrupts). consoleInitText DMAs the font but does
-   * NOT set the PPU BG base registers — bgSetGfxPtr/bgSetMapPtr must agree
+   * NOT set the PPU BG base registers - bgSetGfxPtr/bgSetMapPtr must agree
    * with the console pointers or text renders as garbage tiles. */
   consoleSetTextMapPtr(0x6800);
   consoleSetTextGfxPtr(0x3000);
@@ -536,12 +536,12 @@ int main(void) {
   bgSetGfxPtr(0, 0x3000);
   bgSetMapPtr(0, 0x6800, SC_32x32);
 
-  /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
    * The two-layer split (see the header essay): BG0 = HUD/text, scroll
    * pinned at (0,0); BG1 = the level, moved by one bgSetScroll per frame.
    * palbg loads into CGRAM block 0 AFTER the font palette and is a superset
-   * of it (colour 1 stays white) — so HUD ink and level tiles share the
-   * block without fighting. BG2 carries power-on garbage in Mode 1 — keep
+   * of it (colour 1 stays white) - so HUD ink and level tiles share the
+   * block without fighting. BG2 carries power-on garbage in Mode 1 - keep
    * it disabled. */
   paint_level();
   bgInitTileSet(1, (u8 *)&tilbg, (u8 *)&palbg, 0, 4 * 32, 32, BG_16COLORS, 0x2000);
@@ -554,19 +554,19 @@ int main(void) {
 
   setScreenOn();
 
-  /* ── HARDWARE IDIOM (load-bearing) — sfx_init AFTER setScreenOn, and CHECK
+  /* ── HARDWARE IDIOM (load-bearing) - sfx_init AFTER setScreenOn, and CHECK
    * the return: a wedged SPC700 must not take the video down with it. ── */
   sound_ok = (sfx_init() == 0);
-  /* ── HARDWARE IDIOM (load-bearing) — one frame between init and the first
+  /* ── HARDWARE IDIOM (load-bearing) - one frame between init and the first
    * command. sfx_init returns the instant the SPC echoes the jump command,
    * but the driver then spends ~50 port writes initialising the DSP BEFORE
    * it seeds its command edge-detector from $2140. Send a command in that
-   * window and the seed swallows it — music silently never starts. A
-   * WaitForVBlank is thousands of SPC cycles — deterministic cure. ── */
+   * window and the seed swallows it - music silently never starts. A
+   * WaitForVBlank is thousands of SPC cycles - deterministic cure. ── */
   WaitForVBlank();
   if (sound_ok) sfx_music_play();
 
-  hiscore = hi_load();              /* battery SRAM — 0 on first boot */
+  hiscore = hi_load();              /* battery SRAM - 0 on first boot */
   prev_pad0 = prev_padP = 0;
   title_enter();
 
@@ -574,7 +574,7 @@ int main(void) {
     pad = padsCurrent(0);
 
     if (state == ST_TITLE) {
-      /* attract: the level drifts by under the title — the scroll register
+      /* attract: the level drifts by under the title - the scroll register
        * demo, and the first thing a fork breaks if the layers get swapped */
       attract_sub ^= 1;
       if (attract_sub) scroll_x++;
@@ -595,10 +595,10 @@ int main(void) {
     oamUpdate();
 
     WaitForVBlank();
-    /* ── HARDWARE IDIOM (load-bearing) — scroll + text commits in vblank.
+    /* ── HARDWARE IDIOM (load-bearing) - scroll + text commits in vblank.
      * bgSetScroll writes the BG1 scroll registers directly; mid-frame the
      * beam would render the top of the frame with the old value and the
-     * bottom with the new (a shear). BG0 gets NO scroll write, ever —
+     * bottom with the new (a shear). BG0 gets NO scroll write, ever -
      * that's the whole fixed-HUD trick. ── */
     bgSetScroll(1, scroll_x, 0);
     consoleVblank();

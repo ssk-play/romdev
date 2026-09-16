@@ -2,11 +2,11 @@
 // This is the ~70% that used to be copy-pasted into every core; now it lives in one
 // place, so its logic (watchpoint, conditional watchpoint, read-watch, coverage
 // dedup, range triples, pcbreak freeze, watchdog, regsnap packing, hit-return) is
-// guarded HERE — break the cov ring and this fails, not a runtime surprise in core #12.
+// guarded HERE - break the cov ring and this fails, not a runtime surprise in core #12.
 //
 // Compiles the lib + a tiny C harness with whatever C compiler is on PATH and runs
 // it. Skips (does not fail) when no compiler is available, so CI without a toolchain
-// stays green — the per-platform run-side tests still exercise it through real cores.
+// stays green - the per-platform run-side tests still exercise it through real cores.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -58,7 +58,7 @@ int main(void) {
   /* coverage: dedup distinct in-window PCs, count total dispatches in-window */
   romdev_cov_set(0x8000, 0x9000, 1);
   romdev_on_dispatch(0x8000); romdev_on_dispatch(0x8004); romdev_on_dispatch(0x8000); /* dup */
-  romdev_on_dispatch(0xA000); /* out of window — ignored */
+  romdev_on_dispatch(0xA000); /* out of window - ignored */
   n = romdev_cov_get(out, 32, out2);
   assert(n==2 && out2[0]==2 && out2[1]==3);
 
@@ -100,7 +100,7 @@ int main(void) {
 }
 `;
 
-test("shared romdev_debug.c — watchpoint/cov/range/pcbreak/watchdog/regsnap logic", { timeout: 60000 }, async () => {
+test("shared romdev_debug.c - watchpoint/cov/range/pcbreak/watchdog/regsnap logic", { timeout: 60000 }, async () => {
   const cc = findCC();
   if (!cc) { console.log("no C compiler on PATH; skipping (per-platform run-side tests cover it via real cores)"); return; }
 

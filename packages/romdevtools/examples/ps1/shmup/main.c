@@ -1,5 +1,5 @@
 /*
- * shmup/main.c — STARFALL: a 3D PlayStation vertical shooter.
+ * shmup/main.c - STARFALL: a 3D PlayStation vertical shooter.
  *
  * Idiomatic PS1 3D: the playfield recedes into the screen. You pilot a ship near
  * the camera; enemy cubes fly IN from the far distance toward you, growing as the

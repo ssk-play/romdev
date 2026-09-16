@@ -1,7 +1,7 @@
-// findFreeSpace — scan a ROM for runs of repeated fill bytes ($FF / $00).
+// findFreeSpace - scan a ROM for runs of repeated fill bytes ($FF / $00).
 //
 // Used by ROM hackers to find unused space to splice new code into.
-// Identical task on every platform — pure byte scan.
+// Identical task on every platform - pure byte scan.
 
 import { readFile } from "node:fs/promises";
 

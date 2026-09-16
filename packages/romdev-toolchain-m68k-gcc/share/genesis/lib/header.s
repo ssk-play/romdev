@@ -1,8 +1,8 @@
-; Genesis / Mega Drive — cartridge header.
+; Genesis / Mega Drive - cartridge header.
 ;
 ; The 68000 reads the reset vector from $0000-$0007 (initial SSP at $00,
 ; reset PC at $04). Immediately after is the 256-byte ROM header at $100
-; — every Genesis ROM needs this in a specific format or the BIOS will
+; - every Genesis ROM needs this in a specific format or the BIOS will
 ; refuse to boot the cart (some emulators are forgiving; real hardware
 ; isn't).
 ;
@@ -15,8 +15,8 @@
 
 ; ---- 68K interrupt + exception vectors ($000-$0FF) -----------------------
 vector_table:
-  dc.l   $00FFE000          ; initial SSP — top of work RAM
-  dc.l   _reset             ; reset PC — your entry point
+  dc.l   $00FFE000          ; initial SSP - top of work RAM
+  dc.l   _reset             ; reset PC - your entry point
   ; Vectors 2-63 (252 bytes) typically point to an exception handler.
   ; The lazy version: all default to _reset; real games install real
   ; handlers for bus error / address error / illegal instruction.
@@ -28,7 +28,7 @@ vector_table:
 ;
 ; The header is EXACTLY 256 bytes ($100-$1FF). Some online references
 ; claim the "notes" field is 40 bytes (which would push region past
-; $1FF and overlap _reset at $200) — that's a transcription error.
+; $1FF and overlap _reset at $200) - that's a transcription error.
 ; Authoritative layout (verified against snes9x's snes9x-libretro
 ; sister project genesis_plus_gx and Sega's original SDK docs):
 ;
@@ -59,18 +59,18 @@ vector_table:
   dc.b "MY GAME                                         " ; $120 domestic title (48)
   dc.b "MY GAME                                         " ; $150 overseas title (48)
   dc.b "GM 00000000-00"                            ; $180 serial number (14)
-  dc.w $0000                                       ; $18E checksum — leave 0 for emulator dev
+  dc.w $0000                                       ; $18E checksum - leave 0 for emulator dev
   dc.b "J               "                          ; $190 device support: J=joypad (16)
   dc.l $00000000                                   ; $1A0 ROM start address
   dc.l ROM_END-1                                   ; $1A4 ROM end address (set by build)
   dc.l $00FF0000                                   ; $1A8 RAM start
   dc.l $00FFFFFF                                   ; $1AC RAM end
-  dc.b "            "                              ; $1B0 SRAM tag — 12 spaces if no SRAM
+  dc.b "            "                              ; $1B0 SRAM tag - 12 spaces if no SRAM
   dc.l $00000000                                   ; $1BC SRAM start
   dc.l $00000000                                   ; $1C0 SRAM end
-  dc.b "            "                              ; $1C4 modem info — 12 spaces ($1C4-$1CF)
-  dc.b "                                "          ; $1D0 notes  — 32 spaces ($1D0-$1EF) ** NOT 40 **
-  dc.b "JUE             "                          ; $1F0 region — 16 chars ($1F0-$1FF): J=Japan U=US E=EU
+  dc.b "            "                              ; $1C4 modem info - 12 spaces ($1C4-$1CF)
+  dc.b "                                "          ; $1D0 notes  - 32 spaces ($1D0-$1EF) ** NOT 40 **
+  dc.b "JUE             "                          ; $1F0 region - 16 chars ($1F0-$1FF): J=Japan U=US E=EU
 
   org $00000200
 _reset:

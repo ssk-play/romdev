@@ -1,6 +1,6 @@
-// regression — checkpoint-based golden harness. Host-kind-agnostic: a real NES
+// regression - checkpoint-based golden harness. Host-kind-agnostic: a real NES
 // core (frameHash + memory checkpoints) and a fake wasmcart-style host (debug
-// named-state checkpoints — the size-independent path).
+// named-state checkpoints - the size-independent path).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -82,7 +82,7 @@ test("check FAILS with a named diff when behavior drifts (a regression)", async 
     _setHostForTest("reg2", makeScriptHost());
     await getHandler("reg2")({ op: "capture", goldenPath: golden, inputScript: SCRIPT, checkpoints: CPS });
 
-    // a "broken" host: hp drains twice as fast — the debug checkpoint must catch it
+    // a "broken" host: hp drains twice as fast - the debug checkpoint must catch it
     const broken = makeScriptHost();
     const origStep = broken.stepFrames.bind(broken);
     broken.stepFrames = (n) => origStep(n); // same

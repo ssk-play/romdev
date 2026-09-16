@@ -1,16 +1,16 @@
-// observer/tool-wrap.js — install the observer middleware on an MCP
+// observer/tool-wrap.js - install the observer middleware on an MCP
 // server instance. Monkey-patches `server.tool(name, desc, schema, handler)`
 // so every registered tool's handler is wrapped to emit a `call` event
 // to the observer bus after it completes (success OR error).
 //
-// Idempotent per server instance — installs once, repeats are no-ops.
+// Idempotent per server instance - installs once, repeats are no-ops.
 
 import { observer, extractImages, summarizeForLog, pushObserverFrame } from "./bus.js";
 import { getHostOrNull } from "../mcp/state.js";
 
 const INSTALLED = Symbol.for("romdev.observer-installed");
 
-// The platform/system the session's host currently has loaded (nes, genesis, …),
+// The platform/system the session's host currently has loaded (nes, genesis, ...),
 // or null if no ROM is loaded yet. Surfaced on every livestream event so a human
 // watching a multi-agent server sees WHICH console each tool call / frame belongs
 // to, not just the session id + tool name. Best-effort: never throws.
@@ -31,7 +31,7 @@ export function installObserverMiddleware(server, sessionKey) {
   const originalTool = server.tool.bind(server);
 
   server.tool = function wrappedTool(name, ...rest) {
-    // Last argument is the handler — replace it with our wrapper.
+    // Last argument is the handler - replace it with our wrapper.
     if (rest.length === 0) return originalTool(name, ...rest);
     const handler = rest[rest.length - 1];
     if (typeof handler !== "function") return originalTool(name, ...rest);
@@ -90,7 +90,7 @@ export function installObserverMiddleware(server, sessionKey) {
           delete result._observerAnsi;
         }
         // DEFERRED frame provider (breakpoint/watch tools): a thunk that renders
-        // the host's current framebuffer to PNG. We do NOT call it here — that
+        // the host's current framebuffer to PNG. We do NOT call it here - that
         // would put the encode on the AGENT's critical path. We strip it from the
         // agent-visible result now and rasterize it ASYNCHRONOUSLY below, after
         // the response has gone out, so the human's livestream still sees the
@@ -122,15 +122,15 @@ export function installObserverMiddleware(server, sessionKey) {
         };
       }
 
-      // Fire-and-forget — emit is synchronous + we don't block the
+      // Fire-and-forget - emit is synchronous + we don't block the
       // tool response on observer delivery.
       try { observer.push(event); } catch { /* never let observer kill the tool */ }
 
       // Deferred frame: encoded + pushed AFTER the agent's response goes out,
       // throttled to one per 2s PER (session, tool) with a trailing-edge
-      // emit (bus.js pushObserverFrame) — frame-step loops can't flood the
+      // emit (bus.js pushObserverFrame) - frame-step loops can't flood the
       // stream, distinct tools never throttle each other, and the last frame
-      // of a burst always lands. Best-effort — never throws into the tool
+      // of a burst always lands. Best-effort - never throws into the tool
       // path.
       if (frameProvider) {
         pushObserverFrame({

@@ -1,15 +1,15 @@
-// Atari 2600 callSubroutine instruction WATCHDOG — end to end (stella2014 6507).
+// Atari 2600 callSubroutine instruction WATCHDOG - end to end (stella2014 6507).
 //
 // callSubroutine can be pointed at a routine that loops FOREVER. Each emulator
 // frame spins inside M6502::execute, so the host's per-frame cap can't catch it
 // and the WASM would hang. The watchdog (romdev_watchdog_set, hooked into
 // M6502::execute, force-stops via romdev_pc_hit + StopExecutionBit) must
-// force-stop at the host-set instruction budget and report watchdog:true — NOT
+// force-stop at the host-set instruction budget and report watchdog:true - NOT
 // hang.
 //
 // NOTE on harness: the 2600's RAM is only 128 bytes (RIOT) and the stack page
 // $0100-$01FF mirrors into it, so the host's generic callSubroutine stack-seed
-// (which writes the sentinel at $0100+SP) is out of bounds for this core — a
+// (which writes the sentinel at $0100+SP) is out of bounds for this core - a
 // pre-existing host-layer limitation, NOT the watchdog. So this test drives the
 // watchdog through the SAME host primitives callSubroutine uses (setReg(PC) +
 // setWatchdog + the exclusive frame loop watching getPCBreak().watchdog), which
@@ -99,7 +99,7 @@ test("Atari 2600 watchdog force-stops an infinite loop (stella2014 6507)", { tim
 
   const { LibretroHost } = await import("romdev-core-host/LibretroHost.js");
   const core = resolveCore("atari2600");
-  assert.ok(core, "resolveCore('atari2600') returned null — stella2014_libretro.{js,wasm} missing?");
+  assert.ok(core, "resolveCore('atari2600') returned null - stella2014_libretro.{js,wasm} missing?");
   const host = new LibretroHost();
   await host.loadCore(core.jsPath, core.wasmPath);
   await host.loadMedia({ platform: "atari2600", bytes: asm.binary, virtualName: "wd.a26" });
@@ -107,12 +107,12 @@ test("Atari 2600 watchdog force-stops an infinite loop (stella2014 6507)", { tim
   // Boot into the main loop.
   host._runFramesExclusive(() => false, 30);
 
-  assert.equal(host.watchdogSupported(), true, "watchdogSupported() false — romdev_watchdog_set missing on stella2014");
+  assert.equal(host.watchdogSupported(), true, "watchdogSupported() false - romdev_watchdog_set missing on stella2014");
   assert.equal(host.pcBreakSupported(), true, "pcBreakSupported() false");
 
   // Point the CPU at the infinite-loop routine, arm the watchdog (the SAME
   // primitive callSubroutine uses), and run. The per-frame loop must terminate
-  // via the watchdog flag — not hang.
+  // via the watchdog flag - not hang.
   host.setReg(16, spinPC); // 6502 PC = reg-id 16
   host.setWatchdog(200000);
   host.setPCBreak(0xFFFF, true, false); // a PC the spin never reaches; only the watchdog can stop it
@@ -131,7 +131,7 @@ test("Atari 2600 watchdog force-stops an infinite loop (stella2014 6507)", { tim
 
   assert.equal(tripped, true, "watchdog did not trip on the infinite loop (finalPC=" + finalPC + ")");
   // The spin is a single 3-byte `JMP SPIN`; the watchdog freezes at the PC about
-  // to execute, which lands within the JMP's own bytes — assert it's stuck in
+  // to execute, which lands within the JMP's own bytes - assert it's stuck in
   // the spin region (a few bytes of SPIN), not back in the boot/frame loop.
   assert.ok(Math.abs((finalPC >>> 0) - spinPC) <= 4,
     "watchdog finalPC ($" + (finalPC >>> 0).toString(16) + ") not at SPIN ($" + spinPC.toString(16) + ")");

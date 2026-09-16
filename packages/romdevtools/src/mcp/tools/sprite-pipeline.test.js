@@ -1,4 +1,4 @@
-// sprite-pipeline.test.js — R15 cross-game sprite-lift primitives.
+// sprite-pipeline.test.js - R15 cross-game sprite-lift primitives.
 
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
@@ -95,7 +95,7 @@ test("quantizePngForPlatform(nes): reduces a 5-color PNG to a 4-color PLTE", asy
   try {
     const src = path.join(dir, "src.png");
     const out = path.join(dir, "out.png");
-    // 5 distinct colors — should be quantized to 4 (most-frequent kept).
+    // 5 distinct colors - should be quantized to 4 (most-frequent kept).
     const png = new PNG({ width: 5, height: 1 });
     const cols = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0], [128, 128, 128]];
     for (let i = 0; i < 5; i++) {
@@ -179,7 +179,7 @@ test("crossPlatformSpriteImport: end-to-end NES → GBC lift", { timeout: 120000
 
 // Also export crossPlatformSpriteImportImpl so the test above can import it
 // without needing it in the public list. (sprite-pipeline.js exports it
-// at module bottom — see the re-export there.)
+// at module bottom - see the re-export there.)
 
 test("quantizePngForPlatform: rejects unknown platform with hint", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "quant-bad-"));

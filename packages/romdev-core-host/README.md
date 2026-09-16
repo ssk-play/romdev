@@ -87,7 +87,7 @@ Dreamcast) hardware-render through a headless GL context: pass
 dependency; the software-rendered cores need neither. native-gles 0.6.0+
 is multi-context: each core owns the context it renders into (created for
 it via webgl-node) and re-asserts it before every frame, so several GL
-consumers — more cores, an active-bezel compositor, a wasmcart cart — can
+consumers - more cores, an active-bezel compositor, a wasmcart cart - can
 share one process without drawing into each other's contexts.
 
 ## Browser / bytes-only use
@@ -150,12 +150,12 @@ For the full agent tooling surface (MCP server, build toolchains,
 disassembly, playtest) see
 [`romdevtools`](https://www.npmjs.com/package/romdevtools).
 
-## 0.13.1 — exact PC coverage bitmap
+## 0.13.1 - exact PC coverage bitmap
 
 `pcBitmapSupported()` / `logPCBitmap(lo, hi, frames, {shift})`: on a core
 built with the 0.13.0 shared debug lib (`romdev_covbits_set/get`), run
-`frames` frames recording EVERY executed PC in `[lo, hi)` as one bit per PC —
-O(1) per instruction, no distinct-PC cap — and return `{pcs, distinct, total,
+`frames` frames recording EVERY executed PC in `[lo, hi)` as one bit per PC -
+O(1) per instruction, no distinct-PC cap - and return `{pcs, distinct, total,
 words, shift, granularityBytes, exact}`. The bit granularity is `1 << shift`
 bytes and defaults to `pcAlignShift()` for the loaded platform: 2 (word) on
 MIPS (n64, ps1, psp), 1 (halfword) on the 68000 / Thumb / SH-4 machines

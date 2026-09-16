@@ -1,15 +1,15 @@
-/* GG sprite attribute table — shadow OAM in WRAM, DMA'd to SAT once
+/* GG sprite attribute table - shadow OAM in WRAM, DMA'd to SAT once
  * per frame. GG VDP is SMS-compatible so the SAT layout is identical.
  *
  * SAT VRAM layout ($3F00):
- *   $00-$3F:  64 Y bytes ($D0 in any slot = HARD TERMINATOR — see below)
+ *   $00-$3F:  64 Y bytes ($D0 in any slot = HARD TERMINATOR - see below)
  *   $80-$FF:  64 (X, tile) pairs
  *
  * The $D0 terminator footgun:
  *   The VDP stops scanning further sprite slots the moment it sees Y=$D0
  *   in ANY OAM byte. If you populate slots 0..5 and slot 6 still has
  *   $D0, slot 5 is the last sprite you'll ever see. Earlier rounds of
- *   this runtime initialised every slot to $D0 — "hidden at boot" — but
+ *   this runtime initialised every slot to $D0 - "hidden at boot" - but
  *   that meant the FIRST gap in your sprite allocation killed the
  *   renderer for everything past it. We now initialise unused slots to
  *   $E0 instead: still off-screen but NOT the terminator. Slots you

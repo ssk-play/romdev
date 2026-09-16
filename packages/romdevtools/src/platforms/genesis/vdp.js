@@ -1,13 +1,13 @@
-// Genesis VDP helpers — decode SAT, CRAM, and 4bpp tile bytes.
+// Genesis VDP helpers - decode SAT, CRAM, and 4bpp tile bytes.
 //
 // Mirrors the shape of src/platforms/nes/ppu.js, src/platforms/gb/ppu.js,
 // and src/platforms/snes/ppu.js. Used by the romdev debug tools
 // (inspectSprites, getPalette, etc.) for the Genesis platform.
 //
 // Memory regions exposed by the gpgx libretro patch (see memory.js):
-//   genesis_cram  — 128 B, 64 colors × uint16 big-endian, 9-bit BGR
-//   genesis_vsram — 128 B, per-cell vertical scroll
-//   genesis_vdp_regs — 32 bytes (VDP registers $00-$1F)
+//   genesis_cram  - 128 B, 64 colors × uint16 big-endian, 9-bit BGR
+//   genesis_vsram - 128 B, per-cell vertical scroll
+//   genesis_vdp_regs - 32 bytes (VDP registers $00-$1F)
 //
 // SAT lives inside VRAM at an address chosen by VDP reg $05 (default
 // $D800 in SGDK's setup). The SAT entry size is 8 bytes:
@@ -48,7 +48,7 @@ export function decodeSAT(sat) {
   for (let i = 0; i < 80; i++) {
     const off = i * 8;
     // NOTE: this decoder expects the SAT in LOGICAL (big-endian VDP) byte order.
-    // The LIVE path (inspectSprites) does NOT use this — it uses
+    // The LIVE path (inspectSprites) does NOT use this - it uses
     // decodeGenesisSprites() in host/gpgx-state.js, which reads gpgx's raw VRAM
     // (host-LE word-byte-swapped) and accounts for the swap there. Keep this one
     // logical so it stays a clean reference / unit-testable in isolation.
@@ -88,10 +88,10 @@ export function decodeSAT(sat) {
 /**
  * Decode CRAM (128 bytes = 64 colors) into 64 RGB triples (each 0..255).
  *
- * IMPORTANT — the gpgx `genesis_cram` buffer does NOT hold the raw 16-bit VDP
+ * IMPORTANT - the gpgx `genesis_cram` buffer does NOT hold the raw 16-bit VDP
  * bus word (`BBB0GGG0RRR0`). On every CRAM write gpgx REPACKS the bus data to a
  * 9-bit value `0b BBB GGG RRR` (3 bits per channel, contiguous, top bits 0) and
- * stores that as a native uint16 — see vdp_ctrl.c case 0x03:
+ * stores that as a native uint16 - see vdp_ctrl.c case 0x03:
  *   data = ((data&0xE00)>>3) | ((data&0x0E0)>>2) | ((data&0x00E)>>1);
  * So the region is **packed 9-bit colours, little-endian** on our WASM host.
  * Read LE, then extract R = bits 0-2, G = bits 3-5, B = bits 6-8.
@@ -172,14 +172,14 @@ export function validateGenesisTiles(args = {}) {
   if (args.tileData) {
     const td = args.tileData;
     if (td.length % 32 !== 0) {
-      errors.push(`tileData length ${td.length} is not a multiple of 32 (each 4bpp tile is exactly 32 bytes). The last ${td.length % 32} bytes are a partial tile — a sign the generator's stride is wrong.`);
+      errors.push(`tileData length ${td.length} is not a multiple of 32 (each 4bpp tile is exactly 32 bytes). The last ${td.length % 32} bytes are a partial tile - a sign the generator's stride is wrong.`);
     }
     const tileCount = Math.floor(td.length / 32);
     let highestIndex = 0;
     const tilesOverMax = [];
     // Every nibble in a byte IS already 0..15 (it's 4 bits), so "nibble > 0xF"
     // can't physically occur in a byte. The real, catchable error is a pixel
-    // index ABOVE the palette the art is supposed to use — i.e. the generator
+    // index ABOVE the palette the art is supposed to use - i.e. the generator
     // emitted color #16+ which on a 16-color line wraps/garbles. We flag the
     // highest index used and any tile that exceeds maxPaletteIndex.
     for (let t = 0; t < tileCount; t++) {
@@ -200,7 +200,7 @@ export function validateGenesisTiles(args = {}) {
         `${tilesOverMax.length} tile(s) use a palette index above ${maxIdx} ` +
         `(highest seen: ${highestIndex}). A Genesis 4bpp line has only 16 colors ` +
         `(indices 0-15). This is the classic '17th color leaked into the tile ` +
-        `words' bug — the art will render with wrong/garbled colors. First few: ` +
+        `words' bug - the art will render with wrong/garbled colors. First few: ` +
         tilesOverMax.slice(0, 5).map((x) => `tile ${x.tile} (idx ${x.maxIndex})`).join(", ") + "."
       );
     }
@@ -213,16 +213,16 @@ export function validateGenesisTiles(args = {}) {
     lines.forEach((line, i) => {
       const n = Array.isArray(line) ? line.length : Object.keys(line).length;
       if (n > 16) {
-        errors.push(`palette line ${i} has ${n} colors — a Genesis palette line holds exactly 16. Colors beyond index 15 can't be represented; split across multiple lines or reduce to 16.`);
+        errors.push(`palette line ${i} has ${n} colors - a Genesis palette line holds exactly 16. Colors beyond index 15 can't be represented; split across multiple lines or reduce to 16.`);
       } else if (n === 16) {
-        warnings.push(`palette line ${i} uses all 16 slots (index 0 is the transparent/backdrop color for sprites — make sure that's intended).`);
+        warnings.push(`palette line ${i} uses all 16 slots (index 0 is the transparent/backdrop color for sprites - make sure that's intended).`);
       }
     });
     stats.paletteLines = lines.length;
   }
 
   if (!args.tileData && !args.palette) {
-    warnings.push("nothing to validate — pass tileData and/or palette.");
+    warnings.push("nothing to validate - pass tileData and/or palette.");
   }
 
   return { ok: errors.length === 0, errors, warnings, stats };
@@ -321,7 +321,7 @@ const PLANE_CELLS = { 0: 32, 1: 64, 2: 64, 3: 128 };
  * For a memory→VRAM DMA (the common "upload tiles/sprites" case) the VDP source
  * registers hold the source as a WORD address (source/2), so the byte address
  * the 68k read from is `(low | mid<<8 | (high&0x7F)<<16) << 1`. That byte address
- * is in the 68k address space — for a normal cart it's a ROM offset, which is
+ * is in the 68k address space - for a normal cart it's a ROM offset, which is
  * exactly "where did this graphic come from?". The top 2 bits of reg $17 select
  * the DMA kind: 0/1 = memory→VRAM, 2 = VRAM fill, 3 = VRAM→VRAM copy.
  *
@@ -430,7 +430,7 @@ export function snapshotPatternTiles(host, opts = {}) {
  *   bit 11    = horizontal flip
  *   bits 10-0 = tile index into VRAM (×32 bytes per tile)
  *
- * Like the GB BG-map snapshot, this renders the WHOLE plane — scroll is
+ * Like the GB BG-map snapshot, this renders the WHOLE plane - scroll is
  * NOT applied (the visible 320×224 / 256×224 window is a sub-region).
  *
  * @param {object} host  LibretroHost
@@ -462,7 +462,7 @@ export function snapshotPlaneMap(host, opts = {}) {
   for (let cy = 0; cy < hCells; cy++) {
     for (let cx = 0; cx < wCells; cx++) {
       const entryOff = base + (cy * wCells + cx) * 2;
-      // gpgx VRAM is host-LE word-byte-swapped — read the name-table entry
+      // gpgx VRAM is host-LE word-byte-swapped - read the name-table entry
       // little-endian (low byte first) or tile/pal/flip all decode wrong.
       const word = (vram[entryOff + 1] << 8) | vram[entryOff];
       const tileIdx = word & 0x7FF;
@@ -501,7 +501,7 @@ export function snapshotPlaneMap(host, opts = {}) {
     baseAddr: "$" + base.toString(16).toUpperCase().padStart(4, "0"),
     wCells,
     hCells,
-    note: `Plane ${plane} (${wCells}×${hCells} cells = ${W}×${H}px). Scroll NOT applied — the on-screen window is a sub-region. hMode=${decoded.hMode}, displayEnabled=${decoded.displayEnabled}.`,
+    note: `Plane ${plane} (${wCells}×${hCells} cells = ${W}×${H}px). Scroll NOT applied - the on-screen window is a sub-region. hMode=${decoded.hMode}, displayEnabled=${decoded.displayEnabled}.`,
   };
 }
 

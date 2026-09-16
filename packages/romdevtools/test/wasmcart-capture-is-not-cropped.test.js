@@ -30,7 +30,7 @@ import { glStackAvailable } from "romdev-core-host/glOptionalDep.js";
 let _glReady = true;
 try { await import("webgl-node"); } catch { _glReady = false; }
 if (_glReady) _glReady = await glStackAvailable();
-const GUARD = _glReady ? {} : { skip: "no usable GL stack here (headless CI) — GL carts cannot load" };
+const GUARD = _glReady ? {} : { skip: "no usable GL stack here (headless CI) - GL carts cannot load" };
 
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -62,7 +62,7 @@ test("a GL cart's capture spans the FULL frame, not a window-sized sub-rect", GU
     const fb = h.getFramebuffer();
     const e = extent(fb);
     // The fixture fills its whole frame, so content must touch every edge.
-    // A cropped read shows up as minX > 0 (content pushed right) — exactly
+    // A cropped read shows up as minX > 0 (content pushed right) - exactly
     // the x=383 / x=635 the client measured.
     assert.equal(e.minX, 0, `content must reach the left edge (got x=${e.minX})`);
     assert.equal(e.maxX, fb.width - 1, `content must reach the right edge (got x=${e.maxX})`);

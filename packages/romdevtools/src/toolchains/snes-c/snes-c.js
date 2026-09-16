@@ -1,11 +1,11 @@
-// snes-c.js — SNES C build pipeline.
+// snes-c.js - SNES C build pipeline.
 //
 // Two modes:
 //
 //   pvsneslib: true  (default, R18)
 //     Idiomatic SNES homebrew. Link against the bundled PVSnesLib runtime
 //     (precompiled .obj files for crt0, libm, libtcc, libc + headers). The
-//     `<snes.h>` API works out of the box — consoleDrawText, bgSetGfxPtr,
+//     `<snes.h>` API works out of the box - consoleDrawText, bgSetGfxPtr,
 //     setMode, WaitForVBlank, padsCurrent, etc. This is what every modern
 //     SNES homebrew tutorial uses; default = idiomatic.
 //
@@ -31,7 +31,7 @@ const __dirname = path.dirname(__filename);
 // Minimum-viable runtime (R16, original code).
 const MINIMAL_LIB_DIR = path.resolve(__dirname, "..", "..", "platforms", "snes", "lib", "c");
 // PVSnesLib bundled runtime (R18). Headers + the .asm SOURCE for the runtime
-// (crt0/libc/libm/libtcc) — assembled from source in-build, not linked from a
+// (crt0/libc/libm/libtcc) - assembled from source in-build, not linked from a
 // prebuilt .obj black box.
 const PVSNESLIB_DIR = path.resolve(__dirname, "..", "..", "platforms", "snes", "lib", "pvsneslib");
 const PVSNESLIB_INCLUDE = path.join(PVSNESLIB_DIR, "include");
@@ -41,7 +41,7 @@ const PVSNESLIB_SOURCE_DIR = path.join(PVSNESLIB_DIR, "source");
  * Assemble PVSnesLib's runtime objects (crt0_snes / libm / libtcc / libc) FROM
  * its own .asm/.c SOURCE, replicating its Makefile: a SLOWROM comp_defs, tcc
  * libc_c.c → asm, then wla each library .asm (each .include's hdr.asm + its
- * feature siblings). Cached per-process — these don't change between user
+ * feature siblings). Cached per-process - these don't change between user
  * builds, but an edit to the vendored source busts the cache (keyed on bytes).
  *
  * @returns {Promise<{ok:boolean, objs?:Record<string,Uint8Array>, stage?:string, log?:string}>}
@@ -68,20 +68,20 @@ async function assemblePvSnesLibObjs() {
   includes["comp_defs.asm"] = "; HIROM / FASTROM definitions\n.SLOWROM\n";
 
   let log = "";
-  // libc.asm .include's libc_c.asm — generated from libc_c.c via tcc.
+  // libc.asm .include's libc_c.asm - generated from libc_c.c via tcc.
   const libcC = await readFile(path.join(srcDir, "libc_c.c"), "utf-8");
   const tcc = await runTcc816({ source: libcC, headers: includes });
   if (tcc.exitCode !== 0 || !tcc.asmSource) {
     return { ok: false, stage: "tcc(libc_c.c)", log: log + (tcc.log || "") };
   }
   // tcc emits a leading `.include "hdr.asm"`. libc_c.asm is .include'd INTO
-  // libc.asm, which already includes hdr.asm — so strip tcc's copy to avoid a
+  // libc.asm, which already includes hdr.asm - so strip tcc's copy to avoid a
   // duplicate .MEMORYMAP ("can be defined only once"). (This mirrors the
   // PVSnesLib Makefile, which sed-strips the same hdr include.)
   includes["libc_c.asm"] = tcc.asmSource.replace(/^\s*\.include\s+"hdr\.asm".*$/im, "");
 
   // Each unit is assembled to its OWN .obj, and each .include's hdr.asm (the
-  // memory map) — one .MEMORYMAP per independent obj, which is correct. wla
+  // memory map) - one .MEMORYMAP per independent obj, which is correct. wla
   // resolves comp_defs.asm (.SLOWROM → LoROM branch) inside hdr.asm.
   const objs = {};
   for (const unit of ["crt0_snes", "libm", "libtcc", "libc"]) {
@@ -134,7 +134,7 @@ export async function buildSnesC(args) {
  * Normalize the caller's source input into a single map of
  * `{ filename: contents }`. Accepts either `source` (single C file
  * shortcut → `main.c`) or `sources` (already a map). Validates that
- * exactly one .c file is present — multi-C-source builds need their
+ * exactly one .c file is present - multi-C-source builds need their
  * own linker layout work and aren't yet supported.
  *
  * @param {{source?:string, sources?:Record<string,string>}} args
@@ -161,7 +161,7 @@ function normalizeSnesSources(args) {
 }
 
 /**
- * PVSnesLib link path — idiomatic SNES C homebrew.
+ * PVSnesLib link path - idiomatic SNES C homebrew.
  *
  * tcc's output references `hdr.asm`. We use PVSnesLib's example-style
  * hdr.asm (LoROM SlowROM, 4 slots, full SNES header, NMI/IRQ vectors
@@ -198,7 +198,7 @@ async function buildWithPvSnesLib({ sources, headers, tccOptions, wlaOptions, bi
         headers: tccHeaders,
         options: tccOptions,
       }), (r) => r.asmSource);
-      // KEEP tcc's `.include "hdr.asm"` — wla resolves it via the includes
+      // KEEP tcc's `.include "hdr.asm"` - wla resolves it via the includes
       // map below. (We strip it from library .obj builds where libc.asm
       // already includes hdr.asm; user code includes hdr.asm directly.)
       const wla = await cb.stage(`wla-65816 (${cName})`, () => runWla65816({
@@ -349,7 +349,7 @@ async function buildMinimal({ sources, headers, tccOptions, wlaOptions, _binaryI
  * `#include <snes.h>` resolves them out of MEMFS. tcc-65816 searches
  * `-I` paths in order; we mount them all at /work alongside user code.
  *
- * Caches across calls within the process — pvsneslib headers don't
+ * Caches across calls within the process - pvsneslib headers don't
  * change at runtime.
  */
 let _headerCache = null;

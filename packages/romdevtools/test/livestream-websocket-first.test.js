@@ -25,11 +25,11 @@ const HTML = path.resolve(__dirname, "../src/observer/livestream.html");
 test("livestream connects websocket-first, not on socket.io's polling default", () => {
   const html = readFileSync(HTML, "utf8");
   const m = html.match(/const socket = io\(([^)]*)\)/);
-  assert.ok(m, "could not find the io() call — did livestream.html change shape?");
+  assert.ok(m, "could not find the io() call - did livestream.html change shape?");
   const args = m[1].trim();
   assert.notEqual(args, "", "bare io() reinstates socket.io's polling-first default");
   const order = [...args.matchAll(/"(websocket|polling)"/g)].map((x) => x[1]);
   assert.deepEqual(order, ["websocket", "polling"],
-    'transports must be ["websocket", "polling"] — websocket first, polling kept as a fallback ' +
+    'transports must be ["websocket", "polling"] - websocket first, polling kept as a fallback ' +
     "so a proxy that blocks websocket still gets a (slow) livestream rather than none");
 });

@@ -1,4 +1,4 @@
-// sh-c — Dreamcast (SH-4) C build driver.
+// sh-c - Dreamcast (SH-4) C build driver.
 //
 //   buildShC({ source | sources, headers }) → { ok, binary (ELF), log, symbols }
 //
@@ -31,7 +31,7 @@ const LIB = path.join(__dirname, "lib");
  * @param {string[]} [args.cc1Options] extra cc1 flags
  */
 export async function buildShC(args) {
-  // The bundled DC helper (dc.h) is auto-available so `#include "dc.h"` just works —
+  // The bundled DC helper (dc.h) is auto-available so `#include "dc.h"` just works -
   // it brings up the PowerVR2 framebuffer (FB_R_CTRL/SIZE/SOF1 + SPG for 640x480 RGB565)
   // that Flycast presents. A caller-supplied "dc.h" wins (override the bundled one).
   const bundledDcH = await readFile(path.join(LIB, "dc.h"), "utf-8").catch(() => null);
@@ -39,7 +39,7 @@ export async function buildShC(args) {
   // -m4-single-only is passed by the cc1 wrapper; here the language/codegen knobs.
   // Default to -O1, NOT -O2: the sh-elf cc1.wasm build has an -O2-only pass that aborts
   // ("memory access out of bounds" during "Assembling functions") on common control
-  // flow — e.g. an infinite loop that mutates locals through both `if`/`else` branches.
+  // flow - e.g. an infinite loop that mutates locals through both `if`/`else` branches.
   // -O1 dodges it entirely and is plenty for DC homebrew. A user-supplied -O<level>
   // still wins (gcc honors the LAST -O, so only add a default when none is present).
   const userOpts = args.cc1Options ?? [];
@@ -87,7 +87,7 @@ export async function buildShC(args) {
       options: ["--no-warn-rwx-segments"],
     }), (r) => r.elf);
 
-    // The ELF IS the deliverable — reios boots it directly.
+    // The ELF IS the deliverable - reios boots it directly.
     return { ok: true, binary: ld.elf, log: cb.log, exitCode: 0, stage: "done", ...(ld.map ? { symbols: ld.map } : {}) };
   } catch (e) {
     if (e instanceof BuildError) return e.toResult();

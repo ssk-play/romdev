@@ -1,4 +1,4 @@
-; Genesis VDP — sprite table layout + linked-list management.
+; Genesis VDP - sprite table layout + linked-list management.
 ;
 ; Genesis sprites are stored in a 320- or 640-byte table in VRAM (40 or
 ; 80 sprites × 8 bytes each). The VDP walks the table as a LINKED LIST:
@@ -7,7 +7,7 @@
 ;   - Sprite priority is order-of-the-list, NOT slot order.
 ;   - You can rearrange visibility without touching slots: just rewrite
 ;     the link fields.
-;   - You MUST set sprite 0's link, even if you only have one sprite —
+;   - You MUST set sprite 0's link, even if you only have one sprite -
 ;     otherwise the VDP walks into uninitialized memory and renders
 ;     garbage that flickers per frame.
 ;
@@ -113,7 +113,7 @@ dma_sprite_table:
   move.w  #$9401,$C00004       ; reg $94 = $01 (length hi)
   ; Source: SOFT_SPRITE_TABLE >> 1 (DMA addresses words, not bytes)
   move.w  #$9500,$C00004       ; reg $95 = (src >> 1) & $FF
-  move.w  #$9670,$C00004       ; reg $96 = (src >> 9) & $FF — adjust per actual addr
+  move.w  #$9670,$C00004       ; reg $96 = (src >> 9) & $FF - adjust per actual addr
   move.w  #$977F,$C00004       ; reg $97 = (src >> 17) & $7F | $80 (DMA mode)
   ; ---- 2. Send target address + DMA-trigger command word ----
   ; VRAM write to SPRITE_TABLE_VRAM ($F000) with DMA bit set.

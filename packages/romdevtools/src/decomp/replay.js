@@ -1,4 +1,4 @@
-// replay.js — a public-API replay suite over preserved candidates.
+// replay.js - a public-API replay suite over preserved candidates.
 //
 // §12 of the 2026-09-15 report: "Build a small, public-API replay suite from
 // preserved candidates, using isolated worktrees or fixture snapshots. Do not
@@ -36,7 +36,7 @@ export function defaultCases({ researchRoot, workspace }) {
   return [
     {
       id: "i2-exact-with-contradictory-rodata",
-      why: "§12.1 — an exact recovery whose function-local rodata check found 0 target references against 1 candidate reference. The verdict must be exact; the rodata check must report a LIMITATION, not a mismatch.",
+      why: "§12.1 - an exact recovery whose function-local rodata check found 0 target references against 1 candidate reference. The verdict must be exact; the rodata check must report a LIMITATION, not a mismatch.",
       op: "compare",
       symbol: "func_i2_802C7C50", segment: "ovl_i2",
       candidatePath: R("i2-detail7C50-297/variant.c"),
@@ -46,7 +46,7 @@ export function defaultCases({ researchRoot, workspace }) {
     },
     {
       id: "i3-five-word-scheduling-group",
-      why: "§12.2 — five words of setup that are a scheduling permutation, plus a separate reversed branch pair. Diagnosis must report them as DIFFERENT groups.",
+      why: "§12.2 - five words of setup that are a scheduling permutation, plus a separate reversed branch pair. Diagnosis must report them as DIFFERENT groups.",
       op: "diagnose",
       symbol: "func_i3_802C5800", segment: "ovl_i3",
       candidatePath: R("i3-init5800-299/candidate.c"),
@@ -55,7 +55,7 @@ export function defaultCases({ researchRoot, workspace }) {
     },
     {
       id: "i3-reversed-branch-operands",
-      why: "§12.3 — reversing the literal equality does NOT fix the branch pair. A variant batch must show it moving nothing.",
+      why: "§12.3 - reversing the literal equality does NOT fix the branch pair. A variant batch must show it moving nothing.",
       op: "variants",
       symbol: "func_i3_802C5800", segment: "ovl_i3",
       candidatePath: R("i3-init5800-300/candidate.c"),
@@ -67,7 +67,7 @@ export function defaultCases({ researchRoot, workspace }) {
     },
     {
       id: "i15-ceremony-frame-and-registers",
-      why: "§12.5 — frame size restored, two matrix homes four bytes high, and an s5/s6/s7 rotation. The layout report must call the two homes a UNIFORM SHIFT rather than two unrelated problems.",
+      why: "§12.5 - frame size restored, two matrix homes four bytes high, and an s5/s6/s7 rotation. The layout report must call the two homes a UNIFORM SHIFT rather than two unrelated problems.",
       op: "layout",
       symbol: "func_i15_802C5800", segment: "ovl_i15",
       candidatePath: R("i15-init5800-305/candidate.c"),
@@ -75,7 +75,7 @@ export function defaultCases({ researchRoot, workspace }) {
     },
     {
       id: "two-overlays-one-virtual-address",
-      why: "§12.7 — two functions at VA 0x802C5800 in different overlays must resolve to different targets, bytes and TUs.",
+      why: "§12.7 - two functions at VA 0x802C5800 in different overlays must resolve to different targets, bytes and TUs.",
       op: "batch",
       symbols: [
         { symbol: "func_i3_802C5800", segment: "ovl_i3" },
@@ -91,7 +91,7 @@ export function defaultCases({ researchRoot, workspace }) {
       // under unusual filenames is a capability being advertised; not using it
       // to resolve a fixture was the wrong call.
       id: "number-renderer-one-branch-vs-five-schedule",
-      why: "§12.4 — the one-difference draft's residual is a single ENTRY BRANCH (BEQ where the target has BLEZ), a different mechanism from the five-word tail scheduling residue in the blez-correct draft. Diagnosis must not describe them the same way.",
+      why: "§12.4 - the one-difference draft's residual is a single ENTRY BRANCH (BEQ where the target has BLEZ), a different mechanism from the five-word tail scheduling residue in the blez-correct draft. Diagnosis must not describe them the same way.",
       op: "diagnose",
       symbol: "func_1B1FB0_802C6C1C", segment: "segment_1B1FB0",
       candidatePath: R("func_1B1FB0_802C6C1C.one-difference.c.txt"),
@@ -102,7 +102,7 @@ export function defaultCases({ researchRoot, workspace }) {
     },
     {
       id: "number-renderer-five-word-tail-schedule",
-      why: "§12.4 — the companion draft: correct entry branch, five differences confined to tail scheduling. Its groups must differ from the one-difference draft's.",
+      why: "§12.4 - the companion draft: correct entry branch, five differences confined to tail scheduling. Its groups must differ from the one-difference draft's.",
       op: "diagnose",
       symbol: "func_1B1FB0_802C6C1C", segment: "segment_1B1FB0",
       candidatePath: R("func_1B1FB0_802C6C1C.blez-correct-5diff.c.txt"),
@@ -110,7 +110,7 @@ export function defaultCases({ researchRoot, workspace }) {
     },
     {
       id: "stale-near-match-absent-from-api-history",
-      why: "§12.8 — a better historical candidate that the API never measured. Research import must surface it and must NOT describe the target as never attempted.",
+      why: "§12.8 - a better historical candidate that the API never measured. Research import must surface it and must NOT describe the target as never attempted.",
       op: "research-status",
       symbol: "func_1B1FB0_802C6C1C",
       expect: { hasDrafts: true, claimedBestDistanceAtMost: 1 },
@@ -119,10 +119,10 @@ export function defaultCases({ researchRoot, workspace }) {
       // §12.6. The bounded search itself is NOT re-run: it costs 300s of the
       // client's hardware and re-running it proves only what the recorded job
       // already proved. What IS exercised is the accounting over that real
-      // job — which is a narrower claim, and the matrix labels it `partial`
+      // job - which is a narrower claim, and the matrix labels it `partial`
       // rather than letting it stand in for the search behaviour.
       id: "i5-no-improvement-search-accounting",
-      why: "§12.6 — a correct-size residual whose bounded search returned no improvement. Exercises the report's accounting over the recorded 300s job: termination reason, mutation family, and the recommendation to switch mechanism rather than re-run.",
+      why: "§12.6 - a correct-size residual whose bounded search returned no improvement. Exercises the report's accounting over the recorded 300s job: termination reason, mutation family, and the recommendation to switch mechanism rather than re-run.",
       op: "job-accounting",
       // PIN THE JOB, not a prefix. `jobPrefix` matched the NEWEST job with that
       // prefix, which turned out to be a 10s/2-thread job created while testing
@@ -140,7 +140,7 @@ export function defaultCases({ researchRoot, workspace }) {
       // path end to end for a fraction of the cost: preflight, seed mapping,
       // budget, termination and accounting.
       id: "bounded-search-launch-end-to-end",
-      why: "§12.6 (second half) — a fresh bounded search, launched through the public API on a 20s budget: the preflight must run and be recorded, a descriptive seed must map deterministically, and the job must terminate on its budget with accounting and no backend traceback.",
+      why: "§12.6 (second half) - a fresh bounded search, launched through the public API on a 20s budget: the preflight must run and be recorded, a descriptive seed must map deterministically, and the job must terminate on its budget with accounting and no backend traceback.",
       op: "search-launch",
       symbol: "func_i3_802C5800", segment: "ovl_i3",
       candidatePath: R("i3-init5800-300/candidate.c"),
@@ -150,11 +150,11 @@ export function defaultCases({ researchRoot, workspace }) {
     {
       // §12.9 asks specifically about REMOVING A REQUIRED OUTPUT ARGUMENT.
       // The first version asserted `pointer-cast` and `global-write-added`,
-      // which are two other checks firing on an unrelated candidate — green,
+      // which are two other checks firing on an unrelated candidate - green,
       // and no evidence at all that the missing output was detected. The gate
       // could not detect it; it can now, and this asserts THAT.
       id: "semantically-wrong-but-plausible",
-      why: "§12.9 — a candidate that gives a required output pointer as NULL. Baseline and candidate differ ONLY in that argument, so the finding cannot come from anything else.",
+      why: "§12.9 - a candidate that gives a required output pointer as NULL. Baseline and candidate differ ONLY in that argument, so the finding cannot come from anything else.",
       op: "gate",
       symbol: "func_i15_802C5800", segment: "ovl_i15",
       baselineText: "void f(Mtx *out) { guMtxIdent(out); use(out); }",
@@ -165,7 +165,7 @@ export function defaultCases({ researchRoot, workspace }) {
       // The CONTROL for the case above: the unchanged baseline against itself.
       // Without it, a gate that flagged everything would pass §12.9.
       id: "semantically-wrong-control-unchanged-baseline",
-      why: "§12.9 control — the baseline compared against itself must raise NOTHING. A finding here would mean the detection above is noise.",
+      why: "§12.9 control - the baseline compared against itself must raise NOTHING. A finding here would mean the detection above is noise.",
       op: "gate",
       symbol: "func_i15_802C5800", segment: "ovl_i15",
       baselineText: "void f(Mtx *out) { guMtxIdent(out); use(out); }",
@@ -238,7 +238,7 @@ export function checkExpectations(kase, actual) {
   if (e.recommendsSwitchingMechanism != null) eq("recommends switching mechanism", actual.recommendsSwitchingMechanism, e.recommendsSwitchingMechanism);
   if (e.noFindings) {
     const got = actual.findingIds ?? [];
-    if (got.length) fails.push(`expected NO findings on an unchanged baseline, got: ${got.join(", ")} — the detection this controls for is firing on noise`);
+    if (got.length) fails.push(`expected NO findings on an unchanged baseline, got: ${got.join(", ")} - the detection this controls for is firing on noise`);
   }
   if (e.findingIds) {
     for (const id of e.findingIds) {
@@ -303,7 +303,7 @@ export function summarize(results, cases = []) {
     passed: tally.passed, failed: tally.failed, skipped: tally["not run"],
     matrix: tally,
     coverage: `${tally.passed} of ${rows.length} cases fully passed`
-      + (tally.partial ? `; ${tally.partial} PARTIAL (something real was exercised, but a named part of the requirement was not — see each row's \`unexercised\`)` : "")
+      + (tally.partial ? `; ${tally.partial} PARTIAL (something real was exercised, but a named part of the requirement was not - see each row's \`unexercised\`)` : "")
       + (tally.failed ? `; ${tally.failed} failed` : "")
       + (tally["not run"] ? `; ${tally["not run"]} not run` : "")
       + ".",
@@ -313,6 +313,6 @@ export function summarize(results, cases = []) {
     interpretation:
       "This suite measures whether each listed bottleneck reproduces its expected OUTCOME through the public API. It proves THOSE cases and nothing wider. "
       + "It is not a throughput benchmark: no baseline workflow was run alongside it, so it cannot support a speedup figure, and none is stated. "
-      + "A case that merely completed is not a case that passed — every row carries its request, its asserted outcome, what was observed, and any part of the requirement left unexercised.",
+      + "A case that merely completed is not a case that passed - every row carries its request, its asserted outcome, what was observed, and any part of the requirement left unexercised.",
   };
 }

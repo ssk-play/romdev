@@ -1,11 +1,11 @@
-// diagnose.js — residual diagnosis that names the COMPILER MECHANISM.
+// diagnose.js - residual diagnosis that names the COMPILER MECHANISM.
 //
 // The reporter's complaint (2026-09-15 §5) was precise: classifying a word as
 // "a register difference" or "an instruction difference" does not tell you what
 // experiment to run. They had to reconstruct the owner TU by hand, recover its
 // compile invocation, recompile with `-Wa,-R`, find the relevant nodes in an
 // 11,000-line trace, map source lines to nodes, and reason about scheduling
-// priorities — for a handful of mismatches.
+// priorities - for a handful of mismatches.
 //
 // So this module does three things the per-word classifier does not:
 //
@@ -15,7 +15,7 @@
 //   2. Names the MECHANISM per group (scheduling permutation, branch lowering,
 //      register assignment, frame layout, instruction-count change, relocation
 //      spelling, unclassified) with the evidence that supports it.
-//   3. Proposes DISCRIMINATING experiments — each with a prediction and, more
+//   3. Proposes DISCRIMINATING experiments - each with a prediction and, more
 //      importantly, what would REFUTE the hypothesis.
 //
 // Two rules this file will not break, both stated in the report:
@@ -30,7 +30,7 @@
 const BRANCH_RE = /^(b|beq|bne|blez|bgtz|bltz|bgez|beql|bnel|blezl|bgtzl|bltzl|bgezl|bc1t|bc1f|bc1tl|bc1fl)$/;
 /**
  * Unconditional transfers. `j`/`jal` carry no registers, so a difference
- * between two of them is always a changed DESTINATION — a control-flow shape
+ * between two of them is always a changed DESTINATION - a control-flow shape
  * difference, not an allocator choice. Left out of BRANCH_RE (which gates
  * register/operand reasoning), these fell through to "unclassified" and told
  * the caller nothing.
@@ -72,7 +72,7 @@ const opsNoRegs = (ops) => String(ops ?? "").replace(REG_RE, "%r");
 /**
  * Parse an as1 `-Wa,-R` trace into schedulable nodes and the picking order.
  *
- * Format (observed, not assumed — see the fixture at
+ * Format (observed, not assumed - see the fixture at
  * docs/research/parallel-candidates/i3-init5800-300/as1-trace.log):
  *
  *   Node  11: inst 24e7000c, relocation 62, lineno 43
@@ -89,7 +89,7 @@ export function parseAs1Trace(text) {
   // NODE NUMBERS ARE NOT UNIQUE. as1 renumbers from 0 in every scheduling
   // region, so one 11k-line trace declared 1,731 nodes using only 101 distinct
   // numbers. Keying a map by node number kept the LAST declaration of each and
-  // silently discarded 94% of the trace — including every node the reporter
+  // silently discarded 94% of the trace - including every node the reporter
   // cited. Nodes are kept as a list; `region` records which block each came
   // from, and lookups match on the instruction WORD, which is what a caller
   // actually has.
@@ -150,7 +150,7 @@ export function parseAs1Trace(text) {
  * branch displacements and relocated immediates are filled in, so a branch's
  * traced word almost never equals its final word. Comparing raw words made a
  * correct trace look 81% covered, with the shortfall landing entirely on
- * branches and stores — which would have rejected every real trace.
+ * branches and stores - which would have rejected every real trace.
  *
  * Masking the low 16 bits compares the opcode and register fields, which
  * scheduling does fix, and ignores the displacement/immediate, which it does
@@ -167,7 +167,7 @@ export function maskPatchable(word) {
 
 /**
  * Which source lines produced a set of instruction words, from a trace.
- * Returns null when the trace does not cover them — an ABSENT answer, never a
+ * Returns null when the trace does not cover them - an ABSENT answer, never a
  * guessed one.
  */
 export function sourceLinesFor(trace, words) {
@@ -246,7 +246,7 @@ export function groupResiduals(target, candidate, strict, { gap = 3 } = {}) {
     // the register names differ. Its "mapping" identifies the allocator choice.
     // A branch whose operands are SWAPPED is a comparison shape (lowering).
     // A branch whose register is SUBSTITUTED, in the same position with the
-    // same sense and displacement, is the allocator — the reporter's case:
+    // same sense and displacement, is the allocator - the reporter's case:
     //   169  addiu s7,zero,128  ->  addiu s6,zero,128
     //   294  bne   s1,s7,420    ->  bne   s1,s6,420
     // Excluding every branch from register grouping split that one decision in
@@ -311,7 +311,7 @@ export function classifyGroup(group, target, candidate) {
   // spelling difference even when the pre-link words match, because the linker
   // will resolve them to different addresses. Without this, a one-instruction
   // ownership difference was answered with "nothing needed: the linked bytes
-  // are identical" — which is false and stops the caller looking.
+  // are identical" - which is false and stops the caller looking.
   const sameRelocSymbol = (a, b) => {
     const sa = a?.reloc && typeof a.reloc === "object" ? a.reloc.symbol ?? null : null;
     const sb = b?.reloc && typeof b.reloc === "object" ? b.reloc.symbol ?? null : null;
@@ -351,7 +351,7 @@ export function classifyGroup(group, target, candidate) {
   // ONLY a branch whose operands were exchanged is lowering. A branch that
   // reads a different register in the SAME position, with the same sense and
   // the same displacement, is the allocator's choice and belongs with the
-  // other uses of that mapping — classifying it as lowering sent the caller to
+  // other uses of that mapping - classifying it as lowering sent the caller to
   // rewrite a condition that was never wrong.
   const allBranch = ta.length > 0 && ta.every((a) => BRANCH_RE.test(a.mnemonic));
   const everySwapped = allBranch && ta.every((a, k) => ca[k] && isOperandSwap(a, ca[k]));
@@ -370,7 +370,7 @@ export function classifyGroup(group, target, candidate) {
           ? "the branch's SENSE changed (a different branch mnemonic), which follows from how the condition is written in source"
           : "the branch's DESTINATION changed, so the control-flow shape differs rather than the registers",
       evidence: { swapped, senseChanged, targetChanged, target: ta.map(key), candidate: ca.map(key) },
-      phase: "uopt (expression lowering) — an as1 trace cannot decide this" };
+      phase: "uopt (expression lowering) - an as1 trace cannot decide this" };
   }
 
   // A repeated register mapping: one allocator decision.
@@ -397,12 +397,12 @@ export function classifyGroup(group, target, candidate) {
       why: "an unconditional jump's DESTINATION differs. There are no registers involved, so this is a control-flow shape difference (a different call target or a differently-placed block), never an allocation choice",
       evidence: { swapped: false, senseChanged: ta.some((a, k) => a.mnemonic !== ca[k]?.mnemonic), targetChanged: true,
         target: ta.map(key), candidate: ca.map(key) },
-      phase: "uopt (control flow) — an as1 trace cannot decide this" };
+      phase: "uopt (control flow) - an as1 trace cannot decide this" };
   }
 
   // A HI16/LO16 pair that names a DIFFERENT SYMBOL: the target references a
   // named data symbol and the candidate an anonymous local literal (or vice
-  // versa). The linked bytes can be identical while the OWNERSHIP differs —
+  // versa). The linked bytes can be identical while the OWNERSHIP differs -
   // the target's compiler had a declaration this candidate does not.
   //
   // This landed in `unclassified` on the reporter's own artifact, which is a
@@ -418,7 +418,7 @@ export function classifyGroup(group, target, candidate) {
     const targetNamed = tSyms.some(named), candNamed = cSyms.some(named);
     // A `D_`-style name in extracted asm is a DISASSEMBLER'S label, not proof
     // that the original C declared a global. splat names every addressable
-    // datum it finds, including compiler-generated float literal pools — and
+    // datum it finds, including compiler-generated float literal pools - and
     // `.late_rodata` inside the function's own .s file is exactly what such a
     // pool looks like. Claiming "the original had a DECLARATION this candidate
     // does not" read source history out of a naming convention.
@@ -435,13 +435,13 @@ export function classifyGroup(group, target, candidate) {
       confidenceNote: "HIGH confidence that the references differ. NOT a claim about the original source: whether the named symbol is a declared global or a generated literal pool entry is a separate question, and `hypotheses` below says how to settle it.",
       hypotheses: tNamed ? [
         { claim: `${tNamed} is a real declared object the candidate should reference`,
-          check: `decomp({op:'layout', va:'<its address>'}) — a symbol inside a larger object, or one referenced by OTHER functions, is a real datum` },
+          check: `decomp({op:'layout', va:'<its address>'}) - a symbol inside a larger object, or one referenced by OTHER functions, is a real datum` },
         { claim: `${tNamed} is a compiler-generated literal pool entry that a disassembler named`,
           check: `look at the section and the file: a lone value in .late_rodata inside this function's own .s is a generated pool, and the candidate emitting its own literal is CORRECT` },
       ] : undefined,
       evidence: { targetSymbols: tSyms, candidateSymbols: cSyms,
         target: ta.map(key), candidate: ca.map(key) },
-      phase: "uopt (data references) — decided by which declaration is in scope, not by scheduling" };
+      phase: "uopt (data references) - decided by which declaration is in scope, not by scheduling" };
   }
 
   if (ta.length !== ca.length) {
@@ -530,8 +530,8 @@ export function experimentsFor(cls, group, ctx = {}) {
         id: "use-the-existing-symbol",
         do: `declare and reference the data symbol the target uses (${[...new Set((cls.evidence?.targetSymbols ?? []).filter((x) => x && !x.startsWith(".")))].join(", ") || "the named symbol in the evidence"}) instead of writing the value as a literal in this function`,
         predict: "the HI16/LO16 pair resolves to the same symbol as the target and the reference difference disappears",
-        refutes: "if the pair still differs, the symbol is not the one the original referenced — resolve the address with decomp({op:'layout', va}) before guessing again",
-        caution: "do NOT declare a new symbol at that address. A second name for bytes that already have one is how one object becomes two incompatible types — decomp({op:'layout', va:...}) says what already owns it",
+        refutes: "if the pair still differs, the symbol is not the one the original referenced - resolve the address with decomp({op:'layout', va}) before guessing again",
+        caution: "do NOT declare a new symbol at that address. A second name for bytes that already have one is how one object becomes two incompatible types - decomp({op:'layout', va:...}) says what already owns it",
       }];
     case "relocation-spelling":
       return [{ id: "none-needed", do: "nothing: the linked bytes are identical",
@@ -593,7 +593,7 @@ export function diagnoseResiduals({ target, candidate, strict, trace = null, tra
       ? { supplied: true, nodes: parsed.nodeCount, regions: parsed.regionCount, picks: parsed.pickCount,
           ...(parsed.unknownKeys.length ? { unknownTraceKeys: parsed.unknownKeys, unknownNote: "keys this parser does not interpret, reported rather than guessed at" } : {}),
           provenance: traceProvenance,
-          limits: "an as1 trace explains SCHEDULING. It cannot explain which expressions exist or which registers uopt chose — those decisions precede it." }
+          limits: "an as1 trace explains SCHEDULING. It cannot explain which expressions exist or which registers uopt chose - those decisions precede it." }
       : { supplied: false, limits: "without a trace, source-line attribution and scheduling priorities are unavailable; mechanisms are inferred from the instruction streams alone" },
     // WHAT THE GROUPING ACTUALLY ESTABLISHES.
     //

@@ -1,4 +1,4 @@
-// Generic recompile engine (analysis/recompile/) — the source/target-agnostic
+// Generic recompile engine (analysis/recompile/) - the source/target-agnostic
 // port engine. Proves the IR pipeline targets BOTH 65816 (SNES, 1:1 emulation
 // mode) and m68k (Genesis, real 6502→68000 logic translation) through the SAME
 // lift→IR→emit path, and that the NES→Genesis logic port BUILDS (vasm68k) and
@@ -53,7 +53,7 @@ test("recompile targets SNES (65816) through the generic engine", () => {
   assert.match(r.mainAsm, /sta\s+\$2000/, "seam access present");
 });
 
-test("recompile targets Genesis (m68k) through the SAME engine — real ISA translation", () => {
+test("recompile targets Genesis (m68k) through the SAME engine - real ISA translation", () => {
   const r = recompile(SAMPLE, { source: "nes", target: "genesis" });
   assert.equal(r.targetIsa, "m68k");
   assert.equal(r.residue.length, 0);

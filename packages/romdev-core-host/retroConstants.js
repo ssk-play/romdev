@@ -1,4 +1,4 @@
-// libretro.h constants we use. Subset — extended as we need more.
+// libretro.h constants we use. Subset - extended as we need more.
 
 export const RETRO_API_VERSION = 1;
 
@@ -71,7 +71,7 @@ export const RETRO_LOG_ERROR = 3;
 /** Video refresh data pointer meaning "GL framebuffer is valid". */
 export const RETRO_HW_FRAME_BUFFER_VALID = -1 >>> 0; // unsigned -1
 
-// HW render context types (retro_hw_context_type) — the GL flavors the
+// HW render context types (retro_hw_context_type) - the GL flavors the
 // HW-render cores (n64/ps1) request via RETRO_ENVIRONMENT_SET_HW_RENDER.
 export const RETRO_HW_CONTEXT_NONE = 0;
 export const RETRO_HW_CONTEXT_OPENGL = 1;        // OpenGL 2.x (compat)

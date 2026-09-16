@@ -13,7 +13,7 @@ test("sdlPackageRoot resolves @kmamal/sdl despite its exports map", () => {
   const root = sdlPackageRoot();
   assert.ok(root, "should resolve the @kmamal/sdl package root");
   assert.ok(existsSync(path.join(root, "package.json")), "root should contain package.json");
-  // The install script (what fetches the prebuilt binary) must be locatable —
+  // The install script (what fetches the prebuilt binary) must be locatable -
   // that's what both the postinstall and the runtime self-heal invoke.
   assert.ok(existsSync(path.join(root, "scripts", "install.mjs")),
     "should locate @kmamal/sdl/scripts/install.mjs for self-heal");

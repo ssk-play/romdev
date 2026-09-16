@@ -1,7 +1,7 @@
-# Super Nintendo / Super Famicom — troubleshooting
+# Super Nintendo / Super Famicom - troubleshooting
 
 > **A build failed? Read `issues[]` FIRST.** Every build/compile call returns
-> `issues: [{file, line, col, severity, message, stage}]` — the structured error
+> `issues: [{file, line, col, severity, message, stage}]` - the structured error
 > list. It almost always names the exact line to fix. Read that before matching a
 > symptom below or touching your source. Fall back to the raw `log` only if
 > `issues[]` is empty but `ok:false`.
@@ -42,13 +42,13 @@ for (i = 0; i < 10; i++) { ... }
 ```
 
 Same applies to mid-block declarations like `u16 v = expr;` after
-statements — must be hoisted to block top.
+statements - must be hoisted to block top.
 
 ## "wla-65816 link fails with `unresolved external 'tilfont'`"
 
 Your `main.c` references `tilfont` / `palfont` symbols, but no
 sibling `.asm` defines them. PVSnesLib's `consoleInitText` requires
-these — they hold the font tile data and palette respectively.
+these - they hold the font tile data and palette respectively.
 
 Stub them with zero bytes in a sibling `data.asm`:
 
@@ -73,7 +73,7 @@ a PNG → `.pic` + `.pal`, then `.incbin` them in `data.asm`.
 ## "Sprites don't appear" (or appear as garbage / flashing colors)
 
 **Diagnose first, don't guess.** Two tool calls tell you exactly what's
-wrong — they read the live PPU registers (OBSEL/TM) and OAM/CGRAM:
+wrong - they read the live PPU registers (OBSEL/TM) and OAM/CGRAM:
 
 - `background({view:'renderState', platform:'snes'})` → `snes.obj.enabledMain` (is the
   OBJ layer even on in TM?), `snes.obj.size`, `snes.obj.tileBaseByte`.
@@ -100,7 +100,7 @@ Common causes, in the order the tools will point you to:
 4. **Garbage / flashing colors = unintended OBJ palette line.** You used
    palette line 1..3 but only uploaded line 0. `sprites({op:'inspect'})` WARNS via
    `uninitializedObjPalettes` / `suspiciousObjPalettes` (+ `objPaletteReport`)
-   — and it catches MORE than all-zero lines: a line that's a flat fill, a
+   - and it catches MORE than all-zero lines: a line that's a flat fill, a
    smooth default-looking ramp, or simply referenced *above* the contiguous
    uploaded-from-line-0 block all get flagged as "likely never uploaded."
    Fix: upload every line you reference (CGRAM `128 + line*16`), or point
@@ -108,7 +108,7 @@ Common causes, in the order the tools will point you to:
 5. **No sprite tile data uploaded.** `oamInitGfxSet` is the canonical
    "upload sprite tiles + palette to VRAM" call. Forget it and OAM points at
    garbage tiles. `sprites({op:'inspect'})`'s `tileVramAddr` tells you where the
-   sprite's tile is — cross-check with `tiles({op:'png'})` at that base.
+   sprite's tile is - cross-check with `tiles({op:'png'})` at that base.
 
 See MENTAL_MODEL.md → "The OBJ stable-path recipe" for the layout that
 avoids all five.
@@ -119,7 +119,7 @@ avoids all five.
 (4-color). If you're using `consoleInitText` for text, it writes
 into BG0 of Mode 1 by default. You need to also call
 `bgSetDisable(1)` and `bgSetDisable(2)` if you're not using those
-layers — otherwise they'll render whatever happens to be at their
+layers - otherwise they'll render whatever happens to be at their
 default VRAM addresses (often garbage).
 
 ```c
@@ -148,14 +148,14 @@ Fixes:
 
 Three layers:
 
-1. **SPC700 driver not booted.** PVSnesLib has `spcBoot()` — call
+1. **SPC700 driver not booted.** PVSnesLib has `spcBoot()` - call
    once at startup. Forget it and `spcPlay()` does nothing.
 2. **APUIO ports stuck.** The SPC700 communication is via $2140-$2143.
    On reset both sides write zeros and then handshake; if you bypass
    PVSnesLib's `spc*` helpers and poke the ports directly, your
    handshake may be wrong.
 3. **No sound data loaded.** `spcSetSoundEntry()` registers BRR
-   samples + sequence pointers — without these, channels are silent.
+   samples + sequence pointers - without these, channels are silent.
 
 PVSnesLib's API is the path of least resistance. Roll your own SPC
 driver only when you really need the control.
@@ -167,30 +167,30 @@ A command sent to the bundled snes_sfx driver IMMEDIATELY after
 instant the SPC echoes the jump command, but the driver then spends
 ~50 DSP port writes initialising before it seeds its command
 edge-detector from $2140. A `sfx_music_play()` issued inside that
-window becomes the SEED — no edge, no dispatch, music never starts.
+window becomes the SEED - no edge, no dispatch, music never starts.
 
 Symptoms via the debug tools: `getAudioState({chip:'dsp'})` shows
 voice 1 with pitch 0 / env 0; ARAM $00 (prev_cmd) already equals your
 command byte while ARAM $01 (music_on) is 0.
 
 Fix: put one `WaitForVBlank()` between `sfx_init()` and the first
-`sfx_play`/`sfx_music_play` — a frame is thousands of SPC cycles, the
+`sfx_play`/`sfx_music_play` - a frame is thousands of SPC cycles, the
 driver is guaranteed to be in its command loop. The racing example does
 exactly this (see its `sfx_init` call site).
 
 ## "My HDMA table stops landing / OAM gets corrupted" (HDMA channel fights the OAM DMA)
 
 A DMA channel cannot serve general-purpose DMA and HDMA in the same
-frame — and PVSnesLib's runtime OWNS two channels for GP-DMA:
+frame - and PVSnesLib's runtime OWNS two channels for GP-DMA:
 
-- **channel 0** — `dmaCopyVram` and friends (console text upload,
+- **channel 0** - `dmaCopyVram` and friends (console text upload,
   `oamInitGfxSet`, `consoleVblank`)
-- **channel 7** — the VBlank ISR's OAM upload (vblank.asm rewrites
+- **channel 7** - the VBlank ISR's OAM upload (vblank.asm rewrites
   $4370-$4375 EVERY NMI)
 
 Park an HDMA effect on channel 7 and it works for exactly zero frames:
 each NMI silently rewrites the channel's DMAP/BBAD/A1T with OAM-DMA
-parameters, so your per-scanline writes stop landing — and worse, the
+parameters, so your per-scanline writes stop landing - and worse, the
 HDMA unit then feeds your table bytes into $2104 (OAM data). The
 failure is maddeningly partial: channels 1-6 keep working, so a
 multi-channel effect (e.g. a Mode 7 split) comes up ALMOST right with
@@ -223,22 +223,22 @@ consoleInitText(0, 16 * 2, &tilfont, &palfont);
 
 Historical trap, FIXED in 0.97.0: the low 8 KB of WRAM is mirrored into banks
 $00-$3F/$80-$BF, and the watch used to arm the literal address while the core
-compared the canonical $7E form — watching `$0218` silently missed a
+compared the canonical $7E form - watching `$0218` silently missed a
 `sta f:$7E0218`. Watches (write/read/range) now canonicalize at arm time and
 the result echoes `armedAddress` when that happened, so any addressing form of
 a low-WRAM byte is caught from any armed form. If you still get `found:false`,
-the byte is likely rebuilt as a BLOCK (copied/DMA'd from a source struct) —
+the byte is likely rebuilt as a BLOCK (copied/DMA'd from a source struct) -
 find the source with `memory({op:'search'})` and watch THAT.
 
-For 16-bit flags/counters, pass `conditionWidth:16` — `'equals'` arms the
+For 16-bit flags/counters, pass `conditionWidth:16` - `'equals'` arms the
 word's high byte (a low-byte watch on `$2000` matches everything) and
 `'increase'`/`'decrease'` compare the word so the carry can't lie.
 
-## "disasm shows `lda #$00` + `brk` garbage — M/X width desync"
+## "disasm shows `lda #$00` + `brk` garbage - M/X width desync"
 
 A 16-bit immediate decoded at 8-bit width desyncs the stream. Three tools, in
 order: (1) `disasm({target:'rom'})` runs a per-instruction M/X width dataflow
-— in-window `rep`/`sep` are followed and the ENTRY width is inferred — so a
+- in-window `rep`/`sep` are followed and the ENTRY width is inferred - so a
 plain re-decode of the range usually just works now; (2) when the window has
 no self-evident entry and YOU know the width (live P capture, surrounding
 code), force it: `widths:{a:16,i:16}`; (3) `target:'project'` runs the same
@@ -269,7 +269,7 @@ synthesizes a fallback `issues[]` entry with a hint. The idioms to avoid:
 - **`$ - label` size expressions** (current-PC minus a label) crash asar. Use an
   explicit `end_label - start_label` difference instead:
   ```asm
-  ; WRONG — crashes asar silently
+  ; WRONG - crashes asar silently
   my_size = $ - my_data
   ; RIGHT
   my_data_end:
@@ -283,19 +283,19 @@ synthesizes a fallback `issues[]` entry with a hint. The idioms to avoid:
   address.
 - **Bank-border crossed.** If your `org` + `dw`/data runs past `$00FFFF` you've
   crossed a bank boundary and the layout is wrong. Native interrupt vectors live
-  at `$FFE4-$FFEE`, emulation vectors at `$FFF4-$FFFF` — keep your header/vector
+  at `$FFE4-$FFEE`, emulation vectors at `$FFF4-$FFFF` - keep your header/vector
   block where the layout expects it. Use
   `examples({op:'snippets', platform:"snes", mode:"get", snippetName:"lorom_header.asm"})`
   for the canonical layout (and `lorom_multibank.asm` for multi-bank).
 - **`readfile1`/`filesize`/`canreadfile` across MANY distinct files.** Converting
-  assets at assemble time (the commercial-disassembly idiom — e.g. an `incpal`
+  assets at assemble time (the commercial-disassembly idiom - e.g. an `incpal`
   macro reading every `.pal` palette to emit 15-bit color) reads many *distinct*
   files via the readfile API. asar-WASM can **abort with no diagnostic** above a
-  threshold of distinct files read that way (one file read 200× is fine — it's
+  threshold of distinct files read that way (one file read 200× is fine - it's
   the *count of distinct files*). `incbin` does NOT have this problem. The build
   log carries an `[asar advisory]`/abort-hint when it sees a source over the
   threshold. **Fix: pre-convert the assets to `.bin` blobs offline and `incbin`
-  them** — the output is byte-identical. (Put the converted blobs in a subdir;
+  them** - the output is byte-identical. (Put the converted blobs in a subdir;
   `output:'project'` stages subdirectory assets recursively.)
 
 (This is the asar/asm path. The default PVSnesLib **C** path goes through

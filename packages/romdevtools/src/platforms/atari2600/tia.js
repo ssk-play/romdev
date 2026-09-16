@@ -11,13 +11,13 @@
 //
 // So "inspectSprites" for the 2600 means decoding the CURRENT TIA register
 // snapshot, not a list of OAM entries. The kernel determines what actually
-// renders — we report what state the TIA is in at the moment of the snapshot.
+// renders - we report what state the TIA is in at the moment of the snapshot.
 
 import { PNG } from "pngjs";
 
 // ─── NTSC palette ─────────────────────────────────────────────────
 // 128 colors arranged as 16 hues × 8 luminances. The TIA color register
-// stores (hue << 4) | (lum << 1) — bit 0 is unused.
+// stores (hue << 4) | (lum << 1) - bit 0 is unused.
 // Source: standard NTSC palette derivation (Stella's defaults).
 
 /** Convert a TIA color register byte to an RGB triple. */
@@ -27,7 +27,7 @@ export function tiaColorToRgb(byte) {
   return NTSC_PALETTE[hue * 8 + lum];
 }
 
-// NTSC palette — 16 × 8 = 128 entries. Derived from the canonical
+// NTSC palette - 16 × 8 = 128 entries. Derived from the canonical
 // "stella default" / "Atari Age" 2600 NTSC chart.
 export const NTSC_PALETTE = (() => {
   // Each hue's brightness sweeps from dark→light. We approximate Stella's
@@ -100,7 +100,7 @@ export function renderNtscPalettePng() {
 
 /**
  * Decode the 32-byte TIA snapshot from a2600_tia_regs (see stella2014
- * patch — TIA::snapshot lays it out). Returns structured fields.
+ * patch - TIA::snapshot lays it out). Returns structured fields.
  */
 export function decodeTiaSnapshot(b) {
   return {
@@ -252,7 +252,7 @@ export function snapshotPaletteSwatch(host) {
  * showing what the kernel would draw for one scanline of the current TIA
  * state. (More useful than a tile sheet for the 2600.)
  *
- * Note: this is a STATIC slice — the kernel re-writes TIA every scanline,
+ * Note: this is a STATIC slice - the kernel re-writes TIA every scanline,
  * so the actual frame composition can vary line-by-line. Pause + sample
  * mid-frame to inspect a specific moment.
  */
@@ -293,8 +293,8 @@ export function snapshotScanline(host) {
   drawPf(0, 4, false);
   drawPf(80, 4, tia.ctrlpf.reflect);
 
-  // Draw player 0/1 graphics as 8-px sprites — position is whatever
-  // the kernel set via RESP0/RESP1 (not exposed in our snapshot — the
+  // Draw player 0/1 graphics as 8-px sprites - position is whatever
+  // the kernel set via RESP0/RESP1 (not exposed in our snapshot - the
   // CPU has to issue these strobes). We render at default x=50/100 just
   // to show shape.
   const drawSprite = (gfx, reflected, x, color) => {
@@ -322,7 +322,7 @@ export function snapshotScanline(host) {
     width: W,
     height: 8,
     note: "One-scanline TIA composition snapshot. Real 2600 games re-write " +
-      "TIA every scanline — this shows the state at the moment of capture. " +
+      "TIA every scanline - this shows the state at the moment of capture. " +
       "Player positions are drawn at default x=40/100 since RESP0/RESP1 " +
       "are strobes (no register holds the result).",
   };

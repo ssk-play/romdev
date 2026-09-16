@@ -55,7 +55,7 @@ import { glStackAvailable } from "romdev-core-host/glOptionalDep.js";
 let _glReady = true;
 try { await import("webgl-node"); } catch { _glReady = false; }
 if (_glReady) _glReady = await glStackAvailable();
-const GUARD = _glReady ? {} : { skip: "no usable GL stack here (headless CI) — GL carts cannot load" };
+const GUARD = _glReady ? {} : { skip: "no usable GL stack here (headless CI) - GL carts cannot load" };
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const GLCART = path.join(HERE, "fixtures", "glcart.wasc");     // simple 64x64 GL cart
@@ -71,15 +71,15 @@ async function runStress() {
   try {
     h.stepFrames(20);
     // readDebugState() returns field DESCRIPTORS (name/type/valuePtr) with no
-    // decoded value — the MCP tool decodes them separately. Read each value by
+    // decoded value - the MCP tool decodes them separately. Read each value by
     // name instead; calling .value on the descriptor silently yields undefined
     // and every assertion then "fails" for the wrong reason.
-    // readDebugValue returns {name,type,value} — the number is on .value.
+    // readDebugValue returns {name,type,value} - the number is on .value.
     return { ok: h.readDebugValue("score")?.value, stages: h.readDebugValue("aux")?.value };
   } finally { h.destroy(); }
 }
 
-/** Create and tear down a PRIVATE context — the thing that leaves it current. */
+/** Create and tear down a PRIVATE context - the thing that leaves it current. */
 async function poison() {
   const h = new WasmcartHost();
   await h.loadMedia({ platform: "wasmcart", path: GLCART, presentWindow: true });

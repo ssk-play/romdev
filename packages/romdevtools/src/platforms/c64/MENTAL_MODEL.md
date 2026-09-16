@@ -1,4 +1,4 @@
-# Commodore 64 — mental model
+# Commodore 64 - mental model
 
 One page. Read once before you write your first C64 game. The
 TROUBLESHOOTING.md alongside this file is for when something's broken.
@@ -7,12 +7,12 @@ The C64 is the architectural outlier of romdev's 6502-class platforms.
 It has KERNAL + BASIC ROMs always available (and your code can call
 them or override them), 64 KB of contiguous RAM with bank-switching to
 get under the I/O area, two CIAs for I/O, and a VIC-II that doesn't
-think in "tiles" — it thinks in **character cells**.
+think in "tiles" - it thinks in **character cells**.
 
-## CPU memory map (6510 — a 6502 with a tiny I/O port)
+## CPU memory map (6510 - a 6502 with a tiny I/O port)
 
 ```
-$0000-$0001   6510 internal I/O — bank-switch control
+$0000-$0001   6510 internal I/O - bank-switch control
 $0002-$00FF   zero page
 $0100-$01FF   stack
 $0200-$03FF   KERNAL+BASIC scratch / vectors (rarely touch directly)
@@ -23,7 +23,7 @@ $A000-$BFFF   BASIC ROM (banked; RAM underneath)
 $C000-$CFFF   RAM (no ROM overlay)
 $D000-$D3FF   VIC-II registers (banked; CHAREN bit selects)
 $D400-$D7FF   SID registers
-$D800-$DBE7   color RAM (1 KB nibble RAM — low 4 bits hold color index)
+$D800-$DBE7   color RAM (1 KB nibble RAM - low 4 bits hold color index)
 $DC00-$DC0F   CIA1 (keyboard, joystick, timers)
 $DD00-$DD0F   CIA2 (serial, VIC bank select, user port)
 $E000-$FFFF   KERNAL ROM (banked; RAM underneath)
@@ -37,7 +37,7 @@ bit 1 (HIRAM):  1 = KERNAL ROM visible at $E000
 bit 2 (CHAREN): 0 = char ROM at $D000, 1 = I/O regs visible
 ```
 
-Default after boot = `$37` (all three set) — BASIC + KERNAL ROMs +
+Default after boot = `$37` (all three set) - BASIC + KERNAL ROMs +
 I/O regs. Set CHAREN=0 to read the character-set bitmaps from ROM;
 set HIRAM=0 to swap KERNAL out for RAM (useful for low-memory tricks).
 
@@ -47,14 +47,14 @@ set HIRAM=0 to swap KERNAL out for RAM (useful for low-memory tricks).
 > assumes a ZP var is at $00. Confirm with `symbols({op:'map'})` after
 > `build({output:'romWithDebug'})`.
 
-## VIC-II — character cells, NOT tiles
+## VIC-II - character cells, NOT tiles
 
 The C64's video chip displays 25 rows × 40 cols of 8×8 character
 glyphs. Each cell:
 
 - Screen RAM ($0400) holds the **character code** (0-255).
 - Color RAM ($D800) holds the **color index** (0-15) for that cell.
-  Color RAM is nibble RAM — only the low 4 bits are wired up.
+  Color RAM is nibble RAM - only the low 4 bits are wired up.
 - The character set itself is at $D000 (ROM) or wherever VIC's char
   base register points (`VIC_MEMORY` at $D018).
 
@@ -68,7 +68,7 @@ glyphs (this is how every published C64 game does its art).
 ## VIC-II screen modes
 
 ```
-text         default — 40×25 cells × 8×8 chars, 16 colors per cell
+text         default - 40×25 cells × 8×8 chars, 16 colors per cell
 multicolor   half-res horizontal (40×25 cells, but 4-color cells with shared MC1/MC2)
 hires bitmap 320×200 pixels, 2 colors per 8×8 cell
 multi bitmap 160×200 pixels, 4 colors per 8×8 cell
@@ -94,13 +94,13 @@ Sprite Y is offset 50 px from the screen's top edge; sprite X is
 offset 24 px from the left edge. So `VIC_SPRITE_Y = 50` puts the
 sprite at the visible top-left.
 
-## CIA1 — joysticks + keyboard
+## CIA1 - joysticks + keyboard
 
 CIA1 at $DC00-$DC0F. The chip is dual-purpose:
 - $DC00 (CIA1_PRA): joystick PORT 2 + keyboard column select
 - $DC01 (CIA1_PRB): joystick PORT 1 + keyboard row read
 
-Joystick bits (active LOW — pressed = 0, released = 1):
+Joystick bits (active LOW - pressed = 0, released = 1):
 ```
 bit 0: UP    bit 1: DOWN   bit 2: LEFT
 bit 3: RIGHT bit 4: FIRE
@@ -109,32 +109,32 @@ bit 3: RIGHT bit 4: FIRE
 **Convention:** read joystick from PORT 2 (CIA1_PRA) unless you have
 a specific reason not to. Reading PRB clashes with keyboard scanning,
 which is what the KERNAL's IRQ uses to update key state every
-1/60 sec — you'd get garbled input from your jiffy timer.
+1/60 sec - you'd get garbled input from your jiffy timer.
 
 ### Driving input over MCP
 
 **Joystick.** One fire button. Press it with `input({op:'set', b: true})` (or
-spatial `south`) — both clear `$DC00` bit 4 (verified live). `a` is a **no-op**
+spatial `south`) - both clear `$DC00` bit 4 (verified live). `a` is a **no-op**
 (no second button). Drive fire with `b`/`south` + the d-pad.
 
 **Two players.** BOTH C64 control ports are live at once, so 2P games just work:
 **host port 0 = player 1** (control port 2, `$DC00`) and **host port 1 = player
-2** (control port 1, `$DC01`) — the universal "port 0 = P1" convention. Pass two
+2** (control port 1, `$DC01`) - the universal "port 0 = P1" convention. Pass two
 port entries: `input({op:'set', ports:[{up:true}, {down:true}]})` moves P1 up and
 P2 down independently. (Under the hood the host enables the VICE userport-adapter
 mapping so both ports route, and swaps them so P1 lands on control port 2 where
 the games read it.) The legacy `input({op:'joyport', joyport:1|2})` still selects
 which single port a ONE-stick setup drives, but you rarely need it now.
 
-**Keyboard (the C64-specific part — many games NEED it).** Unlike consoles, most
-C64 games (and cracktros) gate gameplay behind a KEYBOARD setup screen — **F1**
-to pick 1 player, RUN/STOP, SPACE/RETURN — that the joystick can't reach. So if a
+**Keyboard (the C64-specific part - many games NEED it).** Unlike consoles, most
+C64 games (and cracktros) gate gameplay behind a KEYBOARD setup screen - **F1**
+to pick 1 player, RUN/STOP, SPACE/RETURN - that the joystick can't reach. So if a
 joystick gets you to a title/intro but not into play, you almost certainly need a
 key:
-- `input({op:'pressKey', key:'f1'})` — press one C64 key (held + auto-released).
+- `input({op:'pressKey', key:'f1'})` - press one C64 key (held + auto-released).
   Keys: `f1/f3/f5/f7`, `return`, `space`, `run/stop`, `a-z`, `0-9`, `ctrl`, `cbm`,
   `home`, `down`, `right`, `lshift`, `rshift`.
-- `input({op:'typeText', text:'LOAD"*",8,1\rRUN\r'})` — type a string (`\r` =
+- `input({op:'typeText', text:'LOAD"*",8,1\rRUN\r'})` - type a string (`\r` =
   RETURN). For BASIC commands / filenames.
 - `input({op:'layout', platform:'c64'})` lists the keyboard keys + the joyport.
 
@@ -142,10 +142,10 @@ A typical C64 RE startup: load → step to the title → `pressKey f1` (1 player
 `set {b:true}` (fire to start) → step → you're in gameplay → `state({op:'save'})`.
 
 **Script the whole startup in one call.** `recordSession`'s `inputScript` takes
-C64 `keys` alongside joystick `ports` — held from each entry until the next — so a
+C64 `keys` alongside joystick `ports` - held from each entry until the next - so a
 key+joystick startup is one deterministic timeline instead of many calls:
 ```js
-recordSession({ frames:600, sampleEvery:60, outputDir:'…', inputScript:[
+recordSession({ frames:600, sampleEvery:60, outputDir:'...', inputScript:[
   { atFrame:0,  keys:['f1'] },        // 1 player
   { atFrame:30, ports:[{ b:true }] }, // fire (port 2)
   { atFrame:90, keys:['run/stop'] },  // start
@@ -161,16 +161,16 @@ never moved the matrix line (didn't reach VICE); they differ but the game didn't
 react ⇒ it scanned a different key/port, or that screen (crack/doc/trainer)
 ignores it. This is how you tell a romdev problem from a game-flow problem.
 
-**Controller-alone (playtest):** a human in `playtest` needs no keyboard — the
+**Controller-alone (playtest):** a human in `playtest` needs no keyboard - the
 pad's spare buttons map to the C64 keys (X=Space, L2=Run/Stop, R2=Return,
 right-stick=F1/F3/F5/F7, top face=F1; d-pad+Fire=joystick). The same mapping
 applies to the agent's `setInput`, so e.g. `input({op:'set', c64_f1:true})` also
 presses F1. `playtest({op:'open'})` returns `c64Controls` to relay to the user.
 
-⚠ A cc65 `.prg` only starts after BASIC auto-`RUN`s it — step ~70+ frames past
+⚠ A cc65 `.prg` only starts after BASIC auto-`RUN`s it - step ~70+ frames past
 load before input/reads register.
 
-## SID — three voices of fame
+## SID - three voices of fame
 
 Three voices at $D400-$D418. Per-voice:
 - 16-bit frequency (`SID_FREQ_LO/HI`)
@@ -180,38 +180,38 @@ Three voices at $D400-$D418. Per-voice:
 - 16-bit ADSR envelope (`SID_AD`, `SID_SR`)
 
 Global `SID_VOL_MODE` ($D418) holds master volume + filter routing
-bits. SID is famous for sounding incredible with very little code — see
+bits. SID is famous for sounding incredible with very little code - see
 the `sid_play.s` starter snippet.
 
-**Debugging sound:** `audioDebug({op:'inspect', chip:"sid"})` decodes all 3 voices live —
-waveform, freq→note, pulse-width, ADSR — plus the filter cutoff/resonance/mode.
+**Debugging sound:** `audioDebug({op:'inspect', chip:"sid"})` decodes all 3 voices live -
+waveform, freq→note, pulse-width, ADSR - plus the filter cutoff/resonance/mode.
 Handy for verifying a `sid_play` routine is actually gating notes.
 
 ## MCP debug & inspection tooling
 
 romdev runs the C64 on a patched VICE (`vice_x64`) core that exposes deep live
-state. The inspectors all read the **running** machine — use them to confirm what
+state. The inspectors all read the **running** machine - use them to confirm what
 your code actually did to the hardware, not what you think it did.
 
 **Live visual / state inspectors:**
 
-- `palette({source:'live'})` — the 16-color hardware-fixed C64 palette as a PNG,
+- `palette({source:'live'})` - the 16-color hardware-fixed C64 palette as a PNG,
   plus the current border / background / extra-background color indices decoded
   straight from the VIC-II registers.
-- `sprites({op:'inspect'})` — all 8 MOBs decoded into the generic sprite shape:
+- `sprites({op:'inspect'})` - all 8 MOBs decoded into the generic sprite shape:
   X/Y, color, multicolor flag, expand-X / expand-Y, priority, AND the screen-RAM
   sprite-data pointers at `$07F8` so you can locate each sprite's pixel block in
   the VIC bank.
-- `cpu({op:'read'})` — the 6510 registers (A/X/Y/P/SP/PC) read from a live,
+- `cpu({op:'read'})` - the 6510 registers (A/X/Y/P/SP/PC) read from a live,
   `#define`-aliased register file, plus the `$0001` I/O port decoded into its
   LORAM / HIRAM / CHAREN bits (so you can see which ROMs are banked in).
-- `background({view:'renderState'})` — the VIC-II registers decoded into
+- `background({view:'renderState'})` - the VIC-II registers decoded into
   mode / scroll / colors / sprites, the VIC bank resolved from CIA2 `$DD00`, and
   the **absolute** screen-RAM + character-base addresses (no manual bank math).
-- `audioDebug({op:'inspect', chip:'sid'})` — the SID voice/filter decode covered
+- `audioDebug({op:'inspect', chip:'sid'})` - the SID voice/filter decode covered
   in the SID section above.
 
-**`c64_*` memory regions** (via `memory({op:'read'})`) — exact, named windows
+**`c64_*` memory regions** (via `memory({op:'read'})`) - exact, named windows
 onto the hardware, decoded live:
 
 | region          | size  | notes                                           |
@@ -249,16 +249,16 @@ stub that does a `SYS` to the C entry point.
 For game ROMs you typically just let the user load the .prg into the
 emulator and the rest takes care of itself.
 
-## Disk images (.d64) — loading real games & distributing yours
+## Disk images (.d64) - loading real games & distributing yours
 
-A bare `.prg` is fine for dev iteration, but the real C64 world — the new
+A bare `.prg` is fine for dev iteration, but the real C64 world - the new
 Commodore 64 Ultimate / C64C Ultimate FPGA hardware and the homebrew/demo
-scene — ships and loads games as **`.d64` disk images** (and `.crt` carts /
+scene - ships and loads games as **`.d64` disk images** (and `.crt` carts /
 `.tap` tapes). romdev handles them:
 
 - **Load & run a disk/cart/tape:** `loadMedia({platform:'c64', path:'game.d64'})`
   (also `.t64 .tap .crt .g64`). VICE attaches it to drive 8 and **autostarts**
-  it (equivalent to `LOAD"*",8,1 : RUN`) under warp — give it a few hundred
+  it (equivalent to `LOAD"*",8,1 : RUN`) under warp - give it a few hundred
   frames to finish the emulated 1541 load, then it's running. `mediaKind` in
   status reports `disk` / `tape` / `cartridge` / `program` so you know what you
   loaded.
@@ -269,7 +269,7 @@ scene — ships and loads games as **`.d64` disk images** (and `.crt` carts /
 
 ## Disk SAVES (the C64 save medium)
 
-The C64 has no battery SRAM — games save by **writing files to the floppy**. The
+The C64 has no battery SRAM - games save by **writing files to the floppy**. The
 disk IS the save, so romdev exposes the LIVE mounted `.d64` for save/restore
 (the C64 analogue of SRAM `exportSram`/`importSram`):
 
@@ -284,7 +284,7 @@ These work on the standard 35-track 1541 `.d64` (174848 bytes).
 
 **A game's OWN in-emulator `SAVE` works too.** When a running program does a
 KERNAL `SAVE` to drive 8, VICE commits it into the live disk image (true-drive
-GCR write-back) — so after the game saves, `state({op:'exportDisk', path})`
+GCR write-back) - so after the game saves, `state({op:'exportDisk', path})`
 captures a `.d64` that includes the new file, and you can re-load it later to
 resume. (The on-disk filename is stored in PETSCII; romdev's reader decodes it.)
 So the normal flow is just: run the game, let it save, `exportDisk` to persist.
@@ -296,7 +296,7 @@ player made elsewhere), not a requirement for the game's own saves.
 The C64 has no dedicated vblank interrupt by default. Two approaches:
 
 1. **Poll VIC_RASTER** ($D012): waits for the raster to reach line 250+
-   (off the bottom of the visible region) — gives you a reliable per-
+   (off the bottom of the visible region) - gives you a reliable per-
    frame tick. This is what the bundled `hello_sprite` and `tile_engine`
    templates do.
 2. **Raster interrupt**: program VIC_RASTER + IRQ_ENA to fire an IRQ
@@ -328,7 +328,7 @@ moving further is a software char-cell shift.
 - **Coarse scroll:** when the fine offset wraps past 7, reset it to 0 and
   shift the whole **screen RAM** ($0400) AND **color RAM** ($D800) left by one
   char column, then fill the new rightmost column from your world map. This is
-  ~1000+1000 byte moves — do it across the frame or with the screen split.
+  ~1000+1000 byte moves - do it across the frame or with the screen split.
 - **Smoothness:** update `$D016` early in the frame (e.g. a raster IRQ) so the
   fine offset is set before the visible area is drawn.
 
@@ -339,4 +339,4 @@ indexes your world map for which columns are on screen.
 
 The Rizin/Ghidra analysis engine works here like everywhere: `disasm({target:'functions'})` to carve the program, `disasm({target:'cfg'|'xrefs'})` to trace it, `symbols({op:'analyze'})` for a one-shot structural map.
 
-**Decompiler quality on 6502: ROUGH.** Carry-flag idioms and 16-bit math on an 8-bit CPU decompile to noise that only reads cleanly once an LLM folds it — on this CPU the disassembly is often more honest than the pseudocode. `disasm({target:'decompile', address})` returns C-like pseudocode (the `qualityNote` field restates this). Read it to UNDERSTAND a routine; use `disasm({target:'project'})` to actually edit + rebuild. See the cross-platform ROM-hacking playbook §5f for the full loop.
+**Decompiler quality on 6502: ROUGH.** Carry-flag idioms and 16-bit math on an 8-bit CPU decompile to noise that only reads cleanly once an LLM folds it - on this CPU the disassembly is often more honest than the pseudocode. `disasm({target:'decompile', address})` returns C-like pseudocode (the `qualityNote` field restates this). Read it to UNDERSTAND a routine; use `disasm({target:'project'})` to actually edit + rebuild. See the cross-platform ROM-hacking playbook §5f for the full loop.

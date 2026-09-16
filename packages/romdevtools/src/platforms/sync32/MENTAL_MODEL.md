@@ -1,4 +1,4 @@
-# sync32 — mental model
+# sync32 - mental model
 
 A 32-bit console with a **flat framebuffer and a function-pointer API**. If you
 have written for the 8- and 16-bit platforms in this tree, unlearn the reflexes:
@@ -44,14 +44,14 @@ launcher.
 `api->api_version` says what is present. Everything through `save_write` is
 **v1**; the `disk_*` functions are **v2**. A cart declares the minimum it needs
 in its header (`build({api: 2})`) and the console refuses to run it on older
-firmware — so check the version rather than calling a v2 pointer on a v1
+firmware - so check the version rather than calling a v2 pointer on a v1
 console.
 
-**Video — and the one idiom that surprises everyone.** `clear(rgb565)` and
+**Video - and the one idiom that surprises everyone.** `clear(rgb565)` and
 `rect(..., rgb565)` take a COLOUR, but the canvas is 8-bit **indexed**. The
 console therefore maps your colour to the **nearest entry in the 256-slot
 palette** and stores that index. A colour you never put in the palette does not
-render as itself; it snaps to whatever is closest — which is how a "grey road"
+render as itself; it snaps to whatever is closest - which is how a "grey road"
 comes out blue when the palette holds only sprite colours.
 
 So: **every colour a game draws with must also be in the palette.** Put your
@@ -59,7 +59,7 @@ backgrounds, HUD colours and grid lines in there alongside the sprite colours.
 
 `sprite()` blits from a loaded sheet, and `present()` shows the frame and paces
 the game. For direct pixel work, `canvas()` returns the framebuffer bytes
-and `canvas_mark(y0, y1)` tells the console which rows changed — mark only what
+and `canvas_mark(y0, y1)` tells the console which rows changed - mark only what
 you touched, since the console uploads marked rows.
 
 **Sprites.** `sheet_load(pixels8, w, h)` uploads an 8-bit indexed sheet and
@@ -67,26 +67,26 @@ returns a handle; `palette_set()` supplies the 256-entry RGB565 palette.
 `sprite(sheet, sx, sy, w, h, x, y, flags)` blits a rect from it, with
 `S32_SPRITE_FLIP_X` / `S32_SPRITE_FLIP_Y`. **Index 0 is the global transparent
 key**: a sheet pixel of 0 is skipped by `sprite()`, so never quantize art into
-slot 0 — reserve it, start your colours at 1 (`encodeArt({stage:'tiles',
+slot 0 - reserve it, start your colours at 1 (`encodeArt({stage:'tiles',
 platform:'sync32'})` does this by default). Note the asymmetry with `rect()`:
 passing colour 0x0000 to `rect()` draws black (it snaps to the nearest palette
 entry), while index 0 in a sheet draws nothing.
 
-**The header is the API.** There is no register map to memorise — `sync32.h`
+**The header is the API.** There is no register map to memorise - `sync32.h`
 IS the platform: the `sync32_api_t` struct, the `S32_PAD_*` bits and the
 `S32_*` limits. Read it through `platform({op:'doc', platform:'sync32',
 name:'abi'})`; it is the exact header `build()` compiles against.
 
 **Input.** `pad(player, &out)` fills `buttons` (the `S32_PAD_*` bits) plus
 analog `lx/ly/rx/ry` and `connected`. Analog axes are reported when hardware has
-them and are **never required** — a game that only works with sticks will not
+them and are **never required** - a game that only works with sticks will not
 run on every console.
 
-**Audio — the one real trap.** The ring holds ~1024 frames, but one video frame
+**Audio - the one real trap.** The ring holds ~1024 frames, but one video frame
 of audio at 48kHz is 800 frames, so the ring is *smaller than two frames' worth*.
 `audio_push()` accepts at most `audio_space()` frames and **silently drops the
 rest**. Pushing a whole frame in one call therefore loses samples and leaves the
-stream under 48kHz — and against the HDMI clock the console declares, a sink
+stream under 48kHz - and against the HDMI clock the console declares, a sink
 resolves that mismatch by muting. Push small amounts spread across the frame,
 topping up as the console drains.
 
@@ -108,7 +108,7 @@ crt0, linker scripts and `sync32.h` ship in `romdev-platform-sync32`, so nothing
 external is needed. The result is a launchable `.s32`.
 
 A game with **resources** passes `data` (or `dataPaths`) and gets the archive
-form instead — `main.s32e` + `info.txt` + your files in one tar, because a game
+form instead - `main.s32e` + `info.txt` + your files in one tar, because a game
 that reads through the disk API needs its namespace to travel with it. Set
 `api: 2` when you use `disk_*`.
 
@@ -116,8 +116,8 @@ that reads through the disk API needs its namespace to travel with it. Set
 
 A cart links **no libc**. There is no `printf`, no `malloc`, no `string.h`.
 Write your own helpers, or use what the API gives you. The compiler may still
-emit calls into **libgcc** for things the CPU cannot do in one instruction —
-64-bit division, double-precision float — and those are linked from the bundled
+emit calls into **libgcc** for things the CPU cannot do in one instruction -
+64-bit division, double-precision float - and those are linked from the bundled
 ARMv8-M libgcc.
 
 Two consequences worth internalising:
@@ -129,9 +129,9 @@ Two consequences worth internalising:
 - **Avoid 64-bit integer division** in a hot loop for the same reason: it is a
   library call, not an instruction.
 
-## Memory modes — and the image budget
+## Memory modes - and the image budget
 
-`ram` copies the image to RAM at 0x20030000 and runs it there — faster, and the
+`ram` copies the image to RAM at 0x20030000 and runs it there - faster, and the
 default. `xip` executes in place from flash at 0x10100000, which leaves more RAM
 for the game at the cost of slower fetches. The mode selects a different linker
 script, so it is a build-time decision, and the header records it.
@@ -150,5 +150,5 @@ The top 16 KB of the RAM region is the stack (`S32_STACK`; raise it for a
 deeply recursive port with `linkOptions: ['--defsym=S32_STACK=0x8000']`, at the
 cost of your own RAM). A 189 KB `ram` cart therefore has ~120 KB left for
 everything else; a game whose assets alone pass 300 KB wants `xip`, or wants its
-backgrounds deduped to 8×8 chr + map and its SFX at 24 kHz — decide that before
+backgrounds deduped to 8×8 chr + map and its SFX at 24 kHz - decide that before
 converting, not at link time.

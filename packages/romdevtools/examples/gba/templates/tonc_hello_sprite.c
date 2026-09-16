@@ -1,4 +1,4 @@
-/* ── tonc_hello_sprite.c — Game Boy Advance Tonc sprite + d-pad ─────
+/* ── tonc_hello_sprite.c - Game Boy Advance Tonc sprite + d-pad ─────
  *
  * One 8×8 sprite driven by the d-pad. The canonical Tonc-tutorial
  * pattern (every sprite chapter in gbadev.net/tonc opens with this
@@ -6,7 +6,7 @@
  *
  * Hardware notes:
  *   - 4bpp sprite tiles live at $06010000-$06017FFF (32 KB)
- *   - OAM (object attribute memory) at $07000000 — 128 sprites × 8 B
+ *   - OAM (object attribute memory) at $07000000 - 128 sprites × 8 B
  *   - Each OBJ_ATTR is 8 bytes: attr0 (Y/shape/256-col), attr1
  *     (X/affine/size), attr2 (tile/priority/palette), filler
  *   - Sprite palette at $05000200-$050003FF (256 colors)
@@ -27,7 +27,7 @@
 #include <tonc.h>
 #include "gba_sfx.h"
 
-/* A simple 8×8 sprite tile — colour 1 filled square. Each row of a
+/* A simple 8×8 sprite tile - colour 1 filled square. Each row of a
  * 4bpp tile is 4 bytes (8 pixels × 4 bits = 32 bits). All-1s = every
  * pixel uses palette index 1. */
 static const u32 sprite_tile[8] = {
@@ -38,7 +38,7 @@ static const u32 sprite_tile[8] = {
 /* ── Backdrop tiles (4bpp) ───────────────────────────────────────────
  * Two solid-colour BG tiles so we can lay a two-tone checkerboard across
  * the whole BG0 map. Without a filled backdrop the screen is just the
- * black backdrop colour and one tiny sprite — which reads as "blank". */
+ * black backdrop colour and one tiny sprite - which reads as "blank". */
 static const u32 bg_tile1[8] = {
     0x11111111, 0x11111111, 0x11111111, 0x11111111,
     0x11111111, 0x11111111, 0x11111111, 0x11111111,
@@ -60,7 +60,7 @@ int main(void) {
      * Upload our tile into the FIRST sprite tile slot (object tile
      * area at char base 4, tile 0). tile_mem[4] is the OBJ char
      * base, [0] is the tile index. tonccpy is Tonc's VRAM-safe
-     * memcpy (only does 16/32-bit writes — VRAM hates byte writes). */
+     * memcpy (only does 16/32-bit writes - VRAM hates byte writes). */
     tonccpy(&tile_mem[4][0], sprite_tile, sizeof(sprite_tile));
 
     /* ── Sprite palette ───────────────────────────────────────────
@@ -115,15 +115,15 @@ int main(void) {
     }
 
     /* ── Display setup ───────────────────────────────────────────
-     * DCNT_MODE0  — tiled mode (so BG0..3 are tile maps)
-     * DCNT_BG0    — enable the checkerboard backdrop
-     * DCNT_OBJ    — enable sprites
-     * DCNT_OBJ_1D — linear OAM tile addressing (vs the 2D matrix
+     * DCNT_MODE0  - tiled mode (so BG0..3 are tile maps)
+     * DCNT_BG0    - enable the checkerboard backdrop
+     * DCNT_OBJ    - enable sprites
+     * DCNT_OBJ_1D - linear OAM tile addressing (vs the 2D matrix
      *               layout that's almost always wrong) */
     REG_DISPCNT = DCNT_MODE0 | DCNT_BG0 | DCNT_OBJ | DCNT_OBJ_1D;
 
     /* ── Game loop ───────────────────────────────────────────────
-     * key_poll() updates the key state — call it once per frame.
+     * key_poll() updates the key state - call it once per frame.
      * key_held(KEY_LEFT) etc. test current state. */
     while (1) {
         VBlankIntrWait();

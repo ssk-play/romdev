@@ -1,11 +1,11 @@
-// pure-util.js — environment-free helpers for the isomorphic core.
+// pure-util.js - environment-free helpers for the isomorphic core.
 //
 // This module (and everything LibretroHost statically imports) must stay free
 // of top-level `node:` imports: it is part of the browser surface enforced by
 // romdevtools/test/browser-surface-imports.test.js. Node-only I/O lives in
 // io-node.js, loaded lazily on the path-based code paths only.
 
-/** Last ".ext" of a path-ish string ("" when none) — node:path-free. */
+/** Last ".ext" of a path-ish string ("" when none) - node:path-free. */
 export function extnameOf(p) {
   const base = String(p).split("/").pop() ?? "";
   const i = base.lastIndexOf(".");

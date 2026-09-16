@@ -1,8 +1,8 @@
-// traceVramSource (Genesis) — "which ROM offset did this VRAM graphic come from?"
+// traceVramSource (Genesis) - "which ROM offset did this VRAM graphic come from?"
 //
 // The trap it kills: some sports games' player names are pre-rendered tile bitmaps
 // DMA'd into VRAM from ROM, not font-rendered from a string. You can SEE the
-// name but patching the ASCII string does nothing — the source is the bitmap in
+// name but patching the ASCII string does nothing - the source is the bitmap in
 // ROM. Genesis makes this traceable: a memory→VRAM DMA leaves its SOURCE address
 // in VDP regs $15-$17 (a word address; byte addr = source<<1), which for a
 // normal cart is the ROM offset the tiles were copied from.
@@ -71,8 +71,8 @@ export async function traceVramSourceCore({ frames = 120, pressDuring, romPrevie
         distinctSources: sources.length,
         sources,
         note: sources.length === 0
-          ? "No memory→VRAM DMA seen in this window. The graphic may have been uploaded BEFORE this window (step to just before it appears, then trace), or it's drawn via CPU writes / VRAM fill rather than DMA. Frame-sampled: a DMA sharing a frame with a later one can be hidden — narrow the window."
-          : `${sources.length} distinct ROM→VRAM source(s). Each sourceOffset is the ROM byte offset the tiles were DMA'd from — edit the TILE BITMAPS there (use tiles({op:'pixels'})/encodeArt), not any ASCII string. romPreview is the first bytes at that ROM offset (verify with memory({op:'readCart'})). Frame-sampled — narrow the window if you expect more.`,
+          ? "No memory→VRAM DMA seen in this window. The graphic may have been uploaded BEFORE this window (step to just before it appears, then trace), or it's drawn via CPU writes / VRAM fill rather than DMA. Frame-sampled: a DMA sharing a frame with a later one can be hidden - narrow the window."
+          : `${sources.length} distinct ROM→VRAM source(s). Each sourceOffset is the ROM byte offset the tiles were DMA'd from - edit the TILE BITMAPS there (use tiles({op:'pixels'})/encodeArt), not any ASCII string. romPreview is the first bytes at that ROM offset (verify with memory({op:'readCart'})). Frame-sampled - narrow the window if you expect more.`,
       });
 }
 

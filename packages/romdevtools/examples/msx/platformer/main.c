@@ -1,29 +1,29 @@
-/* ── platformer/main.c — MSX side-scrolling platformer (complete example game) ─
+/* ── platformer/main.c - MSX side-scrolling platformer (complete example game) ─
  *
- * MESA HOPPER — a COMPLETE, working game: title screen, 1P mode and 2P
+ * MESA HOPPER - a COMPLETE, working game: title screen, 1P mode and 2P
  * ALTERNATING-TURNS mode (arcade-classic: players swap on death; each player
  * has its OWN score and OWN 3 lives; player 2 plays on JOYSTICK PORT 2),
  * coins + traversal scoring, session hi-score, music + SFX on the AY-3-8910
- * PSG, gravity/jump/one-way-platform physics — and the MSX's signature
+ * PSG, gravity/jump/one-way-platform physics - and the MSX's signature
  * SCREEN-2 PER-ROW COLOR: the level's depth bands (far sky, mid air, near
  * ground) and the title recolor come ENTIRELY from the three independent
  * color thirds + a one-tile vertical gradient, costing zero extra tiles.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented MSX footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented MSX footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — level layout, physics tuning, scoring, art: reshape
+ *   GAME LOGIC (clay) - level layout, physics tuning, scoring, art: reshape
  *     freely.
  *
  * What depends on what:
- *   msx_hw.h / msx_vdp.c — VDP + PSG + joystick helpers (direct Z80 ports;
- *     the PSG functions carry a DI/EI guard against the BIOS KEYINT race —
+ *   msx_hw.h / msx_vdp.c - VDP + PSG + joystick helpers (direct Z80 ports;
+ *     the PSG functions carry a DI/EI guard against the BIOS KEYINT race -
  *     read msx_vdp.c before adding your own PSG pokes).
- *   msx_crt0.s — the $4000 "AB" cart header + static-init copy. Load-bearing;
+ *   msx_crt0.s - the $4000 "AB" cart header + static-init copy. Load-bearing;
  *     INIT must NEVER return, so main() ends in for(;;).
  *
- * The level: a FIXED 32-cell-wide screen-2 arena (NOT a scroller — see the
+ * The level: a FIXED 32-cell-wide screen-2 arena (NOT a scroller - see the
  * "no hardware scroll" idiom below). The column map gives every screen column
  * a ground height + an optional one-way platform; pits (gaps in the ground)
  * are instant death, spikes patrol the ground, a coin floats over a platform.
@@ -39,22 +39,22 @@
  * Hi-score honesty: the bundled bluemsx core build exposes NO battery save
  *   path (retro_get_memory(SAVE_RAM) is unimplemented for MSX carts), so the
  *   hi-score lives in plain RAM: it survives title↔game cycles but NOT a
- *   power cycle / hardReset. Never fake persistence — if you need real saves,
+ *   power cycle / hardReset. Never fake persistence - if you need real saves,
  *   that's a future core round (ASCII8-SRAM mapper carts exist; the core just
  *   doesn't surface their RAM yet).
  */
 #include "msx_hw.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "MESA HOPPER"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Interrupt-free vblank sync: poll VDP status S#0 bit 7 (port 0x99). Reading
  * the port ALSO clears the flag, so one read per frame = one game step per
  * frame. We deliberately do NOT use the BIOS JIFFY counter here: this poll
  * works even with interrupts masked, and never depends on the BIOS ISR
- * keeping pace. (The BIOS KEYINT also reads S#0 — on rare frames it eats the
+ * keeping pace. (The BIOS KEYINT also reads S#0 - on rare frames it eats the
  * flag first and this loop just waits for the next one; a one-frame hiccup,
  * never a hang.) */
 __sfr __at 0x99 VDPSTATUS;
@@ -64,11 +64,11 @@ static void vsync(void) {
     }
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * NO HARDWARE SCROLL ON SCREEN 2. The TMS9918 GRAPHIC-II mode has no smooth
  * pixel-scroll register at all (the V9938's R23 is a whole-screen vertical
  * line shift, not a per-layer camera, and MSX1 lacks even that). The ONLY way
- * to "scroll" is to rewrite the name table column-by-column every 8-px step —
+ * to "scroll" is to rewrite the name table column-by-column every 8-px step -
  * a heavy per-frame VRAM burst that ALSO fights the per-row color idiom below
  * (each scrolled column needs its color third re-evaluated).
  *
@@ -77,14 +77,14 @@ static void vsync(void) {
  * right. That keeps the screen-2 per-row color signature CHEAP (the color
  * tables upload ONCE) and the frame budget roomy. If you want a true scroller,
  * budget a column-streaming routine and re-upload the affected third's color
- * slice as columns enter — see TROUBLESHOOTING; it is the single biggest MSX
+ * slice as columns enter - see TROUBLESHOOTING; it is the single biggest MSX
  * platformer footgun. */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Tile font: index 0 = space, 1-26 = A-Z, 27-36 = 0-9, 37 = dash, then the
  * level tiles. One 8x8 pattern = 8 bytes, one bit per pixel; set bits draw in
  * the tile's FOREGROUND color, clear bits in its BACKGROUND color (both come
- * from the screen-2 color table — see the per-row-color idiom below). */
+ * from the screen-2 color table - see the per-row-color idiom below). */
 #define T_SPACE   0
 #define T_A       1          /* 'A'..'Z' = T_A + (c - 'A')                  */
 #define T_0       27         /* '0'..'9' = T_0 + (c - '0')                  */
@@ -139,12 +139,12 @@ static const uint8_t font[NUM_TILES][8] = {
     /* 39 CLOUD  (soft puff)   */ {0x00,0x00,0x18,0x3C,0x7E,0x00,0x00,0x00},
     /* 40 GRASS  (grassy top)  */ {0xFF,0xFF,0x00,0x00,0x00,0x00,0x00,0x00},
     /* 41 DIRT   (solid body)  */ {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF},
-    /* 42 HORIZON(solid fg — its COLOR bytes paint the gradient) */
+    /* 42 HORIZON(solid fg - its COLOR bytes paint the gradient) */
                {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF},
 };
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * SCREEN-2 PER-ROW COLOR — the MSX's signature background trick.
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * SCREEN-2 PER-ROW COLOR - the MSX's signature background trick.
  *
  * Screen 2 (GRAPHIC II) is NOT "one color byte per tile" like most consoles:
  *
@@ -152,24 +152,24 @@ static const uint8_t font[NUM_TILES][8] = {
  *      (name-table rows 0-7, 8-15, 16-23). Each third has its OWN 2KB
  *      pattern table slice and its OWN 2KB color table slice:
  *        patterns: VRAM_PATTERN + third*0x800,  colors: VRAM_COLOR + third*0x800
- *      The SAME tile index can look completely different in each third —
+ *      The SAME tile index can look completely different in each third -
  *      we exploit exactly that for the depth-banded level below.
  *
- *   2. Within a tile, the color table holds EIGHT bytes — one per 8x1 pixel
- *      row — each packing (foreground<<4)|background from the fixed TMS9918
+ *   2. Within a tile, the color table holds EIGHT bytes - one per 8x1 pixel
+ *      row - each packing (foreground<<4)|background from the fixed TMS9918
  *      palette. So one tile can carry an 8-color vertical gradient
  *      (T_HORIZON's whole "glow horizon" line is a single tile, colors only).
  *
  * Requires: the screen-2 table layout set by msx_set_screen2() (R3=0xFF,
- *   R4=0x03 — the "thirds" configuration), and pattern + color uploads to
+ *   R4=0x03 - the "thirds" configuration), and pattern + color uploads to
  *   EVERY third a tile is used in. Tile N's slot is pattern[N*8] / color[N*8].
  *
  * Depth scheme taught here (TMS9918 fixed palette: 1 black, 4 dark blue,
  * 5 light blue, 6 dark red, 8 cyan/medium-red, 12 dark green, 14 gray,
- * 15 white — the high nibble is fg, low nibble is bg of each row byte):
- *   third 0 (top)    = far sky:  light-blue field, white clouds — the HUD
+ * 15 white - the high nibble is fg, low nibble is bg of each row byte):
+ *   third 0 (top)    = far sky:  light-blue field, white clouds - the HUD
  *                       text band (row 0) also lives here in its own colors.
- *   third 1 (middle) = mid air:  black field, gray clouds — the play space.
+ *   third 1 (middle) = mid air:  black field, gray clouds - the play space.
  *   third 2 (bottom) = near ground: green grass on brown dirt, the platforms
  *                       and the one-tile horizon gradient seam.
  * The HUD text band (row 0, third 0) gets white-on-blue, distinct from the
@@ -193,7 +193,7 @@ static void load_tiles(void) {
         colbase = (uint16_t)(VRAM_COLOR   + ((uint16_t)third << 11));
         for (i = 0; i < NUM_TILES; i++) {
             uint8_t col;
-            /* pattern bits are the same in every third — only COLOR varies */
+            /* pattern bits are the same in every third - only COLOR varies */
             msx_vram_write((uint16_t)(patbase + ((uint16_t)i << 3)), font[i], 8);
             if (i == T_HORIZON) {          /* the one per-pixel-row gradient */
                 msx_vram_write((uint16_t)(colbase + ((uint16_t)i << 3)), col_horizon, 8);
@@ -209,11 +209,11 @@ static void load_tiles(void) {
     }
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — name-table drawing helpers ────────
+/* ── GAME LOGIC (clay - reshape freely) - name-table drawing helpers ────────
  * Screen 2 VRAM writes are safe at any point in the frame at C speed: the
  * TMS9918 needs ~29 Z80 cycles between VRAM accesses during active display,
  * and SDCC-compiled loops are slower than that. (Hand-tuned asm OTIR bursts
- * are the thing that outruns the VDP — see TROUBLESHOOTING.) */
+ * are the thing that outruns the VDP - see TROUBLESHOOTING.) */
 static void put_tile(uint8_t col, uint8_t row, uint8_t tile) {
     msx_vram_write((uint16_t)(VRAM_NAME + (uint16_t)row * 32 + col), &tile, 1);
 }
@@ -241,13 +241,13 @@ static void draw_num4(uint8_t col, uint8_t row, uint16_t v) {
     msx_vram_write((uint16_t)(VRAM_NAME + (uint16_t)row * 32 + col), buf, 4);
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — the level (a fixed 32-cell map) ───
+/* ── GAME LOGIC (clay - reshape freely) - the level (a fixed 32-cell map) ───
  * One entry per screen column:
- *   ground_row[c] — name-table row of the ground's grassy top; NO_GROUND = a
+ *   ground_row[c] - name-table row of the ground's grassy top; NO_GROUND = a
  *                   bottomless pit (fall in = lose the turn).
- *   plat_row[c]   — row of a one-way floating platform, 0 = none.
+ *   plat_row[c]   - row of a one-way floating platform, 0 = none.
  * Name-table rows: 0 = HUD band, 1..GROUND_ROW-1 = air, then ground.
- * The level is one fixed screen — reshape these two tables freely. */
+ * The level is one fixed screen - reshape these two tables freely. */
 #define NO_GROUND   0xFF
 #define HORIZON_ROW 17                /* the one-tile gradient seam row       */
 #define GROUND_ROW  20                /* default grassy ground top            */
@@ -270,7 +270,7 @@ static const uint8_t plat_row[32] = {
     0, 0, 0, 0, 0, 0,
 };
 
-/* ── GAME LOGIC (clay — reshape freely) — sprites ────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) - sprites ────────────────────────────
  * 8x8 one-color hardware sprites. Plane layout (lower plane = on top):
  *   0 player, 1 coin, 2-3 spikes. */
 static const uint8_t spr_player_idle[8] = {0x18,0x3C,0x7E,0x7E,0xFF,0xFF,0x66,0x66};
@@ -286,15 +286,15 @@ static const uint8_t spr_spike[8]       = {0x10,0x10,0x38,0x38,0x7C,0x7C,0xFE,0x
 #define COL_COIN    10  /* dark yellow (gold-ish) */
 #define COL_SPIKE   9   /* light red   */
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Sprite limits + the Y=208 terminator:
  *   - A sprite Y of 0xD0 (208) tells the TMS9918 to STOP SCANNING the
- *     attribute table — every higher-numbered plane vanishes, not just that
+ *     attribute table - every higher-numbered plane vanishes, not just that
  *     one. (msx_clear_sprites parks ALL planes at 0xD0, which is fine at the
  *     END of the list.) To hide ONE sprite mid-list, park it OFFSCREEN at
- *     PARK_Y (192 = first line below the display) — never at 0xD0.
+ *     PARK_Y (192 = first line below the display) - never at 0xD0.
  *     (On MSX2's V9938 sprite mode 2 the terminator moves to 0xD8 and 0xD0
- *     is "just offscreen" — code that leans on that breaks on MSX1.)
+ *     is "just offscreen" - code that leans on that breaks on MSX1.)
  *   - Per scanline the TMS9918 draws only 4 sprites (V9938: 8); the rest drop
  *     out for that line. This game peaks at 4 planes (player + coin + 2
  *     spikes) so a row pileup is rare. */
@@ -302,12 +302,12 @@ static const uint8_t spr_spike[8]       = {0x10,0x10,0x38,0x38,0x7C,0x7C,0xFE,0x
 
 #define NUM_SPIKES 2
 
-/* ── GAME LOGIC (clay — reshape freely) — physics + tuning ──────────────────
+/* ── GAME LOGIC (clay - reshape freely) - physics + tuning ──────────────────
  * Player position is screen-pixel X; Y is Q4.4 fixed point so gravity can add
  * <1 px/frame near the jump apex. */
 #define GRAVITY_Q44     6   /* +6/16 px per frame per frame                  */
 #define JUMP_VEL_Q44 (-56)  /* launch vy (Q4.4) → ~4-tile apex              */
-#define MAX_VY_Q44     64   /* terminal velocity, 4 px/frame — MUST stay    *
+#define MAX_VY_Q44     64   /* terminal velocity, 4 px/frame - MUST stay    *
                              * under 6: the landing probe's window can't    *
                              * catch a faster fall (tunnelling)             */
 #define MOVE_SPEED      2   /* px/frame walk                                */
@@ -315,7 +315,7 @@ static const uint8_t spr_spike[8]       = {0x10,0x10,0x38,0x38,0x7C,0x7C,0xFE,0x
 #define PLAYER_LEFT     8   /* walk bounds                                  */
 #define PLAYER_RIGHT  240
 
-/* ── GAME LOGIC (clay — reshape freely) — game state ─────────────────────── */
+/* ── GAME LOGIC (clay - reshape freely) - game state ─────────────────────── */
 static uint8_t  px;                 /* player screen x (pixels)             */
 static uint16_t py_q44;             /* player y, Q4.4 fixed point           */
 static int8_t   vy_q44;
@@ -324,7 +324,7 @@ static uint8_t  coin_x, coin_y, coin_live;
 static uint8_t  spike_x[NUM_SPIKES];
 static int8_t   spike_vx[NUM_SPIKES];
 
-/* Players: index 0 = P1 (joystick port 1), 1 = P2 (joystick port 2 —
+/* Players: index 0 = P1 (joystick port 1), 1 = P2 (joystick port 2 -
  * alternating turns, arcade-classic style). Each has its own score + own
  * lives; the HUD shows the CURRENT player's numbers. */
 static uint8_t  two_player;      /* mode chosen on the title screen          */
@@ -334,7 +334,7 @@ static uint16_t p_score[2];
 static uint16_t hiscore;         /* SESSION-ONLY: plain RAM. The bundled
                                   * bluemsx build exposes no SAVE_RAM region,
                                   * so there is nothing battery-backed to
-                                  * write — survives title↔game cycles, not a
+                                  * write - survives title↔game cycles, not a
                                   * power cycle (honest, not faked). */
 static uint8_t  turn_pause;      /* freeze frames after a turn change        */
 static uint8_t  dist_sub;        /* sub-counter: traversal pays a point      */
@@ -347,7 +347,7 @@ static uint8_t state;
 static uint8_t prev_t1, prev_t2;  /* trigger edge detection across states   */
 static uint8_t prev_jump;         /* per-turn jump edge (cur_player's port)  */
 
-/* xorshift16 PRNG — a few dozen cycles, no tables. */
+/* xorshift16 PRNG - a few dozen cycles, no tables. */
 static uint8_t next_rand(void) {
     rng ^= (uint16_t)(rng << 7);
     rng ^= (uint16_t)(rng >> 9);
@@ -355,19 +355,19 @@ static uint8_t next_rand(void) {
     return (uint8_t)(rng & 0xFF);
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — music + SFX on the AY-3-8910 ──────
+/* ── GAME LOGIC (clay - reshape freely) - music + SFX on the AY-3-8910 ──────
  * Channel plan: A = jump/coin/land blips, B = death noise, C = music. The PSG
  * has 3 tone channels + ONE shared noise generator, mixed per-channel in
- * reg 7. All register traffic goes through msx_psg_tone/noise/off — they wrap
+ * reg 7. All register traffic goes through msx_psg_tone/noise/off - they wrap
  * the PSGADDR/PSGWRITE pair in DI/EI because the BIOS KEYINT ISR clobbers the
  * PSG address latch every frame (the bug that once silenced every MSX scaffold
- * — see msx_vdp.c).
+ * - see msx_vdp.c).
  *
  * The tune: one period entry per half-beat, 0 = rest. AY period =
- * 1789773 / (16 * freq) — e.g. A4 (440Hz) -> 254. Ticked once per frame; a
+ * 1789773 / (16 * freq) - e.g. A4 (440Hz) -> 254. Ticked once per frame; a
  * note advances every 8 frames. The lib's built-in demo loop (msx_music_tick)
  * also uses channel C, so we switch it OFF in main() and run THIS table
- * instead — edit this table to rescore. */
+ * instead - edit this table to rescore. */
 static const uint16_t tune[32] = {
     427, 0, 339, 0, 285, 0, 339, 0,   /* C4 E4 G4 E4  (bright major bounce)   */
     254, 0, 285, 339, 285, 0,   0, 0, /* A4 G4 E4 G4 rest                     */
@@ -398,7 +398,7 @@ static void sfx_coin(void) { msx_psg_tone(0, 0x090, 12); sfx_a_t = 6; }
 static void sfx_land(void) { msx_psg_tone(0, 0x250, 8);  sfx_a_t = 3; }
 static void sfx_die(void)  { msx_psg_noise(1, 24, 14);   sfx_b_t = 18; }
 
-/* ── GAME LOGIC (clay — reshape freely) — HUD ──────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) - HUD ──────────────────────────────
  * Row 0 = the HUD band (third 0's text colors make it a distinct strip).
  * P#=current player, SC=score, HI=hi-score, LV=lives. */
 static void draw_hud_labels(void) {
@@ -413,7 +413,7 @@ static void draw_hi(void)     { draw_num4(18, 0, hiscore); }
 static void draw_lives(void)  { put_tile(28, 0, (uint8_t)(T_0 + p_lives[cur_player])); }
 static void draw_hud(void) { draw_player(); draw_score(); draw_hi(); draw_lives(); }
 
-/* ── GAME LOGIC (clay — reshape freely) — paint the fixed level ─────────────
+/* ── GAME LOGIC (clay - reshape freely) - paint the fixed level ─────────────
  * The whole arena is one 32x24 painting. Row 0 is the HUD band; the sky thirds
  * get scattered clouds; HORIZON_ROW is the one-tile gradient seam; the
  * ground/platforms come from the column map. The per-third color tables (set
@@ -441,8 +441,8 @@ static void paint_field(void) {
     }
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — screens ──────────────────────────
- * Title rows land in third 1 (white-on-black) and third 2 — the same glyph
+/* ── GAME LOGIC (clay - reshape freely) - screens ──────────────────────────
+ * Title rows land in third 1 (white-on-black) and third 2 - the same glyph
  * tiles as the HUD, recolored for free by the thirds idiom. */
 static void paint_title(void) {
     uint8_t len = 0, col;
@@ -457,7 +457,7 @@ static void paint_title(void) {
     draw_num4(15, 14, hiscore);
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — start a turn / a run ── */
+/* ── GAME LOGIC (clay - reshape freely) - start a turn / a run ── */
 static void begin_turn(void) {
     uint8_t i;
     px = 24;
@@ -500,7 +500,7 @@ static void game_over(void) {
     state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — death + alternating-turn handoff ── */
+/* ── GAME LOGIC (clay - reshape freely) - death + alternating-turn handoff ── */
 static void kill_player(void) {
     uint8_t other;
     sfx_die();
@@ -516,7 +516,7 @@ static void kill_player(void) {
     begin_turn();
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — landing probe against the map ─────
+/* ── GAME LOGIC (clay - reshape freely) - landing probe against the map ─────
  * One-way platforms: only catch the player's feet while FALLING through a
  * narrow window at a surface top. Window is top-1..top+4 (the -1 slack keeps
  * on_ground stable while the sub-pixel gravity trickle hasn't moved integer Y
@@ -536,14 +536,14 @@ static uint8_t land_top(uint8_t c, uint8_t feet) {
     return 0;
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — AABB ── */
+/* ── GAME LOGIC (clay - reshape freely) - AABB ── */
 static uint8_t aabb(uint8_t ax, uint8_t ay, uint8_t bx, uint8_t by) {
     return ax < (uint8_t)(bx + 8) && (uint8_t)(ax + 8) > bx
         && ay < (uint8_t)(by + 8) && (uint8_t)(ay + 8) > by;
 }
 
 /* Push every object to its sprite plane. A dead object parks at PARK_Y
- * (offscreen), NEVER 0xD0 — see the sprite idiom block above. */
+ * (offscreen), NEVER 0xD0 - see the sprite idiom block above. */
 static void push_sprites(uint8_t player_y) {
     uint8_t i;
     msx_set_sprite(0, px, player_y, on_ground ? PAT_IDLE : PAT_JUMP,
@@ -557,11 +557,11 @@ static void push_sprites(uint8_t player_y) {
 void main(void) {
     uint8_t dir, jump, y8, feet, c0, c1, top, i;
 
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-     * Init order: set the video mode FIRST (INIGRP also clears VRAM — any
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+     * Init order: set the video mode FIRST (INIGRP also clears VRAM - any
      * upload done before it is wiped), then tiles, then sprites. The crt0's
-     * INIT contract means main() must NEVER return — the BIOS has nothing
-     * sane to fall back to — hence the for(;;) below. */
+     * INIT contract means main() must NEVER return - the BIOS has nothing
+     * sane to fall back to - hence the for(;;) below. */
     msx_set_screen2();
     msx_clear_sprites();
     load_tiles();
@@ -570,7 +570,7 @@ void main(void) {
     msx_vram_write((uint16_t)(VRAM_SPRPAT + PAT_COIN  * 8), spr_coin,        8);
     msx_vram_write((uint16_t)(VRAM_SPRPAT + PAT_SPIKE * 8), spr_spike,       8);
 
-    msx_music(0);            /* the lib's demo loop also owns channel C —
+    msx_music(0);            /* the lib's demo loop also owns channel C -
                              * hand the channel to OUR tune table instead    */
     hiscore = 0;             /* session hi-score (no SAVE_RAM on this core)  */
     rng = 0xACE1;
@@ -587,7 +587,7 @@ void main(void) {
         sfx_tick();
 
         if (state == ST_TITLE) {
-            /* ── GAME LOGIC (clay) — title: trig A = 1P; trig B (port-1
+            /* ── GAME LOGIC (clay) - title: trig A = 1P; trig B (port-1
              * button 2, gttrig 3) = 2P alternating turns. */
             uint8_t t1 = (uint8_t)(gttrig(1) || gttrig(0));
             uint8_t t2 = gttrig(3);
@@ -609,7 +609,7 @@ void main(void) {
             continue;
         }
 
-        /* ── ST_PLAY — GAME LOGIC (clay) from here down ─────────────────── */
+        /* ── ST_PLAY - GAME LOGIC (clay) from here down ─────────────────── */
         y8 = (uint8_t)(py_q44 >> 4);
 
         if (turn_pause) {            /* "P# ready" breather: blink + freeze   */
@@ -618,7 +618,7 @@ void main(void) {
             continue;
         }
 
-        /* Input — the CURRENT player's joystick (P1 port 1 + keyboard;
+        /* Input - the CURRENT player's joystick (P1 port 1 + keyboard;
          * P2 port 2). GTSTCK returns 0=center then 1-8 clockwise from up. */
         if (cur_player == 0) {
             dir = msx_read_joystick(1);
@@ -660,7 +660,7 @@ void main(void) {
             continue;
         }
 
-        /* Landing — probe the two columns under the player's feet. */
+        /* Landing - probe the two columns under the player's feet. */
         if (vy_q44 >= 0) {
             feet = (uint8_t)(y8 + 8);
             c0 = (uint8_t)(px >> 3);

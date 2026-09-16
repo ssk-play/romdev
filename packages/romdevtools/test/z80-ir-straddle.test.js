@@ -30,7 +30,7 @@ const run = (rom, out) => exportZ80IR({ platform: "sms", path: rom, outputPath: 
 
 test("an instruction straddling the bank edge no longer refuses the cart", async () => {
   // @16381: c1 c8 dc -> pop bc; ret z; call c,nn -- the call's operands run
-  // into bank 1 — the byte pattern the client reported from a commercial cart.
+  // into bank 1 - the byte pattern the client reported from a commercial cart.
   const { rom, out } = await romWith({ 16381: [0xC1, 0xC8, 0xDC], 16384: [0x34, 0x12] });
   const m = await run(rom, out);
   assert.equal(m.coveredBytes, m.romBytes, "coveredBytes must equal romBytes -- the client's acceptance check");
@@ -81,7 +81,7 @@ test("a ROM whose banks end cleanly is unchanged", async () => {
   const m = await run(rom, out);
   assert.equal(m.coveredBytes, m.romBytes);
   assert.equal(m.straddleCount, 0);
-  // Was `undefined` — which encoded the omit-at-zero bug this suite now
+  // Was `undefined` - which encoded the omit-at-zero bug this suite now
   // forbids. A clean ROM reports zero truncated tail bytes; it does not omit
   // the count.
   assert.equal(m.truncatedTailBytes, 0);
@@ -145,7 +145,7 @@ test("secondary records are MARKED and their bytes are the ROM's", async () => {
   }
 });
 
-test("the default export is UNCHANGED — no new fields, no extra records", async () => {
+test("the default export is UNCHANGED - no new fields, no extra records", async () => {
   // Existing consumers must see exactly what they saw before.
   const dir = await mkdtemp(path.join(tmpdir(), "romdev-align3-"));
   const b = Buffer.alloc(16384);
@@ -179,7 +179,7 @@ test("an unknown opcode is refused, never given fabricated semantics", async () 
   // not silently lifted", which reads as `lifted: []`; in fact they carry a
   // single {op:'refuse'} marker. Measured on a real cart: 2,095 unknown
   // records, 2,095 refuse nodes, ZERO real operations. The safety property
-  // holds — the wording did not describe it.
+  // holds - the wording did not describe it.
   const dir = await mkdtemp(path.join(tmpdir(), "romdev-unk-"));
   const b = Buffer.alloc(16384);
   for (let i = 0; i < 400; i += 2) b[i] = 0xFD;   // lone FD prefix -> undecodable
@@ -194,7 +194,7 @@ test("an unknown opcode is refused, never given fabricated semantics", async () 
     assert.ok(r.bytes.length, `unknown record at ${r.off} dropped its bytes`);
     for (const node of r.lifted ?? []) {
       assert.equal(node.op, "refuse",
-        `unknown record at ${r.off} carries a real lifted op '${node.op}' — that is fabricated semantics`);
+        `unknown record at ${r.off} carries a real lifted op '${node.op}' - that is fabricated semantics`);
     }
     assert.deepEqual(r.targets, [], "an unknown opcode must not claim control-flow targets");
   }
@@ -205,7 +205,7 @@ test("an unknown opcode is refused, never given fabricated semantics", async () 
 test("counts a consumer guards on are present AT ZERO, not omitted", async () => {
   // Reported by a client: `unresolvedOffsets` came back absent where it had
   // been 0. The emission was `...(unresolvedOffsets ? {...} : {})`, so the
-  // HEALTHY case omitted the field — and an absent field is falsy in the same
+  // HEALTHY case omitted the field - and an absent field is falsy in the same
   // direction as success. A caller writing `if (!m.unresolvedOffsets)` cannot
   // distinguish "zero unresolved" from "this romdev never reports it", which
   // is exactly the confident-wrong-answer shape.
@@ -218,7 +218,7 @@ test("counts a consumer guards on are present AT ZERO, not omitted", async () =>
 
   const def = await exportZ80IR({ platform: "sms", path: rom, outputPath: path.join(dir, "a.jsonl"), emit: "ir", allOffsets: true });
   for (const f of ["instrCount", "unknownCount", "coveredBytes", "straddleCount", "truncatedTailBytes"]) {
-    assert.ok(f in def, `'${f}' is absent at zero — a guard on it cannot tell zero from unsupported`);
+    assert.ok(f in def, `'${f}' is absent at zero - a guard on it cannot tell zero from unsupported`);
   }
   assert.equal(def.truncatedTailBytes, 0);
   // unresolvedOffsets belongs to alignments:'all' only; absent in the default

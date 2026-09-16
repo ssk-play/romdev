@@ -1,11 +1,11 @@
-FamiTone2 — NES music driver
+FamiTone2 - NES music driver
 ============================
 
 Files in this directory derived from FamiTone2:
 
-  famitone2.s    — the 6502 music engine, verbatim from upstream's
+  famitone2.s    - the 6502 music engine, verbatim from upstream's
                    ASM/famitone2.s (ca65-syntax variant).
-  music_data.s   — example track. The bytes are TestMusic3_good.s from
+  music_data.s   - example track. The bytes are TestMusic3_good.s from
                    the same upstream repo, retagged with `_music_data:`
                    so cc65 C code can `extern` it.
 

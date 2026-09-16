@@ -7,7 +7,7 @@
 //   4. Capture a screenshot to /tmp/full-loop-<platform>.png for visual review.
 //   5. Verify a framebuffer was produced.
 //
-// This is the highest-confidence single test in the suite — when it passes,
+// This is the highest-confidence single test in the suite - when it passes,
 // romdev can build, run, and observe a ROM end-to-end for every
 // platform it claims to support.
 
@@ -28,7 +28,7 @@ const __dirname = path.dirname(__filename);
 const EX_DIR = path.join(__dirname, "..", "examples");
 
 const cases = [
-  // NES example uses CHR-RAM (runtime tile uploads) — needs chr-ram preset.
+  // NES example uses CHR-RAM (runtime tile uploads) - needs chr-ram preset.
   { platform: "nes",       file: "nes/main.c", linkerConfig: "chr-ram" },
   { platform: "c64",       file: "c64/main.c" },
   { platform: "atari2600", file: "atari2600/main.asm" },
@@ -38,14 +38,14 @@ const cases = [
   { platform: "genesis",   file: "genesis/main.s" },
   { platform: "gb",        file: "gb/main.asm", language: "asm" },
   // Z80 family (SDCC + mcpp). These minimal hello-worlds don't init the
-  // VDP — a real game would call e.g. SMS_init from devkitSMS — so the
+  // VDP - a real game would call e.g. SMS_init from devkitSMS - so the
   // framebuffer will likely show the core's power-on default. We only
   // assert that the toolchain pipeline + core load runs cleanly.
   { platform: "sms",        file: "sms/main.c" },
   { platform: "gg",         file: "gg/main.c" },
   // PC Engine: cc65 conio hello (single source). hello_pce.c keeps a non-empty
   // .bss so the crt0 BSS-clear doesn't underflow (see PCE TROUBLESHOOTING.md).
-  // MSX is NOT here — it needs a 2nd source (msx_crt0.s) which this single-file
+  // MSX is NOT here - it needs a 2nd source (msx_crt0.s) which this single-file
   // harness can't express; it's covered in test/pce-msx-tier1.test.js instead.
   { platform: "pce",        file: "pce/main.c" },
 ];
@@ -83,7 +83,7 @@ for (const c of cases) {
     const resolved = resolveCore(c.platform);
     if (!resolved) {
       // Some platforms (c64) have a toolchain but no core; skip gracefully.
-      assert.ok(false, `no core for ${c.platform} (skipping is fine — fix this test if intentional)`);
+      assert.ok(false, `no core for ${c.platform} (skipping is fine - fix this test if intentional)`);
       return;
     }
     const host = new LibretroHost();

@@ -15,7 +15,7 @@ import { getRenderingContextCore } from "./rendering-context.js";
 import { humanCoDriveWarning } from "./playtest.js";
 
 // Normalize each platform's render-context into a CONSERVATIVE renderEnabled
-// (true | false | null). null = "can't tell from the registers" — verify never
+// (true | false | null). null = "can't tell from the registers" - verify never
 // asserts renderDisabled on null, so a platform we can't decode just relies on
 // the pixel check. This is the cross-platform contract for frame({op:'verify'}).
 function pickRenderFlags(ctx) {
@@ -55,7 +55,7 @@ function pickRenderFlags(ctx) {
     if (p === "msx") {
       return { renderEnabled: ctx.screenEnabled == null ? null : !!ctx.screenEnabled };
     }
-    // atari2600 / atari7800 / lynx: no single reliable display-enable bit — let
+    // atari2600 / atari7800 / lynx: no single reliable display-enable bit - let
     // the pixel check carry it; don't false-assert.
     return { renderEnabled: null };
   } catch {
@@ -66,7 +66,7 @@ function pickRenderFlags(ctx) {
 /**
  * Dominant-color fraction at/above which a screen reads as "blank" to a
  * human even though *something* technically rendered. Set to 0.92 (one color
- * filling >=92% of the screen) — empirically the perceptual threshold where a
+ * filling >=92% of the screen) - empirically the perceptual threshold where a
  * backdrop-with-a-lone-sprite still looks empty. Below this, there's enough
  * on-screen content that a person sees a populated frame. (Truly one/two-color
  * frames are caught separately by the distinctColors<=1 blankScreen check.)
@@ -117,7 +117,7 @@ export async function computeVerify(host, frames, sessionKey) {
   if (frameCount === 0) {
     return {
       verified: null, unsettled: true, frame: 0, platform,
-      note: "No frame has been stepped yet — render state is the pre-boot default and not meaningful. " +
+      note: "No frame has been stepped yet - render state is the pre-boot default and not meaningful. " +
         "Step frames first (frame({op:'step'}) or pass `frames`), then verify.",
       pixels, render,
     };
@@ -126,9 +126,9 @@ export async function computeVerify(host, frames, sessionKey) {
   // --- fuse into a verdict + issues[] ---
   const issues = [];
   if (distinctColors <= 1) {
-    issues.push({ check: "blankScreen", detail: `the entire framebuffer is one color (${pixels.dominantColor}) — nothing is being drawn.` });
+    issues.push({ check: "blankScreen", detail: `the entire framebuffer is one color (${pixels.dominantColor}) - nothing is being drawn.` });
   } else if (dominantFraction >= NEARLY_BLANK_DOMINANT) {
-    issues.push({ check: "nearlyBlank", detail: `${pixels.dominantPct}% of the screen is a single color (${pixels.dominantColor}); only ${nonDominant} px differ — a backdrop with almost no content reads as blank to a human even though something rendered. Add visible content (a tilemap/background, more sprites) until <${Math.round(NEARLY_BLANK_DOMINANT * 100)}% is one color.` });
+    issues.push({ check: "nearlyBlank", detail: `${pixels.dominantPct}% of the screen is a single color (${pixels.dominantColor}); only ${nonDominant} px differ - a backdrop with almost no content reads as blank to a human even though something rendered. Add visible content (a tilemap/background, more sprites) until <${Math.round(NEARLY_BLANK_DOMINANT * 100)}% is one color.` });
   }
   if (render && render.renderEnabled === false) {
     issues.push({ check: "renderDisabled", detail: `display output is disabled per the ${platform} registers: ${render.summary[0] || "see render.summary"}.` });
@@ -141,7 +141,7 @@ export async function computeVerify(host, frames, sessionKey) {
     platform,
     ...(ok
       ? { note: `Frame ${frameCount}: rendering looks alive (${distinctColors} colors, ${Math.round((100 - pixels.dominantPct) * 10) / 10}% of the screen is non-backdrop).` }
-      : { issues, note: "Rendering looks broken — see issues[]. For per-platform thresholds + the full checklist, getPlatformDoc({platform, doc:'mental_model'})." }),
+      : { issues, note: "Rendering looks broken - see issues[]. For per-platform thresholds + the full checklist, getPlatformDoc({platform, doc:'mental_model'})." }),
     pixels, render,
   };
 }
@@ -159,7 +159,7 @@ function visibleSpritesFor(host, platform) {
         smallSize: ppu.objSize.small, largeSize: ppu.objSize.large,
         objNameBaseByte: ppu.objNameBaseByte, objGapByte: ppu.objGapByte,
       } : {});
-      // Overlay only the truly renderable sprites — not every populated OAM
+      // Overlay only the truly renderable sprites - not every populated OAM
       // slot. Off-screen/hidden slots would clutter the screenshot with boxes
       // for sprites that aren't actually drawn.
       return sprites.filter((s) => s.renderable);
@@ -194,7 +194,7 @@ function overlaySpriteBoxes(pngBase64, sprites, platform) {
   const buf = Buffer.from(pngBase64, "base64");
   const img = PNG.sync.read(buf);
   const W = img.width, H = img.height;
-  // NES: Y in OAM is "actual Y - 1" — most modern emulators expose the
+  // NES: Y in OAM is "actual Y - 1" - most modern emulators expose the
   // raw OAM byte. Add 1 to display the screen-pixel coord.
   const yShift = platform === "nes" ? 1 : 0;
   for (const s of sprites) {
@@ -246,7 +246,7 @@ function hsvToRgb(h, s, v) {
 }
 
 /**
- * Lightweight pixel summary of an RGBA framebuffer — the same dominant-color /
+ * Lightweight pixel summary of an RGBA framebuffer - the same dominant-color /
  * distinct-color scan computeVerify uses, factored out so sideBySide can report
  * a per-pane "is this side alive / how different is it" signal without the full
  * render-context decode. No host needed; pure pixels. Exported for tests.
@@ -410,9 +410,9 @@ export function registerFrameTools(server, z, sessionKey) {
     // unset) is the native-resolution default; scale<1 is a downscaled shot
     // (~75% fewer image tokens for routine "did it change?" sanity checks),
     // scale>=2 is an integer up-scale so tiny handheld targets read legibly.
-    // Crop FIRST (native-res strip — the HUD-verification token-saver: a
+    // Crop FIRST (native-res strip - the HUD-verification token-saver: a
     // 1-pixel-tick bar or an 8px counter stays legible, unlike a downscale),
-    // then scale — so crop+integer-scale gives an enlarged detail view.
+    // then scale - so crop+integer-scale gives an enlarged detail view.
     const cropped = !!crop;
     if (cropped) {
       const c = cropPng(pngBase64, crop);
@@ -433,7 +433,7 @@ export function registerFrameTools(server, z, sessionKey) {
       json._observerImages = [{ kind: "image", mimeType: "image/png", base64: pngBase64 }];
       return json;
     }
-    // inline:true — ALSO write the PNG to a temp file so a follow-up crop/convert
+    // inline:true - ALSO write the PNG to a temp file so a follow-up crop/convert
     // (ImageMagick etc.) has a real path instead of ENOENT-ing on a base64 blob.
     // Path is stable per frame so repeated shots of the same frame don't pile up.
     const tempPath = path.join(tmpdir(), `romdev-shot-${host.status.platform ?? "rom"}-f${host.status.frameCount ?? 0}.png`);
@@ -441,7 +441,7 @@ export function registerFrameTools(server, z, sessionKey) {
     return {
       content: [
         imageContent(pngBase64),
-        { type: "text", text: `${bezel ? `[${frameSource}] ` : ""}framebuffer ${shot.width}x${shot.height}${cropped ? ` (cropped to ${width}x${height} at ${crop.x ?? 0},${crop.y ?? 0})` : ""}${scaled ? ` (scaled ${scale}x${cropped ? "" : ` to ${width}x${height}`})` : ""}${overlayInfo ? ` (overlay: ${overlayInfo.spritesDrawn} sprites)` : ""} — also written to ${tempPath} (use this path for ImageMagick/crops; pass outputPath for a permanent location).` },
+        { type: "text", text: `${bezel ? `[${frameSource}] ` : ""}framebuffer ${shot.width}x${shot.height}${cropped ? ` (cropped to ${width}x${height} at ${crop.x ?? 0},${crop.y ?? 0})` : ""}${scaled ? ` (scaled ${scale}x${cropped ? "" : ` to ${width}x${height}`})` : ""}${overlayInfo ? ` (overlay: ${overlayInfo.spritesDrawn} sprites)` : ""} - also written to ${tempPath} (use this path for ImageMagick/crops; pass outputPath for a permanent location).` },
       ],
     };
   }
@@ -452,7 +452,7 @@ export function registerFrameTools(server, z, sessionKey) {
     const { width, height, rgba } = host.screenshotRgba();
     // Default to ONE cell per 8×8 tile (so a 256×224 NES frame → 32×28, legible
     // game state). The old /16 default (16×14 for NES) was too coarse to read
-    // anything — feedback 0.44.0 #1. The terminal symbol's own subcell shape adds
+    // anything - feedback 0.44.0 #1. The terminal symbol's own subcell shape adds
     // detail back, so this stays cheap.
     if (cols == null) cols = Math.max(8, Math.floor(width / 8));
     if (rows == null) rows = Math.max(8, Math.floor(height / 8));
@@ -468,7 +468,7 @@ export function registerFrameTools(server, z, sessionKey) {
     };
     const coarseNote = tooCoarse
       ? `NOTE: ${cols}x${rows} is too coarse to read game state from this ${width}x${height} frame. `
-        + `For a pass/fail check ("are we in gameplay?"), a memory({op:'read'}) byte assertion is cheaper and exact — `
+        + `For a pass/fail check ("are we in gameplay?"), a memory({op:'read'}) byte assertion is cheaper and exact - `
         + `ascii is for a rough visual, not state.`
       : null;
     let result;
@@ -498,7 +498,7 @@ export function registerFrameTools(server, z, sessionKey) {
       if (source === "both") {
         const host = getHost(sessionKey);
         if (!getActiveBezel(sessionKey)) {
-          throw new Error("frame({op:'screenshot', source:'both'}) needs an Active Bezel loaded — without one there is only the core picture. Load with loadMedia({useActiveBezel:true}).");
+          throw new Error("frame({op:'screenshot', source:'both'}) needs an Active Bezel loaded - without one there is only the core picture. Load with loadMedia({useActiveBezel:true}).");
         }
         const compositeShot = await shootPng({ path: outPath, inline, overlayBoxes, scale, crop, source: "composite" });
         const corePath = outPath ? outPath.replace(/(\.png)?$/i, ".core.png") : undefined;
@@ -526,10 +526,10 @@ export function registerFrameTools(server, z, sessionKey) {
       return shootPng({ path: outPath, inline, overlayBoxes, scale, crop, source });
   }
 
-  // op:'verify' — one-call "did the game actually render / is it alive?" health
+  // op:'verify' - one-call "did the game actually render / is it alive?" health
   // check for agents debugging WITHOUT vision. Fuses two independent signals:
   //   1. the render-enable/NMI verdict from getRenderingContext (per-platform
-  //      register decode — already correct, reused not re-derived), and
+  //      register decode - already correct, reused not re-derived), and
   //   2. a pixel-level content check on the live framebuffer (is the screen
   //      actually showing more than one flat color?).
   // Frame-0 guard: before any frame is stepped, report the raw condition WITHOUT
@@ -537,10 +537,10 @@ export function registerFrameTools(server, z, sessionKey) {
   async function doVerify({ frames }) {
     const host = getHost(sessionKey);
     if (!host.status.platform || !host.status.loaded) {
-      throw new Error("frame({op:'verify'}): no media loaded — loadMedia or build({output:'run'}) first.");
+      throw new Error("frame({op:'verify'}): no media loaded - loadMedia or build({output:'run'}) first.");
     }
     const json = jsonContent(await computeVerify(host, frames, sessionKey));
-    // verify's whole job is "look at the screen" — so push the exact frame it
+    // verify's whole job is "look at the screen" - so push the exact frame it
     // judged to the human's /livestream. Deferred provider: the PNG encode
     // happens async after the agent's (JSON-only) response goes out, at zero
     // cost to the agent. computeVerify already stepped the frames, so the
@@ -549,7 +549,7 @@ export function registerFrameTools(server, z, sessionKey) {
     return json;
   }
 
-  // op:'sideBySide' — capture BOTH hosts (slot A + slot B) into one composited
+  // op:'sideBySide' - capture BOTH hosts (slot A + slot B) into one composited
   // PNG, A left, B right. The two-cores-in-one-call capture for the port-compare
   // loop: load the original in slot A, the port in slot B, step both the same N
   // frames, and look at them together. Also returns a per-pane pixel summary so
@@ -583,23 +583,23 @@ export function registerFrameTools(server, z, sessionKey) {
     return {
       content: [
         imageContent(pngBase64),
-        { type: "text", text: `side-by-side ${outW}x${outH} — left: ${panes.a.platform} @frame ${panes.a.frame} (${panes.a.distinctColors} colors), right: ${panes.b.platform} @frame ${panes.b.frame} (${panes.b.distinctColors} colors). Also written to ${tempPath}.` },
+        { type: "text", text: `side-by-side ${outW}x${outH} - left: ${panes.a.platform} @frame ${panes.a.frame} (${panes.a.distinctColors} colors), right: ${panes.b.platform} @frame ${panes.b.frame} (${panes.b.distinctColors} colors). Also written to ${tempPath}.` },
       ],
       _observerImages: [{ kind: "image", mimeType: "image/png", base64: pngBase64 }],
     };
   }
 
-  // op:'compareRam' — the RAM-diff oracle. The STATE-level sibling of
+  // op:'compareRam' - the RAM-diff oracle. The STATE-level sibling of
   // sideBySide: instead of comparing pixels, compare the work-RAM of slot A
   // (the original) and slot B (the port) at the same game-moment. This is how a
-  // logic port is proven correct INDEPENDENT of graphics — if the two machines'
+  // logic port is proven correct INDEPENDENT of graphics - if the two machines'
   // RAM matches, the game logic is running identically even when one renders
   // blank (no PPU shim yet).
   //
   // Designed for a "smart-enough, not frontier" agent: it does the byte-compare
-  // MECHANICALLY and returns a DIGESTED verdict — a match %, the diverging
+  // MECHANICALLY and returns a DIGESTED verdict - a match %, the diverging
   // address RANGES (run-length-encoded, not raw bytes), and plain-language
-  // guidance — so the agent gets "addresses $0300-$0312 differ, likely your
+  // guidance - so the agent gets "addresses $0300-$0312 differ, likely your
   // sprite table" instead of two 2KB hex blobs to eyeball.
   // Core RAM comparison between the two slots for one region. Returns the raw
   // numbers + RLE ranges; the op wrappers add verdict text. Shared by
@@ -654,10 +654,10 @@ export function registerFrameTools(server, z, sessionKey) {
 
     const verdict =
       diffBytes === 0
-        ? "IDENTICAL — slot A and slot B work-RAM match byte-for-byte. The port's logic is running exactly like the original at this moment."
+        ? "IDENTICAL - slot A and slot B work-RAM match byte-for-byte. The port's logic is running exactly like the original at this moment."
         : matchPct >= 95
-          ? `CLOSE (${matchPct}% match) — logic is largely tracking; ${ranges.length} diverging span(s). Inspect the ranges below (often graphics/timing scratch that doesn't affect logic). Read a range with memory({op:'read', region, offset}) on each slot to dig in.`
-          : `DIVERGED (${matchPct}% match) — the port's logic is NOT tracking the original. Step both from a known-identical point (state restore), then compareRam after a few frames to find WHERE they split. The first diverging span is usually the root cause.`;
+          ? `CLOSE (${matchPct}% match) - logic is largely tracking; ${ranges.length} diverging span(s). Inspect the ranges below (often graphics/timing scratch that doesn't affect logic). Read a range with memory({op:'read', region, offset}) on each slot to dig in.`
+          : `DIVERGED (${matchPct}% match) - the port's logic is NOT tracking the original. Step both from a known-identical point (state restore), then compareRam after a few frames to find WHERE they split. The first diverging span is usually the root cause.`;
 
     return jsonContent({
       op: "compareRam",
@@ -675,26 +675,26 @@ export function registerFrameTools(server, z, sessionKey) {
     });
   }
 
-  // op:'findDiverge' — the ROOT-CAUSE finder. compareRam tells you slot A and
+  // op:'findDiverge' - the ROOT-CAUSE finder. compareRam tells you slot A and
   // slot B differ; this tells you EXACTLY WHEN and WHERE they first split. It
   // snapshots both hosts, steps them in lockstep, and reports the first frame at
   // which the work-RAM diverges + the first diverging byte address. A
-  // smart-enough agent shouldn't binary-search frames by hand — the tool does
+  // smart-enough agent shouldn't binary-search frames by hand - the tool does
   // the search and hands back "frame 47, $0312 (A=05 B=07): that's where your
   // port's logic split from the original."
   //
   // Both hosts' MACHINE STATE (RAM/CPU/PPU) is restored to the pre-search point
   // afterward via unserializeState, so the agent keeps working from where it was.
-  // (The frameCount COUNTER keeps climbing — a known core behavior of
-  // unserializeState — but the actual emulated state is rewound.)
+  // (The frameCount COUNTER keeps climbing - a known core behavior of
+  // unserializeState - but the actual emulated state is rewound.)
   async function findDiverge(args) {
     const { findDivergence } = await import("../../host/find-divergence.js");
     return jsonContent(findDivergence(getHost(sessionKey), getHostB(sessionKey), args));
   }
 
-  // op:'compareRender' — the PRESENTATION oracle. The graphics-side sibling of
+  // op:'compareRender' - the PRESENTATION oracle. The graphics-side sibling of
   // compareRam: instead of bytes, compare the decoded RENDERING STATE of slot A
-  // (original) vs slot B (port) — "BG enabled? which tilemap/palette? sprites
+  // (original) vs slot B (port) - "BG enabled? which tilemap/palette? sprites
   // on? forced blank?" This is what an agent building/tuning the graphics shim
   // needs: it says exactly WHAT the port's presentation is missing vs. the
   // original, in plain terms, without the agent decoding registers by hand.
@@ -738,9 +738,9 @@ export function registerFrameTools(server, z, sessionKey) {
 
     const note = samePlatform
       ? (lineDiff.onlyInOriginal.length === 0 && lineDiff.onlyInPort.length === 0
-          ? "Rendering state MATCHES — same platform, identical decoded render context. The port's presentation tracks the original."
-          : `Rendering differs: ${lineDiff.onlyInOriginal.length} aspect(s) the ORIGINAL has that the port lacks (see onlyInOriginal — that's your shim's TODO list), ${lineDiff.onlyInPort.length} the port has extra. Fix the port until onlyInOriginal is empty.`)
-      : `Cross-platform port (${platA}→${platB}): the two render models differ by hardware, so compare the summaries conceptually. originalRenderEnabled=${flagsA.renderEnabled}, portRenderEnabled=${flagsB.renderEnabled}. If the original renders and the port is forced-blank/disabled, the graphics shim hasn't enabled output yet — that's step one.`;
+          ? "Rendering state MATCHES - same platform, identical decoded render context. The port's presentation tracks the original."
+          : `Rendering differs: ${lineDiff.onlyInOriginal.length} aspect(s) the ORIGINAL has that the port lacks (see onlyInOriginal - that's your shim's TODO list), ${lineDiff.onlyInPort.length} the port has extra. Fix the port until onlyInOriginal is empty.`)
+      : `Cross-platform port (${platA}→${platB}): the two render models differ by hardware, so compare the summaries conceptually. originalRenderEnabled=${flagsA.renderEnabled}, portRenderEnabled=${flagsB.renderEnabled}. If the original renders and the port is forced-blank/disabled, the graphics shim hasn't enabled output yet - that's step one.`;
 
     return jsonContent({
       op: "compareRender",
@@ -752,7 +752,7 @@ export function registerFrameTools(server, z, sessionKey) {
     });
   }
 
-  // op:'portStatus' — the CAPSTONE. One call that runs all the compare signals
+  // op:'portStatus' - the CAPSTONE. One call that runs all the compare signals
   // (logic via RAM, presentation via render state, pixels via the content scan)
   // and returns a SINGLE digested "state of your port" verdict with the next
   // concrete action. For a smart-enough agent this collapses "which of the 4
@@ -764,7 +764,7 @@ export function registerFrameTools(server, z, sessionKey) {
     const hostB = getHostB(sessionKey);
     if (frames && frames > 0) { hostA.stepFrames(frames); hostB.stepFrames(frames); }
 
-    // 1. Logic (RAM) — only meaningful for a SAME-platform port (cross-platform
+    // 1. Logic (RAM) - only meaningful for a SAME-platform port (cross-platform
     //    RAM layouts differ, so a byte diff there isn't a logic verdict).
     const samePlatform = hostA.status.platform === hostB.status.platform;
     let logic = null;
@@ -775,14 +775,14 @@ export function registerFrameTools(server, z, sessionKey) {
       } catch (e) { logic = { error: e.message }; }
     }
 
-    // 2. Presentation (render state) — per-side render-enable.
+    // 2. Presentation (render state) - per-side render-enable.
     let renderA, renderB;
     try { renderA = pickRenderFlags(await getRenderingContextCore({ platform: hostA.status.platform, area: "all", host: hostA })); }
     catch { renderA = { renderEnabled: null }; }
     try { renderB = pickRenderFlags(await getRenderingContextCore({ platform: hostB.status.platform, area: "all", host: hostB })); }
     catch { renderB = { renderEnabled: null }; }
 
-    // 3. Pixels — is each side drawing more than a flat color?
+    // 3. Pixels - is each side drawing more than a flat color?
     const pxA = pixelSummary(...rgbaTriple(hostA));
     const pxB = pixelSummary(...rgbaTriple(hostB));
     const aliveA = pxA.distinctColors > 2 && pxA.dominantPct < 99;
@@ -792,16 +792,16 @@ export function registerFrameTools(server, z, sessionKey) {
     let verdict, nextAction;
     if (samePlatform && logic && logic.identical) {
       if (aliveB) { verdict = "PORT LOOKS COMPLETE"; nextAction = "Logic matches byte-for-byte AND the port renders. Spot-check with frame({op:'sideBySide'}) and move on."; }
-      else { verdict = "LOGIC DONE, PRESENTATION MISSING"; nextAction = "RAM matches the original exactly — the game logic is correct. The port renders blank: build/finish the graphics shim. Start with frame({op:'compareRender'}) to see what the original enables that the port doesn't."; }
+      else { verdict = "LOGIC DONE, PRESENTATION MISSING"; nextAction = "RAM matches the original exactly - the game logic is correct. The port renders blank: build/finish the graphics shim. Start with frame({op:'compareRender'}) to see what the original enables that the port doesn't."; }
     } else if (samePlatform && logic && !logic.error) {
       verdict = `LOGIC DIVERGED (${logic.matchPct}% RAM match)`;
       nextAction = "The port's logic is NOT tracking the original. Run frame({op:'findDiverge'}) from a known-identical point to get the first frame+address where they split, then breakpoint({on:'write', address}) on each slot to compare the code.";
     } else {
-      // cross-platform — RAM diff isn't a logic verdict; lean on render + pixels.
+      // cross-platform - RAM diff isn't a logic verdict; lean on render + pixels.
       verdict = "CROSS-PLATFORM PORT";
       nextAction = aliveB
-        ? "Both sides render — compare visually with frame({op:'sideBySide'}) and the decoded state with frame({op:'compareRender'}). RAM can't be byte-compared across different hardware."
-        : "The port renders blank while the original draws. The graphics shim hasn't enabled output — frame({op:'compareRender'}) shows what to turn on. Verify logic another way (the recompiled CPU should be running even when blank).";
+        ? "Both sides render - compare visually with frame({op:'sideBySide'}) and the decoded state with frame({op:'compareRender'}). RAM can't be byte-compared across different hardware."
+        : "The port renders blank while the original draws. The graphics shim hasn't enabled output - frame({op:'compareRender'}) shows what to turn on. Verify logic another way (the recompiled CPU should be running even when blank).";
     }
 
     return jsonContent({
@@ -825,7 +825,7 @@ export function registerFrameTools(server, z, sessionKey) {
       requireImageTarget(outPath, inline, "frame({op:'stepAndShot'})");
       const host = getHost(sessionKey);
       await host.stepFrames(frames);
-      // Tick the bezel for the frames just produced, exactly as op:'step' does —
+      // Tick the bezel for the frames just produced, exactly as op:'step' does -
       // otherwise stepAndShot advances the machine behind the package's back and
       // a package with per-frame state sees a hole in its timeline.
       tickForFrame(sessionKey, host);
@@ -833,8 +833,8 @@ export function registerFrameTools(server, z, sessionKey) {
       // Capture through shootPng rather than re-implementing it.
       //
       // This op used to call host.screenshot() itself, which meant it silently
-      // ignored `crop` — the one parameter the tool description actively
-      // recommends for reading a HUD ("crop:{x,y,w,h} at native res — legible
+      // ignored `crop` - the one parameter the tool description actively
+      // recommends for reading a HUD ("crop:{x,y,w,h} at native res - legible
       // AND a fraction of the image tokens"). An agent following that advice
       // got a full frame back with no error and reasoned about the wrong
       // pixels. Sharing the capture path also means `scale`, `overlayBoxes`
@@ -847,68 +847,68 @@ export function registerFrameTools(server, z, sessionKey) {
   server.tool(
     "frame",
     "Advance the emulator and capture frames. `op`: 'step' | 'screenshot' | 'stepAndShot' | 'sideBySide' | 'compareRam' | 'findDiverge' | 'compareRender' | 'portStatus' | 'stepInstruction' | 'verify'.\n" +
-    "'step': advance N `frames` as fast as possible — NO pacing/audio/vsync. Cores run at WASM speed, so frames:3600 " +
-    "(1 min of game time) finishes in ~5-30ms, cheaper than a screenshot. Don't be timid — skip a title with 300, a " +
+    "'step': advance N `frames` as fast as possible - NO pacing/audio/vsync. Cores run at WASM speed, so frames:3600 " +
+    "(1 min of game time) finishes in ~5-30ms, cheaper than a screenshot. Don't be timid - skip a title with 300, a " +
     "level with 7200; prefer ONE big call.\n" +
     "'screenshot': capture the latest frame. `format:'png'` (default, exact colors) or `'ascii'` (lossy chafa text " +
     "render for agents that can't view images). `overlayBoxes` (png) draws a box per visible sprite (SNES+NES only); " +
-"`scale` (png) resamples nearest-neighbor: 0<scale<1 DOWNscales (~75% fewer image tokens at 0.5 — the useful direction, for cheap 'did it change?' checks). integer scale≥2 UPscales (pixel-duplication, e.g. scale:4 → GB 160x144 → 640x576) — but this adds NO detail (it's the same pixels enlarged) and costs MORE image tokens; the native frame already has every pixel. Prefer scale:1 (default, native). Only upscale if YOUR client renders tiny images too small to be useful AND can't zoom — and know that VLM encoders resize to a fixed resolution anyway, so it may not change what the model sees (and can slightly degrade it). ascii cols/rows/symbols/colors knobs in the param hints. " +
-    "**READING a HUD counter/bar? crop:{x,y,w,h} at native res — legible AND a fraction of the tokens (no external image tools).** **CHEAP VERIFY: for a binary pass/fail check (theme changed? sprite present? HUD ticked?) prefer scale:0.5 or " +
-    "format:'ascii' — BETTER, read the byte directly: symbols({op:'resolve', name}) → memory({op:'read'}) is a 1-byte " +
+"`scale` (png) resamples nearest-neighbor: 0<scale<1 DOWNscales (~75% fewer image tokens at 0.5 - the useful direction, for cheap 'did it change?' checks). integer scale≥2 UPscales (pixel-duplication, e.g. scale:4 → GB 160x144 → 640x576) - but this adds NO detail (it's the same pixels enlarged) and costs MORE image tokens; the native frame already has every pixel. Prefer scale:1 (default, native). Only upscale if YOUR client renders tiny images too small to be useful AND can't zoom - and know that VLM encoders resize to a fixed resolution anyway, so it may not change what the model sees (and can slightly degrade it). ascii cols/rows/symbols/colors knobs in the param hints. " +
+    "**READING a HUD counter/bar? crop:{x,y,w,h} at native res - legible AND a fraction of the tokens (no external image tools).** **CHEAP VERIFY: for a binary pass/fail check (theme changed? sprite present? HUD ticked?) prefer scale:0.5 or " +
+    "format:'ascii' - BETTER, read the byte directly: symbols({op:'resolve', name}) → memory({op:'read'}) is a 1-byte " +
     "assertion that costs zero image tokens.**\n" +
-    "'stepAndShot': step + screenshot in ONE round-trip — the drive-then-look loop. Takes the same crop/scale/overlayBoxes/source as 'screenshot'.\n" +
-    "'sideBySide': capture BOTH hosts (slot A + the slot-B comparison host) into ONE composited PNG — A left, B right, " +
+    "'stepAndShot': step + screenshot in ONE round-trip - the drive-then-look loop. Takes the same crop/scale/overlayBoxes/source as 'screenshot'.\n" +
+    "'sideBySide': capture BOTH hosts (slot A + the slot-B comparison host) into ONE composited PNG - A left, B right, " +
     "divider between. The two-cores-in-one-call capture for the original-vs-port compare loop: loadMedia the original " +
     "in slot A, loadMedia({slot:'b'}) the port, then frame({op:'sideBySide', frames}) steps BOTH the same N frames and " +
     "shows them together. Panes are integer-upscaled to a shared height so a handheld next to a console reads at a " +
     "comparable size. Returns per-pane {platform, frame, distinctColors, dominantColor, dominantPct} so a no-vision " +
     "agent still gets a structured 'are both alive / how different' signal. Requires a ROM in slot B (loadMedia({slot:'b'})). " +
     "Same image contract as screenshot (path or inline:true).\n" +
-    "'compareRam': the RAM-diff ORACLE — the STATE-level sibling of sideBySide. Compares the work-RAM (`region`, default " +
+    "'compareRam': the RAM-diff ORACLE - the STATE-level sibling of sideBySide. Compares the work-RAM (`region`, default " +
     "'system_ram') of slot A vs slot B at the same game-moment to prove a logic PORT is correct INDEPENDENT of graphics " +
     "(matching RAM = identical logic even when the port renders blank). Returns a DIGESTED verdict: matchPct, " +
     "identical, and the diverging address RANGES run-length-encoded with a 4-byte sample of each side (NOT raw byte " +
     "dumps) so even a small model gets '$0300-$0312 differ' not two hex blobs. Workflow: state-restore both to an " +
-    "identical point, step both N frames, compareRam — the FIRST diverging span is usually the bug. Requires slot B.\n" +
-    "'findDiverge': the ROOT-CAUSE finder built ON compareRam — where compareRam says THAT they differ, this says exactly " +
+    "identical point, step both N frames, compareRam - the FIRST diverging span is usually the bug. Requires slot B.\n" +
+    "'findDiverge': the ROOT-CAUSE finder built ON compareRam - where compareRam says THAT they differ, this says exactly " +
     "WHEN and WHERE. Snapshots both slots, steps them in lockstep up to `maxFrames`, and reports the first frame + first " +
     "byte address at which the work-RAM splits ({atFrame, address, a, b}). Non-destructive: both hosts are RESTORED to " +
     "their pre-search state. Run it from a known-identical point (state-restore both first) so 'first split' is meaningful. " +
     "The agent then disasms the code that writes that address on both sides. Requires slot B.\n" +
-    "'compareRender': the PRESENTATION oracle — compare the decoded RENDERING STATE of slot A vs slot B (BG/sprites " +
+    "'compareRender': the PRESENTATION oracle - compare the decoded RENDERING STATE of slot A vs slot B (BG/sprites " +
     "enabled? which tilemap/palette? forced blank?) instead of bytes. This is what an agent building/tuning the graphics " +
     "shim needs: it says in plain terms WHAT the port's presentation is missing vs. the original. Same-platform ports get " +
     "a line diff (onlyInOriginal = your shim's TODO); cross-platform ports get both summaries + each side's renderEnabled " +
     "verdict. Requires slot B.\n" +
-    "'portStatus': the CAPSTONE — ONE call that fuses logic (RAM), presentation (render state), and pixels into a single " +
+    "'portStatus': the CAPSTONE - ONE call that fuses logic (RAM), presentation (render state), and pixels into a single " +
     "'state of your port' verdict + the next concrete action (e.g. 'LOGIC DONE, PRESENTATION MISSING → build the graphics " +
     "shim, start with compareRender'). Use this FIRST when working a port to know what to do next; drill in with the " +
     "specific compare ops. Requires slot B.\n" +
     "'stepInstruction': execute exactly ONE CPU instruction and stop (finer than 'step'); freezes the CPU one " +
     "instruction later and returns { pc }. Pair with cpu({op:'read'}) to watch registers change while tracing a routine.\n" +
-    "'stepInstructions': BULK single-step — execute `count` instructions and return an ORDERED `trace:[{pc, width, bytes}]` " +
+    "'stepInstructions': BULK single-step - execute `count` instructions and return an ORDERED `trace:[{pc, width, bytes}]` " +
     "in ONE call (the `note` boilerplate emitted once, not per entry). `width` = PC[k+1]-PC[k], so immediate widths are " +
-    "visible directly — the 65816 `.a8` vs `.i16` case (a 2-byte lda #imm8 vs a 3-byte ldx #imm16 shows up only as the PC " +
+    "visible directly - the 65816 `.a8` vs `.i16` case (a 2-byte lda #imm8 vs a 3-byte ldx #imm16 shows up only as the PC " +
     "delta), which is what confirms a routine's boundaries when static da65 floored the bank to `.byte`. `withRegisters:true` " +
     "adds the register file at each step. This collapses the ~1-round-trip-per-instruction cost of tracing a routine.\n" +
-    "'verify': one-call 'is the game actually rendering / alive?' health check WITHOUT vision — for the spiral where an " +
+    "'verify': one-call 'is the game actually rendering / alive?' health check WITHOUT vision - for the spiral where an " +
     "agent can't see the screen and doesn't know if a black frame means broken. Pass `frames` to boot-then-check in one " +
-    "call. Fuses (1) a pixel-content scan of the live framebuffer (distinctColors, dominant-color %) — works on EVERY " +
-    "kind, wasmcart/jsgame included (GL carts scan the offscreen-GL readback) — and (2) the per-platform " +
+    "call. Fuses (1) a pixel-content scan of the live framebuffer (distinctColors, dominant-color %) - works on EVERY " +
+    "kind, wasmcart/jsgame included (GL carts scan the offscreen-GL readback) - and (2) the per-platform " +
     "render-ENABLE/NMI decode on the classic emulated platforms (native runtimes report render.renderEnabled:null). " +
     "Returns {verified:true|false|null, issues[], pixels, render}. verified:null + unsettled when no frame has been " +
-    "stepped yet (it won't cry wolf on boot — step first). issues[] flags blankScreen/nearlyBlank/renderDisabled. " +
+    "stepped yet (it won't cry wolf on boot - step first). issues[] flags blankScreen/nearlyBlank/renderDisabled. " +
     "renderDisabled is only raised when the registers SAY so (never on an undecodable platform). Pass/fail with no " +
     "image tokens; for WHAT to fix, getPlatformDoc({platform, doc:'mental_model'}).\n" +
-    "IMAGE CONTRACT (screenshot/stepAndShot): the image goes to `path` (default, returns {path}) OR inline:true — " +
+    "IMAGE CONTRACT (screenshot/stepAndShot): the image goes to `path` (default, returns {path}) OR inline:true - " +
     "you MUST pass one. Keeps PNGs out of context unless asked.",
     {
       op: z.enum(["step", "screenshot", "stepAndShot", "sideBySide", "compareRam", "findDiverge", "compareRender", "portStatus", "stepInstruction", "stepInstructions", "verify"]).describe("step frames; capture a screenshot; step+capture in one call; capture both hosts side-by-side (A|B); compareRam = diff slot-A vs slot-B work-RAM (the logic-port oracle); findDiverge = find the first frame+byte where the two slots split (root-cause finder); compareRender = diff the decoded rendering state of the two slots (the presentation oracle); portStatus = ONE fused 'state of your port' verdict + next action (the capstone); single-step one CPU instruction; stepInstructions = bulk single-step N instructions into one ordered trace; or verify the game is actually rendering/alive (no vision needed)."),
       count: z.number().int().min(1).max(4096).default(16).describe("op=stepInstructions: how many CPU instructions to single-step into the trace (default 16, max 4096)."),
       withRegisters: z.boolean().default(false).describe("op=stepInstructions: include the CPU register file at each step (heavier payload; omit if you only need pc/width/bytes for boundary+immediate-width analysis)."),
       stepFormat: z.enum(["full", "compact"]).default("full").describe("op=stepInstructions: 'full' = per-step objects (pc/flow/width/nextPc); 'compact' = one string per step (`$PC flow->$target`) + a `pcRanges` loop-map with hit counts (~90% fewer tokens for triage)."),
-      frames: z.number().int().min(1).max(1_000_000).default(1).describe("op=step/stepAndShot/sideBySide/compareRam/compareRender: frames to advance (1-1,000,000). For the slot-A/B compare ops, BOTH hosts step the same amount. 36000 (10 min) usually completes in <1s — don't be conservative."),
-      slot: z.enum(["a", "b"]).default("a").describe("op=step: which host to advance. 'a' (default) = the session's primary host. 'b' = the comparison host loaded via loadMedia({slot:'b'}) — use it to WARM each side to a chosen frame before frame({op:'findDiverge'}), which is required when the two sides only split deep into a run (compare from frame 60, not from power-on). Slot-B steps drive no presentation, no bezel, no livestream and no auto-snapshot."),
+      frames: z.number().int().min(1).max(1_000_000).default(1).describe("op=step/stepAndShot/sideBySide/compareRam/compareRender: frames to advance (1-1,000,000). For the slot-A/B compare ops, BOTH hosts step the same amount. 36000 (10 min) usually completes in <1s - don't be conservative."),
+      slot: z.enum(["a", "b"]).default("a").describe("op=step: which host to advance. 'a' (default) = the session's primary host. 'b' = the comparison host loaded via loadMedia({slot:'b'}) - use it to WARM each side to a chosen frame before frame({op:'findDiverge'}), which is required when the two sides only split deep into a run (compare from frame 60, not from power-on). Slot-B steps drive no presentation, no bezel, no livestream and no auto-snapshot."),
       region: z.string().optional().describe("op=compareRam/findDiverge/portStatus: memory region to diff across the two slots (default 'system_ram', the portable work-RAM). Both hosts must expose it."),
       regionB: z.string().optional().describe("op=findDiverge: slot-B region if different. wasmcart requires 'linear_memory' plus offsetB and compareLength locating the recompiled machine's RAM."),
       offsetA: z.number().int().min(0).default(0).describe("op=findDiverge: byte offset into slot A's selected region."),
@@ -918,17 +918,17 @@ export function registerFrameTools(server, z, sessionKey) {
       maxRanges: z.number().int().min(1).max(256).default(24).describe("op=compareRam: cap on the diverging address ranges returned (largest first)."),
       maxFrames: z.number().int().min(1).max(100000).default(600).describe("op=findDiverge: max frames to step in lockstep looking for the first divergence (default 600 = ~10s)."),
       format: z.enum(["png", "ascii"]).default("png").describe("op=screenshot: 'png' (default, real image) or 'ascii' (lossy text render)."),
-      source: z.enum(["composite", "core", "both"]).optional().describe("op=screenshot/stepAndShot, with an Active Bezel loaded: which picture to capture. 'composite' (default when a bezel is active) = the final scene the package rendered, which is what the human sees. 'core' = the RAW emulator framebuffer, ignoring the bezel. 'both' returns the two together — the comparison that shows whether the package's interpretation actually matches the game. Without a bezel, every value returns the core frame."),
-      path: z.string().optional().describe("op=screenshot/stepAndShot: absolute path to write to (required unless inline:true). `outputPath` is accepted as an alias — memory({op:'read'}) spells it that way, and one name failing on the other tool cost round trips."),
+      source: z.enum(["composite", "core", "both"]).optional().describe("op=screenshot/stepAndShot, with an Active Bezel loaded: which picture to capture. 'composite' (default when a bezel is active) = the final scene the package rendered, which is what the human sees. 'core' = the RAW emulator framebuffer, ignoring the bezel. 'both' returns the two together - the comparison that shows whether the package's interpretation actually matches the game. Without a bezel, every value returns the core frame."),
+      path: z.string().optional().describe("op=screenshot/stepAndShot: absolute path to write to (required unless inline:true). `outputPath` is accepted as an alias - memory({op:'read'}) spells it that way, and one name failing on the other tool cost round trips."),
       outputPath: z.string().optional().describe("Alias for `path` (op=screenshot/stepAndShot), so the spelling memory({op:'read'}) uses works here too."),
       inline: z.boolean().default(false).describe("op=screenshot/stepAndShot: return the image in the response instead of writing to disk."),
       overlayBoxes: z.boolean().default(false).describe("op=screenshot png: draw a colored bounding box per visible sprite (SNES+NES only)."),
       crop: z.object({ x: z.number().int().min(0).optional(), y: z.number().int().min(0).optional(), w: z.number().int().min(1).optional(), h: z.number().int().min(1).optional() }).optional().describe("op=screenshot png: crop to a framebuffer-pixel rect BEFORE any scale (clamped to the frame). THE HUD-verification token-saver: a native-res strip of the counter/bar is legible AND a fraction of the image tokens of the full frame (poke a value → crop-read the HUD in one call, no external image tools). Compose with integer scale for an enlarged detail view."),
-      scale: z.number().gt(0).max(16).refine((s) => s <= 1 || Number.isInteger(s), { message: "scale must be 0<scale≤1 (downscale) or an integer ≥2 (upscale)" }).optional().describe("op=screenshot png: nearest-neighbor resample factor. DEFAULT (unset/1) = NATIVE resolution — perfect pixels, the accurate representation; use this. 0<scale<1 DOWNscales (0.5 ≈ 75% fewer image tokens — useful for cheap 'did it change?' checks; NOT for READING text/counters — an 8px HUD font is illegible below native; use native res, ideally with `crop`). integer scale≥2 UPscales by pixel-duplication (e.g. scale:4 → GB 160x144 → 640x576): it adds NO information (same pixels enlarged), costs MORE image tokens, and since VLM encoders resize to their own fixed resolution it may not change what the model sees and can slightly degrade it. Only for clients that render tiny images too small to use and can't zoom."),
-      cols: z.number().int().min(4).max(640).optional().describe("op=screenshot ascii: terminal columns (default fb_width/8 — one cell per 8×8 tile, legible game state)."),
+      scale: z.number().gt(0).max(16).refine((s) => s <= 1 || Number.isInteger(s), { message: "scale must be 0<scale≤1 (downscale) or an integer ≥2 (upscale)" }).optional().describe("op=screenshot png: nearest-neighbor resample factor. DEFAULT (unset/1) = NATIVE resolution - perfect pixels, the accurate representation; use this. 0<scale<1 DOWNscales (0.5 ≈ 75% fewer image tokens - useful for cheap 'did it change?' checks; NOT for READING text/counters - an 8px HUD font is illegible below native; use native res, ideally with `crop`). integer scale≥2 UPscales by pixel-duplication (e.g. scale:4 → GB 160x144 → 640x576): it adds NO information (same pixels enlarged), costs MORE image tokens, and since VLM encoders resize to their own fixed resolution it may not change what the model sees and can slightly degrade it. Only for clients that render tiny images too small to use and can't zoom."),
+      cols: z.number().int().min(4).max(640).optional().describe("op=screenshot ascii: terminal columns (default fb_width/8 - one cell per 8×8 tile, legible game state)."),
       rows: z.number().int().min(4).max(480).optional().describe("op=screenshot ascii: terminal rows (default fb_height/8)."),
       symbols: z.enum(["ascii", "halfblock", "block", "quad", "sextant"]).default("ascii").describe("op=screenshot ascii: chafa symbol set."),
-      colors: z.enum(["true", "256", "16", "fgbg"]).default("256").describe("op=screenshot ascii: color depth. Default '256' (indexed) — far fewer ANSI escape bytes than 'true' (truecolor per cell) for a near-identical read. Use 'true' only when exact color matters."),
+      colors: z.enum(["true", "256", "16", "fgbg"]).default("256").describe("op=screenshot ascii: color depth. Default '256' (indexed) - far fewer ANSI escape bytes than 'true' (truecolor per cell) for a near-identical read. Use 'true' only when exact color matters."),
     },
     safeTool(async (rawArgs) => {
       // One spelling wins before dispatch, so no core has to know both.

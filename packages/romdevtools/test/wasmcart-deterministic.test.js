@@ -3,7 +3,7 @@
 // WC_DETERMINISTIC_RNG, WC_DEBUG_FIELDS, wc_debug_mark).
 //
 // Skip-guarded on the installed wasmcart: a clean clone pinned to wasmcart
-// 0.4.0 has no wc_set_seed/drainDebugEvents — these tests skip there and run
+// 0.4.0 has no wc_set_seed/drainDebugEvents - these tests skip there and run
 // fully once the 0.5.0 repin lands. The guard mirrors the host's own
 // feature-detection, so a skip here means the tools refuse loudly too.
 
@@ -117,7 +117,7 @@ test("regression frameHash golden is airtight under a seed (capture→check acro
 
 test("audioDebug record: a cart declaring sampleRate 0 gets a 48000 Hz WAV header", { skip }, async () => {
   // `?? 48000` let the declared-0 ("host decides") rate through as a 0 Hz WAV
-  // header — caught live by the starfall dogfood run. Must be `|| 48000`.
+  // header - caught live by the starfall dogfood run. Must be `|| 48000`.
   const { registerAudioTools } = await import("../src/mcp/tools/audio.js");
   const { readFile } = await import("node:fs/promises");
   const host = await loadDet(3);

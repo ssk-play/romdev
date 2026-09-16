@@ -1,7 +1,7 @@
 // CFG call edges + static reachability.
 //
 // THE BUG THIS PINS. A call ends a basic block conceptually, but the CFG
-// emitted neither the CALLEE (no node, no edge — the called function was
+// emitted neither the CALLEE (no node, no edge - the called function was
 // invisible) nor typed the RETURN SITE (where execution resumes once the
 // callee returns). For a recompiler that is fatal: `ret` pops an address that
 // has no compiled block, and execution traps on the first returned-to
@@ -13,7 +13,7 @@
 // does not end a basic block at a call on every architecture. On Z80 it treats
 // `call` as straight-line code, so a real SMS function had FOUR consecutive
 // calls sitting INSIDE one 31-byte block whose last instruction was a plain
-// `ld`. Reading only each block's terminator therefore found no calls at all —
+// `ld`. Reading only each block's terminator therefore found no calls at all -
 // the fix looked right on synthetic input and did nothing on real code. Calls
 // must be collected at every instruction, not just the block's last.
 
@@ -59,13 +59,13 @@ test("a call emits BOTH a call edge to the callee and a typed call_return edge",
 
   const calls = withCalls.edges.filter((e) => e.type === "call");
   const returns = withCalls.edges.filter((e) => e.type === "call_return");
-  assert.ok(calls.length > 0, "the callee edge must exist — otherwise the callee is invisible");
-  assert.ok(returns.length > 0, "the return site must be emitted — otherwise `ret` has no compiled block");
+  assert.ok(calls.length > 0, "the callee edge must exist - otherwise the callee is invisible");
+  assert.ok(returns.length > 0, "the return site must be emitted - otherwise `ret` has no compiled block");
 
   // Every call site must have a matching return site: the two halves of a call.
   for (const c of calls) {
     assert.ok(returns.some((r) => r.from === c.from),
-      `call at 0x${c.from.toString(16)} has no call_return — the return address would never be compiled`);
+      `call at 0x${c.from.toString(16)} has no call_return - the return address would never be compiled`);
   }
 
   // callTargets summarises the callees, which is what makes the call graph walkable.
@@ -125,7 +125,7 @@ test("reachable: the walk follows call edges and closes over the callees", async
   assert.ok(r.blockCount > 0, "the walk reaches blocks");
   assert.ok(r.functionCount > 1, `the walk must expand callees, got ${r.functionCount} function(s)`);
   assert.ok(r.byteSize > 0, "reached blocks have a byte size");
-  // Blocks are unique and sorted — a set, not a list with repeats.
+  // Blocks are unique and sorted - a set, not a list with repeats.
   const addrs = r.blocks.map((b) => b.address);
   assert.deepEqual(addrs, [...new Set(addrs)].sort((a, b) => a - b), "blocks are a sorted unique set");
   // The honest limit must be stated, because no static walk can follow a
@@ -174,7 +174,7 @@ test("functions: the default returns everything, and a cap renames the array", a
   assert.equal(all.functions.length, all.count);
 
   // Capped: renamed to `functionsPage` so a partial list cannot be misread as
-  // the whole set — the failure that scaled with ROM size (25 of 406 on Genesis).
+  // the whole set - the failure that scaled with ROM size (25 of 406 on Genesis).
   if (all.count > 1) {
     const page = await analyzeFunctions(rom, "nes", { topN: 1 });
     assert.equal(page.truncated, true);

@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 18
 __lua__
--- lane runner — a top-down endless racing scaffold
+-- lane runner - a top-down endless racing scaffold
 -- genre example for romdev/pico8. car sprites (see __gfx__), looping
 -- music, engine/crash sfx, 3-lane dodging, scrolling road + dashes,
 -- speed ramp, distance score + best. fork it.

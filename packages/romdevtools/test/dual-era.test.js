@@ -290,6 +290,6 @@ test("a call that names nothing is told the handle it was given", async () => {
   const dispatch = buildArgHandler(new Map());
   const r = await dispatch(modernBody(1, "tools/call", { name: "put", arguments: { v: "x" } }));
   assert.equal(r.result.content.length, 2);
-  assert.match(r.result.content[1].text, /^session: [0-9a-f-]{36} — /);
+  assert.match(r.result.content[1].text, /^session: [0-9a-f-]{36} - /);
   assert.match(r.result.content[1].text, /pass session:"/);
 });

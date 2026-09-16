@@ -1,28 +1,28 @@
-/* ── nes_runtime.h — neslib-shaped runtime for cc65 NES builds ───
+/* ── nes_runtime.h - neslib-shaped runtime for cc65 NES builds ───
  * Auto-included on every `build({output:'rom'})({platform:"nes", language:"c"})`.
  *
  * API mirrors Shiru's neslib so existing tutorials port cleanly:
  *
  *   PPU control
- *     ppu_off()            — disable rendering. Safe anytime.
- *     ppu_on_all()         — enable BG + sprites. Use after init.
- *     ppu_on_bg()          — enable BG only.
- *     ppu_on_spr()         — enable sprites only.
- *     ppu_wait_vblank()    — poll $2002 for vblank flag. Use during INIT,
+ *     ppu_off()            - disable rendering. Safe anytime.
+ *     ppu_on_all()         - enable BG + sprites. Use after init.
+ *     ppu_on_bg()          - enable BG only.
+ *     ppu_on_spr()         - enable sprites only.
+ *     ppu_wait_vblank()    - poll $2002 for vblank flag. Use during INIT,
  *                            before rendering is enabled. Do not call in
- *                            the game loop — use ppu_wait_nmi instead.
- *     ppu_wait_nmi()       — wait until the next NMI fires (vblank-driven).
+ *                            the game loop - use ppu_wait_nmi instead.
+ *     ppu_wait_nmi()       - wait until the next NMI fires (vblank-driven).
  *                            Returns within ~1 frame. Use as the heartbeat
  *                            of your game loop.
  *
  *   Palettes
- *     palette_load(p32)    — write 32 bytes to $3F00. PPU must be off.
+ *     palette_load(p32)    - write 32 bytes to $3F00. PPU must be off.
  *
  *   OAM (shadow buffer at $0200; NMI auto-DMAs each frame)
- *     oam_clear()          — set all 64 sprites Y=$FF (off-screen).
- *     oam_spr(x,y,tile,attr) — push one sprite to the next free slot.
+ *     oam_clear()          - set all 64 sprites Y=$FF (off-screen).
+ *     oam_spr(x,y,tile,attr) - push one sprite to the next free slot.
  *
- *     ⚠ FRAME ORDER — the #1 NES footgun. Stage sprites (oam_clear +
+ *     ⚠ FRAME ORDER - the #1 NES footgun. Stage sprites (oam_clear +
  *     oam_spr) BEFORE ppu_wait_nmi(), never after. The NMI handler DMAs
  *     this shadow buffer → real OAM at the START of vblank, copying
  *     whatever it holds at that instant. Correct loop:
@@ -35,29 +35,29 @@
  *     shows stale or empty sprites. Every genre template uses this order.
  *
  *   Input (Shiru bit layout: A=$80, B=$40, ...)
- *     pad_poll(0|1)        — read controller, return packed byte.
+ *     pad_poll(0|1)        - read controller, return packed byte.
  *
- *   CHR-RAM (only in chr-ram preset — the default for C builds)
- *     chr_ram_upload(ppu_addr, src, n) — copy tiles to pattern table.
+ *   CHR-RAM (only in chr-ram preset - the default for C builds)
+ *     chr_ram_upload(ppu_addr, src, n) - copy tiles to pattern table.
  *                            PPU must be off (rendering disabled). Set
  *                            ppu_addr = 0x0000 for sprite tiles, 0x1000
  *                            for BG tiles (or wherever your LCDC config
  *                            points).
  *
  *   Nametable / VRAM queue (writes batched + flushed by NMI)
- *     vram_set(ppu_addr, tile)       — queue a single byte write.
- *     tile_set(nt, x, y, tile)       — queue write to nametable cell.
- *     tile_set_palette(nt, x, y, p)  — queue attribute-table RMW.
- *     vram_unsafe_set(ppu_addr, byte) — write directly (PPU must be off).
- *     ppu_scroll(x, y)               — set scroll (NMI commits it).
+ *     vram_set(ppu_addr, tile)       - queue a single byte write.
+ *     tile_set(nt, x, y, tile)       - queue write to nametable cell.
+ *     tile_set_palette(nt, x, y, p)  - queue attribute-table RMW.
+ *     vram_unsafe_set(ppu_addr, byte) - write directly (PPU must be off).
+ *     ppu_scroll(x, y)               - set scroll (NMI commits it).
  *
  *   System
- *     ppu_system()         — 0 = NTSC, 1 = PAL. Detected at boot.
+ *     ppu_system()         - 0 = NTSC, 1 = PAL. Detected at boot.
  *
- * Globals (live in BSS / ZP — read at your peril):
+ * Globals (live in BSS / ZP - read at your peril):
  *
- *   shadow_oam[256]   — at $0200. NMI DMAs this to $2003.
- *   nmi_counter       — increments each NMI. Useful for "wait N frames".
+ *   shadow_oam[256]   - at $0200. NMI DMAs this to $2003.
+ *   nmi_counter       - increments each NMI. Useful for "wait N frames".
  */
 #ifndef NES_RUNTIME_H
 #define NES_RUNTIME_H
@@ -88,7 +88,7 @@ void oam_spr(uint8_t x, uint8_t y, uint8_t tile, uint8_t attr);
 /* ── Input ────────────────────────────────────────────────────── */
 uint8_t pad_poll(uint8_t which);
 
-/* Shiru bit layout — d-pad in LOW nybble, buttons in HIGH nybble. */
+/* Shiru bit layout - d-pad in LOW nybble, buttons in HIGH nybble. */
 #define PAD_A       0x80
 #define PAD_B       0x40
 #define PAD_SELECT  0x20
@@ -102,10 +102,10 @@ uint8_t pad_poll(uint8_t which);
 void chr_ram_upload(uint16_t ppu_addr, const uint8_t *src, uint16_t n);
 
 /* ── Nametable + VRAM queue ────────────────────────────────────── */
-/* Direct writes — PPU must be off (rendering disabled). Use during init. */
+/* Direct writes - PPU must be off (rendering disabled). Use during init. */
 void vram_unsafe_set(uint16_t ppu_addr, uint8_t byte);
 
-/* Queued writes — committed by the NMI handler next vblank. Safe during
+/* Queued writes - committed by the NMI handler next vblank. Safe during
  * rendering. Queue holds 16 entries; flushes itself on overflow by
  * waiting for the next NMI. */
 void vram_set(uint16_t ppu_addr, uint8_t tile);
@@ -115,10 +115,10 @@ void tile_set_palette(uint8_t nt, uint8_t x, uint8_t y, uint8_t palette);
 /* Scroll. NMI commits these to PPUSCROLL/PPUCTRL at end of vblank. */
 void ppu_scroll(uint16_t x, uint16_t y);
 
-/* ── Sound (NES APU — pulse/triangle/noise channels) ──────────── */
+/* ── Sound (NES APU - pulse/triangle/noise channels) ──────────── */
 /*
  * sound_init()
- *     Enable the APU channels (writes $0F to $4015 — pulse1+pulse2+
+ *     Enable the APU channels (writes $0F to $4015 - pulse1+pulse2+
  *     triangle+noise on, DMC off) + set frame counter to 4-step mode
  *     (writes $40 to $4017 to disable frame IRQ). Call once at boot.
  *
@@ -127,7 +127,7 @@ void ppu_scroll(uint16_t x, uint16_t y);
  *     `period` is the 11-bit NES timer value (lower = higher pitch):
  *       A4 = $0FD   C5 = $1AA   G5 = $0FE   C6 = $0D6
  *       (formula: 1789773 / (16 * Hz) - 1)
- *     `vol_4bit` (0-15) is volume — ignored for triangle (always max).
+ *     `vol_4bit` (0-15) is volume - ignored for triangle (always max).
  *     `length_frames` (0-31) maps into the APU length-counter table
  *     (roughly N * 16ms).
  *
@@ -138,14 +138,14 @@ void ppu_scroll(uint16_t x, uint16_t y);
  * sound_off()
  *     Silences all channels (writes $00 to $4015).
  *
- * These are fire-and-forget — the APU's length counter cuts off the
+ * These are fire-and-forget - the APU's length counter cuts off the
  * note after `length_frames`. No per-frame upkeep needed.
  */
 void sound_init(void);
 void sound_play_tone(uint8_t channel, uint16_t period, uint8_t vol_4bit, uint8_t length_frames);
 void sound_play_noise(uint8_t period_4bit, uint8_t vol_4bit, uint8_t length_frames);
 void sound_off(void);
-void sound_music(uint8_t on);      /* background triangle melody — ON by default; 0 = off */
+void sound_music(uint8_t on);      /* background triangle melody - ON by default; 0 = off */
 void sound_music_tick(void);       /* call once per frame (the example games do) */
 
 /* ── Globals ──────────────────────────────────────────────────── */
@@ -160,10 +160,10 @@ extern volatile uint8_t nmi_counter;  /* increments each NMI */
  *     $4A-$63, '-' = $64; space maps to tile 0). Call once during init
  *     (PPU off), after your other CHR uploads.
  *
- * text_draw_unsafe(ppu_addr, s)   — PPU OFF only (init/title paint).
- * text_draw(nt, x, y, s)          — queued, safe during rendering (NMI
+ * text_draw_unsafe(ppu_addr, s)   - PPU OFF only (init/title paint).
+ * text_draw(nt, x, y, s)          - queued, safe during rendering (NMI
  *                                   commits next vblank; 16-entry queue).
- * text_draw_u16(nt, x, y, v)      — 5 right-aligned decimal digits (queued).
+ * text_draw_u16(nt, x, y, v)      - 5 right-aligned decimal digits (queued).
  */
 void font_upload(void);
 void text_draw_unsafe(uint16_t ppu_addr, const char *s);
@@ -179,7 +179,7 @@ void text_draw_u16(uint8_t nt, uint8_t x, uint8_t y, uint16_t v);
  * (score lo ^ score hi ^ $A5).
  *
  * hiscore_load() → the saved score, or 0 when the SRAM is empty/corrupt
- * (first boot reads open-bus-like garbage — the magic+checksum reject it).
+ * (first boot reads open-bus-like garbage - the magic+checksum reject it).
  * hiscore_save(v) → store v. Call when a run ends with a new record.
  */
 uint16_t hiscore_load(void);

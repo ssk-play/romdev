@@ -1,4 +1,4 @@
-// playtest tools — open a live SDL window for the loaded ROM, with the
+// playtest tools - open a live SDL window for the loaded ROM, with the
 // emulator host shared between the window and every other MCP tool.
 // Returns immediately; you can call screenshot / readMemory / saveState /
 // pause / stepFrames etc. while the user is playing.
@@ -13,7 +13,7 @@ import { reloadForFastPresent } from "./fast-present.js";
 
 // Playtest windows are PER SESSION: the MCP server is multi-session (one server
 // serves several agents at once), and the same user can have 2-3 different games
-// open simultaneously — each in its own window. So we key the window handle by
+// open simultaneously - each in its own window. So we key the window handle by
 // sessionKey, NOT a single module global. One agent's window never clobbers
 // another's, and closing one session tears down only its own window.
 /** @type {Map<string, any>} */
@@ -44,7 +44,7 @@ export function stopPlaytestForSession(sessionKey) {
 /**
  * Close EVERY open playtest window. Called from the server's shutdown path so a
  * shutdown leaves no window behind. Windows are in-process (same Node process
- * as the server), so a clean exit tears them down anyway — but this makes it
+ * as the server), so a clean exit tears them down anyway - but this makes it
  * explicit and synchronous on SIGINT/SIGTERM across all sessions.
  * @returns {number} how many windows were closed
  */
@@ -61,7 +61,7 @@ export function stopAllPlaytest() {
  * Pure truth-test for a playtest session handle. Prefers the window-level
  * probe (`windowAlive()`), which reflects the real SDL window even when it
  * died without firing a 'close' event (compositor kill, X/Wayland session
- * loss, freed handle) — the case where the plain `running` flag lies. Falls
+ * loss, freed handle) - the case where the plain `running` flag lies. Falls
  * back to `running` for older handles that predate the probe. Exported so the
  * reconciliation contract is unit-testable without opening a real window.
  *
@@ -129,7 +129,7 @@ export function getPlaytestHumanStatus(sessionKey) {
  * The warning attached to frame({op:'step'/'stepAndShot'}) and input(set/press/
  * sequence/navigate) responses while a human is co-driving this session's
  * playtest window. null when there's no window or the human hasn't pressed
- * recently — so the field only appears when there's a REAL conflict.
+ * recently - so the field only appears when there's a REAL conflict.
  * @param {string} sessionKey
  * @returns {string | null}
  */
@@ -138,7 +138,7 @@ export function humanCoDriveWarning(sessionKey) {
   if (!st.windowOpen || !st.humanInputActive) return null;
   const ago = st.framesSinceHumanInput != null ? `~${st.framesSinceHumanInput} frames ago` : "moments ago";
   return (
-    `A playtest window is open and the HUMAN last pressed buttons ${ago} — you are co-driving the same ` +
+    `A playtest window is open and the HUMAN last pressed buttons ${ago} - you are co-driving the same ` +
     "emulator. While they press, the window's input overwrites yours each tick (the human wins), and its " +
     "real-time 60fps loop races your frame-stepping (non-deterministic results). Either host({op:'pause'}) " +
     "while you inspect (the window keeps rendering, frozen), do deterministic work in a SECOND session " +
@@ -147,7 +147,7 @@ export function humanCoDriveWarning(sessionKey) {
 }
 
 export function registerPlaytestTools(server, z, sessionKey) {
-  // op:'open' — open (or reuse) the SDL window for this session.
+  // op:'open' - open (or reuse) the SDL window for this session.
   async function ptOpen({ scale = 3, title, aspect = "tv", fpsOverlay = false, fastPresent = false }) {
       let host = getHost(sessionKey);
       let loadedMediaPath = host.status?.mediaPath ?? null;
@@ -177,14 +177,14 @@ export function registerPlaytestTools(server, z, sessionKey) {
           loadedMediaPath = reloaded.status?.mediaPath ?? loadedMediaPath;
         }
       }
-      // No env-var preflight here — the GROUND-TRUTH "is there a real display?"
+      // No env-var preflight here - the GROUND-TRUTH "is there a real display?"
       // check lives in loadSdl() (it asks SDL which video driver it selected and
       // throws sdlKind:"no-display" if it's offscreen/dummy). That's cross-
       // platform and doesn't false-bark on valid offscreen setups like Xvfb.
       // The try/catch below surfaces it (and the binary errors) uniformly.
       if (reconcileSession(sessionKey)) {
         // THIS session already has a window open. We don't open a second one for
-        // the same session — it shares this session's live host — so report the
+        // the same session - it shares this session's live host - so report the
         // existing one. (A DIFFERENT session having its own window is fine and
         // independent; this only reuses your own.)
         const reused = sessions.get(sessionKey);
@@ -193,21 +193,21 @@ export function registerPlaytestTools(server, z, sessionKey) {
           reusedExistingWindow: true,
           loadedMediaPath,
           frameCount: host.status?.frameCount ?? reused?.frameCount,
-          // Report the present path here too — a reopen must not be the one
+          // Report the present path here too - a reopen must not be the one
           // call that hides a 5-8x slow window.
           presenting: reused?.presenting,
           ...(reused?.presenting === "readback"
             ? {
                 presentingWarning:
-                  "This GL cart is on the CPU-readback present path — typically 5-8x " +
+                  "This GL cart is on the CPU-readback present path - typically 5-8x " +
                   "slower than it needs to be. Fixing it means RELOADING the cart, which " +
-                  "RESTARTS it — and this window is already open, so a human may be " +
+                  "RESTARTS it - and this window is already open, so a human may be " +
                   "playing in it right now. Only if nobody is: playtest({op:'stop'}), " +
                   "then playtest({op:'open', fastPresent:true}). Otherwise leave it; a " +
                   "slow window beats losing someone's progress mid-game.",
               }
             : {}),
-          note: "A playtest window was already open for this session — reused it (it shares your session's live host and already shows your latest loaded/rebuilt ROM). Call playtestStop first to reopen with a different scale/aspect. (Other agents' windows are separate.)",
+          note: "A playtest window was already open for this session - reused it (it shares your session's live host and already shows your latest loaded/rebuilt ROM). Call playtestStop first to reopen with a different scale/aspect. (Other agents' windows are separate.)",
         });
       }
 
@@ -245,7 +245,7 @@ export function registerPlaytestTools(server, z, sessionKey) {
         session.autoCheckpointPath = autoCheckpointPath;
         sessions.set(sessionKey, session);
       } catch (e) {
-        // Branch on WHY it failed — the cause is either the @kmamal/sdl native
+        // Branch on WHY it failed - the cause is either the @kmamal/sdl native
         // binary not being installed (common under `npx`, where the transitive
         // install script is skipped) or an actual display/session problem.
         // Conflating them (the old message always blamed the desktop session)
@@ -253,10 +253,10 @@ export function registerPlaytestTools(server, z, sessionKey) {
         const kind = e?.sdlKind;
         const headlessNote =
           " Every headless tool (screenshot / runSource / readMemory / " +
-          "stepFrames / pressButton) still works against the live ROM — only " +
+          "stepFrames / pressButton) still works against the live ROM - only " +
           "the interactive window is affected.";
 
-        // A failed window-open is a REAL FAILURE — THROW it, don't return a soft
+        // A failed window-open is a REAL FAILURE - THROW it, don't return a soft
         // {opened:false} object. Returning success-shaped JSON made the failure
         // invisible on the REST/skill surface (HTTP 200 = "it worked"), so an
         // agent driving the routes would report "window's up!" while no window
@@ -265,7 +265,7 @@ export function registerPlaytestTools(server, z, sessionKey) {
         // human watching the terminal sees it even if the agent buries the error.
         let reason, message;
         if (kind === "no-display") {
-          // GROUND TRUTH: SDL came up on the offscreen/dummy driver — there is no
+          // GROUND TRUTH: SDL came up on the offscreen/dummy driver - there is no
           // physical screen to show the window on (it would render + play audio
           // but be invisible). loadSdl()'s message already says exactly this + the
           // fix; pass it straight through.
@@ -282,12 +282,12 @@ export function registerPlaytestTools(server, z, sessionKey) {
             "binary isn't installed: " + (e?.message ?? String(e)) + ". " +
             (kind === "install-failed"
               ? "An automatic install was attempted but failed (often a network/proxy block on the GitHub release download). "
-              : "(This is common under `npx romdevtools` — npm skips @kmamal/sdl's install script that fetches the binary; the server tried to self-heal but the binary is still absent.) ") +
+              : "(This is common under `npx romdevtools` - npm skips @kmamal/sdl's install script that fetches the binary; the server tried to self-heal but the binary is still absent.) ") +
             fix + "This is a one-time native-addon fix, NOT a display/desktop " +
             "issue." + headlessNote;
         } else {
           // Anything else SDL threw. Do NOT overwrite the quoted error with a
-          // confident display/desktop diagnosis — "invalid width" (a romdev
+          // confident display/desktop diagnosis - "invalid width" (a romdev
           // window-sizing bug) wore the "couldn't get a display" costume once
           // and sent the human debugging the wrong layer. The quoted SDL
           // message is the ground truth; desktop-session advice is offered as
@@ -299,18 +299,18 @@ export function registerPlaytestTools(server, z, sessionKey) {
             "Couldn't open the SDL playtest window: " + msg + "." +
             (smellsLikeDisplay
               ? " This usually means the server has no access to a logged-in " +
-                "desktop session — e.g. it was spawned as an MCP subprocess by " +
+                "desktop session - e.g. it was spawned as an MCP subprocess by " +
                 "your agent host, or runs over plain SSH/headless. The reliable " +
                 "fix: run the server yourself in a terminal inside your desktop " +
                 "session, then connect your agent to it."
               : " That quoted SDL error is the actual fault (not a display/" +
-                "desktop-session problem) — report it as a romdev bug if it " +
+                "desktop-session problem) - report it as a romdev bug if it " +
                 "isn't obviously environmental.") +
             headlessNote + " You can also open the built ROM in any standalone emulator.";
         }
         // Server-console breadcrumb (stderr) so a human at the terminal sees the
         // failure regardless of whether the agent relays the tool error.
-        log.error(`playtest: window failed to open (${reason}) — ${e?.fixCmd ? "fix: " + e.fixCmd : message.slice(0, 120)}`);
+        log.error(`playtest: window failed to open (${reason}) - ${e?.fixCmd ? "fix: " + e.fixCmd : message.slice(0, 120)}`);
         const err = new Error(message);
         err.reason = reason;
         if (e?.fixCmd) err.fixCommand = e.fixCmd;
@@ -325,7 +325,7 @@ export function registerPlaytestTools(server, z, sessionKey) {
       // No gamepad plugged in → the user is on the keyboard fallback. Hand the
       // agent the key map AND an explicit instruction to relay it, so the user
       // isn't left guessing which keys drive the game. (A pad hot-plugged later
-      // is picked up automatically — this is just the at-open state.)
+      // is picked up automatically - this is just the at-open state.)
       const noController = session.controllerCount === 0;
       const isC64 = host.status?.platform === "c64";
       return jsonContent({
@@ -351,15 +351,15 @@ export function registerPlaytestTools(server, z, sessionKey) {
                 : { applied: false, reason: fastPresentResult.reason } }
           : {}),
         // A GL cart on the readback path is the one case that is both slow AND
-        // fixable, so say so where an agent will actually read it — and name
+        // fixable, so say so where an agent will actually read it - and name
         // the cart, so the recipe is copy-pasteable rather than a shape to
-        // fill in. (The flag has to be set at LOAD time — the GL context binds
-        // when the cart's wasm loads — which is why the fix is a RELOAD and
+        // fill in. (The flag has to be set at LOAD time - the GL context binds
+        // when the cart's wasm loads - which is why the fix is a RELOAD and
         // why it resets the cart rather than being a free upgrade.)
         ...(session.presenting === "readback"
           ? {
               presentingWarning:
-                "This GL cart is on the CPU-readback present path — typically 5-8x " +
+                "This GL cart is on the CPU-readback present path - typically 5-8x " +
                 "slower than it needs to be (measured on 1080p carts: 27.9/45.1/54.9 ms " +
                 "per frame vs 3.4/6.1/9.1 GPU-direct; the worst case is a human playing " +
                 "at 41 fps). Easiest fix: reopen with playtest({op:'open', fastPresent:true}), " +
@@ -381,7 +381,7 @@ export function registerPlaytestTools(server, z, sessionKey) {
             ? " NOTE: this platform has no whole-machine savestate, so the checkpoint is the cart's SAVE DATA -- it restores the player's saved progress, not the exact frame."
             : ""),
         // C64 input is non-obvious (games need keyboard keys to START), so ALWAYS
-        // relay the controls — a controller alone IS enough (spare buttons/stick
+        // relay the controls - a controller alone IS enough (spare buttons/stick
         // map to F1/Run-Stop/Space/Return), and the keyboard fallback covers the
         // no-controller case. This is the Batocera/RetroDeck model.
         ...(isC64
@@ -389,7 +389,7 @@ export function registerPlaytestTools(server, z, sessionKey) {
               c64Controls: C64_BINDINGS_HELP,
               tellUser:
                 "C64 game: RELAY `c64Controls` to the user. A CONTROLLER ALONE is " +
-                "enough — they do NOT need a keyboard. Most C64 games need a " +
+                "enough - they do NOT need a keyboard. Most C64 games need a " +
                 "keyboard key to START (e.g. F1 for 1 player); the pad's spare " +
                 "buttons/right-stick map to those (F1/F3/F5/F7, Space, Run/Stop, " +
                 "Return). Default joystick port is 2; change with input({op:'joyport'}).",
@@ -398,13 +398,13 @@ export function registerPlaytestTools(server, z, sessionKey) {
           ? {
               keyboardControls: KEYBOARD_BINDINGS_HELP,
               tellUser:
-                "No gamepad detected — the user is on the keyboard. RELAY the " +
+                "No gamepad detected - the user is on the keyboard. RELAY the " +
                 "`keyboardControls` mapping to them so they know which keys to " +
                 "press (arrows = D-pad, Z = main action, etc.). A USB controller " +
                 "plugged in later is picked up automatically.",
             }
           : {}),
-        // The window's hotkeys were undiscoverable — nothing in the open
+        // The window's hotkeys were undiscoverable - nothing in the open
         // response mentioned them, so a human had no way to learn they exist
         // short of reading the source. Relay them to whoever opened it.
         hotkeys: "F11 fullscreen · P/Space pause · F2 save state · F4 load state · F3 fps overlay · ESC close. While PAUSED: K frame-advance, R rewind one frame.",
@@ -412,18 +412,18 @@ export function registerPlaytestTools(server, z, sessionKey) {
       });
   }
 
-  // op:'stop' — close this session's window.
+  // op:'stop' - close this session's window.
   async function ptStop() {
       return textContent(stopPlaytestForSession(sessionKey) ? "playtest window closed" : "no playtest window open");
   }
 
-  // op:'status' — is a window open, what's it showing, does it match the active host?
+  // op:'status' - is a window open, what's it showing, does it match the active host?
   async function ptStatus() {
       // reconcileSession() probes the real SDL window and tears down a dead
-      // one — so a window killed without a 'close' event reports running:false
+      // one - so a window killed without a 'close' event reports running:false
       // instead of lying forever (the post-restart / compositor-kill case).
       if (!reconcileSession(sessionKey)) {
-        // No window — but report whether a host/ROM is still loaded so the
+        // No window - but report whether a host/ROM is still loaded so the
         // caller can decide whether to re-loadMedia or just re-open playtest,
         // instead of defensively reloading (Jay's session2 #3).
         const h = getHostOrNull(sessionKey);
@@ -433,8 +433,8 @@ export function registerPlaytestTools(server, z, sessionKey) {
           activeMediaPath: h?.status?.mediaPath ?? null,
           activeFrameCount: h?.status?.frameCount ?? null,
           note: h
-            ? "No playtest window, but a host/ROM is still loaded — re-open playtest without re-running loadMedia."
-            : "No playtest window and no host loaded — loadMedia (or runSource) first.",
+            ? "No playtest window, but a host/ROM is still loaded - re-open playtest without re-running loadMedia."
+            : "No playtest window and no host loaded - loadMedia (or runSource) first.",
         });
       }
       const session = sessions.get(sessionKey);
@@ -449,7 +449,7 @@ export function registerPlaytestTools(server, z, sessionKey) {
         running: true,
         // Is the human ACTIVELY playing right now (pressed within ~2 s)? While
         // true, your input/setInput is overwritten each tick and real-time
-        // stepping races yours — pause, or use a second session.
+        // stepping races yours - pause, or use a second session.
         humanInputActive: human.humanInputActive,
         ...(human.framesSinceHumanInput != null ? { framesSinceHumanInput: human.framesSinceHumanInput } : {}),
         // What the HUMAN is looking at (the window's own host):
@@ -472,7 +472,7 @@ export function registerPlaytestTools(server, z, sessionKey) {
         ...(session.presenting === "readback"
           ? {
               presentingWarning:
-                "GL cart on the CPU-readback present path — typically 5-8x slower " +
+                "GL cart on the CPU-readback present path - typically 5-8x slower " +
                 "than GPU-direct. Reload with loadMedia({presentWindow:true}) and " +
                 "reopen (the reload restarts the cart).",
             }
@@ -507,7 +507,7 @@ export function registerPlaytestTools(server, z, sessionKey) {
       });
   }
 
-  // op:'framebuffer' — capture the EXACT frame the human's window shows.
+  // op:'framebuffer' - capture the EXACT frame the human's window shows.
   async function ptFramebuffer({ path: outPath, inline }) {
       if (!reconcileSession(sessionKey)) {
         return jsonContent({
@@ -526,7 +526,7 @@ export function registerPlaytestTools(server, z, sessionKey) {
         return jsonContent({
           ok: false,
           error: "playtest window has no loaded host right now (mid-rebuild?)",
-          hint: "A build({output:'run'})/loadMedia may be swapping the host this instant — retry in a moment.",
+          hint: "A build({output:'run'})/loadMedia may be swapping the host this instant - retry in a moment.",
         });
       }
       const meta = {
@@ -548,17 +548,17 @@ export function registerPlaytestTools(server, z, sessionKey) {
       return {
         content: [
           imageContent(frame.pngBase64),
-          { type: "text", text: `playtest framebuffer ${frame.width}x${frame.height} — ${frame.loadedMediaPath ?? "<memory>"} @ frame ${frame.frameCount}` },
+          { type: "text", text: `playtest framebuffer ${frame.width}x${frame.height} - ${frame.loadedMediaPath ?? "<memory>"} @ frame ${frame.frameCount}` },
         ],
       };
   }
 
-  // op:'fps' — agent-side control of the on-screen fps counter (same state F3 flips).
+  // op:'fps' - agent-side control of the on-screen fps counter (same state F3 flips).
   function ptFps({ show }) {
       if (!reconcileSession(sessionKey)) {
         return jsonContent({
           fpsOverlay: null,
-          note: "No playtest window open for this session — playtest({op:'open'}) first (pass fpsOverlay:true to open with the counter on). The title bar always shows fps while a window is open.",
+          note: "No playtest window open for this session - playtest({op:'open'}) first (pass fpsOverlay:true to open with the counter on). The title bar always shows fps while a window is open.",
         });
       }
       const session = sessions.get(sessionKey);
@@ -572,7 +572,7 @@ export function registerPlaytestTools(server, z, sessionKey) {
       });
   }
 
-  // op:'bezel' — suspend/resume the Active Bezel (same state the B hotkey
+  // op:'bezel' - suspend/resume the Active Bezel (same state the B hotkey
   // flips). Session-level, not window-level: it also governs screenshots, so
   // it works with no window open. `show` names the ACTIVE state; the wire
   // status reports `bypassed` (the suspended state) to match catalog status.
@@ -581,15 +581,15 @@ export function registerPlaytestTools(server, z, sessionKey) {
       if (bypassed === null) {
         return jsonContent({
           bezel: null,
-          note: "No Active Bezel attached to this session — loadMedia with useActiveBezel/activeBezelPath first.",
+          note: "No Active Bezel attached to this session - loadMedia with useActiveBezel/activeBezelPath first.",
         });
       }
       return jsonContent({
         bezel: bypassed ? "suspended" : "active",
         activeBezel: activeBezelStatus(sessionKey),
         note: bypassed
-          ? "Bezel SUSPENDED: captures/window show the raw core frame (source:'core'), pre_frame stops shaping the game, and the guest keeps ALL its state — resume does not re-run init(). The human can also toggle with B."
-          : "Bezel ACTIVE again — same guest instance, nothing was re-initialized.",
+          ? "Bezel SUSPENDED: captures/window show the raw core frame (source:'core'), pre_frame stops shaping the game, and the guest keeps ALL its state - resume does not re-run init(). The human can also toggle with B."
+          : "Bezel ACTIVE again - same guest instance, nothing was re-initialized.",
       });
   }
 
@@ -597,48 +597,48 @@ export function registerPlaytestTools(server, z, sessionKey) {
     "playtest",
     "Show the loaded ROM to a HUMAN in a native SDL window, one tool keyed by `op`. For your OWN build-iteration " +
     "testing use frame({op:'screenshot'}) / build({output:'run'}) instead.\n" +
-    "• op:'open' (default) — open (or reuse this session's) window. Only call it once the game is worth a human's " +
-    "eyes (boots, renders, the feature is visible) — a window on a black screen/crash just wastes their attention. " +
-    "OPENING A GL CART FOR A HUMAN? pass fastPresent:true — a GL cart loaded the ordinary way presents by dragging " +
+    "• op:'open' (default) - open (or reuse this session's) window. Only call it once the game is worth a human's " +
+    "eyes (boots, renders, the feature is visible) - a window on a black screen/crash just wastes their attention. " +
+    "OPENING A GL CART FOR A HUMAN? pass fastPresent:true - a GL cart loaded the ordinary way presents by dragging " +
     "every frame back to the CPU (5-8x slower; a human at 41 fps), and this call is where you find out. " + +
     "BEST FOR diagnosing a USER-REPORTED bug: hand them the window, let them drive to the exact moment, then " +
     "inspect the SAME live host in real time (memory/watch/sprites/state). Every other tool keeps working against " +
-    "that live host while the window is open. FOOTGUN — the window's loop steps the core in REAL TIME, and while " +
-    "the human is pressing (pad/keyboard) it writes their input each tick, overwriting yours — the human wins. " +
+    "that live host while the window is open. FOOTGUN - the window's loop steps the core in REAL TIME, and while " +
+    "the human is pressing (pad/keyboard) it writes their input each tick, overwriting yours - the human wins. " +
     "(When the human is idle the window leaves your input({op:'set'}) alone, but its 60fps stepping still races " +
     "your frame({op:'step'}).) You'll KNOW: frame/input responses carry `humanCoDriveWarning` while the human " +
     "pressed within ~2s, and catalog({op:'status'})/playtest({op:'status'}) expose `humanInputActive`. To inspect " +
     "a moving state freeze it first: host({op:'pause'}) → read → host({op:'resume'}); for deterministic stepping " +
-    "while the human plays, use a SECOND session (a different `session` argument — or x-romdev-session header over HTTP — = a fully isolated emulator; the first window stays bound to the session that opened it). " +
+    "while the human plays, use a SECOND session (a different `session` argument - or x-romdev-session header over HTTP - = a fully isolated emulator; the first window stays bound to the session that opened it). " +
     "Requires @kmamal/sdl. `scale`/`title`/`aspect` shape the window.\n" +
-    "• op:'stop' — close THIS session's window (the host stays loaded; other agents' windows unaffected).\n" +
-    "• op:'status' — is a window open, what ROM/frame it shows, and `activeHostMatchesWindow` (false = a build/" +
-    "loadMedia swapped the active host, so frame({op:'screenshot'}) no longer shows what the human sees — use op:'framebuffer').\n" +
-    "• op:'framebuffer' — capture the EXACT framebuffer the human's window shows (the window's own host, not the " +
+    "• op:'stop' - close THIS session's window (the host stays loaded; other agents' windows unaffected).\n" +
+    "• op:'status' - is a window open, what ROM/frame it shows, and `activeHostMatchesWindow` (false = a build/" +
+    "loadMedia swapped the active host, so frame({op:'screenshot'}) no longer shows what the human sees - use op:'framebuffer').\n" +
+    "• op:'framebuffer' - capture the EXACT framebuffer the human's window shows (the window's own host, not the " +
     "active host frame({op:'screenshot'}) reads). `path` (default) or `inline:true`.\n" +
-    "• op:'fps' — show/hide the on-screen fps counter in the human's window (`show:true|false`, omit to toggle; " +
+    "• op:'fps' - show/hide the on-screen fps counter in the human's window (`show:true|false`, omit to toggle; " +
     "same state as the F3 hotkey). The title bar always shows live fps, and op:'status' returns `perf` " +
-    "(fps/tickHz + per-stage ms) for YOUR diagnosis — use op:'fps' when the HUMAN should see the number.\n" +
-    "• op:'bezel' — suspend/resume the attached Active Bezel (`show:true|false`, omit to toggle; same state as " +
+    "(fps/tickHz + per-stage ms) for YOUR diagnosis - use op:'fps' when the HUMAN should see the number.\n" +
+    "• op:'bezel' - suspend/resume the attached Active Bezel (`show:true|false`, omit to toggle; same state as " +
     "the B hotkey; the guest keeps all its state, captures show the raw core while suspended). An Active Bezel " +
     "is NOT a static frame image: it is a programmable WASM companion running on a GPU compositor that reads " +
-    "live game memory and owns the whole presented picture — panels, live maps, reconstructed layers, pre_frame " +
+    "live game memory and owns the whole presented picture - panels, live maps, reconstructed layers, pre_frame " +
     "input remaps, and GLSL fragment shaders over the frame (`effect_set`, per-surface `surface_filter`). " +
     "Asked for RetroArch-style CRT/scanline/GL filters in this window? That IS the mechanism: single-pass " +
     "RetroArch .glsl sources port into `effect_set` near-verbatim, and `surface_preset(src, dst, 'crt.glslp')` " +
-    "runs a whole multi-pass RetroArch preset (bring the preset files — none ship). There is no separate shader " +
+    "runs a whole multi-pass RetroArch preset (bring the preset files - none ship). There is no separate shader " +
     "parameter on this tool; attach a bezel via loadMedia (useActiveBezel / activeBezelPath).",
     {
       op: z.enum(["open", "stop", "status", "framebuffer", "fps", "bezel"]).default("open")
-        .describe("open=show the ROM to a human (default); stop=close this session's window; status=is it open + does it match the active host; framebuffer=capture what the human sees; fps=show/hide the on-screen fps counter; bezel=suspend/resume the attached Active Bezel WITHOUT tearing it down (same state the B hotkey flips; guest keeps all its state, captures show the raw core while suspended). A bezel is a programmable WASM+GPU compositor — panels/maps/input remaps/GLSL shader effects over the frame — not a static border image; see the main description."),
-      scale: z.number().int().min(1).max(8).default(3).describe("op:open — integer upscale factor for the window."),
-      title: z.string().optional().describe("op:open — window title."),
-      aspect: z.enum(["fb", "tv", "core"]).default("tv").describe("op:open — initial window shape. 'tv' (DEFAULT) = how a player saw the hardware (4:3 consoles; native LCD for handhelds — GB/GBC 10:9 not stretched, GG ~6:5, Lynx 4:3, GBA 3:2). 'fb' = raw framebuffer × scale (square pixels, dev geometry). 'core' honors the core's display_aspect_ratio. NOTE: 'tv' reads the platform from the running host, so pass the correct `platform` to loadMedia (gbc not gb for a CGB game) or it falls back to the fb aspect."),
-      path: z.string().optional().describe("op:framebuffer — absolute path to write the PNG to. Required unless inline:true."),
-      inline: z.boolean().default(false).describe("op:framebuffer — return the image in the response instead of writing to disk."),
-      fpsOverlay: z.boolean().default(false).describe("op:open — start with the on-screen fps counter visible (the title bar shows fps either way; F3 and op:'fps' toggle it later)."),
-      fastPresent: z.boolean().default(false).describe("op:open, wasmcart GL carts only — if the cart is on the slow CPU-readback present path, RELOAD it onto its own GL context first so this window presents by GPU blit+swap (5-8x: measured 27.9/45.1/54.9 ms per frame vs 3.4/6.1/9.1 at 1080p; the worst case is a human playing at 41 fps). Equivalent to doing loadMedia({..., presentWindow:true}) by hand, which is otherwise the only fix — the GL context binds when the cart's wasm loads and cannot be swapped afterward. The cart's save data is carried across the reload. PASS THIS WHEN A HUMAN IS ABOUT TO PLAY A GL CART. Two reasons it is opt-in rather than automatic: the reload RESTARTS the cart (safe now, before anyone is playing — never mid-game, so it is SKIPPED entirely if this session already has a window open), and it costs one extra GL context per loaded cart, which is wrong for headless gate work where the readback is what you want. A no-op on 2D carts, emulator cores, and carts already loaded with presentWindow:true."),
-      show: z.boolean().optional().describe("op:fps — true=show the counter, false=hide it; omit to toggle. op:bezel — true=bezel active, false=suspended; omit to toggle."),
+        .describe("open=show the ROM to a human (default); stop=close this session's window; status=is it open + does it match the active host; framebuffer=capture what the human sees; fps=show/hide the on-screen fps counter; bezel=suspend/resume the attached Active Bezel WITHOUT tearing it down (same state the B hotkey flips; guest keeps all its state, captures show the raw core while suspended). A bezel is a programmable WASM+GPU compositor - panels/maps/input remaps/GLSL shader effects over the frame - not a static border image; see the main description."),
+      scale: z.number().int().min(1).max(8).default(3).describe("op:open - integer upscale factor for the window."),
+      title: z.string().optional().describe("op:open - window title."),
+      aspect: z.enum(["fb", "tv", "core"]).default("tv").describe("op:open - initial window shape. 'tv' (DEFAULT) = how a player saw the hardware (4:3 consoles; native LCD for handhelds - GB/GBC 10:9 not stretched, GG ~6:5, Lynx 4:3, GBA 3:2). 'fb' = raw framebuffer × scale (square pixels, dev geometry). 'core' honors the core's display_aspect_ratio. NOTE: 'tv' reads the platform from the running host, so pass the correct `platform` to loadMedia (gbc not gb for a CGB game) or it falls back to the fb aspect."),
+      path: z.string().optional().describe("op:framebuffer - absolute path to write the PNG to. Required unless inline:true."),
+      inline: z.boolean().default(false).describe("op:framebuffer - return the image in the response instead of writing to disk."),
+      fpsOverlay: z.boolean().default(false).describe("op:open - start with the on-screen fps counter visible (the title bar shows fps either way; F3 and op:'fps' toggle it later)."),
+      fastPresent: z.boolean().default(false).describe("op:open, wasmcart GL carts only - if the cart is on the slow CPU-readback present path, RELOAD it onto its own GL context first so this window presents by GPU blit+swap (5-8x: measured 27.9/45.1/54.9 ms per frame vs 3.4/6.1/9.1 at 1080p; the worst case is a human playing at 41 fps). Equivalent to doing loadMedia({..., presentWindow:true}) by hand, which is otherwise the only fix - the GL context binds when the cart's wasm loads and cannot be swapped afterward. The cart's save data is carried across the reload. PASS THIS WHEN A HUMAN IS ABOUT TO PLAY A GL CART. Two reasons it is opt-in rather than automatic: the reload RESTARTS the cart (safe now, before anyone is playing - never mid-game, so it is SKIPPED entirely if this session already has a window open), and it costs one extra GL context per loaded cart, which is wrong for headless gate work where the readback is what you want. A no-op on 2D carts, emulator cores, and carts already loaded with presentWindow:true."),
+      show: z.boolean().optional().describe("op:fps - true=show the counter, false=hide it; omit to toggle. op:bezel - true=bezel active, false=suspended; omit to toggle."),
     },
     safeTool(async (args) => {
       switch (args.op ?? "open") {

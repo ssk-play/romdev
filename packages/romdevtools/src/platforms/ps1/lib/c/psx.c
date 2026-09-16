@@ -1,4 +1,4 @@
-/* psx.c — PS1 helpers + software 3D pipeline (see psx.h). */
+/* psx.c - PS1 helpers + software 3D pipeline (see psx.h). */
 #include "psx.h"
 
 /* ── GPU bring-up ── */

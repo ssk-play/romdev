@@ -1,11 +1,11 @@
-// Genesis XGM2 PCM encoder — turn an external WAV/PCM clip into the exact
+// Genesis XGM2 PCM encoder - turn an external WAV/PCM clip into the exact
 // sample format SGDK's XGM2 driver plays with XGM2_playPCM/XGM2_playPCMEx.
 //
 // The format rules (from SGDK include/snd/xgm2.h) are fiddly and only
-// discoverable by grepping the header — this tool bakes them in so an agent
+// discoverable by grepping the header - this tool bakes them in so an agent
 // doesn't botch sign/rate/alignment/padding:
 //   - 8-bit SIGNED mono PCM
-//   - 13.3 kHz native (XGM2 driver rate) — or 6.65 kHz for half-rate playback
+//   - 13.3 kHz native (XGM2 driver rate) - or 6.65 kHz for half-rate playback
 //   - length padded to a multiple of 256 bytes (with 0x00 = silence)
 //   - the sample buffer must be 256-byte ALIGNED in ROM (emit
 //     __attribute__((aligned(256))) on the array)
@@ -151,7 +151,7 @@ export function wavToXgm2Pcm(input, opts = {}) {
  */
 export function emitXgm2PcmC(pcm, name, rate) {
   const lines = [];
-  lines.push(`// XGM2 PCM sample — 8-bit signed mono, ${rate} Hz, ${pcm.length} bytes (256-aligned).`);
+  lines.push(`// XGM2 PCM sample - 8-bit signed mono, ${rate} Hz, ${pcm.length} bytes (256-aligned).`);
   lines.push(`// Play: XGM2_playPCM(${name}, ${name.toUpperCase()}_LEN, SOUND_PCM_CH1);`);
   lines.push(`// (use XGM2_playPCMEx(..., TRUE, ...) if this was encoded at half-rate.)`);
   lines.push(`#define ${name.toUpperCase()}_LEN ${pcm.length}`);

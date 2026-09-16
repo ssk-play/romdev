@@ -1,4 +1,4 @@
-/* ── tile_engine.c — Genesis SGDK tile-map starter ───────────────
+/* ── tile_engine.c - Genesis SGDK tile-map starter ───────────────
  *
  * Draws a multi-screen tile map on plane B (background) and walks a
  * sprite over it with collision detection against "solid" tile IDs.

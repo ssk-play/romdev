@@ -1,6 +1,6 @@
-/* ── gt_sound.h — simple SFX for the romdev GameTank examples (no music) ──────
+/* ── gt_sound.h - simple SFX for the romdev GameTank examples (no music) ──────
  *
- * One-shot sound effects on the ACP FM synth — NO song engine. The SDK music
+ * One-shot sound effects on the ACP FM synth - NO song engine. The SDK music
  * player (play_song/tick_music) drove a continuous buzz on un-keyed channels and
  * bogged the frame; for examples, punchy SFX (shoot / hit / explode) are clearer
  * and dead simple. Each gt_sfx() keys a note on one FM channel at a chosen
@@ -35,7 +35,7 @@ static void gt_sfx_init(void) {
   unsigned char c;
   init_music();                 /* brings up the note/param plumbing (no song) */
   for (c = 0; c < 4; c++) {
-    /* ch0/1 = GUITAR (shoot/hit blips), ch2 = SNARE (explode), ch3 = PIANO — a clean
+    /* ch0/1 = GUITAR (shoot/hit blips), ch2 = SNARE (explode), ch3 = PIANO - a clean
      * mellow tone for pleasant pickups (coins). GUITAR on high notes sounds metallic. */
     unsigned char instr = (c == 2) ? INSTR_IDX_SNARE
                         : (c == 3) ? INSTR_IDX_PIANO

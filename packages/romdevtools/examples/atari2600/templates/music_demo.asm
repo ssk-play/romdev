@@ -1,8 +1,8 @@
-; ── music_demo.asm — Atari 2600 2-voice music scaffold ──────────────
+; ── music_demo.asm - Atari 2600 2-voice music scaffold ──────────────
 ;
 ; The 2600 has two TIA audio channels (AUDC0/AUDC1 + AUDF0/AUDF1 +
-; AUDV0/AUDV1). This scaffold plays a CONTINUOUS 2-voice chiptune —
-; voice 0 = melody, voice 1 = bass — by stepping through hand-authored
+; AUDV0/AUDV1). This scaffold plays a CONTINUOUS 2-voice chiptune -
+; voice 0 = melody, voice 1 = bass - by stepping through hand-authored
 ; note tables in ROM. The tables ARE the song: source-visible chiptune,
 ; no tracker, no toolchain magic.
 ;
@@ -12,7 +12,7 @@
 ;     next (AUDF, length_frames) pair. Wraps to start at end-of-table.
 ;   - AUDC0 = AUDC1 = $04 (pure tone) is set once at boot.
 ;
-; Display: minimal — blue background + a static "MUSIC" rendered via
+; Display: minimal - blue background + a static "MUSIC" rendered via
 ; the playfield (PF1/PF2 patterns) in a centered band. The point is the
 ; AUDIO; the visuals exist just to prove the ROM booted.
 ;
@@ -25,7 +25,7 @@
 ;   F=$09 → ~200 Hz
 ;   F=$07 → ~250 Hz
 ;   F=$05 → ~330 Hz
-; (Exact values don't matter — what matters is relative pitch.)
+; (Exact values don't matter - what matters is relative pitch.)
 
   processor 6502
   org $F000
@@ -41,7 +41,7 @@ PF0      = $0D
 PF1      = $0E
 PF2      = $0F
 CTRLPF   = $0A
-; TIA audio — both voices.
+; TIA audio - both voices.
 AUDC0    = $15
 AUDC1    = $16
 AUDF0    = $17
@@ -104,7 +104,7 @@ MAIN:
   LDA #0
   STA VSYNC
 
-  ; ── VBLANK (37 lines) — all music updates happen here ────────────
+  ; ── VBLANK (37 lines) - all music updates happen here ────────────
   LDA #2
   STA VBLANK
 
@@ -212,27 +212,27 @@ MAIN:
 ;
 ; Melody (voice 0): simple ascending/descending hook, 32 notes.
 melody_notes:
-  ; bar 1 — ascending
+  ; bar 1 - ascending
   .byte $0F, 12     ; C5-ish
   .byte $0D, 12
   .byte $0B, 12     ; E5-ish
   .byte $09, 12     ; G5-ish
-  ; bar 2 — descending
+  ; bar 2 - descending
   .byte $0B, 12
   .byte $0D, 12
   .byte $0F, 12
   .byte $11, 24     ; held A4-ish
-  ; bar 3 — call
+  ; bar 3 - call
   .byte $0D, 12
   .byte $0B, 12
   .byte $09, 18
   .byte $07, 18     ; high note
-  ; bar 4 — response
+  ; bar 4 - response
   .byte $09, 12
   .byte $0B, 12
   .byte $0D, 24
   .byte $0F, 24
-  ; bar 5 — repeat with variation
+  ; bar 5 - repeat with variation
   .byte $0F, 12
   .byte $0B, 12
   .byte $0D, 12
@@ -242,7 +242,7 @@ melody_notes:
   .byte $09, 18
   .byte $0B, 18
   .byte $0F, 18
-  ; bar 7 — tail
+  ; bar 7 - tail
   .byte $0D, 24
   .byte $0B, 24
   .byte $0F, 24
@@ -277,7 +277,7 @@ bass_notes:
 ; PF1 bits are written MSB-first to screen pixels 16..23 (8 bits).
 ; PF2 bits are written LSB-first to screen pixels 24..31 (8 bits).
 ; We populate a few rows with rough letterforms and leave others blank
-; for visual separation. The exact glyph isn't load-bearing — point is
+; for visual separation. The exact glyph isn't load-bearing - point is
 ; "something visible on screen so we know the ROM booted".
 LETTERS_PF1:
   .byte %00000000

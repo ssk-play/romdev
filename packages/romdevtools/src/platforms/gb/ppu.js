@@ -7,8 +7,8 @@
 //   Tile pixel value 0..3 indexes a 4-entry palette.
 //
 // VRAM layout (DMG = 8 KB at $8000-$9FFF; CGB = 16 KB with bank-switch):
-//   $8000-$8FFF: 256 tiles (unsigned indexing — used by sprites + optionally BG)
-//   $8800-$97FF: 256 tiles (signed indexing — overlaps $8800-$8FFF; the
+//   $8000-$8FFF: 256 tiles (unsigned indexing - used by sprites + optionally BG)
+//   $8800-$97FF: 256 tiles (signed indexing - overlaps $8800-$8FFF; the
 //                "lower half" of unsigned set + 128 tiles above it)
 //   $9800-$9BFF: BG tile map 0 (32×32 = 1024 bytes of tile indices)
 //   $9C00-$9FFF: BG tile map 1 (32×32 = 1024 bytes)
@@ -114,7 +114,7 @@ export function renderGbcPaletteSwatch(palData) {
 }
 
 /**
- * Render a DMG palette swatch — 3 rows × 4 cols (BGP, OBP0, OBP1).
+ * Render a DMG palette swatch - 3 rows × 4 cols (BGP, OBP0, OBP1).
  */
 export function renderDmgPaletteSwatch(bgp, obp0, obp1, shades = DMG_PALETTE) {
   const cell = 24;
@@ -291,7 +291,7 @@ export function decodeLcdc(lcdc) {
  */
 export function snapshotPalette(host, platform /* "gb" | "gbc" */) {
   if (platform === "gbc") {
-    // Check via the gb_io region — BGPI ($FF68) / OBPI ($FF6A) presence is
+    // Check via the gb_io region - BGPI ($FF68) / OBPI ($FF6A) presence is
     // implicit; we just read both palette RAM tables.
     const bgpData = host.readMemory("gb_bgpdata", 0, 64);
     const objpData = host.readMemory("gb_objpdata", 0, 64);
@@ -349,7 +349,7 @@ export function snapshotSprites(host, platform) {
   const lcdc = decodeLcdc(io[0x40]);
   const sprites = decodeGbOam(oam);
   const vram = host.readMemory("gb_vram", 0, 0x1800);
-  // Sprite palette — DMG: OBP0/OBP1. GBC: from gb_objpdata.
+  // Sprite palette - DMG: OBP0/OBP1. GBC: from gb_objpdata.
   const obp0 = io[0x48];
   const obp1 = io[0x49];
   let getObjPalette;
@@ -420,7 +420,7 @@ export function snapshotSprites(host, platform) {
 }
 
 /**
- * Composite the live BG tile map into a 256×256 PNG — the canonical
+ * Composite the live BG tile map into a 256×256 PNG - the canonical
  * "what would the BG layer render right now if you took SCY/SCX out
  * of the equation" snapshot. Same shape as NES snapshotNametable.
  *
@@ -477,7 +477,7 @@ export function snapshotBackgroundMap(host, opts = {}) {
 
   const W = 256, H = 256;
   const png = new PNG({ width: W, height: H });
-  // Background fill — palette colour 0.
+  // Background fill - palette colour 0.
   const [br, bg, bb] = palette[0];
   for (let i = 0; i < png.data.length; i += 4) {
     png.data[i + 0] = br;
@@ -525,7 +525,7 @@ export function snapshotBackgroundMap(host, opts = {}) {
     lcdc: lcdcDecoded,
     scy: io[0x42],
     scx: io[0x43],
-    note: "BG map only (no Window overlay). Scroll registers SCY/SCX shown but NOT applied to the composite — the PNG is the full 256×256 BG plane; only the 160×144 region at (SCX, SCY) is what the LCD shows.",
+    note: "BG map only (no Window overlay). Scroll registers SCY/SCX shown but NOT applied to the composite - the PNG is the full 256×256 BG plane; only the 160×144 region at (SCX, SCY) is what the LCD shows.",
   };
 }
 

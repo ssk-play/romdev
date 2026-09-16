@@ -11,6 +11,6 @@
 
   ; Replace START with your reset label.
   org $FFFA
-  .word START        ; NMI handler (unused on 2600 — points at reset)
-  .word START        ; RESET handler — where the CPU starts
+  .word START        ; NMI handler (unused on 2600 - points at reset)
+  .word START        ; RESET handler - where the CPU starts
   .word START        ; IRQ handler (BRK and external IRQs land here)

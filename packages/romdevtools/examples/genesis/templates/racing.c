@@ -1,30 +1,30 @@
-/* ── racing.c — Genesis top-down road racer (complete example game) ──────────
+/* ── racing.c - Genesis top-down road racer (complete example game) ──────────
  *
- * MIRAGE MILE — a COMPLETE, working game: title screen, 1P endless race with
+ * MIRAGE MILE - a COMPLETE, working game: title screen, 1P endless race with
  * speed control, 2P simultaneous SPLIT-LANE VERSUS (both cars on screen at
- * once — player 2 on CONTROLLER 2), a vertically-scrolling road done the
+ * once - player 2 on CONTROLLER 2), a vertically-scrolling road done the
  * Genesis way (full-plane hardware VSCROLL), streamed roadside scenery
  * through the DMA queue, crash/lives rules, persistent best distance
- * (cartridge SRAM), music + SFX — and a LIVE per-scanline HSCROLL_LINE
+ * (cartridge SRAM), music + SFX - and a LIVE per-scanline HSCROLL_LINE
  * heat-haze band shimmering across the asphalt, the deluxe scroll variant
  * the platformer template only documents.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented Genesis footgun;
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented Genesis footgun;
  *     reshape your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — traffic patterns, speeds, tuning, art: reshape
+ *   GAME LOGIC (clay) - traffic patterns, speeds, tuning, art: reshape
  *     freely.
  *
  * What depends on what:
- *   genesis_sfx.{h,c} — PSG sound wrapper (tones + noise + a background
+ *   genesis_sfx.{h,c} - PSG sound wrapper (tones + noise + a background
  *     melody loop). For full FM music, see the xgm2_demo template.
- *   rom_header.c (SGDK) — the Sega header at $100. Its 'RA' block at $1B0
+ *   rom_header.c (SGDK) - the Sega header at $100. Its 'RA' block at $1B0
  *     DECLARES the cartridge SRAM that best_load/save below depend on (see
  *     the SRAM idiom). The build assembles it automatically.
  *
  * THE DESIGN (read before reshaping):
- *   Scrolling — the road is PLANE A, scrolled down by decrementing one
+ *   Scrolling - the road is PLANE A, scrolled down by decrementing one
  *     vertical-scroll value per frame. Compare the NES version of this
  *     game (examples/nes/templates/racing.c): there a nametable is 240 px
  *     tall, scroll_y 240-255 fetches attribute bytes as tiles (garbage
@@ -32,41 +32,41 @@
  *     Genesis plane is 256 px tall and the VDP masks the scroll value to
  *     the plane IN HARDWARE: `vs -= speed` on a plain u16 is the entire
  *     idiom (65536 is a multiple of 256, so overflow is seamless forever).
- *   Streamed scenery — rows re-entering at the top get restamped with
+ *   Streamed scenery - rows re-entering at the top get restamped with
  *     fresh random roadside through the DMA queue, hidden under the
  *     16-px WINDOW HUD (the same curtain trick the NES game plays with
  *     the overscan-cropped top band).
- *   Heat haze — HSCROLL_LINE mode: the VDP fetches one hscroll entry PER
+ *   Heat haze - HSCROLL_LINE mode: the VDP fetches one hscroll entry PER
  *     SCANLINE, so a 32-line band of the road ripples ±2 px in a moving
  *     wave while the rest of the screen holds still. 64 bytes/frame of
- *     vblank DMA. Sprites are NOT displaced — per-line hscroll bends
+ *     vblank DMA. Sprites are NOT displaced - per-line hscroll bends
  *     planes only.
- *   HUD — the WINDOW plane: a hardware-fixed status bar that ignores all
- *     scrolling (no raster tricks needed — one register).
- *   2P VERSUS — ONE VDP means ONE road scroll, so both players share one
+ *   HUD - the WINDOW plane: a hardware-fixed status bar that ignores all
+ *     scrolling (no raster tricks needed - one register).
+ *   2P VERSUS - ONE VDP means ONE road scroll, so both players share one
  *     road at a fixed speed and only steer (the same constraint the NES
  *     version explains): solid center divider, P1 (blue, pad 1) owns the
  *     left two lanes, P2 (green, pad 2) the right two. Each starts with 3
  *     crashes; first to use them all LOSES.
- *   1P RACE — all four lanes, A/UP accelerates, B/DOWN brakes (speed 1-4);
+ *   1P RACE - all four lanes, A/UP accelerates, B/DOWN brakes (speed 1-4);
  *     3 crashes end the run. Persistent stat: best DISTANCE (u16, one
  *     unit = 16 scrolled pixels ≈ one car length) via best_load/save.
  *
  * Frame budget (NTSC, 60 fps): 6 traffic × 2 cars of AABB, one 64-cell row
  * restamp at most every other frame (128 B), the 32-entry haze table (64 B)
- * and 8 SAT entries (64 B) queued for vblank — ~300 bytes of the ~7 KB
+ * and 8 SAT entries (64 B) queued for vblank - ~300 bytes of the ~7 KB
  * H40 vblank DMA ceiling. The 68000 barely notices.
  */
 
 #include <genesis.h>
 #include "genesis_sfx.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "MIRAGE MILE"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * CONTROLLER MAPPING — two layers, both bite:
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * CONTROLLER MAPPING - two layers, both bite:
  *
  *   On the pad: SGDK's JOY_readJoypad(JOY_1/JOY_2) returns BUTTON_A/B/C/
  *   START/UP/DOWN/LEFT/RIGHT as a bitmask. Gas is BUTTON_A or UP, brake is
@@ -76,14 +76,14 @@
  *   Driving this game HEADLESSLY through an emulator (libretro/gpgx): the
  *   core maps Genesis A/B/C onto libretro Y/B/A. So setInput({y:true})
  *   presses GENESIS A (gas/1P start here), setInput({b:true}) presses
- *   GENESIS B (brake/2P select), and setInput({a:true}) presses GENESIS C —
+ *   GENESIS B (brake/2P select), and setInput({a:true}) presses GENESIS C -
  *   NOT Genesis A. Getting this wrong looks like "the game ignores input".
  *   START is start.
  */
 #define BTN_GAS   (BUTTON_A | BUTTON_UP)
 #define BTN_BRAKE (BUTTON_B | BUTTON_DOWN)
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Tile art. Genesis tiles are 4bpp: each u32 row = 8 pixels, one hex nibble
  * per pixel = a colour index into the tile's palette line (0 = transparent).
  * Road plane (A) uses PAL1; the HUD band on plane B uses PAL2; sprites pick
@@ -114,7 +114,7 @@ static const u32 tile_tree[8] = {
     0x11666611, 0x11122111, 0x11122111, 0x11111111,
 };
 static const u32 tile_asphalt[8] = {      /* a flat colour shifted N px    */
-    0x44444444, 0x44445444, 0x44444444,   /* looks identical to itself —   */
+    0x44444444, 0x44445444, 0x44444444,   /* looks identical to itself -   */
     0x54444444, 0x44444444, 0x44444454,   /* the speckle is what makes the */
     0x44444444, 0x44544444,               /* scroll readable               */
 };
@@ -150,11 +150,11 @@ static const u32 tile_traffic[8] = {      /* tail up (it's slower traffic  */
     0x03333330, 0x00333300,               /* it shares PAL2 with the HUD   */
 };                                        /* band, whose dark is index 1.  */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Road geometry. Four 4-cell-wide lanes between shoulders, a double center
  * divider (it's also the 2P territory line). Plane columns (cells):
  *   12 = left shoulder, 16/24 = dashed lane lines, 20 = center divider,
- *   28 = right shoulder; grass outside. The plane is 64 cells wide — paint
+ *   28 = right shoulder; grass outside. The plane is 64 cells wide - paint
  *   ALL 64 (the haze wobble slides up to 2 px of the plane's wrap onto the
  *   screen edge; bare cells there would flash black). */
 #define COL_EDGE_L   12
@@ -167,15 +167,15 @@ static const s16 lane_x[4] = { 108, 140, 172, 204 };
 
 #define MAX_TRAFFIC  6
 #define CAR_Y        192       /* both players' fixed screen Y             */
-#define SPAWN_Y      20        /* traffic entry Y — just below the HUD     */
+#define SPAWN_Y      20        /* traffic entry Y - just below the HUD     */
 #define DESPAWN_Y    216       /* traffic exits past the player            */
 #define START_LIVES  3         /* crashes per run / per player             */
-#define SPAWN_PERIOD 40        /* frames between traffic spawns — traffic
+#define SPAWN_PERIOD 40        /* frames between traffic spawns - traffic
                                 * moves at road speed, so per-meter density
                                 * stays constant whatever the player does   */
 #define SPEED_2P     2         /* fixed road speed in versus (one VDP =
                                 * one scroll = one shared speed)           */
-#define MAX_SPEED    4         /* px/frame — MUST stay under 8: the row
+#define MAX_SPEED    4         /* px/frame - MUST stay under 8: the row
                                 * streamer restamps one row per crossing
                                 * and a >8 px step could skip a row        */
 #define HUD_ROWS     2         /* window rows reserved for the HUD         */
@@ -202,20 +202,20 @@ static u8   spawn_timer;
 static u16  vs;                /* vertical scroll. NEVER wrapped by hand:  *
                                 * the plane is 256 px tall, the VDP masks  *
                                 * the scroll value to the plane, and 65536 *
-                                * is a multiple of 256 — plain u16         *
+                                * is a multiple of 256 - plain u16         *
                                 * overflow keeps the road seamless forever *
                                 * (the NES needs a 240-wrap helper here).  */
 static u8   prev_top_row;      /* last restamped plane row                 */
 static u8   start_pause;       /* freeze frames at green light             */
 static u16  rng = 0xC0DE;
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static u8 state;
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (a few 68k instructions) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (a few 68k instructions) ── */
 static u8 random8(void) {
     u16 r = rng;
     r ^= r << 7;
@@ -225,18 +225,18 @@ static u8 random8(void) {
     return (u8)r;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * CARTRIDGE SRAM — the Genesis battery-save mechanism, three parts:
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * CARTRIDGE SRAM - the Genesis battery-save mechanism, three parts:
  *
  *   1. The ROM HEADER declares it: bytes $1B0.. hold 'R','A', a type word
- *      ($F820 = battery-backed, byte-wide on ODD addresses — the classic
+ *      ($F820 = battery-backed, byte-wide on ODD addresses - the classic
  *      cart wiring), then start/end addresses $200000/$20FFFF. SGDK's
  *      rom_header.c (assembled into every build) already declares exactly
- *      this — no linker work needed. Emulators allocate the save RAM by
+ *      this - no linker work needed. Emulators allocate the save RAM by
  *      READING THIS HEADER; no 'RA' block = writes to $200000+ go nowhere.
  *   2. The MAPPER GATE: writing 1 to $A130F1 banks SRAM into $200000+,
  *      0 banks the ROM back in. SGDK's SRAM_enable()/SRAM_disable() do
- *      this. ALWAYS disable after access — on carts >2 MB the SRAM window
+ *      this. ALWAYS disable after access - on carts >2 MB the SRAM window
  *      shadows ROM, and leaving it enabled corrupts later ROM fetches.
  *   3. ODD-BYTE ADDRESSING: SRAM_readByte/writeByte(offset) access 68k
  *      address $200001 + offset*2. Headlessly, the emulator's save_ram
@@ -244,12 +244,12 @@ static u8 random8(void) {
  *      save_ram[k*2 + 1] (the even bytes read back $FF).
  *
  * Best-distance record layout (SGDK offsets): 0='B' 1='D' 2=lo 3=hi
- * 4=checksum(lo^hi^$A5). Fresh SRAM is all $FF — the magic+checksum
+ * 4=checksum(lo^hi^$A5). Fresh SRAM is all $FF - the magic+checksum
  * rejects it (and any corruption) so first boot shows 0, not 65535.
  *
  * Emulator note (verified against gpgx): the core sizes its save_ram
  * region by scanning for the last non-$FF byte, so the region reads as
- * EMPTY until the first write below lands — that's why best_init runs
+ * EMPTY until the first write below lands - that's why best_init runs
  * at the very top of main(). Real hardware and .srm-restoring frontends
  * have no such wrinkle. */
 static u16 best_load(void) {
@@ -284,12 +284,12 @@ static void best_init(void) {
     if (best == 0) best_save(0);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * FULL-PLANE VERTICAL SCROLL + STREAMED ROWS — the Genesis road. With
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * FULL-PLANE VERTICAL SCROLL + STREAMED ROWS - the Genesis road. With
  * VSCROLL_PLANE mode, one VSRAM value scrolls the whole plane vertically;
  * the VDP wraps it inside the 256-px plane in hardware. Screen line y shows
- * plane line (y + vs) & 255, so DECREMENTING vs slides the road DOWN — the
- * driving-up illusion — for the cost of one register write per frame.
+ * plane line (y + vs) & 255, so DECREMENTING vs slides the road DOWN - the
+ * driving-up illusion - for the cost of one register write per frame.
  * Zero tilemap writes for the motion itself (rewriting tilemaps in the
  * loop is the #1 "choppy movement" bug).
  *
@@ -297,10 +297,10 @@ static void best_init(void) {
  * of the screen is plane row (vs >> 3) & 31. The moment it changes we
  * restamp that ONE row with fresh random roadside, so the 256-px loop
  * never shows the same scenery twice. Three hard rules:
- *   1. DMA_QUEUE only — the queued write lands in vblank, never mid-frame
+ *   1. DMA_QUEUE only - the queued write lands in vblank, never mid-frame
  *      (SYS_doVBlankProcess flushes the queue; raw mid-frame VRAM writes
  *      tear). The data buffer must be STATIC: the queue reads it AT FLUSH
- *      TIME — a stack buffer is gone by then, shipping garbage.
+ *      TIME - a stack buffer is gone by then, shipping garbage.
  *   2. The restamped row enters under the 16-px WINDOW HUD, which hides
  *      the swap (the NES version uses the overscan-cropped top band as
  *      its curtain; the window is ours). Restamp rows anywhere lower and
@@ -308,7 +308,7 @@ static void best_init(void) {
  *   3. Road speed stays under 8 px/frame (MAX_SPEED) so a frame never
  *      skips past a whole row crossing.
  */
-static u16 rowbuf[64];   /* static — the DMA queue reads it at flush time */
+static u16 rowbuf[64];   /* static - the DMA queue reads it at flush time */
 
 static u16 road_cell(u16 c) {
     u8 r;
@@ -331,7 +331,7 @@ static void build_road_row(void) {
     for (c = 0; c < 64; c++) rowbuf[c] = road_cell(c);
 }
 
-/* Initial paint: all 32 plane rows, immediate CPU writes (init-time only —
+/* Initial paint: all 32 plane rows, immediate CPU writes (init-time only -
  * inside the frame loop everything goes through the DMA queue). */
 static void paint_road(void) {
     u16 r;
@@ -345,7 +345,7 @@ static void paint_road(void) {
  * restamp. Called every frame the road moves (play AND the title drift). */
 static void advance_road(u8 px) {
     u8 top_row;
-    vs -= px;                              /* hardware wraps — see idiom   */
+    vs -= px;                              /* hardware wraps - see idiom   */
     VDP_setVerticalScroll(BG_A, (s16)vs);
     top_row = (u8)((vs >> 3) & 31);
     if (top_row != prev_top_row) {
@@ -355,29 +355,29 @@ static void advance_road(u8 px) {
     }
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * PER-SCANLINE HSCROLL — the heat-haze band, LIVE. This game runs in
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * PER-SCANLINE HSCROLL - the heat-haze band, LIVE. This game runs in
  * HSCROLL_LINE mode: the VDP fetches one hscroll entry per SCANLINE from
  * the hscroll table in VRAM (interleaved words: plane A's value for the
  * line, then plane B's). The platformer template runs the cheaper
  * HSCROLL_TILE (one entry per 8-line strip) and only documents this
- * variant — here it earns its keep: a traveling ±2 px sine wave across a
+ * variant - here it earns its keep: a traveling ±2 px sine wave across a
  * 32-line band of the road reads as heat shimmer rising off the asphalt.
  *
  * Requires: HSCROLL_LINE set BEFORE any scroll-table write (the mode
  *   decides the table layout the VDP reads); the value array STATIC (the
  *   DMA queue reads it at flush time); and only the band's lines need
- *   updating each frame — the other 192 entries stay 0 in VRAM (SGDK's
+ *   updating each frame - the other 192 entries stay 0 in VRAM (SGDK's
  *   boot cleared VRAM, and a console reset re-runs that boot), so the
  *   cost is 32 words = 64 bytes/frame of the ~7 KB vblank budget. The
- *   FULL table at one entry per line per plane would be ~1.8 KB/frame —
+ *   FULL table at one entry per line per plane would be ~1.8 KB/frame -
  *   budget it before scaling this up.
- * Sprites are not displaced — per-line hscroll bends PLANES only. The
+ * Sprites are not displaced - per-line hscroll bends PLANES only. The
  *   cars drive through the shimmer untouched, which is exactly how real
  *   carts looked (and why effect bands avoid gameplay-critical rows). */
 #define HAZE_TOP   96          /* first shimmering scanline                */
 #define HAZE_LINES 32
-static s16 haze[HAZE_LINES];   /* static — DMA queue reads at flush time  */
+static s16 haze[HAZE_LINES];   /* static - DMA queue reads at flush time  */
 static const s16 haze_wave[8] = { 0, 1, 2, 1, 0, -1, -2, -1 };
 static u16 haze_phase;
 
@@ -389,20 +389,20 @@ static void update_haze(void) {
     VDP_setHorizontalScrollLine(BG_A, HAZE_TOP, haze, HAZE_LINES, DMA_QUEUE);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * WINDOW-PLANE HUD — the fixed status bar. The window is a third tilemap
- * that REPLACES plane A wherever it's shown and IGNORES ALL SCROLLING —
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * WINDOW-PLANE HUD - the fixed status bar. The window is a third tilemap
+ * that REPLACES plane A wherever it's shown and IGNORES ALL SCROLLING -
  * a hardware-fixed HUD with zero per-frame cost over a road that never
  * stops moving (the NES version needs sprite digits for this; on Genesis
  * it's one register). Two footguns:
  *   - The window only lives at screen edges (top/bottom N rows or left/
- *     right N columns) — it cannot float mid-screen.
+ *     right N columns) - it cannot float mid-screen.
  *   - It replaces plane A ONLY: plane B and sprites still render behind/
  *     over it. Plane B's top rows are painted with a flat dark band so
  *     HUD text always reads, and traffic spawns BELOW y=16.
  * Bonus idiom on display here: the title/results text lives on PLANE B
  * with the text priority bit SET, floating over the LOW-priority road on
- * plane A — priority trumps plane order on the Genesis (high-pri B draws
+ * plane A - priority trumps plane order on the Genesis (high-pri B draws
  * above low-pri A), which is how text sits on a busy foreground plane
  * without repainting it. */
 static void hud_init(void) {
@@ -410,7 +410,7 @@ static void hud_init(void) {
     VDP_setTextPriority(1);    /* window + plane-B text above the road     */
 }
 
-/* ── GAME LOGIC (clay) — HUD text (window plane, redrawn only on change) ── */
+/* ── GAME LOGIC (clay) - HUD text (window plane, redrawn only on change) ── */
 static void draw_u16(VDPPlane plane, u16 v, u16 x, u16 y) {
     char buf[8];
     uintToStr(v, buf, 5);
@@ -448,7 +448,7 @@ static void draw_hud_title(void) {
     draw_u16(WINDOW, best, 29, 0);
 }
 
-/* ── GAME LOGIC (clay) — plane B cards (title / results) ────────────────────
+/* ── GAME LOGIC (clay) - plane B cards (title / results) ────────────────────
  * Plane B never scrolls: rows 0-1 hold the dark band behind the window HUD,
  * the rest holds high-priority text floating over the live road. Repainted
  * on state changes only. */
@@ -483,7 +483,7 @@ static void paint_over(void) {
     VDP_drawTextBG(BG_B, "START - TITLE", 13, 20);
 }
 
-/* ── GAME LOGIC (clay) — traffic pool (fixed slots, no allocation) ── */
+/* ── GAME LOGIC (clay) - traffic pool (fixed slots, no allocation) ── */
 static void spawn_traffic(void) {
     u16 i;
     for (i = 0; i < MAX_TRAFFIC; i++) {
@@ -496,12 +496,12 @@ static void spawn_traffic(void) {
     }
 }
 
-/* AABB, both boxes 8x8 (s16 math — sprite coords go negative off-screen). */
+/* AABB, both boxes 8x8 (s16 math - sprite coords go negative off-screen). */
 static u8 hits(s16 ax, s16 ay, s16 bx, s16 by) {
     return ax < bx + 8 && ax + 8 > bx && ay < by + 8 && ay + 8 > by;
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_game(u8 versus) {
     u16 i;
     two_player = versus;
@@ -524,7 +524,7 @@ static void start_game(u8 versus) {
     dist = 0; dist_frac = 0;
     spawn_timer = 0;
     start_pause = 30;            /* green-light breather                   */
-    VDP_clearPlane(BG_B, TRUE);  /* drop the title card — road shows clear */
+    VDP_clearPlane(BG_B, TRUE);  /* drop the title card - road shows clear */
     paint_band();
     draw_hud();
     sfx_tone(0, 523, 10);        /* start jingle (C5)                      */
@@ -534,15 +534,15 @@ static void start_game(u8 versus) {
 static void game_over(void) {
     if (!two_player && dist > best) {
         best = dist;
-        best_save(best);         /* battery SRAM — see the SRAM idiom      */
+        best_save(best);         /* battery SRAM - see the SRAM idiom      */
     }
     state = ST_OVER;
     paint_over();
-    draw_hud_title();            /* window shows BEST — may have changed   */
+    draw_hud_title();            /* window shows BEST - may have changed   */
     sfx_noise(20);
 }
 
-/* ── GAME LOGIC (clay) — crash rules ── */
+/* ── GAME LOGIC (clay) - crash rules ── */
 static void crash(u8 p) {
     sfx_noise(14);
     invuln[p] = 60;              /* blink + no-collide grace               */
@@ -556,10 +556,10 @@ static void crash(u8 p) {
     draw_hud();
 }
 
-/* ── GAME LOGIC (clay) — per-player input ───────────────────────────────────
- * LEFT/RIGHT steer between lanes (edge-detected — held d-pad shouldn't
+/* ── GAME LOGIC (clay) - per-player input ───────────────────────────────────
+ * LEFT/RIGHT steer between lanes (edge-detected - held d-pad shouldn't
  * machine-gun across the road). 1P only: A/UP accelerate, B/DOWN brake
- * (speed is shared in versus — see the design note). */
+ * (speed is shared in versus - see the design note). */
 static void update_player(u8 p) {
     u16 pad = JOY_readJoypad(p ? JOY_2 : JOY_1);
     u16 pressed = pad & ~prev_pads[p];
@@ -588,9 +588,9 @@ static void update_player(u8 p) {
     if (invuln[p] > 0) --invuln[p];
 }
 
-/* ── GAME LOGIC (clay) — stage this frame's sprites ─────────────────────────
+/* ── GAME LOGIC (clay) - stage this frame's sprites ─────────────────────────
  * Fixed SAT slots: 0 = P1, 1 = P2, 2-7 = traffic. Hidden sprites park at
- * y = -16 (above the screen). NEVER hide with x = -128..0 — a SAT x of 0
+ * y = -16 (above the screen). NEVER hide with x = -128..0 - a SAT x of 0
  * is the VDP's sprite-masking trigger and silently blanks every lower-
  * priority sprite on those scanlines. */
 #define HIDE_Y (-16)
@@ -610,7 +610,7 @@ static void stage_sprites(void) {
                       SPRITE_SIZE(1, 1),
                       TILE_ATTR_FULL(PAL2, 1, 0, 0, T_TRAFFIC));
     }
-    /* ── HARDWARE IDIOM (load-bearing) — CHAIN the sprite list before
+    /* ── HARDWARE IDIOM (load-bearing) - CHAIN the sprite list before
      * uploading. VDP_setSprite does NOT set the SAT link byte, and link 0
      * means "end of list": skip this and the VDP draws sprite 0 only.
      * VDP_linkSprites(0, 8) links slots 0..7; the queued DMA flushes the
@@ -624,15 +624,15 @@ int main(bool hard) {
     u8 p;
     (void)hard;
 
-    /* SRAM first — before any VDP work. The save file then exists within
+    /* SRAM first - before any VDP work. The save file then exists within
      * the game's first frames of life, which is what lets a frontend (or
      * a headless host) see a non-empty save_ram region as early as
      * possible (see the SRAM idiom note on gpgx's size scan). */
     best_init();
 
-    /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
      * Init order: scrolling MODE before scroll VALUES (the mode decides
-     * the hscroll-table layout the VDP reads — see the haze idiom), tiles
+     * the hscroll-table layout the VDP reads - see the haze idiom), tiles
      * + palettes before tilemaps that reference them, window size before
      * window text. SGDK's boot already did the dangerous part (VDP regs,
      * Z80, vblank int, VRAM clear). */
@@ -680,7 +680,7 @@ int main(bool hard) {
 
     while (TRUE) {
         if (state == ST_TITLE) {
-            /* ── GAME LOGIC (clay) — title: A = 1P race, B = 2P versus ──
+            /* ── GAME LOGIC (clay) - title: A = 1P race, B = 2P versus ──
              * The road idles under the title card so the screen sells the
              * scroll + the heat haze before anyone presses a button. */
             advance_road(1);

@@ -1,4 +1,4 @@
-// NES (6502) → SNES (65816) recompile emit backend — translator unit tests.
+// NES (6502) → SNES (65816) recompile emit backend - translator unit tests.
 // Pure functions over da65 text → 65816 asm; no rizin/asar needed (fast, always
 // green). The end-to-end translate→assemble→boot path is exercised by
 // recompile-nes-snes-e2e.test.js (gated on the rizin/asar toolchains).
@@ -131,11 +131,11 @@ test("translateBody collects equs, residue, and instruction/seam counts", () => 
 test("translateBody anchors entry to the FIRST instruction even when unlabeled", () => {
   // da65 only labels branch targets, so a fall-through reset entry (sei/cld/...)
   // is UNLABELED while a later branch target (L8107) IS labeled. The entry must
-  // be the routine's OPENING instruction, not the first label — else the reset
+  // be the routine's OPENING instruction, not the first label - else the reset
   // skips the routine's setup. translateBody injects RECOMPILE_ENTRY for this.
   const da65 = [
     '        .setcpu "6502"',
-    "        sei",            // first instruction — UNLABELED
+    "        sei",            // first instruction - UNLABELED
     "        cld",
     "        lda     #$00",
     "        sta     $2000",  // seam
@@ -155,7 +155,7 @@ test("findUndefinedLabels + emitStubs isolate a single-function slice", () => {
   const body = [
     "reset:  sei",
     "        jsr     L936A",   // undefined callee
-    "        jsr     NES_PPU_WRITE", // seam — must NOT be stubbed
+    "        jsr     NES_PPU_WRITE", // seam - must NOT be stubbed
     "        jmp     reset",   // defined here
   ].join("\n");
   const undef = findUndefinedLabels(body, ["L030E = $030E"]);

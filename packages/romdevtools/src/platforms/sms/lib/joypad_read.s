@@ -3,7 +3,7 @@
 ; Port $DC = controller port A (P1 directions + buttons 1+2, P2 D-pad).
 ; Port $DD = controller port B (P2 buttons + reset/cart inserted bits).
 ;
-; Bit layout for port $DC (active LOW — pressed = 0):
+; Bit layout for port $DC (active LOW - pressed = 0):
 ;   bit 0  P1 up
 ;   bit 1  P1 down
 ;   bit 2  P1 left
@@ -28,7 +28,7 @@ joypad_read:
         ld (_p2_state),a
         ret
 
-; Convenience masks — combine into your own test code as needed:
+; Convenience masks - combine into your own test code as needed:
 JOY_UP    equ $01
 JOY_DOWN  equ $02
 JOY_LEFT  equ $04

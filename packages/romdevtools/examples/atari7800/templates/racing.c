@@ -1,64 +1,64 @@
-/* ── racing.c — Atari 7800 top-down road racer (complete example game) ────────
+/* ── racing.c - Atari 7800 top-down road racer (complete example game) ────────
  *
- * PISTON PINCH — a COMPLETE, working game: title screen, 1P endless race with
+ * PISTON PINCH - a COMPLETE, working game: title screen, 1P endless race with
  * speed control, and 2P SIMULTANEOUS split-lane VERSUS (both cars on the same
  * road at once, P2 on JOYSTICK PORT 1), a vertically-"scrolling" road, dense
  * descending traffic, crash/lives rules, in-session best distance, TIA music +
  * SFX, and the 7800's signature feature: MARIA OBJECT QUANTITY. The player
  * car(s) + up to 10 traffic cars are all just display-list entries MARIA DMAs
- * per scanline — a thick stream of traffic no 2600 (5 hardware objects) draws
+ * per scanline - a thick stream of traffic no 2600 (5 hardware objects) draws
  * comfortably. On the 7800 there is no sprite table; every car IS a DL entry,
  * and quantity is the whole point of the chip.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented 7800/MARIA footgun;
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented 7800/MARIA footgun;
  *     reshape your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — traffic patterns, speeds, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - traffic patterns, speeds, tuning, art: reshape freely.
  *
  * What depends on what:
- *   atari7800_sfx.{h,c} — TIA one-shot effects (we give it voice 1; the
- *     inline music player below owns voice 0 — TIA only HAS two voices).
- *   cc65's atari7800 target crt0 + atari7800.cfg — boot, BSS in RAM1
+ *   atari7800_sfx.{h,c} - TIA one-shot effects (we give it voice 1; the
+ *     inline music player below owns voice 0 - TIA only HAS two voices).
+ *   cc65's atari7800 target crt0 + atari7800.cfg - boot, BSS in RAM1
  *     ($1800-$203F), C parameter stack at the TOP of RAM3 growing DOWN
  *     ($2800 →). This game claims the BOTTOM of RAM3 ($2200-$25FD) for its
- *     display-list pool — see the RAM MAP below before moving anything.
+ *     display-list pool - see the RAM MAP below before moving anything.
  *
  * ════════════════════════════════════════════════════════════════════════
- * NO HARDWARE SCROLL — the load-bearing design fact of a 7800 racer. MARIA
+ * NO HARDWARE SCROLL - the load-bearing design fact of a 7800 racer. MARIA
  * has NO scroll register (unlike the NES racer's BG Y-scroll, the SMS/GG
  * VDP, or the Genesis VSRAM). The road cannot be scrolled; it can only be
  * REDRAWN. A top-down racer therefore FAKES vertical road motion two ways,
  * both used here:
- *   1. The lane DASHES march downward — each frame the dash pattern's phase
+ *   1. The lane DASHES march downward - each frame the dash pattern's phase
  *      advances, so the on-off rhythm of the centre/lane lines slides toward
  *      the player. This is the whole illusion of "the road is moving"; it is
  *      a CHEAP per-frame swap of which dash-drawable each road zone points at
- *      (no DLL teardown — see the dash-bank idiom), NOT a scroll.
- *   2. The TRAFFIC descends — cars are display-list objects with their own Y,
+ *      (no DLL teardown - see the dash-bank idiom), NOT a scroll.
+ *   2. The TRAFFIC descends - cars are display-list objects with their own Y,
  *      moving down the screen at road speed (they read as slower cars you are
  *      overtaking). This is where the MARIA object-quantity signature lives:
  *      a thick stream of independent traffic objects.
- * The asphalt itself (the solid road band + roadside grass) is STATIC — it is
+ * The asphalt itself (the solid road band + roadside grass) is STATIC - it is
  * a single colour either way, so redrawing it would buy nothing. Documented
  * honestly so a fork doesn't go hunting for a scroll register that isn't there.
  * ════════════════════════════════════════════════════════════════════════
  *
- * PERSISTENCE — honest note: the canonical 7800 save path is the High Score
+ * PERSISTENCE - honest note: the canonical 7800 save path is the High Score
  * Cart (HSC): a pass-through cartridge with 2KB battery RAM at $1000-$17FF
  * plus a directory ROM. The bundled prosystem core does NOT implement HSC
  * (probed 2026-06: retro_get_memory(SAVE_RAM) size = 0, and the core binary
  * has no HSC code at all), so this game keeps BEST DISTANCE IN-SESSION ONLY
  * (it survives play → title → play, dies on power-off). Do not fake
- * persistence the hardware path can't back — if a future core round adds
+ * persistence the hardware path can't back - if a future core round adds
  * HSC, wire best into $1000-$17FF and it becomes real.
  *
  * Frame budget (NTSC): the per-tick update (steer + speed + ≤10 traffic ×
  * ≤2 cars AABB + the dash phase step + HUD redraw) fits in one 60Hz frame,
- * dipping to two on heavy frames — vblank_wait() paces the sim, the classic
- * 8-bit pattern. MARIA does not care — it re-walks the same DLs every frame,
+ * dipping to two on heavy frames - vblank_wait() paces the sim, the classic
+ * 8-bit pattern. MARIA does not care - it re-walks the same DLs every frame,
  * so a slow CPU loop never blanks or tears the whole screen. That budget only
- * holds because of the #pragma optimize(on) right below — read its comment
+ * holds because of the #pragma optimize(on) right below - read its comment
  * before deleting it.
  */
 
@@ -66,27 +66,27 @@
 #include <string.h>
 #include "atari7800_sfx.h"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * cc65 SHIPS WITH ITS OPTIMIZER OFF, and this toolchain does not pass -O —
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * cc65 SHIPS WITH ITS OPTIMIZER OFF, and this toolchain does not pass -O -
  * each translation unit must opt in. Without this pragma the unoptimized
  * emit pass made the main loop take ~9 frames per sim tick instead of 1-2
  * (measured on the 7800 shmup: 8.8 → 1.7 frames/tick on prosystem), and
  * every TICK-DENOMINATED timer silently stretched 4-5x in wall-clock terms:
- * the crash-blink grace, the spawn cadence, the marching-dash phase — all
+ * the crash-blink grace, the spawn cadence, the marching-dash phase - all
  * ~4.5x too slow, so the road "scroll" crawled and traffic oozed down. That
  * presents as "broken game feel / sprite vanishing" (a synchronized blink
- * keeps an object off screen for ~600ms at a time) — but the DLL, the zone
+ * keeps an object off screen for ~600ms at a time) - but the DLL, the zone
  * pointers, and every pool slot were byte-perfect when read back from RAM.
  * The footgun generalizes: on a 1.79MHz 6502 the C optimizer is not a nicety,
  * it IS the frame budget, and a too-slow loop shows up as broken GAME RULES
  * (stretched timers, missed 1-frame input edges), not as a slow-looking
- * screen — MARIA keeps repainting the same display lists at a rock-steady
+ * screen - MARIA keeps repainting the same display lists at a rock-steady
  * 60Hz no matter how far behind the CPU falls. If your fork feels like
  * molasses or "ignores" short button taps, check this pragma is still here
  * before debugging the display lists. */
 #pragma optimize(on)
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "PISTON PINCH"
 
@@ -118,7 +118,7 @@
 #define P7C1      (*(volatile uint8_t*)0x3D)
 
 /* TIA audio (shared with the music player below; atari7800_sfx.c has the
- * same defines — the chip is tiny enough that duplicating 6 lines beats a
+ * same defines - the chip is tiny enough that duplicating 6 lines beats a
  * header dependency the fork machinery would have to carry). */
 #define AUDC0  (*(volatile uint8_t*)0x15)
 #define AUDC1  (*(volatile uint8_t*)0x16)
@@ -131,13 +131,13 @@
 #define INPT4  (*(volatile uint8_t*)0x0C)   /* P1 fire, active low (bit 7) */
 #define INPT5  (*(volatile uint8_t*)0x0D)   /* P2 fire, active low (bit 7) */
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * SWCHA joystick bit order — the #1 7800 input footgun. After the ~SWCHA
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * SWCHA joystick bit order - the #1 7800 input footgun. After the ~SWCHA
  * invert, port 0 (left jack) lives in the HIGH nibble as
  * Right($80) Left($40) Down($20) Up($10), and port 1 (right jack) in the
  * LOW nibble as Right($08) Left($04) Down($02) Up($01). Writing the masks
- * in "natural reading order" (UP=0x80…) is exactly REVERSED and makes the
- * stick's vertical axis steer horizontally — a bug weird enough to
+ * in "natural reading order" (UP=0x80...) is exactly REVERSED and makes the
+ * stick's vertical axis steer horizontally - a bug weird enough to
  * misdiagnose as a core problem. Verified bit-by-bit against prosystem.
  * 2P versus uses BOTH ports: player 0 reads the high nibble + INPT4 fire,
  * player 1 the low nibble + INPT5 fire. */
@@ -151,15 +151,15 @@
 #define J2_UP    0x01
 
 /* ════════════════════════════════════════════════════════════════════════
- * RAM MAP — the 7800 gives you 4KB ($1800-$27FF) and the stock cc65 config
+ * RAM MAP - the 7800 gives you 4KB ($1800-$27FF) and the stock cc65 config
  * only hands the linker the first 2112 bytes of it:
  *
- *   $1800-$203F  RAM1  — cc65 DATA + BSS (everything `static` below)
- *   $2040-$20FF  (gap the cc65 cfg skips — unused here)
- *   $2100-$213F  RAM2  — unused here
- *   $2200-$25FD  RAM3 bottom — OUR display-list pool/canvas arena (POOLB):
+ *   $1800-$203F  RAM1  - cc65 DATA + BSS (everything `static` below)
+ *   $2040-$20FF  (gap the cc65 cfg skips - unused here)
+ *   $2100-$213F  RAM2  - unused here
+ *   $2200-$25FD  RAM3 bottom - OUR display-list pool/canvas arena (POOLB):
  *                  raw pointer, invisible to the linker, 1022 bytes
- *   $25FE-$27FF  RAM3 top — cc65 C parameter stack (crt0 starts it at $2800
+ *   $25FE-$27FF  RAM3 top - cc65 C parameter stack (crt0 starts it at $2800
  *                  growing DOWN; ~510 bytes is plenty for these call depths,
  *                  but if you add deep recursion, shrink POOLB_LINES first)
  * ════════════════════════════════════════════════════════════════════════ */
@@ -169,10 +169,10 @@
  *   lines   0- 15  blank (top overscan)            1 DLL entry, 16 tall
  *   lines  16- 23  HUD text row (RAM canvas)       8 entries, 1 tall each
  *   lines  24- 25  divider band                    1 entry, 2 tall
- *   lines  26-145  THE ROAD — 120 one-line zones   120 entries (the pool)
+ *   lines  26-145  THE ROAD - 120 one-line zones   120 entries (the pool)
  *   lines 146-147  guard band                      1 entry, 2 tall
  *   lines 148-242  decor stripes (horizon glow)    12 entries, 8/7 tall
- * Total: 143 DLL entries = 429 bytes (vs 729 for the naive all-1-line DLL —
+ * Total: 143 DLL entries = 429 bytes (vs 729 for the naive all-1-line DLL -
  * mixed zone heights are how real 7800 games keep the DLL small).
  * The ROAD pool holds every moving object: both player cars AND the descending
  * traffic. The asphalt + roadside grass + marching dashes are STANDING road
@@ -180,14 +180,14 @@
 #define FIELD_LINES   120
 #define FIELD_DLL_OFF 30          /* byte offset of road entry 0 in dll[] */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Object art. 160A mode: 1 byte = 4 pixels of 2 bits each; pixel value
  * 1/2/3 = colour 1/2/3 of the palette the DL entry names, 0 = transparent.
  * Rows are stored top-down, consecutive (the 1-scanline-zone pattern below
- * means NO page-alignment dance — see "offset addressing quirk" in
+ * means NO page-alignment dance - see "offset addressing quirk" in
  * MENTAL_MODEL.md for what multi-line zones would demand instead). */
 
-/* Player car, 12px wide (3 bytes) x 10 rows — nose up. Colours: 1 body,
+/* Player car, 12px wide (3 bytes) x 10 rows - nose up. Colours: 1 body,
  * 2 window/shade, 3 highlight. Drawn with palette 1 (P1) or 2 (P2). */
 static const uint8_t GFX_CAR[10 * 3] = {
   0x01, 0x55, 0x40,    /*   1111111   (roof)  */
@@ -202,7 +202,7 @@ static const uint8_t GFX_CAR[10 * 3] = {
   0x14, 0x00, 0x14,    /* 11       11 (wheels)*/
 };
 
-/* Traffic car, 12px wide (3 bytes) x 8 rows — tail up (you overtake it).
+/* Traffic car, 12px wide (3 bytes) x 8 rows - tail up (you overtake it).
  * Drawn with palette 3 (rival red). */
 static const uint8_t GFX_TRAFFIC[8 * 3] = {
   0x14, 0x00, 0x14,    /* 11       11 (wheels)*/
@@ -216,13 +216,13 @@ static const uint8_t GFX_TRAFFIC[8 * 3] = {
 };
 
 /* DL mode bytes for the 4-byte (direct) entry form: palette in bits 5-7,
- * width as (32 - width_bytes) in bits 0-4 (must be non-zero — a zero low
+ * width as (32 - width_bytes) in bits 0-4 (must be non-zero - a zero low
  * 5 bits would make MARIA parse a 5-byte entry instead). */
 #define MODE_CAR1    ((1u << 5) | (32 - 3))   /* palette 1, 3 bytes wide */
 #define MODE_CAR2    ((2u << 5) | (32 - 3))   /* palette 2 */
 #define MODE_TRAFFIC ((3u << 5) | (32 - 3))   /* palette 3, 3 bytes wide */
 
-/* ── GAME LOGIC (clay) — 8x8 text font, 1 bit per pixel, 7px glyphs.
+/* ── GAME LOGIC (clay) - 8x8 text font, 1 bit per pixel, 7px glyphs.
  * The 7800 has NO text mode and no tilemap; text is just more objects.
  * The text path here: expand glyphs into a 32-byte-wide RAM canvas
  * (= 128px, 16 characters), then show the canvas with ONE wide DL entry
@@ -274,14 +274,14 @@ static const uint8_t NIB2[16] = {
   0x40,0x41,0x44,0x45,0x50,0x51,0x54,0x55,
 };
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Solid band drawable for multi-line zones AND the static asphalt. Inside a
  * zone of height H, MARIA fetches scanline l's pixels from ADDR + (H-1-l)*256
- * — the "offset addressing quirk". A multi-line drawable therefore needs valid
+ * - the "offset addressing quirk". A multi-line drawable therefore needs valid
  * data at the SAME low-byte offset across H consecutive 256-byte pages. For
  * solid colour bands we sidestep alignment entirely: a 2KB ROM run of 0x55
  * means ANY address inside the first page works for zones up to 8 tall (8
- * pages × 256). Costs 2KB of a 32KB cart — ROM is the cheap resource here. The
+ * pages × 256). Costs 2KB of a 32KB cart - ROM is the cheap resource here. The
  * road's grass + asphalt rails reuse SOLID8: each is a wide colour-1 object
  * drawn into the one-line road zones it spans (1-line zones ⇒ the quirk
  * vanishes, any SOLID8 address works). */
@@ -292,7 +292,7 @@ static const uint8_t SOLID8[2048] = { S256,S256,S256,S256,S256,S256,S256,S256 };
 /* Full-width band DL: a DL drawable is at most 32 bytes (128px), so a
  * 160px line takes TWO 5-byte entries + terminator = 11 bytes. 5-byte
  * form: lo, $40 (extended, write-mode 0 = 160A), hi, palette|width, X.
- * Width 32 encodes as 0 in the low 5 bits — legal ONLY in 5-byte form. */
+ * Width 32 encodes as 0 in the low 5 bits - legal ONLY in 5-byte form. */
 #define MK_BAND(name, pal) static uint8_t name[11] = { \
   0, 0x40, 0, ((pal) << 5) | 0,  0,    /* 128px @ x=0   */ \
   0, 0x40, 0, ((pal) << 5) | 24, 128,  /* 32px  @ x=128 */ \
@@ -302,8 +302,8 @@ MK_BAND(dl_band_b, 7);
 static uint8_t dl_empty[2] = { 0, 0 };
 
 /* ════════════════════════════════════════════════════════════════════════
- * ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * THE ROAD as STANDING drawables + the MARCHING-DASH "scroll" — the 7800
+ * ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * THE ROAD as STANDING drawables + the MARCHING-DASH "scroll" - the 7800
  * answer to "there is no scroll register".
  *
  * MARIA hierarchy refresher: DPP → DLL (one entry per ZONE: height + DL
@@ -312,39 +312,39 @@ static uint8_t dl_empty[2] = { 0, 0 };
  *
  * The road is 120 one-scanline zones. Each zone's STANDING image is a short
  * pre-built DL (road_dl[bank][...]) holding: a wide grey asphalt band, the two
- * white shoulder rails, the solid centre divider, and — on the lines a lane
- * DASH falls — a short white dash object. Every zone points at one of two
+ * white shoulder rails, the solid centre divider, and - on the lines a lane
+ * DASH falls - a short white dash object. Every zone points at one of two
  * pre-built DASH BANKS that differ only in WHERE the dash on-segments sit:
  *
- *   MARCHING DASH (the fake scroll) — we don't move pixels, we re-point each
+ *   MARCHING DASH (the fake scroll) - we don't move pixels, we re-point each
  *   road zone at the dash bank whose on/off phase matches that line's current
  *   offset. Advancing a single global `dash_phase` each frame slides the dash
- *   rhythm DOWNWARD with zero per-pixel work — just 120 one-byte DLL writes
+ *   rhythm DOWNWARD with zero per-pixel work - just 120 one-byte DLL writes
  *   choosing bank A vs B per line. Cheap enough to do every frame inside the
  *   budget; reads as the road rushing toward you. The asphalt + rails are the
  *   SAME in both banks, so only the dashes appear to move.
  *
  * The per-line DL slot is the 14-byte road pool: the standing road object(s)
  * are built ONCE per bank, and each frame we only repoint the DLL zone at the
- * right bank — UNLESS a car sits on that line, in which case we emit the car
+ * right bank - UNLESS a car sits on that line, in which case we emit the car
  * INTO that line's pool slot after the standing road bytes (cars-as-objects).
  *
- * WHY ≤3 OBJECTS PER LINE — the MARIA DMA budget, the dial this game turns:
+ * WHY ≤3 OBJECTS PER LINE - the MARIA DMA budget, the dial this game turns:
  * MARIA steals the bus per scanline (~113 DMA cycles before a line runs out).
  * The standing road is at most 2 wide band objects + 1 dash; we keep cars to
  * ≤1 extra per line by spacing traffic vertically, so even a busy road line
  * stays inside budget. When a 4th object-row would land on a line we DROP it
- * for that frame — a one-line flicker, the artifact real dense 7800 games show.
+ * for that frame - a one-line flicker, the artifact real dense 7800 games show.
  *
  * Rebuild-vs-patch doctrine (MENTAL_MODEL.md): the DLL is built ONCE and only
  * its 3-byte road entries are repointed (dash phase + cars), with car emits
  * writing only bytes INSIDE existing 14-byte slots. Tearing down the DLL
- * itself mid-game races MARIA's walker — the classic "works one frame then the
+ * itself mid-game races MARIA's walker - the classic "works one frame then the
  * screen falls apart" 7800 bug.
  * ════════════════════════════════════════════════════════════════════════ */
 /* Per-line DL slot is 14 bytes (same as the shmup). The standing road is two
  * 4-byte DIRECT objects (asphalt + dash = 8 bytes), then room for ONE 4-byte
- * car entry, then the terminator — 8+4+1 = 13 ≤ 14. (Asphalt fits the 4-byte
+ * car entry, then the terminator - 8+4+1 = 13 ≤ 14. (Asphalt fits the 4-byte
  * direct form because its 16-byte width encodes as a non-zero low-5-bits 32-16;
  * the 5-byte extended form is only needed for the full-32-byte bands.)
  * LINE_FULL gates car emits so the terminator never spills into the next slot. */
@@ -359,7 +359,7 @@ static uint8_t dll[143 * 3];
 static uint8_t hud_canvas[8 * 32];      /* 16-char text row, lives in BSS */
 static uint8_t hud_dls[8 * 7];          /* one 5-byte DL + term per row   */
 
-/* ── HARDWARE IDIOM (load-bearing) — the ROAD BANKS. Two pre-built standing
+/* ── HARDWARE IDIOM (load-bearing) - the ROAD BANKS. Two pre-built standing
  * road DLs: bank 0 draws the lane dashes on a line, bank 1 leaves the dash
  * gap. A road zone alternates banks every DASH_RUN lines, and the marching
  * "scroll" shifts which lines are on which bank by `dash_phase`. The asphalt
@@ -368,10 +368,10 @@ static uint8_t hud_dls[8 * 7];          /* one 5-byte DL + term per row   */
  * sliding downward. Each bank DL is at most: asphalt(5) + dash(4) + term(1) =
  * 10 bytes ≤ 14. We build it into a tiny per-bank ROM-pointing RAM DL once. */
 #define ROAD_W_BYTES  16          /* 64px asphalt centred on a 160px field */
-#define ROAD_X        48          /* asphalt left edge (px) — 64px road */
+#define ROAD_X        48          /* asphalt left edge (px) - 64px road */
 #define DASH_RUN      8           /* dash on for 8 lines, off for 8       */
 /* Every road line shares the SAME asphalt object and the SAME dash object
- * (the dash only differs in WHETHER it appears on a line, chosen by phase —
+ * (the dash only differs in WHETHER it appears on a line, chosen by phase -
  * not in its bytes), so one template of each suffices (5-byte asphalt, 4-byte
  * dash). Per-line copies would waste ~2KB of the 2KB RAM1 budget for nothing. */
 static uint8_t road_band[4];      /* the 64px asphalt object (4-byte direct) */
@@ -380,7 +380,7 @@ static uint8_t road_dash[4];      /* the 4px centre dash object (built once)*/
 
 /* Emit one object: a 4-byte direct DL entry into every road line one of its
  * rows crosses. gfx rows are consecutive (stride = width in bytes). Callers
- * keep y in [0, FIELD_LINES - h] so no clipping is needed — keep that
+ * keep y in [0, FIELD_LINES - h] so no clipping is needed - keep that
  * invariant if you change movement code, or add clipping here. */
 static void emit_object(uint8_t y, uint8_t h, const uint8_t* gfx,
                         uint8_t stride, uint8_t mode, uint8_t x) {
@@ -407,9 +407,9 @@ static void field_close(void) {         /* terminate every line after emits */
     line_dl[i][line_used[i] + 1] = 0;   /* next entry's MODE byte = 0    */
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — DLL construction + zone repointing.
+/* ── HARDWARE IDIOM (load-bearing) - DLL construction + zone repointing.
  * Built once at boot; dll_zone appends one 3-byte entry (offset byte =
- * height-1; DLI/holey bits stay 0 — no NMI handler, no holey DMA here). */
+ * height-1; DLI/holey bits stay 0 - no NMI handler, no holey DMA here). */
 static uint8_t* dllp;
 static void dll_zone(uint8_t height, uint16_t dl) {
   dllp[0] = height - 1;
@@ -427,7 +427,7 @@ static void point_field_zone(uint8_t fline, uint16_t dl) {
   e[2] = (uint8_t)(dl & 0xFF);
 }
 
-/* ── GAME LOGIC (clay) — text rendering into a 32-byte-wide RAM canvas ── */
+/* ── GAME LOGIC (clay) - text rendering into a 32-byte-wide RAM canvas ── */
 static uint8_t glyph_index(char c) {
   if (c >= '0' && c <= '9') return (uint8_t)(c - '0');
   if (c >= 'A' && c <= 'Z') return (uint8_t)(10 + c - 'A');
@@ -476,13 +476,13 @@ static void canvas_dls(uint8_t* dls, const uint8_t* canvas, uint8_t pal) {
   }
 }
 
-/* ── GAME LOGIC (clay) — the music. Two-voice TIA tune loop. ─────────────────
- * The TIA's frequency divider is 5 bits — ~32 pitches TOTAL, none of them
+/* ── GAME LOGIC (clay) - the music. Two-voice TIA tune loop. ─────────────────
+ * The TIA's frequency divider is 5 bits - ~32 pitches TOTAL, none of them
  * in tune with each other. Don't fight it: write the melody IN the TIA's
  * crooked scale and it reads as "gritty 7800", fight it and it reads as
- * "wrong". The note tables ARE the song — edit them to recompose.
+ * "wrong". The note tables ARE the song - edit them to recompose.
  * Voice 0 = melody (AUDC 4, square-ish). Voice 1 = bass (AUDC 6, deep
- * buzz) — and voice 1 is SHARED with sound effects (TIA has only two
+ * buzz) - and voice 1 is SHARED with sound effects (TIA has only two
  * voices): when the game fires an effect, sfx_hold mutes the bass for the
  * effect's length, then the bass re-enters on its next note. That
  * steal-and-return is the standard 2-voice arbitration trick. */
@@ -523,7 +523,7 @@ static void fx_pass(void)  { sfx_tone(1, 14, 2);  sfx_hold = 3;  }
 static void fx_crash(void) { sfx_noise(22);       sfx_hold = 23; }
 static void fx_start(void) { sfx_tone(1, 8, 6);   sfx_hold = 7;  }
 
-/* ── GAME LOGIC (clay — reshape freely) — ROAD GEOMETRY ──────────────────────
+/* ── GAME LOGIC (clay - reshape freely) - ROAD GEOMETRY ──────────────────────
  * Four lanes between the shoulders on a 64px-wide road. Lane centres (left
  * pixel of the 12px car). The centre divider sits between lane 1 and lane 2;
  * in 2P that line splits the territories (P1 lanes 0-1, P2 lanes 2-3). */
@@ -535,14 +535,14 @@ static const uint8_t LANE_X[LANES] = { 52, 66, 84, 98 };
 #define SPAWN_Y      2            /* traffic enters at the top road line  */
 #define DESPAWN_Y  112            /* recycle past the bottom (keeps emit in-bounds) */
 
-/* ── GAME LOGIC (clay) — traffic pool (fixed slots, no allocation). MORE
+/* ── GAME LOGIC (clay) - traffic pool (fixed slots, no allocation). MORE
  * traffic than lanes so the MARIA object-quantity signature shows: a thick
  * descending stream. */
 #define TRAFFIC  10
 static uint8_t tr_lane[TRAFFIC], tr_y[TRAFFIC], tr_act[TRAFFIC];
 
-/* ── GAME LOGIC (clay — reshape freely) — game state ─────────────────────────
- * Fixed object pools, no allocation (1.79MHz CPU, 4KB RAM — a heap is a cost
+/* ── GAME LOGIC (clay - reshape freely) - game state ─────────────────────────
+ * Fixed object pools, no allocation (1.79MHz CPU, 4KB RAM - a heap is a cost
  * with no payer). Players: 0 = P1 (port 0), 1 = P2 (port 1, versus only). */
 #define LIVES_START 3
 static uint8_t car_lane[2], car_act[2], crashes[2], invuln[2];
@@ -563,7 +563,7 @@ static uint16_t rng = 0xC0DE;
 #define ST_OVER  2
 static uint8_t state;
 
-static uint8_t random8(void) {            /* xorshift16 — cheap + fine    */
+static uint8_t random8(void) {            /* xorshift16 - cheap + fine    */
   uint16_t r = rng;
   r ^= r << 7;
   r ^= r >> 9;
@@ -579,17 +579,17 @@ static uint8_t hits(uint8_t ax, uint8_t ay, uint8_t bx, uint8_t by) {
   return (dx < 11) && (dy < 9);
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — build the STANDING road. For each road
+/* ── HARDWARE IDIOM (load-bearing) - build the STANDING road. For each road
  * line, road_band[] holds the asphalt band object (grey, 64px) + a centre
  * divider object; road_dash[] holds a short white dash object placed on the
  * lines where the marching pattern is "on". emit_road() points each line's
  * pool slot at its standing bytes; the dash on/off is chosen by the line's
  * phase. Called every frame (it's cheap: ~120 short memcpys) so the dash
- * march is just a changing phase — no DLL teardown. */
+ * march is just a changing phase - no DLL teardown. */
 static void build_road_drawables(void) {
   uint16_t sa = (uint16_t)(uintptr_t)SOLID8;
   /* asphalt band: one 16-byte (64px) grey object @ ROAD_X (palette 5), 4-byte
-   * DIRECT form [lo, mode, hi, x] — width 16 ⇒ mode low5 = 32-16 = 16 (≠0). */
+   * DIRECT form [lo, mode, hi, x] - width 16 ⇒ mode low5 = 32-16 = 16 (≠0). */
   road_band[0] = (uint8_t)(sa & 0xFF);
   road_band[1] = (uint8_t)((5u << 5) | (32 - ROAD_W_BYTES));
   road_band[2] = (uint8_t)(sa >> 8);
@@ -628,7 +628,7 @@ static void compose_road(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — HUD: "DIST 00000 BEST 0" / "P1 0 - P2 0" composed ── */
+/* ── GAME LOGIC (clay) - HUD: "DIST 00000 BEST 0" / "P1 0 - P2 0" composed ── */
 static void draw_hud(void) {
   if (two_p) {
     static char vbuf[17] = "P1 3   VS   P2 3";
@@ -654,18 +654,18 @@ static void draw_hud_title(void) {
   draw_text(hud_canvas, 3, buf);
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — paint functions bracket structural
+/* ── HARDWARE IDIOM (load-bearing) - paint functions bracket structural
  * display-list changes with MARIA DMA OFF ($7F) / ON ($40), the 7800's
  * version of the NES "rendering off before nametable writes" rule: MARIA
  * may be mid-walk through the very lists being rewritten, and repointing
  * dozens of zones under it glitches (or with bad luck hangs) the frame.
- * CTRL $40 = DMA on, 160A read mode, colour burst on — forget to restore
+ * CTRL $40 = DMA on, 160A read mode, colour burst on - forget to restore
  * it and the screen stays the flat BACKGRND colour forever. ── */
 
 /* Title screen: borrow road zones for three text overlays composed in POOLB
- * (the pool isn't drawing the road on the title, so its RAM is free — 4KB
+ * (the pool isn't drawing the road on the title, so its RAM is free - 4KB
  * machines make you reuse like this). Title is double-height by pointing TWO
- * consecutive 1-line zones at each canvas row — zero extra RAM, pure DLL
+ * consecutive 1-line zones at each canvas row - zero extra RAM, pure DLL
  * trickery. */
 static void paint_title(void) {
   uint8_t i;
@@ -726,7 +726,7 @@ static void paint_gameover(void) {
   CTRL = 0x40;
 }
 
-/* ── GAME LOGIC (clay) — spawn one traffic car in a free slot ── */
+/* ── GAME LOGIC (clay) - spawn one traffic car in a free slot ── */
 static void spawn_traffic(void) {
   uint8_t i;
   for (i = 0; i < TRAFFIC; ++i) {
@@ -739,7 +739,7 @@ static void spawn_traffic(void) {
   }
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_game(uint8_t players) {
   uint8_t i;
   CTRL = 0x7F;
@@ -791,8 +791,8 @@ static void crash(uint8_t p) {
   }
 }
 
-/* ── GAME LOGIC (clay) — per-player input. LEFT/RIGHT steer between lanes
- * (edge-detected — held d-pad shouldn't machine-gun across the road). 1P
+/* ── GAME LOGIC (clay) - per-player input. LEFT/RIGHT steer between lanes
+ * (edge-detected - held d-pad shouldn't machine-gun across the road). 1P
  * only: UP/A accelerate, DOWN/B brake (speed 1-4). ── */
 static void update_player(uint8_t p, uint8_t fire, uint8_t pressed) {
   uint8_t lf, rt, up, dn;
@@ -801,7 +801,7 @@ static void update_player(uint8_t p, uint8_t fire, uint8_t pressed) {
   else        { rt = pressed & J2_RIGHT; lf = pressed & J2_LEFT; up = pressed & J2_UP; dn = pressed & J2_DOWN; }
   if (lf && car_lane[p] > lane_min[p]) { --car_lane[p]; fx_lane(); }
   if (rt && car_lane[p] < lane_max[p]) { ++car_lane[p]; fx_lane(); }
-  if (!two_p) {                           /* speed is shared — 1P only     */
+  if (!two_p) {                           /* speed is shared - 1P only     */
     if ((up || fire) && speed < 4) { ++speed; fx_gas(); }
     if (dn && speed > 1)           { --speed; fx_brake(); }
   }
@@ -817,7 +817,7 @@ void main(void) {
   uint8_t i;
   uint16_t a;
 
-  /* ── HARDWARE IDIOM (load-bearing) — boot order: build EVERYTHING the DLL
+  /* ── HARDWARE IDIOM (load-bearing) - boot order: build EVERYTHING the DLL
    * will reference, then point DPP at it, THEN enable DMA. Enabling DMA over
    * a half-built DLL is the 7800 black-screen classic. ── */
 
@@ -837,7 +837,7 @@ void main(void) {
   build_road_drawables();
   canvas_dls(hud_dls, hud_canvas, 5);
 
-  /* The DLL — the screen layout, built once (see the layout table above).
+  /* The DLL - the screen layout, built once (see the layout table above).
    * 143 entries, mixed zone heights; only the 120 road entries are ever
    * repointed after this. */
   dllp = dll;
@@ -848,7 +848,7 @@ void main(void) {
   for (i = 0; i < FIELD_LINES; ++i)                       /* road 26-145  */
     dll_zone(1, (uint16_t)(uintptr_t)line_dl[i]);
   dll_zone(2, (uint16_t)(uintptr_t)dl_band_a);            /* guard band   */
-  /* Horizon decor stripes — also our anti-blank-screen ballast: with DMA
+  /* Horizon decor stripes - also our anti-blank-screen ballast: with DMA
    * fetching only objects, everything else is the single flat BACKGRND
    * colour, and a mostly-one-colour frame reads as "dead". */
   dll_zone(8, (uint16_t)(uintptr_t)dl_band_a);
@@ -861,7 +861,7 @@ void main(void) {
   dll_zone(8, (uint16_t)(uintptr_t)dl_empty);
   dll_zone(8, (uint16_t)(uintptr_t)dl_band_a);
   dll_zone(8, (uint16_t)(uintptr_t)dl_empty);
-  dll_zone(8, (uint16_t)(uintptr_t)dl_band_b);            /* …through 235 */
+  dll_zone(8, (uint16_t)(uintptr_t)dl_band_b);            /* ...through 235 */
   dll_zone(7, (uint16_t)(uintptr_t)dl_empty);             /* 236-242      */
 
   /* Palettes (Atari colour byte = hue<<4 | luminance). */
@@ -882,8 +882,8 @@ void main(void) {
   DPPH = (uint8_t)(a >> 8);
 
   sfx_init();
-  best = 0;                               /* in-session only — see header  */
-  paint_title();                          /* …turns DMA on                 */
+  best = 0;                               /* in-session only - see header  */
+  paint_title();                          /* ...turns DMA on                 */
 
   for (;;) {
     uint8_t pad, f1, f2, pr0, pr1;
@@ -896,7 +896,7 @@ void main(void) {
     f2 = (uint8_t)(!(INPT5 & 0x80));
 
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: P1 fire = 1P race, P2 fire = 2P ── */
+      /* ── GAME LOGIC (clay) - title: P1 fire = 1P race, P2 fire = 2P ── */
       if (f1 && !pf0) start_game(0);
       else if (f2 && !pf1) start_game(1);
       pf0 = f1; pf1 = f2;
@@ -918,10 +918,10 @@ void main(void) {
     if (two_p) update_player(1, f2, pr1);
     if (state != ST_PLAY) { pf0 = f1; pf1 = f2; continue; }   /* a crash ended it */
 
-    /* ── HARDWARE IDIOM (load-bearing) — the marching-dash "scroll": advance
+    /* ── HARDWARE IDIOM (load-bearing) - the marching-dash "scroll": advance
      * the phase by the road speed, then re-compose the road into the pool
      * slots. compose_road() points each road zone at the dash bank matching
-     * its (line + dash_phase) — the dashes slide downward with no per-pixel
+     * its (line + dash_phase) - the dashes slide downward with no per-pixel
      * work. This IS the fake road motion (MARIA has no scroll register).
      * dash_acc accumulates speed so the march speeds up with the throttle but
      * never skips so far it strobes; the actual compose happens in the draw
@@ -930,7 +930,7 @@ void main(void) {
     while (dash_acc >= 2) { dash_acc -= 2; dash_phase = (uint8_t)(dash_phase + 1); }
     if (dash_phase >= (DASH_RUN << 1)) dash_phase -= (DASH_RUN << 1);
 
-    /* ── GAME LOGIC (clay) — traffic flows DOWN at road speed (reads as cars
+    /* ── GAME LOGIC (clay) - traffic flows DOWN at road speed (reads as cars
      * you overtake); recycle past the bottom with a little pass tick. ── */
     for (i = 0; i < TRAFFIC; ++i) {
       if (!tr_act[i]) continue;
@@ -956,7 +956,7 @@ void main(void) {
       }
     }
 
-    /* ── GAME LOGIC (clay) — traffic × cars. Crash grace: a just-wrecked car
+    /* ── GAME LOGIC (clay) - traffic × cars. Crash grace: a just-wrecked car
      * blinks and can't collide for 60 frames. ── */
     for (i = 0; i < TRAFFIC; ++i) {
       uint8_t p;
@@ -973,14 +973,14 @@ void main(void) {
     }
     if (state != ST_PLAY) { pf0 = f1; pf1 = f2; continue; }
 
-    /* ── HARDWARE IDIOM (load-bearing) — the per-frame draw pass:
+    /* ── HARDWARE IDIOM (load-bearing) - the per-frame draw pass:
      * compose the road (sets line_used past the standing road bytes) → emit
      * every car INTO the remaining room of each line's slot → terminate.
      * Cars go last so the road is always present even if a line fills; a
      * dropped car-row is a one-line flicker, never a missing road. ── */
     compose_road();
     /* traffic first (so the player's own car wins the 3-object budget on a
-     * shared line — the player car should never be the one that flickers). */
+     * shared line - the player car should never be the one that flickers). */
     for (i = 0; i < TRAFFIC; ++i)
       if (tr_act[i]) emit_object(tr_y[i], TRAFFIC_H, GFX_TRAFFIC, 3,
                                  MODE_TRAFFIC, LANE_X[tr_lane[i]]);
@@ -988,7 +988,7 @@ void main(void) {
       if (!car_act[i]) continue;
       /* crash blink = SHIMMER, never vanish: on blink ticks draw only the
        * car's bottom half instead of skipping it (a fully-skipped sprite
-       * reads as "gone" in any single sampled frame — the spawn-blink
+       * reads as "gone" in any single sampled frame - the spawn-blink
        * footgun from the gold round). */
       if (invuln[i] && (invuln[i] & 4))
         emit_object((uint8_t)(CAR_Y + 5), 5, GFX_CAR + 15, 3,

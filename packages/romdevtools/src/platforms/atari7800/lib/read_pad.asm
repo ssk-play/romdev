@@ -1,11 +1,11 @@
 ; ── Read 7800 joystick + fire buttons ──────────────────────────────
 ; The 7800 ports work via RIOT just like the 2600 PLUS analog inputs:
-;   SWCHA ($280)    — directional bits (active-low) for both sticks
-;   INPT0-3 ($08-$0B) — analog input dump (latched paddles, etc.)
-;   INPT4-5 ($0C-$0D) — digital fire button (active-low)
+;   SWCHA ($280)    - directional bits (active-low) for both sticks
+;   INPT0-3 ($08-$0B) - analog input dump (latched paddles, etc.)
+;   INPT4-5 ($0C-$0D) - digital fire button (active-low)
 ;
 ; 7800 ProLine controllers have TWO fire buttons. The right button
-; appears on INPT0/INPT2 (or INPT1/INPT3 depending on the port — INPTCTRL
+; appears on INPT0/INPT2 (or INPT1/INPT3 depending on the port - INPTCTRL
 ; selects between 2-button and 1-button modes).
 
 .include "maria_registers.h"
@@ -43,7 +43,7 @@ FIRE1_L    = $95
     EOR #$80
     STA FIRE1_R
 
-    ; Left-fire on 7800 ProLine — read from INPT0 / INPT2 (latched analog).
+    ; Left-fire on 7800 ProLine - read from INPT0 / INPT2 (latched analog).
     ; INPTCTRL=$01 at boot routes "2-button" mode. Bit 7 = button.
     LDA $08
     EOR #$80

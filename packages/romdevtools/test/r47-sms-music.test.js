@@ -1,10 +1,10 @@
-// R47 — SMS music_demo template: 3-voice continuous PSG melody.
+// R47 - SMS music_demo template: 3-voice continuous PSG melody.
 //
 // sms_music.{h,c} is a tiny hand-rolled tracker on top of the SN76489
 // PSG (port $7F). Voice 0 = melody, voice 1 = harmony, voice 2 = bass,
 // driven by parallel per-voice (freq, length_frames) arrays. The
 // scaffold music_demo.c calls music_init() + music_play(0) once at
-// boot and music_update() once per vblank — same shape every other
+// boot and music_update() once per vblank - same shape every other
 // platform's music demo uses.
 
 import { test } from "node:test";

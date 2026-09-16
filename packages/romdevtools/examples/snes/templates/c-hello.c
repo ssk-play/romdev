@@ -1,4 +1,4 @@
-/* ── c-hello.c — minimal PVSnesLib starter ─────────────────────────
+/* ── c-hello.c - minimal PVSnesLib starter ─────────────────────────
  *
  * Tested boots-from-cold game-loop skeleton for SNES C:
  *   - consoleInitText sets up PVSnesLib's text mode against tilfont + palfont
@@ -42,7 +42,7 @@ int main(void) {
     u16 i;
 
     /* ── 1. PVSnesLib text-mode setup ─────────────────────────────
-     * Map + tile-data + palette-offset addresses are conventions —
+     * Map + tile-data + palette-offset addresses are conventions -
      * any free VRAM region will work, these match PVSnesLib's
      * hello_world example layout.
      */
@@ -53,7 +53,7 @@ int main(void) {
 
     /* ── 2. Pick a BG mode ────────────────────────────────────────
      * BG_MODE1 = 16-color BG0/BG1 + 4-color BG2. Good default.
-     * consoleInitText only DMAs the font/palette to VRAM — it does NOT
+     * consoleInitText only DMAs the font/palette to VRAM - it does NOT
      * program the PPU BG base registers, so point BG0 at the same font
      * ($3000) + map ($6800) addresses we gave the console above.
      * Disable BG1 / BG2 since we only use BG0 for text here.

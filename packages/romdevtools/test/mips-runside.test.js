@@ -1,6 +1,6 @@
 // MIPS run-side (N64 HW-render via the GL bridge, PS1 HW-render via beetle_psx_hw
 // HLE). Proves the cores boot, run, and present a real framebuffer through romdev's
-// host — the run/screenshot parity. These need the optional native GL stack
+// host - the run/screenshot parity. These need the optional native GL stack
 // (native-gles/webgl-node) for N64 + a core in the dev-staging dir; they skip
 // gracefully when either is absent (CI without the GPU module / packaged cores).
 
@@ -30,7 +30,7 @@ test("N64: a toolchain-built homebrew boots + RENDERS on the GPU (glide64 GBI dl
   if (!(await glStackAvailable())) { console.log("GL stack unusable here; skipping"); return; }
 
   // The bundled n64.c helper emits a GBI (F3DEX2) display list that glide64 HLEs onto
-  // the GPU — NOT a software framebuffer (which would be black on glide64 + <1fps).
+  // the GPU - NOT a software framebuffer (which would be black on glide64 + <1fps).
   // n64.h/n64.c auto-bundle, so a bare #include works. A spinning cube + a 2D rect +
   // a clear exercises clear/rect/quad3d (the scan-converted triangle path).
   const src = `#include "n64.h"
@@ -52,7 +52,7 @@ test("N64: a toolchain-built homebrew boots + RENDERS on the GPU (glide64 GBI dl
     assert.ok(host.hwRender?.active, "glide64 GL engaged through native-gles (hwActive)");
     for (let i = 0; i < 180; i++) host.stepFrames(1);
 
-    // The homebrew's GBI display list renders on the GPU — assert non-black + multiple
+    // The homebrew's GBI display list renders on the GPU - assert non-black + multiple
     // distinct colors (clear + the three cube faces + the yellow rect).
     const fb = host.hwRender.readbackFrame(host.state.hwFrameW, host.state.hwFrameH);
     assert.ok(fb, "got a HW frame");
@@ -64,7 +64,7 @@ test("N64: a toolchain-built homebrew boots + RENDERS on the GPU (glide64 GBI dl
     assert.ok(nonBlack > 20000, `N64 GBI dlist rendered on the GPU (not black): ${nonBlack} px`);
     assert.ok(colors.size >= 3, `multiple colors (clear + faces + rect): ${colors.size}`);
 
-    // cpuState — the R4300 register file (cheat+regsnap-enabled core build).
+    // cpuState - the R4300 register file (cheat+regsnap-enabled core build).
     if (host.mipsRegsSupported()) {
       const cpu = getCPUState(host, "n64");
       assert.ok(cpu && typeof cpu.pc === "number", "N64 cpuState decodes");
@@ -111,7 +111,7 @@ test("PS1: beetle_psx_hw (OpenBIOS) boots + presents a frame", { timeout: 120000
       assert.ok(lf, "PS1 presented a frame");
       assert.ok(lf.width > 0 && lf.height > 0, `real framebuffer: ${lf.width}x${lf.height}`);
 
-      // cpuState — the R3000 register file.
+      // cpuState - the R3000 register file.
       if (host.mipsRegsSupported()) {
         const cpu = getCPUState(host, "ps1");
         assert.ok(cpu && typeof cpu.pc === "number", "PS1 cpuState decodes");
@@ -178,7 +178,7 @@ test("live-debug: watchpoint + range-watch fire on PS1 (instrumented core)", { t
   if (!(await glStackAvailable())) { console.log("GL stack unusable here; skipping"); return; }
   // A program that drives the GPU (so we know main runs) AND scribbles a global array
   // in user RAM. Under beetle's real OpenBIOS, low kernel/vector space (e.g. 0x80001000)
-  // is protected — so we discover what the program ACTUALLY writes via findWriter on the
+  // is protected - so we discover what the program ACTUALLY writes via findWriter on the
   // running code, then confirm the watchpoint + range-watch fire on the GL core. This
   // exercises the full shared-lib debug surface end-to-end (the machinery is core-agnostic;
   // the host arms the raw virtual address, which the beetle hook reports unmasked).
@@ -192,7 +192,7 @@ test("live-debug: watchpoint + range-watch fire on PS1 (instrumented core)", { t
     await host.loadMedia({ platform: "ps1", bytes: r.binary, virtualName: "/wp.exe" });
     host.stepFrames(30);
     // Discover an address the RUNNING program writes (the global `g` + stack churn) via a
-    // wide range-watch — this proves the write-watch path fires on the active GL core.
+    // wide range-watch - this proves the write-watch path fires on the active GL core.
     const wide = host.watchRange(0x80000000, 0x801fffff, "write", 64);
     assert.ok(wide.total > 0, `range-watch captured writes on the GL PS1 core: ${wide.total}`);
     assert.ok(wide.events?.length > 0 && (wide.events[0].pc >>> 0) > 0x80000000,
@@ -217,7 +217,7 @@ test("audioDebug: PS1 SPU register decode (chip:'spu')", { timeout: 180000 }, as
   const { decodePs1Spu } = await import("romdev-core-host/ps1-spu-state.js");
   // A PS1 program that writes the SPU main volume + a voice volume/pitch.
   // NOTE on what reads back: in beetle (Mednafen) SPU, the main/voice VOLUME
-  // registers are sweep-CONTROL writes — the running volume sweep converges to a
+  // registers are sweep-CONTROL writes - the running volume sweep converges to a
   // live value and writes it back into the register file, so a near-max write
   // (0x3FFF) reads back as the converged live volume (≈0x3800), NOT the literal.
   // That live value is the correct thing audioDebug reports (it's what drives the

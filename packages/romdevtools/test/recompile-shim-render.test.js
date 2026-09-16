@@ -1,14 +1,14 @@
-// NES→SNES PPU shim — end-to-end RENDER gate. Builds the NES default scaffold
+// NES→SNES PPU shim - end-to-end RENDER gate. Builds the NES default scaffold
 // (the known-good recompile vehicle, same as recompile-nes-snes-e2e), recompiles
 // its reset routine to 65816 WITH the shim, feeds the shim a KNOWN set of
 // converted assets (tiles + tilemap + a vivid palette), assembles with asar, and
-// boots the LoROM image in snes9x — asserting the tiles, tilemap, and PALETTE
+// boots the LoROM image in snes9x - asserting the tiles, tilemap, and PALETTE
 // actually land in SNES VRAM/CGRAM and the screen is enabled.
 //
 // This is the acceptance gate for the shim's 65816 UPLOAD routine. It guards the
 // `cpx`-width footgun specifically: `rep #$10` makes X 16-bit at runtime, but
 // asar sizes index immediates by the literal and would assemble a bare `cpx #32`
-// (the small CGRAM count) as an 8-bit instruction — the CPU then decodes 3 bytes,
+// (the small CGRAM count) as an 8-bit instruction - the CPU then decodes 3 bytes,
 // eats the next opcode, and the routine derails (blank screen + CPU runaway). The
 // fix is `cpx.w` on every loop; this test proves CGRAM (the small count) uploads.
 // (Verified manually: the fix made a recompiled NES boot picture render in color
@@ -36,7 +36,7 @@ test("shim upload routine lands tiles + tilemap + palette in SNES VRAM/CGRAM", {
   const root = await mkdtemp(path.join(tmpdir(), "shim-render-"));
   try {
     // 1. Build the NES default scaffold and recompile its reset routine (this
-    //    path is known to translate + assemble + boot — see the sibling e2e).
+    //    path is known to translate + assemble + boot - see the sibling e2e).
     const proj = path.join(root, "nes-default");
     await createProjectImpl({ platform: "nes", name: "nes-default", path: proj, template: "default", overwrite: true });
     const nesRom = path.join(root, "in.nes");

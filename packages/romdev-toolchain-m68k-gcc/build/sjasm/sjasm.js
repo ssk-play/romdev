@@ -1,4 +1,4 @@
-// sjasm.js — SGDK's Z80 toolchain, as WASM: `sjasm` (Z80 assembler) + `bintos`
+// sjasm.js - SGDK's Z80 toolchain, as WASM: `sjasm` (Z80 assembler) + `bintos`
 // (Z80 binary → m68k .s/.h embedder). Used to build SGDK's sound drivers FROM
 // SOURCE: a .s80 Z80 driver → sjasm → raw Z80 binary → bintos → an m68k .s that
 // embeds the blob as a byte array + a .h that declares it. SGDK's C sources
@@ -7,7 +7,7 @@
 // 0.95.0 env injection: `makeZ80Tools(env)` lets a host supply
 // `env.loadGlue(file)` → the emscripten module FACTORY for that glue file
 // (a browser Web Worker imports the staged glue asset itself). The default
-// resolves from this npm package lazily — NO top-level node imports, so a
+// resolves from this npm package lazily - NO top-level node imports, so a
 // browser bundle can load this module untouched.
 
 /** Default: resolve sjasm/bintos glue from the npm package (node). Lazy. */

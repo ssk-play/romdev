@@ -52,7 +52,7 @@ id: 502 file: /work/libc.obj line: 198 type: 1 bank: 0 position: 1 section_statu
 /work/main.obj: /work/main.asm:18: FIX_REFERENCES: Reference to an unknown label "this_symbol_does_not_exist".
 `;
   const issues = parseBuildLog(log);
-  // Exactly ONE issue — the flood lines must NOT become issues.
+  // Exactly ONE issue - the flood lines must NOT become issues.
   assert.equal(issues.length, 1);
   assert.equal(issues[0].severity, "error");
   assert.equal(issues[0].file, "/work/main.asm");

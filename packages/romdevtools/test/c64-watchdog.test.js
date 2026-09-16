@@ -1,16 +1,16 @@
-// C64 (vice x64 / 6510) callSubroutine instruction WATCHDOG — end to end.
+// C64 (vice x64 / 6510) callSubroutine instruction WATCHDOG - end to end.
 //
 // callSubroutine can be pointed at a routine that loops FOREVER. Each emulator
 // frame spins inside the 6510 execute loop, so the host's per-frame cap can't
 // catch it and the WASM would hang. The watchdog (romdev_watchdog_set, hooked
 // into the 6510 dispatch, force-stops via romdev_pc_hit + romdev_pc_watchdog and
 // the existing retro_run frame-loop drain) must force-stop at the host-set
-// instruction budget and report watchdog:true — NOT hang.
+// instruction budget and report watchdog:true - NOT hang.
 //
 // Mirrors test/lynx-watchdog.test.js for the 6510 core. We build a tiny C64 .prg
 // whose main() is `while(1){}` (a guaranteed runaway), load it into a bare
 // LibretroHost, step past the BASIC auto-RUN (C64 .prg only starts after BASIC
-// RUNs it — ~150 frames), then arm setWatchdog + a PC break at an unreachable
+// RUNs it - ~150 frames), then arm setWatchdog + a PC break at an unreachable
 // address so ONLY the watchdog can stop it. The KEY assertion: arming a TINY
 // limit force-stops within a frame and the watchdog flag comes back set, without
 // the core hanging.
@@ -40,7 +40,7 @@ const toJSON = (res) => {
   return JSON.parse(res.content[0].text);
 };
 
-// main() never returns — a guaranteed runaway the watchdog must catch.
+// main() never returns - a guaranteed runaway the watchdog must catch.
 const SRC = `
 void main(void) {
   volatile unsigned char c = 0;
@@ -57,13 +57,13 @@ test("C64 watchdog force-stops an infinite loop (vice 6510)", { timeout: 180000 
 
   const { LibretroHost } = await import("romdev-core-host/LibretroHost.js");
   const core = resolveCore("c64");
-  assert.ok(core, "resolveCore('c64') returned null — vice_x64_libretro.{js,wasm} missing?");
+  assert.ok(core, "resolveCore('c64') returned null - vice_x64_libretro.{js,wasm} missing?");
   const host = new LibretroHost();
   await host.loadCore(core.jsPath, core.wasmPath);
   await host.loadMedia({ platform: "c64", path: build.binaryPath });
 
   // Feature detection: the whole point of this change.
-  assert.equal(host.watchdogSupported(), true, "watchdogSupported() false — romdev_watchdog_set missing on vice");
+  assert.equal(host.watchdogSupported(), true, "watchdogSupported() false - romdev_watchdog_set missing on vice");
   assert.equal(host.pcBreakSupported(), true, "pcBreakSupported() false");
 
   // C64 BASIC auto-RUN takes many frames before our program reaches its loop.
@@ -71,7 +71,7 @@ test("C64 watchdog force-stops an infinite loop (vice 6510)", { timeout: 180000 
 
   // KEY assertion: arm a TINY instruction budget. The ROM is spinning forever in
   // main(), so the watchdog MUST force-stop within a single frame and report the
-  // flag — and the core must NOT hang. A PC breakpoint at an address the spin
+  // flag - and the core must NOT hang. A PC breakpoint at an address the spin
   // never reaches ensures ONLY the watchdog can stop it.
   host.setWatchdog(50000);
   host.setPCBreak(0xFFFF, true, false);
@@ -99,7 +99,7 @@ test("C64 watchdog force-stops an infinite loop (vice 6510)", { timeout: 180000 
   assert.equal(cleared.watchdog, false, "watchdog flag did not clear after disarm+clearHit");
 
   // REGRESSION (v0.6.0 cross-system gap): the DEFAULT budget must trip on a
-  // slow ~1MHz CPU before the per-frame cap. A flat 4M NEVER tripped here — the
+  // slow ~1MHz CPU before the per-frame cap. A flat 4M NEVER tripped here - the
   // 6510 runs only ~3.18M instructions in 600 frames, so 4M needed ~755 frames.
   // The per-CPU default (≈0.8*600*6000 ≈ 2.88M for the 6502 family) trips around
   // frame ~480. Drive callSubroutine at the live spin PC with NO maxInstructions.

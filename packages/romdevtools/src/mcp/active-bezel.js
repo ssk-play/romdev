@@ -1,10 +1,10 @@
 /*
- * active-bezel.js — session-scoped Active Bezel state for romdev.
+ * active-bezel.js - session-scoped Active Bezel state for romdev.
  *
  * An Active Bezel is an executable companion to a specific ROM: it runs once per
  * emulated frame, reads the core's live memory regions, and renders the complete
  * final scene. The runtime itself lives in the `active-bezel` package, shared
- * with retroemu, so this module is deliberately thin — discovery, lifecycle, and
+ * with retroemu, so this module is deliberately thin - discovery, lifecycle, and
  * the per-frame tick, but no format knowledge and no compositing semantics.
  *
  * Why romdev cares
@@ -200,7 +200,7 @@ export async function attachActiveBezel(sessionKey, host, {
    * pre_frame): an ASSETS_RELOADED reboot can add the hook to a script that
    * lacked it at attach time, and a conditional install would silently never
    * call it. The cost when undefined is one function call + a cached property
-   * check per frame — preFrame() early-returns before touching the guest, so
+   * check per frame - preFrame() early-returns before touching the guest, so
    * watch/breakpoint bursts pay effectively nothing.
    *
    * This lives on the HOST rather than at tool call sites deliberately: the
@@ -245,7 +245,7 @@ export function sessionKeyForHost(host) {
 /**
  * Suspend/resume the bezel WITHOUT tearing it down.
  *
- * The whole point vs detach: the guest interpreter stays alive — no
+ * The whole point vs detach: the guest interpreter stays alive - no
  * shutdown, no re-init, no reboot on resume. Script globals, caches,
  * loaded fonts/textures all survive; while bypassed the guest is simply
  * never CALLED (no pre_frame, no tick), captures return the raw core
@@ -269,7 +269,7 @@ export function detachActiveBezel(sessionKey) {
   const entry = sessions.get(sessionKey);
   if (!entry) return false;
   /* Unhook the per-frame pre_frame path and drop any override still pending
-   * for the next frame — a detached bezel must stop shaping the game NOW. */
+   * for the next frame - a detached bezel must stop shaping the game NOW. */
   if (entry.host) {
     entry.host.beforeFrame = null;
     entry.host.clearInputOverrides?.();
@@ -358,7 +358,7 @@ export function tickActiveBezel(sessionKey, gameRgba, width, height, frameNumber
  * Hand one frame's audio to the guest, in place, before the host resamples
  * and enqueues it.
  *
- * `samples` is an Int16Array of interleaved stereo — the shape the core
+ * `samples` is an Int16Array of interleaved stereo - the shape the core
  * emitted and the shape the enqueue path already carries, so nothing is
  * converted for a bezel that does not use audio.
  *
@@ -373,7 +373,7 @@ export function tickActiveBezel(sessionKey, gameRgba, width, height, frameNumber
  * ab_audio_active() first and copies nothing when the answer is no, so a
  * bezel that never mentions audio costs one wasm call per frame.
  *
- * A throwing guest is contained exactly like a throwing tick — the audio is
+ * A throwing guest is contained exactly like a throwing tick - the audio is
  * left untouched and the frame still plays, because a broken package must
  * not take the sound down with it.
  */
@@ -398,7 +398,7 @@ export function configureActiveBezelAudio(sessionKey, sampleRate) {
 }
 
 /**
- * Tell the guest that continuity broke — a save-state load or a core reset.
+ * Tell the guest that continuity broke - a save-state load or a core reset.
  *
  * Without this a package keeps caches built from a timeline that no longer
  * exists (a room transition it thinks is in progress, an interpolated marker
@@ -406,7 +406,7 @@ export function configureActiveBezelAudio(sessionKey, sampleRate) {
  * supposedly describing.
  */
 /* Runtime.event() speaks AB_EVENT numbers; the tool callers here speak
- * names. This mapping used to be missing, and a string coerced to i32 is 0 —
+ * names. This mapping used to be missing, and a string coerced to i32 is 0 -
  * every lifecycle notification (reset, state load, rewind) was a silent
  * no-op: the guest never heard the event and snapshot regions never
  * refreshed. Numbers mirror active-bezel's AB_EVENT / sdk abi.json. */
@@ -477,8 +477,8 @@ export function activeBezelStatus(sessionKey) {
  * worse than none.
  *
  * `source` lets a caller ask for the other one explicitly:
- *   'composite' (default when a bezel is active) — the final scene
- *   'core'                                       — the raw framebuffer
+ *   'composite' (default when a bezel is active) - the final scene
+ *   'core'                                       - the raw framebuffer
  *
  * Returns {rgba, width, height, source} so the caller can report which it got
  * rather than assuming. A guest that faulted this frame falls back to the core
@@ -491,7 +491,7 @@ export function compositeFrame(sessionKey, host, { source = "composite" } = {}) 
   const entry = sessions.get(sessionKey);
   if (!entry) return { ...core, source: "core" };
   /* Suspended by the B hotkey / playtest({op:'bezel'}): the capture is the
-   * raw core picture and SAYS so — a reader must never mistake it for the
+   * raw core picture and SAYS so - a reader must never mistake it for the
    * composite the bezel would have drawn. */
   if (entry.bypassed) return { ...core, source: "core", bezelBypassed: true };
 
@@ -542,7 +542,7 @@ export function compositeFrame(sessionKey, host, { source = "composite" } = {}) 
  * a 4:3 game ends up stretched into a tall rectangle:
  *
  *   core      the raw framebuffer the emulator produced. Its width/height do
- *             NOT describe how the game was meant to look — Atari 2600 pixels
+ *             NOT describe how the game was meant to look - Atari 2600 pixels
  *             are famously not square.
  *   scene     the bezel's logical composition, which the host may scale.
  *   display   the runtime's own view of the above: logical vs internal vs

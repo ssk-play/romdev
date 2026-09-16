@@ -1,46 +1,46 @@
-/* ── sports.c — Atari 7800 versus court game (complete example) ──────────────
+/* ── sports.c - Atari 7800 versus court game (complete example) ──────────────
  *
- * FLUX FENCE — a COMPLETE, working game: title screen, 1P vs a beatable CPU
+ * FLUX FENCE - a COMPLETE, working game: title screen, 1P vs a beatable CPU
  * and 2P SIMULTANEOUS VERSUS (P2 on JOYSTICK PORT 1), first-to-5 match flow
  * with a result screen, two-voice TIA music + SFX, and an in-session record
  * (longest win streak vs the CPU). It's the Pong lineage rebuilt on MARIA: the
  * two paddles, the ball, and the centre net are all just display-list OBJECTS
- * MARIA DMAs per scanline — the same per-line object pool the 7800 shmup uses
+ * MARIA DMAs per scanline - the same per-line object pool the 7800 shmup uses
  * for a swarm, here spent on a sparse court (≤2 objects ever share a line, so
  * the whole frame sits comfortably inside the MARIA DMA budget).
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented 7800/MARIA footgun;
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented 7800/MARIA footgun;
  *     reshape your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — court art, ball physics, CPU skill, scoring rules:
+ *   GAME LOGIC (clay) - court art, ball physics, CPU skill, scoring rules:
  *     reshape freely.
  *
  * What depends on what:
- *   atari7800_sfx.{h,c} — TIA one-shot effects (we give it voice 1; the
- *     inline music player below owns voice 0 — TIA only HAS two voices).
- *   cc65's atari7800 target crt0 + atari7800.cfg — boot, BSS in RAM1
+ *   atari7800_sfx.{h,c} - TIA one-shot effects (we give it voice 1; the
+ *     inline music player below owns voice 0 - TIA only HAS two voices).
+ *   cc65's atari7800 target crt0 + atari7800.cfg - boot, BSS in RAM1
  *     ($1800-$203F), C parameter stack at the TOP of RAM3 growing DOWN
  *     ($2800 →). This game claims the BOTTOM of RAM3 ($2200-$25FD) for its
- *     display-list pool — see the RAM MAP below before moving anything.
+ *     display-list pool - see the RAM MAP below before moving anything.
  *
- * PERSISTENCE — honest note: the canonical 7800 save path is the High Score
+ * PERSISTENCE - honest note: the canonical 7800 save path is the High Score
  * Cart (HSC): a pass-through cartridge with 2KB battery RAM at $1000-$17FF
  * plus a directory ROM. The bundled prosystem core does NOT implement HSC
  * (probed 2026-06: retro_get_memory(SAVE_RAM) size = 0, and the core binary
  * has no HSC code at all), so this game keeps its RECORD IN-SESSION ONLY (it
  * survives play → title → play, dies on power-off). For a VERSUS game a raw
  * hi-score is meaningless (every match ends 5-x), so the record we keep is the
- * longest 1P win streak vs the CPU — the stat a returning player chases. 2P
+ * longest 1P win streak vs the CPU - the stat a returning player chases. 2P
  * matches never touch it (humans beating each other isn't a record). Do not
- * fake persistence the hardware path can't back — if a future core round adds
+ * fake persistence the hardware path can't back - if a future core round adds
  * HSC, wire best_streak into $1000-$17FF and it becomes real.
  *
- * Frame budget (NTSC): the per-tick update is tiny — two paddle moves + one
+ * Frame budget (NTSC): the per-tick update is tiny - two paddle moves + one
  * ball step + two AABB paddle tests + a couple of HUD digits. The per-frame
  * draw pass re-emits only the net, two paddles, and the ball (≤2 objects on
  * any one scanline), well inside one 60Hz frame. MARIA does not care how far
- * the CPU falls behind — it re-walks the same display lists at 60Hz — but that
+ * the CPU falls behind - it re-walks the same display lists at 60Hz - but that
  * budget only holds because of the #pragma optimize(on) right below: read its
  * comment before deleting it.
  */
@@ -49,25 +49,25 @@
 #include <string.h>
 #include "atari7800_sfx.h"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * cc65 SHIPS WITH ITS OPTIMIZER OFF, and this toolchain does not pass -O —
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * cc65 SHIPS WITH ITS OPTIMIZER OFF, and this toolchain does not pass -O -
  * each translation unit must opt in. Without this pragma the unoptimized
  * emit pass made the main loop take ~9 frames per sim tick instead of 1-2
  * (measured on the 7800 shmup: 8.8 → 1.7 frames/tick on prosystem), and
  * every TICK-DENOMINATED timer silently stretched 4-5x in wall-clock terms:
- * the serve pause, the result-screen lock, the ball speed — all ~4.5x too
+ * the serve pause, the result-screen lock, the ball speed - all ~4.5x too
  * slow, so the ball crawled and the game "looked broken". But the DLL, the
  * zone pointers, and every pool slot were byte-perfect when read back from
  * RAM. The footgun generalizes: on a 1.79MHz 6502 the C optimizer is not a
  * nicety, it IS the frame budget, and a too-slow loop shows up as broken GAME
  * RULES (a sluggish ball, missed 1-frame input edges), not as a slow-looking
- * screen — MARIA keeps repainting the same display lists at a rock-steady
+ * screen - MARIA keeps repainting the same display lists at a rock-steady
  * 60Hz no matter how far behind the CPU falls. If your fork feels like
  * molasses or "ignores" short button taps, check this pragma is still here
  * before debugging the display lists. */
 #pragma optimize(on)
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "FLUX FENCE"
 
@@ -99,7 +99,7 @@
 #define P7C1      (*(volatile uint8_t*)0x3D)
 
 /* TIA audio (shared with the music player below; atari7800_sfx.c has the
- * same defines — the chip is tiny enough that duplicating 6 lines beats a
+ * same defines - the chip is tiny enough that duplicating 6 lines beats a
  * header dependency the fork machinery would have to carry). */
 #define AUDC0  (*(volatile uint8_t*)0x15)
 #define AUDC1  (*(volatile uint8_t*)0x16)
@@ -112,13 +112,13 @@
 #define INPT4  (*(volatile uint8_t*)0x0C)   /* P1 fire, active low (bit 7) */
 #define INPT5  (*(volatile uint8_t*)0x0D)   /* P2 fire, active low (bit 7) */
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * SWCHA joystick bit order — the #1 7800 input footgun. After the ~SWCHA
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * SWCHA joystick bit order - the #1 7800 input footgun. After the ~SWCHA
  * invert, port 0 (left jack) lives in the HIGH nibble as
  * Right($80) Left($40) Down($20) Up($10), and port 1 (right jack) in the
  * LOW nibble as Right($08) Left($04) Down($02) Up($01). Writing the masks
- * in "natural reading order" (UP=0x80…) is exactly REVERSED and makes the
- * stick's vertical axis steer horizontally — a bug weird enough to
+ * in "natural reading order" (UP=0x80...) is exactly REVERSED and makes the
+ * stick's vertical axis steer horizontally - a bug weird enough to
  * misdiagnose as a core problem. Verified bit-by-bit against prosystem.
  * 2P versus uses BOTH ports: player 0 (left paddle) reads the high nibble +
  * INPT4 fire, player 1 (right paddle) the low nibble + INPT5 fire. */
@@ -132,15 +132,15 @@
 #define J2_UP    0x01
 
 /* ════════════════════════════════════════════════════════════════════════
- * RAM MAP — the 7800 gives you 4KB ($1800-$27FF) and the stock cc65 config
+ * RAM MAP - the 7800 gives you 4KB ($1800-$27FF) and the stock cc65 config
  * only hands the linker the first 2112 bytes of it:
  *
- *   $1800-$203F  RAM1  — cc65 DATA + BSS (everything `static` below)
- *   $2040-$20FF  (gap the cc65 cfg skips — unused here)
- *   $2100-$213F  RAM2  — unused here
- *   $2200-$25FD  RAM3 bottom — OUR display-list pool/canvas arena (POOLB):
+ *   $1800-$203F  RAM1  - cc65 DATA + BSS (everything `static` below)
+ *   $2040-$20FF  (gap the cc65 cfg skips - unused here)
+ *   $2100-$213F  RAM2  - unused here
+ *   $2200-$25FD  RAM3 bottom - OUR display-list pool/canvas arena (POOLB):
  *                  raw pointer, invisible to the linker, 1022 bytes
- *   $25FE-$27FF  RAM3 top — cc65 C parameter stack (crt0 starts it at $2800
+ *   $25FE-$27FF  RAM3 top - cc65 C parameter stack (crt0 starts it at $2800
  *                  growing DOWN; ~510 bytes is plenty for these call depths,
  *                  but if you add deep recursion, shrink POOLB_LINES first)
  * ════════════════════════════════════════════════════════════════════════ */
@@ -150,25 +150,25 @@
  *   lines   0- 15  blank (top overscan)            1 DLL entry, 16 tall
  *   lines  16- 23  HUD text row (RAM canvas)       8 entries, 1 tall each
  *   lines  24- 25  TOP RAIL band (court boundary)  1 entry, 2 tall
- *   lines  26-145  THE COURT — 120 one-line zones  120 entries (the pool)
+ *   lines  26-145  THE COURT - 120 one-line zones  120 entries (the pool)
  *   lines 146-147  BOTTOM RAIL band (court bound.)  1 entry, 2 tall
  *   lines 148-242  decor stripes (cabinet glow)    12 entries, 8/7 tall
- * Total: 143 DLL entries = 429 bytes (vs 729 for the naive all-1-line DLL —
+ * Total: 143 DLL entries = 429 bytes (vs 729 for the naive all-1-line DLL -
  * mixed zone heights are how real 7800 games keep the DLL small).
  * The COURT pool holds the moving objects: the centre net, the two paddles,
- * and the ball — every one of them a display-list object (no tilemap). The
+ * and the ball - every one of them a display-list object (no tilemap). The
  * top/bottom rails are fixed band zones the ball bounces between. */
 #define FIELD_LINES   120
 #define FIELD_DLL_OFF 30          /* byte offset of court entry 0 in dll[] */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Object art. 160A mode: 1 byte = 4 pixels of 2 bits each; pixel value
  * 1/2/3 = colour 1/2/3 of the palette the DL entry names, 0 = transparent.
  * Rows are stored top-down, consecutive (the 1-scanline-zone pattern below
- * means NO page-alignment dance — see "offset addressing quirk" in
+ * means NO page-alignment dance - see "offset addressing quirk" in
  * MENTAL_MODEL.md for what multi-line zones would demand instead). */
 
-/* Paddle — a solid 8px-wide (2 bytes) colour-1 bar, PADDLE_H rows tall. Each
+/* Paddle - a solid 8px-wide (2 bytes) colour-1 bar, PADDLE_H rows tall. Each
  * row is two value-1 nibble bytes (0x55 = four colour-1 pixels); drawn with
  * palette 1 (P1 blue) or 2 (P2 red). */
 #define PADDLE_H 16
@@ -179,19 +179,19 @@ static const uint8_t GFX_PADDLE[PADDLE_H * 2] = {
   0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
 };
 
-/* Ball — a 4px-wide (1 byte) colour-3 pip, BALL_H rows tall, palette 3. */
+/* Ball - a 4px-wide (1 byte) colour-3 pip, BALL_H rows tall, palette 3. */
 #define BALL_H 4
 static const uint8_t GFX_BALL[BALL_H] = { 0x55, 0x55, 0x55, 0x55 };
 
 /* DL mode bytes for the 4-byte (direct) entry form: palette in bits 5-7,
- * width as (32 - width_bytes) in bits 0-4 (must be non-zero — a zero low
+ * width as (32 - width_bytes) in bits 0-4 (must be non-zero - a zero low
  * 5 bits would make MARIA parse a 5-byte entry instead). */
 #define MODE_PADDLE1 ((1u << 5) | (32 - 2))   /* palette 1, 2 bytes wide */
 #define MODE_PADDLE2 ((2u << 5) | (32 - 2))   /* palette 2 */
 #define MODE_BALL    ((3u << 5) | (32 - 1))   /* palette 3, 1 byte wide  */
 #define MODE_NET     ((5u << 5) | (32 - 1))   /* HUD-green, 1 byte wide  */
 
-/* ── GAME LOGIC (clay) — 8x8 text font, 1 bit per pixel, 7px glyphs.
+/* ── GAME LOGIC (clay) - 8x8 text font, 1 bit per pixel, 7px glyphs.
  * The 7800 has NO text mode and no tilemap; text is just more objects.
  * The text path here: expand glyphs into a 32-byte-wide RAM canvas
  * (= 128px, 16 characters), then show the canvas with ONE wide DL entry
@@ -243,14 +243,14 @@ static const uint8_t NIB2[16] = {
   0x40,0x41,0x44,0x45,0x50,0x51,0x54,0x55,
 };
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Solid band drawable for multi-line zones (the rails + decor stripes) AND
  * the net. Inside a zone of height H, MARIA fetches scanline l's pixels from
- * ADDR + (H-1-l)*256 — the "offset addressing quirk". A multi-line drawable
+ * ADDR + (H-1-l)*256 - the "offset addressing quirk". A multi-line drawable
  * therefore needs valid data at the SAME low-byte offset across H consecutive
  * 256-byte pages. For solid colour bands we sidestep alignment entirely: a
  * 2KB ROM run of 0x55 means ANY address inside the first page works for zones
- * up to 8 tall (8 pages x 256). Costs 2KB of a 32KB cart — ROM is the cheap
+ * up to 8 tall (8 pages x 256). Costs 2KB of a 32KB cart - ROM is the cheap
  * resource here. The net reuses SOLID8 too: it's a thin colour object drawn
  * into the one-line court zones it spans (1-line zones ⇒ the quirk vanishes,
  * any SOLID8 address works). */
@@ -261,7 +261,7 @@ static const uint8_t SOLID8[2048] = { S256,S256,S256,S256,S256,S256,S256,S256 };
 /* Full-width band DL: a DL drawable is at most 32 bytes (128px), so a
  * 160px line takes TWO 5-byte entries + terminator = 11 bytes. 5-byte
  * form: lo, $40 (extended, write-mode 0 = 160A), hi, palette|width, X.
- * Width 32 encodes as 0 in the low 5 bits — legal ONLY in 5-byte form. */
+ * Width 32 encodes as 0 in the low 5 bits - legal ONLY in 5-byte form. */
 #define MK_BAND(name, pal) static uint8_t name[11] = { \
   0, 0x40, 0, ((pal) << 5) | 0,  0,    /* 128px @ x=0   */ \
   0, 0x40, 0, ((pal) << 5) | 24, 128,  /* 32px  @ x=128 */ \
@@ -272,8 +272,8 @@ MK_BAND(dl_rail, 5);                    /* the top/bottom court rails (green) */
 static uint8_t dl_empty[2] = { 0, 0 };
 
 /* ════════════════════════════════════════════════════════════════════════
- * ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * THE DISPLAY-LIST POOL — how the court's moving objects get drawn (the
+ * ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * THE DISPLAY-LIST POOL - how the court's moving objects get drawn (the
  * 7800's signature). Same machinery the dense 7800 shmup uses for its swarm;
  * here it draws the net, the two paddles, and the ball.
  *
@@ -283,9 +283,9 @@ static uint8_t dl_empty[2] = { 0, 0 };
  *
  * The court is 120 one-scanline zones. Each has a fixed 14-byte DL slot:
  * room for THREE 4-byte object entries + the terminator byte (MARIA reads
- * the NEXT entry's mode byte after each entry; a 0 there ends the line —
+ * the NEXT entry's mode byte after each entry; a 0 there ends the line -
  * forget the terminator and MARIA walks into garbage and the screen dies).
- * A court game is the EASY case for this budget — the net + at most one
+ * A court game is the EASY case for this budget - the net + at most one
  * paddle + the ball ever share a scanline (2-3 objects), miles under the
  * ~3-per-line DMA ceiling. We keep the same 3-slot machinery the shmup uses
  * so a fork that adds more objects (a second ball, power-ups) inherits the
@@ -300,7 +300,7 @@ static uint8_t dl_empty[2] = { 0, 0 };
  * Rebuild-vs-patch doctrine (MENTAL_MODEL.md): the DLL is built ONCE and
  * only its 3-byte court entries are repointed at state changes (with DMA
  * off); per-frame work only rewrites bytes INSIDE existing 14-byte slots.
- * Tearing down the DLL itself mid-game races MARIA's walker — the classic
+ * Tearing down the DLL itself mid-game races MARIA's walker - the classic
  * "works one frame then the screen falls apart" 7800 bug.
  * ════════════════════════════════════════════════════════════════════════ */
 #define LINE_BYTES   14
@@ -316,7 +316,7 @@ static uint8_t hud_dls[8 * 7];          /* one 5-byte DL + term per row   */
 
 /* Emit one object: a 4-byte direct DL entry into every court line one of
  * its rows crosses. gfx rows are consecutive (stride = width in bytes).
- * Callers keep y in [0, FIELD_LINES - h] so no clipping is needed — keep
+ * Callers keep y in [0, FIELD_LINES - h] so no clipping is needed - keep
  * that invariant if you change movement code, or add clipping here. */
 static void emit_object(uint8_t y, uint8_t h, const uint8_t* gfx,
                         uint8_t stride, uint8_t mode, uint8_t x) {
@@ -347,9 +347,9 @@ static void field_close(void) {         /* step 3: terminate every line */
     line_dl[i][line_used[i] + 1] = 0;   /* next entry's MODE byte = 0    */
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — DLL construction + zone repointing.
+/* ── HARDWARE IDIOM (load-bearing) - DLL construction + zone repointing.
  * Built once at boot; dll_zone appends one 3-byte entry (offset byte =
- * height-1; DLI/holey bits stay 0 — no NMI handler, no holey DMA here). */
+ * height-1; DLI/holey bits stay 0 - no NMI handler, no holey DMA here). */
 static uint8_t* dllp;
 static void dll_zone(uint8_t height, uint16_t dl) {
   dllp[0] = height - 1;
@@ -367,7 +367,7 @@ static void point_field_zone(uint8_t fline, uint16_t dl) {
   e[2] = (uint8_t)(dl & 0xFF);
 }
 
-/* ── GAME LOGIC (clay) — text rendering into a 32-byte-wide RAM canvas ── */
+/* ── GAME LOGIC (clay) - text rendering into a 32-byte-wide RAM canvas ── */
 static uint8_t glyph_index(char c) {
   if (c >= '0' && c <= '9') return (uint8_t)(c - '0');
   if (c >= 'A' && c <= 'Z') return (uint8_t)(10 + c - 'A');
@@ -416,13 +416,13 @@ static void canvas_dls(uint8_t* dls, const uint8_t* canvas, uint8_t pal) {
   }
 }
 
-/* ── GAME LOGIC (clay) — the music. Two-voice TIA tune loop. ─────────────────
- * The TIA's frequency divider is 5 bits — ~32 pitches TOTAL, none of them
+/* ── GAME LOGIC (clay) - the music. Two-voice TIA tune loop. ─────────────────
+ * The TIA's frequency divider is 5 bits - ~32 pitches TOTAL, none of them
  * in tune with each other. Don't fight it: write the melody IN the TIA's
  * crooked scale and it reads as "gritty 7800", fight it and it reads as
- * "wrong". The note tables ARE the song — edit them to recompose.
+ * "wrong". The note tables ARE the song - edit them to recompose.
  * Voice 0 = melody (AUDC 4, square-ish). Voice 1 = bass (AUDC 6, deep
- * buzz) — and voice 1 is SHARED with sound effects (TIA has only two
+ * buzz) - and voice 1 is SHARED with sound effects (TIA has only two
  * voices): when the game fires an effect, sfx_hold mutes the bass for the
  * effect's length, then the bass re-enters on its next note. That
  * steal-and-return is the standard 2-voice arbitration trick. */
@@ -462,7 +462,7 @@ static void fx_score(void) { sfx_noise(8);        sfx_hold = 9;  }
 static void fx_win(void)   { sfx_tone(1, 8, 8);   sfx_hold = 9;  }
 static void fx_start(void) { sfx_tone(1, 10, 6);  sfx_hold = 7;  }
 
-/* ── GAME LOGIC (clay — reshape freely) — court geometry + match rules ────────
+/* ── GAME LOGIC (clay - reshape freely) - court geometry + match rules ────────
  * The court is the 120-line field between the two rails. Y is in COURT LINES
  * [0, FIELD_LINES); X is in 7800 pixels [0, 160). Paddles ride the left/right
  * edges and slide vertically; the ball bounces between the rails and is scored
@@ -486,7 +486,7 @@ static uint8_t score[2];
 static uint8_t serve_timer;       /* freeze frames between points          */
 static uint8_t two_p;             /* 0 = 1P vs CPU, 1 = 2P versus           */
 static uint8_t streak;            /* current 1P-vs-CPU win streak (RAM)     */
-static uint16_t best_streak;      /* in-session record — see header         */
+static uint16_t best_streak;      /* in-session record - see header         */
 static uint8_t new_record;        /* result screen flags a NEW RECORD       */
 static uint8_t winner;            /* result: 0 = left/P1, 1 = right/P2/CPU   */
 static uint8_t over_lock;         /* swallow the held fire on the result    */
@@ -498,11 +498,11 @@ static uint16_t rng = 0xACE1;
 #define ST_OVER  2
 static uint8_t state;
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG. A versus game NEEDS this: the 7800
+/* ── GAME LOGIC (clay) - xorshift16 PRNG. A versus game NEEDS this: the 7800
  * is fully deterministic, so without a noise source two fixed strategies lock
  * into an infinite rally loop (the exact same cycle, forever). random8() is
  * ticked once per play frame AND spins the serve/return angle so an idle
- * match — CPU vs a still paddle — still drifts off true and ENDS rather than
+ * match - CPU vs a still paddle - still drifts off true and ENDS rather than
  * rallying without limit. */
 static uint8_t random8(void) {
   uint16_t r = rng;
@@ -513,7 +513,7 @@ static uint8_t random8(void) {
   return (uint8_t)r;
 }
 
-/* ── GAME LOGIC (clay) — serve: ball to centre, toward the chosen side, with
+/* ── GAME LOGIC (clay) - serve: ball to centre, toward the chosen side, with
  * a PRNG-spun vertical angle so no two serves trace the same path (the
  * idle-match-must-end guarantee). ── */
 static void serve_ball(uint8_t to_left) {
@@ -525,7 +525,7 @@ static void serve_ball(uint8_t to_left) {
   serve_timer = 30;                            /* half-second breather */
 }
 
-/* ── GAME LOGIC (clay) — HUD: "P1 s        s CP" score line (s = digit). ── */
+/* ── GAME LOGIC (clay) - HUD: "P1 s        s CP" score line (s = digit). ── */
 static void draw_hud(void) {
   static char buf[17] = "P1 0        0 CP";
   buf[3] = (char)('0' + (score[0] > 9 ? 9 : score[0]));
@@ -544,18 +544,18 @@ static void draw_hud_title(void) {
   draw_text(hud_canvas, 3, buf);
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — paint functions bracket structural
+/* ── HARDWARE IDIOM (load-bearing) - paint functions bracket structural
  * display-list changes with MARIA DMA OFF ($7F) / ON ($40), the 7800's
  * version of the NES "rendering off before nametable writes" rule: MARIA
  * may be mid-walk through the very lists being rewritten, and repointing
  * dozens of zones under it glitches (or with bad luck hangs) the frame.
- * CTRL $40 = DMA on, 160A read mode, colour burst on — forget to restore
+ * CTRL $40 = DMA on, 160A read mode, colour burst on - forget to restore
  * it and the screen stays the flat BACKGRND colour forever. ── */
 
 /* Title screen: borrow court zones for three text overlays composed in
- * POOLB (the pool isn't drawing the court on the title, so its RAM is free —
+ * POOLB (the pool isn't drawing the court on the title, so its RAM is free -
  * 4KB machines make you reuse like this). Title is double-height by pointing
- * TWO consecutive 1-line zones at each canvas row — zero extra RAM, pure DLL
+ * TWO consecutive 1-line zones at each canvas row - zero extra RAM, pure DLL
  * trickery. */
 static void paint_title(void) {
   uint8_t i;
@@ -618,7 +618,7 @@ static void paint_result(void) {
   CTRL = 0x40;
 }
 
-/* ── GAME LOGIC (clay) — match over: result + record bookkeeping (see header
+/* ── GAME LOGIC (clay) - match over: result + record bookkeeping (see header
  * for why the record is the longest 1P-vs-CPU win streak, in-session only). ── */
 static void end_match(void) {
   new_record = 0;
@@ -643,7 +643,7 @@ static void end_match(void) {
   paint_result();
 }
 
-/* ── GAME LOGIC (clay) — one point scored ── */
+/* ── GAME LOGIC (clay) - one point scored ── */
 static void score_point(uint8_t for_left) {
   if (for_left) ++score[0]; else ++score[1];
   fx_score();
@@ -652,7 +652,7 @@ static void score_point(uint8_t for_left) {
   else serve_ball((uint8_t)(for_left ? 0 : 1)); /* loser of the point is served at */
 }
 
-/* ── GAME LOGIC (clay) — paddle hit: deflect by where the ball struck.
+/* ── GAME LOGIC (clay) - paddle hit: deflect by where the ball struck.
  * Centre = flat-ish, edges = steep. Max |bdy| is 2; the CPU moves at
  * CPU_SPEED (< player) so an edge hit is exactly how a human beats it. A ±1
  * random spin on every return keeps rallies from repeating (PRNG note). ── */
@@ -666,7 +666,7 @@ static void deflect(uint8_t paddle_top) {
   fx_hit();
 }
 
-/* ── GAME LOGIC (clay) — start a match ── */
+/* ── GAME LOGIC (clay) - start a match ── */
 static void start_match(uint8_t players) {
   uint8_t i;
   CTRL = 0x7F;
@@ -693,7 +693,7 @@ static void vblank_wait(void) {
   while (!(MSTAT & 0x80)) { }             /* catch the next one starting  */
 }
 
-/* ── GAME LOGIC (clay) — per-player paddle move from a joystick port. ── */
+/* ── GAME LOGIC (clay) - per-player paddle move from a joystick port. ── */
 static void move_paddle(uint8_t p, uint8_t pad) {
   uint8_t up, dn;
   if (p == 0) { up = (uint8_t)(pad & J1_UP); dn = (uint8_t)(pad & J1_DOWN); }
@@ -702,10 +702,10 @@ static void move_paddle(uint8_t p, uint8_t pad) {
   if (dn && pad_y[p] <= PADDLE_TOP_MAX - PADDLE_SPEED) pad_y[p] += PADDLE_SPEED;
 }
 
-/* ── GAME LOGIC (clay) — CPU paddle: chase the ball's centre at CPU_SPEED
+/* ── GAME LOGIC (clay) - CPU paddle: chase the ball's centre at CPU_SPEED
  * (< player) with a small dead zone. Beatable by design: steep deflections
  * outrun it, and the PRNG spin keeps it from ever locking into a perfect
- * rally — an unattended match therefore always ENDS. ── */
+ * rally - an unattended match therefore always ENDS. ── */
 static void move_cpu(void) {
   int16_t target = by + BALL_H / 2 - PADDLE_H / 2;
   if ((int16_t)pad_y[1] + 2 < target && pad_y[1] <= PADDLE_TOP_MAX - CPU_SPEED)
@@ -718,7 +718,7 @@ void main(void) {
   uint8_t i;
   uint16_t a;
 
-  /* ── HARDWARE IDIOM (load-bearing) — boot order: build EVERYTHING the
+  /* ── HARDWARE IDIOM (load-bearing) - boot order: build EVERYTHING the
    * DLL will reference, then point DPP at it, THEN enable DMA. Enabling
    * DMA over a half-built DLL is the 7800 black-screen classic. ── */
 
@@ -739,7 +739,7 @@ void main(void) {
 
   canvas_dls(hud_dls, hud_canvas, 5);
 
-  /* The DLL — the screen layout, built once (see the layout table above).
+  /* The DLL - the screen layout, built once (see the layout table above).
    * 143 entries, mixed zone heights; only the 120 court entries are ever
    * repointed after this. */
   dllp = dll;
@@ -750,7 +750,7 @@ void main(void) {
   for (i = 0; i < FIELD_LINES; ++i)                       /* court 26-145 */
     dll_zone(1, (uint16_t)(uintptr_t)line_dl[i]);
   dll_zone(2, (uint16_t)(uintptr_t)dl_rail);              /* bottom rail  */
-  /* Below-court decor stripes — also our anti-blank-screen ballast: with DMA
+  /* Below-court decor stripes - also our anti-blank-screen ballast: with DMA
    * fetching only objects, everything else is the single flat BACKGRND
    * colour, and a mostly-one-colour frame reads as "dead". */
   dll_zone(8, (uint16_t)(uintptr_t)dl_band_a);
@@ -763,7 +763,7 @@ void main(void) {
   dll_zone(8, (uint16_t)(uintptr_t)dl_empty);
   dll_zone(8, (uint16_t)(uintptr_t)dl_band_a);
   dll_zone(8, (uint16_t)(uintptr_t)dl_empty);
-  dll_zone(8, (uint16_t)(uintptr_t)dl_band_b);            /* …through 235 */
+  dll_zone(8, (uint16_t)(uintptr_t)dl_band_b);            /* ...through 235 */
   dll_zone(7, (uint16_t)(uintptr_t)dl_empty);             /* 236-242      */
 
   /* Palettes (Atari colour byte = hue<<4 | luminance). */
@@ -784,9 +784,9 @@ void main(void) {
   DPPH = (uint8_t)(a >> 8);
 
   sfx_init();
-  best_streak = 0;                        /* in-session only — see header */
+  best_streak = 0;                        /* in-session only - see header */
   streak = 0;
-  paint_title();                          /* …turns DMA on                */
+  paint_title();                          /* ...turns DMA on                */
 
   for (;;) {
     uint8_t pad, f1, f2;
@@ -800,7 +800,7 @@ void main(void) {
     f2 = (uint8_t)(!(INPT5 & 0x80));
 
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: P1 fire = 1P vs CPU, P2 fire = 2P ── */
+      /* ── GAME LOGIC (clay) - title: P1 fire = 1P vs CPU, P2 fire = 2P ── */
       if (f1 && !(pf & 1)) start_match(0);
       else if (f2 && !(pf & 2)) start_match(1);
       pf = (uint8_t)(f1 | (f2 << 1));
@@ -817,8 +817,8 @@ void main(void) {
     /* ── ST_PLAY ───────────────────────────────────────────────────── */
     random8();                              /* tick the noise every frame  */
 
-    move_paddle(0, pad);                    /* P1 — port 0                 */
-    if (two_p) move_paddle(1, pad);         /* P2 — port 1                 */
+    move_paddle(0, pad);                    /* P1 - port 0                 */
+    if (two_p) move_paddle(1, pad);         /* P2 - port 1                 */
     else       move_cpu();                  /* CPU drives the right paddle */
 
     /* Ball update (frozen during the post-point serve pause). */
@@ -854,10 +854,10 @@ void main(void) {
       if (state != ST_PLAY) continue;          /* end_match → result          */
     }
 
-    /* ── HARDWARE IDIOM (load-bearing) — the per-frame draw pass:
+    /* ── HARDWARE IDIOM (load-bearing) - the per-frame draw pass:
      * open (clear counts) → emit the net + both paddles + the ball → close
      * (terminators). Emission order = draw order on shared scanlines; a court
-     * game never fills a line (≤2-3 objects), so nothing flickers — but the
+     * game never fills a line (≤2-3 objects), so nothing flickers - but the
      * BALL goes LAST so that if a future fork DOES crowd a line, the player's
      * paddles win the slot and only the ball blinks. ── */
     field_open();
@@ -868,7 +868,7 @@ void main(void) {
     /* paddles */
     emit_object(pad_y[0], PADDLE_H, GFX_PADDLE, 2, MODE_PADDLE1, PADDLE_X1);
     emit_object(pad_y[1], PADDLE_H, GFX_PADDLE, 2, MODE_PADDLE2, PADDLE_X2);
-    /* the ball — clamped into the court so emit never runs past the pool */
+    /* the ball - clamped into the court so emit never runs past the pool */
     {
       uint8_t byl = (uint8_t)(by < 0 ? 0 : (by > FIELD_LINES - BALL_H ? FIELD_LINES - BALL_H : by));
       uint8_t bxl = (uint8_t)(bx < 0 ? 0 : (bx > 159 ? 159 : bx));

@@ -1,7 +1,7 @@
-// ar.js — pure-JS writer for the GNU `ar` static-library format, WITH the
+// ar.js - pure-JS writer for the GNU `ar` static-library format, WITH the
 // ranlib symbol index. We compile SDK libraries (libtonc/libgba/maxmod/...)
 // FROM SOURCE into loose .o objects, then pack them into a real .a so the
-// linker pulls only referenced members — exactly like a prebuilt .a, and
+// linker pulls only referenced members - exactly like a prebuilt .a, and
 // without "multiple definition" collisions from mutually-exclusive members.
 //
 // GNU ld requires the archive symbol index ("archive has no index; run
@@ -28,7 +28,7 @@ function arHeader(name, size) {
 // ── Minimal ELF32 little-endian symbol extractor ─────────────────────────
 // Returns the names of GLOBAL/WEAK symbols that this object DEFINES (st_shndx
 // != SHN_UNDEF). These are what the linker indexes to decide which members to
-// pull. (32-bit LE only — our ARM and m68k targets are both ELF32; m68k is
+// pull. (32-bit LE only - our ARM and m68k targets are both ELF32; m68k is
 // big-endian data, handled via the byteorder flag.)
 function definedGlobals(obj) {
   const le = obj[5] === 1; // EI_DATA: 1 = LE, 2 = BE

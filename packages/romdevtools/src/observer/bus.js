@@ -1,4 +1,4 @@
-// observer/bus.js — process-singleton event emitter that taps every
+// observer/bus.js - process-singleton event emitter that taps every
 // MCP tool call (args, result, errors, embedded images) and ships them
 // to the /livestream socket.io server.
 //
@@ -157,7 +157,7 @@ class ObserverBus extends EventEmitter {
     return [...this.ring];
   }
 
-  /** Total retained bytes — for tests and diagnostics. */
+  /** Total retained bytes - for tests and diagnostics. */
   ringBytes() {
     let total = 0;
     for (const ev of this.ring) total += eventBytes(ev);
@@ -194,9 +194,9 @@ export const observer = new ObserverBus();
 //   1. The PNG encode NEVER runs on the agent's critical path (deferred via
 //      setImmediate / the trailing timer).
 //   2. Rate-limited to one frame per FRAME_MIN_INTERVAL_MS **per
-//      (session, tool)** — frame({op:'step'}) called 120× in a narrowing loop
+//      (session, tool)** - frame({op:'step'}) called 120× in a narrowing loop
 //      emits at most every 2s, but a step followed immediately by a DIFFERENT
-//      tool's frame (input, state load, …) still shows: distinct tools don't
+//      tool's frame (input, state load, ...) still shows: distinct tools don't
 //      throttle each other. Trailing-edge: the LAST suppressed frame in a
 //      burst always lands when the window reopens (rendered at fire time =
 //      the current screen, which is exactly what the human wants to converge
@@ -236,7 +236,7 @@ function _emitFrame(provider, meta) {
 /**
  * Queue a deferred framebuffer for the livestream, throttled per
  * (session, tool). `meta`: { sessionKey, tool, ts?, platform?,
- * resolvePlatform?, caption? } — resolvePlatform (a thunk) is preferred so
+ * resolvePlatform?, caption? } - resolvePlatform (a thunk) is preferred so
  * the platform label reflects post-call state (loadMedia sets it DURING the
  * call). `provider` returns {kind:'image', mimeType, base64} or null; it is
  * invoked OFF the agent's critical path.

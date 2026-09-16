@@ -1,11 +1,11 @@
-/* ── main.c — PC Engine falling-trio versus puzzle (complete example game) ─────
+/* ── main.c - PC Engine falling-trio versus puzzle (complete example game) ─────
  *
- * TUMBLE TIDE — a COMPLETE, working game: title screen, 1P MARATHON mode
- * (levels speed the fall as you clear) and 2P SIMULTANEOUS VERSUS mode — two
+ * TUMBLE TIDE - a COMPLETE, working game: title screen, 1P MARATHON mode
+ * (levels speed the fall as you clear) and 2P SIMULTANEOUS VERSUS mode - two
  * 6x12 wells side by side, P1 on the stock pad, P2 on the TurboTap's second
  * pad, both falling at once, where every cascade chain you score sends a TIDE
  * of garbage rows rising from the bottom of your rival's well. Score +
- * in-session hi-score (a bare HuCard can't save — see the hi-score note
+ * in-session hi-score (a bare HuCard can't save - see the hi-score note
  * below), PSG music + SFX.
  *
  * The game: a falling-trio match-3. A vertical trio of pieces drops into a
@@ -14,14 +14,14 @@
  * (horizontal, vertical, or diagonal) clears; survivors fall and cascades
  * chain for multiplied score. First stack to reach the rim loses.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented PCE footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented PCE footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — match rules, garbage, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - match rules, garbage, tuning, art: reshape freely.
  *
  * What depends on what:
- *   pce_hw.h / pce_video.c / pce_input.c / pce_sound.c — the helper lib
+ *   pce_hw.h / pce_video.c / pce_input.c / pce_sound.c - the helper lib
  *     (VDC/VCE/PSG register dances + joypad). The HARDWARE IDIOM markers in
  *     pce_video.c say which parts are load-bearing.
  *   cc65's pce crt0 + pce.lib are auto-linked; the 'rom32k' linker preset
@@ -30,19 +30,19 @@
  * 2P, honestly: the stock PC Engine has ONE controller port; 2P needs a
  * TurboTap. The geargrafx core implements the TurboTap and the romdev host
  * now force-ENABLES it (PLATFORM_CORE_OPTIONS pce: geargrafx_turbotap), so a
- * second pad's input reaches the game on pad slot 2 — verified by driving
+ * second pad's input reaches the game on pad slot 2 - verified by driving
  * port-1 input and seeing P2 move. So this game ships REAL simultaneous 2P
  * versus. (On real hardware the player plugs a TurboTap and a second pad.)
  *
- * Frame budget (NTSC, 60fps) — and a TEACHING POINT vs the NES version of
+ * Frame budget (NTSC, 60fps) - and a TEACHING POINT vs the NES version of
  * this game (examples/nes/templates/puzzle.c): on the NES, board repaints
  * squeeze through a ~16-entry vblank queue, so a full-board repaint is
  * BUDGETED across ~12 frames of dirty-row bitmask tricks. The PC Engine has
  * no such famine: the VDC's VRAM write port streams words back-to-back, and a
  * whole well is 24 tile rows x 12 tile cols = 288 BAT words. Two wells + the
- * 6-entry SATB + the HUD all stream inside one vblank with budget to spare —
+ * 6-entry SATB + the HUD all stream inside one vblank with budget to spare -
  * so this version just REPAINTS THE WHOLE DIRTY WELL each time it changes (no
- * dirty-row machinery at all). Same genre, two bandwidth worlds — fork
+ * dirty-row machinery at all). Same genre, two bandwidth worlds - fork
  * accordingly.
  */
 #include <pce.h>
@@ -54,15 +54,15 @@
 typedef signed char s8;
 typedef int         s16;
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "TUMBLE TIDE"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * VRAM map (WORD addresses — the VDC is a 16-bit-word machine; an 8x8 tile is
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * VRAM map (WORD addresses - the VDC is a 16-bit-word machine; an 8x8 tile is
  * 16 words, a 16x16 sprite cell is 64). Sprites and BG tiles share one 64KB
  * VRAM, so lay it out ONCE and keep the SATB out of pattern space:
- *   $0000  BAT (32x32 background map — matches vdc_init's VDC_MWR setting)
+ *   $0000  BAT (32x32 background map - matches vdc_init's VDC_MWR setting)
  *   $1000  font glyphs (38 tiles: blank, 0-9, A-Z, dash)
  *   $1400  board furniture tiles (backdrop, HUD band, frame, empty cell)
  *   $1500  CELL tiles: 3 colours, each its own 8x8 tile (a 16x16 cell is 2x2)
@@ -70,9 +70,9 @@ typedef int         s16;
  *   $7F00  shadow SATB destination (satb_dma copies it here, VDC reads it) */
 #define BAT_VRAM      0x0000
 #define FONT_VRAM     0x1000
-#define BACK_VRAM     0x1400   /* solid colour 1 — cabinet backdrop          */
-#define BAND_VRAM     0x1410   /* solid colour 2 — band behind the HUD text  */
-#define FRAME_VRAM    0x1420   /* solid colour 3 — well border               */
+#define BACK_VRAM     0x1400   /* solid colour 1 - cabinet backdrop          */
+#define BAND_VRAM     0x1410   /* solid colour 2 - band behind the HUD text  */
+#define FRAME_VRAM    0x1420   /* solid colour 3 - well border               */
 #define INNER_VRAM    0x1430   /* near-black well interior + faint speck     */
 #define CELL0_VRAM    0x1500   /* locked-cell BG tile, colour A (8x8)        */
 #define CELL1_VRAM    0x1510   /* locked-cell BG tile, colour B              */
@@ -86,8 +86,8 @@ typedef int         s16;
 /* Sprite pattern codes = VRAM >> 6 (the 16x16 cell index). */
 #define SPR_PAT(c)   ((u16)((SPR0_VRAM >> 6) + (c)))   /* colour 0..2 */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * Board geometry. Cells are 16x16 px (2x2 BAT tiles) — the PCE 256x224 screen
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * Board geometry. Cells are 16x16 px (2x2 BAT tiles) - the PCE 256x224 screen
  * has room to spare; chunky cells read better than 8-px ones. The BAT is
  * 32 tiles wide; a 12-wide well (6 cells x 2 tiles) fits twice for the split
  * board. Tile rows 0-1 sit under the HUD band; well interiors start at row 3. */
@@ -108,7 +108,7 @@ typedef int         s16;
  * pieces show their three distinct hues, matching the locked-board cells. */
 #define PAL_TRIO(col)  (u8)(col)   /* colour 1..3 -> sprite sub-palette 1..3 */
 
-/* ── GAME LOGIC (clay — reshape freely) ── game state ── */
+/* ── GAME LOGIC (clay - reshape freely) ── game state ── */
 static u8  grid[2][GRID_H][GRID_W];   /* the two wells (P2's unused in 1P)  */
 static s16 piece_x[2];                /* falling trio: column 0..5          */
 static s16 piece_y[2];                /* row of its TOP cell (<0 above rim) */
@@ -130,7 +130,7 @@ static u16 rng = 0xACE1;
 static u8  sfx_timer;
 static u8  hud_dirty;
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
@@ -141,7 +141,7 @@ static u8  hud_dirty;
 static u16 tile_buf[16];           /* scratch for one 8x8 tile             */
 static u16 spr_buf[64];            /* scratch for one 16x16 sprite cell    */
 
-/* ── GAME LOGIC (clay) — 5x7 glyph font: blank, 0-9, A-Z, dash ──────────────
+/* ── GAME LOGIC (clay) - 5x7 glyph font: blank, 0-9, A-Z, dash ──────────────
  * Each glyph is 7 rows of 5 bits (bit4 = leftmost). upload_font() expands
  * them into 8x8 1-plane tiles; drawn with BG sub-palette 1 (white). */
 #define G_BLANK 0
@@ -173,7 +173,7 @@ static const u8 FONT5x7[NUM_GLYPHS][7] = {
     {0x00,0x00,0x00,0x1F,0x00,0x00,0x00},
 };
 
-/* ── GAME LOGIC (clay) — a 16x16 round-cell mask (16 rows × 16 bits, bit15
+/* ── GAME LOGIC (clay) - a 16x16 round-cell mask (16 rows × 16 bits, bit15
  * leftmost). The falling-trio sprites use this whole; one piece of art, three
  * colours (the colour is the PALETTE, not the bits). */
 static const u16 cell_mask[16] = {
@@ -181,7 +181,7 @@ static const u16 cell_mask[16] = {
     0xFFFF, 0xFFFF, 0xFC3F, 0x7C3E, 0x7E7E, 0x3FFC, 0x1FF8, 0x07E0
 };
 
-/* ── GAME LOGIC (clay) — tile/sprite builders ────────────────────────────── */
+/* ── GAME LOGIC (clay) - tile/sprite builders ────────────────────────────── */
 static void make_solid_tile(u16 *t, u8 ci) {
     u8 r;
     u8 p0 = (ci & 1) ? 0xFF : 0x00;
@@ -255,7 +255,7 @@ static u16 cell_vram(u8 col) {
     return (col == 1) ? CELL0_VRAM : (col == 2) ? CELL1_VRAM : CELL2_VRAM;
 }
 
-/* ── GAME LOGIC (clay) — BAT text + board paint ──────────────────────────── */
+/* ── GAME LOGIC (clay) - BAT text + board paint ──────────────────────────── */
 static void put_glyph(u8 col, u8 row, u8 glyph) {
     u16 e = BAT_ENTRY(1, (u16)(FONT_VRAM + glyph * 16));  /* pal 1 = white   */
     vram_set_write_addr((u16)(BAT_VRAM + row * 32 + col));
@@ -286,19 +286,19 @@ static void draw_num5(u8 col, u8 row, u16 v) {
     for (i = 0; i < 5; ++i) put_glyph((u8)(col + i), row, (u8)(G_DIGIT + d[4 - i]));
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * WHOLE-BOARD BAT REPAINT — the PCE's puzzle bandwidth, the inverse of the
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * WHOLE-BOARD BAT REPAINT - the PCE's puzzle bandwidth, the inverse of the
  * NES famine. A locked cell is two-by-two of one BG tile (on its own colour
  * sub-palette); an empty cell is two-by-two of the INNER tile. When a board
- * changes we simply rewrite ALL 24x12 of its BAT entries — 288 word writes
+ * changes we simply rewrite ALL 24x12 of its BAT entries - 288 word writes
  * straight at the VDC's VWR port (vram_set_write_addr arms the auto-
  * incrementing address, then we stream). The whole well streams in well under
  * a vblank; both wells + the SATB + HUD fit one frame. The NES version of THIS
- * GAME budgets the same repaint across ~12 frames through a 16-entry queue —
+ * GAME budgets the same repaint across ~12 frames through a 16-entry queue -
  * the PCE just blasts it. Two rules:
  *   - do the streaming inside the vblank window (we repaint just after
  *     waitvsync()), so the VDC isn't fetching the BAT for display mid-write;
- *   - keep the SATB-DMA after the BAT writes — both share the VDC and the DMA
+ *   - keep the SATB-DMA after the BAT writes - both share the VDC and the DMA
  *     wants the address latch left where it expects it.
  *
  * requires: BAT 32x32 (vdc_init's MWR); well within the 32-wide BAT (it is:
@@ -388,7 +388,7 @@ static void draw_hud(void) {
  * This was researched and corrected: earlier versions wrote the hi-score to
  * BRAM ("backup RAM", bank $F7) and claimed it persisted across power cycles.
  * That is NOT honest for a HuCard game. On REAL hardware a plain HuCard plugged
- * into a base PC Engine / TurboGrafx-16 has NO backup RAM at all — BRAM exists
+ * into a base PC Engine / TurboGrafx-16 has NO backup RAM at all - BRAM exists
  * ONLY when a peripheral is attached: the CD-ROM² System (2KB kept by a
  * supercapacitor), the Tennokoe Bank HuCard, or the Memory Base 128. No
  * commercial HuCard self-saved; they used PASSWORDS. (The often-cited Populous
@@ -397,7 +397,7 @@ static void draw_hud(void) {
  * "worked" in emulation in a way the real machine never would.
  *
  * So this game keeps an IN-SESSION hi-score only (like the honest 2600/Lynx
- * examples) — it survives game-overs within a power-on, resets to 0 on a cold
+ * examples) - it survives game-overs within a power-on, resets to 0 on a cold
  * boot. To make it ACTUALLY persist on real hardware you would target a
  * peripheral: write to BRAM only after detecting one (and go through the System
  * Card BIOS's 'HUBM' directory for CD saves), or move the game to a CD-ROM²
@@ -407,10 +407,10 @@ static u16 hiscore_load(void) {
 }
 
 static void hiscore_save(u16 v) {
-    (void)v;           /* in-session only — nowhere to persist on real HW */
+    (void)v;           /* in-session only - nowhere to persist on real HW */
 }
 
-/* ── GAME LOGIC (clay) — music: a 2-channel tune ticked once per frame ──────
+/* ── GAME LOGIC (clay) - music: a 2-channel tune ticked once per frame ──────
  * PSG channel plan: 5 = melody, 4 = bass, 2/3 = SFX (tones cut by sfx_timer).
  * PCE frequency regs are DIVIDERS: pitch ≈ 3.58MHz / (32 × value), so a
  * BIGGER number is a LOWER note. Note indices into NOTE_DIV below. */
@@ -471,7 +471,7 @@ static void sfx(u8 chan, u16 freq, u8 frames) {
     if (frames > sfx_timer) sfx_timer = frames;
 }
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG ── */
 static u8 random8(void) {
     u16 r = rng;
     r ^= r << 7;
@@ -481,10 +481,10 @@ static u8 random8(void) {
     return (u8)r;
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Match scan: mark every straight run of 3+ same-coloured cells in all 4
- * directions (a cell can belong to several runs — the mask de-dupes), and
- * return how many cells matched. Runs flat-out on the HuC6280 — no need to
+ * directions (a cell can belong to several runs - the mask de-dupes), and
+ * return how many cells matched. Runs flat-out on the HuC6280 - no need to
  * smear it across frames like the cc65 NES version's queue dance. */
 static const s8 DIRS4[4][2] = { {0,1}, {1,0}, {1,1}, {1,-1} };
 
@@ -534,7 +534,7 @@ static void apply_gravity(u8 p) {
     }
 }
 
-/* ── GAME LOGIC (clay) — end of game (top-out). `who` topped out. ── */
+/* ── GAME LOGIC (clay) - end of game (top-out). `who` topped out. ── */
 static void game_end(u8 who) {
     u16 best = score[0];
     if (two_player && score[1] > best) best = score[1];
@@ -565,7 +565,7 @@ static void game_end(u8 who) {
     music_set(ST_OVER);
 }
 
-/* ── GAME LOGIC (clay) — clear matches, drop survivors, chain cascades.
+/* ── GAME LOGIC (clay) - clear matches, drop survivors, chain cascades.
  * Returns the chain depth (0 = the lock matched nothing). */
 static u8 resolve_board(u8 p) {
     u8 n, r, c, chain;
@@ -581,7 +581,7 @@ static u8 resolve_board(u8 p) {
         amt = (u16)n * 10;
         if (chain > 1) amt *= chain;             /* cascades pay multiplied */
         if (score[p] < 65000u) score[p] += amt;
-        /* clear chime — pitch rises with chain depth (smaller divider) */
+        /* clear chime - pitch rises with chain depth (smaller divider) */
         sfx(2, (u16)(0x140 - ((u16)chain << 4)), 8);
         apply_gravity(p);
         board_dirty[p] = 1;
@@ -594,8 +594,8 @@ static u8 resolve_board(u8 p) {
     return chain;
 }
 
-/* ── GAME LOGIC (clay) — VERSUS attack: garbage rows rise from the bottom of
- * the victim's well (random cells with one gap — matchable, so a skilled
+/* ── GAME LOGIC (clay) - VERSUS attack: garbage rows rise from the bottom of
+ * the victim's well (random cells with one gap - matchable, so a skilled
  * victim digs out). The victim's stack rising means the falling trio shifts
  * up one to stay board-aligned; if the top row is already occupied, the
  * victim tops out and loses. ── */
@@ -640,7 +640,7 @@ static void spawn_piece(u8 p) {
     if (!can_place(p, piece_x[p], piece_y[p])) game_end(p);
 }
 
-/* ── GAME LOGIC (clay) — land the trio, resolve, attack, respawn. ── */
+/* ── GAME LOGIC (clay) - land the trio, resolve, attack, respawn. ── */
 static void lock_piece(u8 p) {
     s16 i, y;
     u8 chain;
@@ -660,7 +660,7 @@ static void lock_piece(u8 p) {
     spawn_piece(p);
 }
 
-/* ── GAME LOGIC (clay) — per-player input + gravity. Edge-triggered moves
+/* ── GAME LOGIC (clay) - per-player input + gravity. Edge-triggered moves
  * (one cell per press), held DOWN soft-drops, I/II cycle the trio's colours
  * (the classic trio "rotate"), RUN hard-drops. ── */
 static void update_player(u8 p, u8 pad) {
@@ -703,9 +703,9 @@ static void update_player(u8 p, u8 pad) {
     }
 }
 
-/* ── GAME LOGIC (clay) — stage this frame's sprites ─────────────────────────
+/* ── GAME LOGIC (clay) - stage this frame's sprites ─────────────────────────
  * Only the falling trios are sprites (locked cells are BAT tiles): 3 SATB
- * slots per player, 16x16 each. Cells above the rim aren't drawn — they'd
+ * slots per player, 16x16 each. Cells above the rim aren't drawn - they'd
  * poke out from under the HUD band. */
 static void push_sprites(void) {
     u8 p, i;
@@ -726,7 +726,7 @@ static void push_sprites(void) {
     }
 }
 
-/* ── GAME LOGIC (clay) — screen painters (full BAT repaint per state change) ── */
+/* ── GAME LOGIC (clay) - screen painters (full BAT repaint per state change) ── */
 static void paint_title(void) {
     paint_backdrop();
     draw_text((u8)((32 - (sizeof(GAME_TITLE) - 1)) / 2), 8, GAME_TITLE);
@@ -749,7 +749,7 @@ static void paint_play(void) {
     draw_hud();
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_game(u8 versus) {
     u8 p, r, c;
     two_player = versus;
@@ -776,7 +776,7 @@ static void start_game(u8 versus) {
     if (versus) spawn_piece(1);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * 2P INPUT via the TurboTap. pce_joy_read() reads pad 1 (slot 0). For pad 2 we
  * read cc65's JOY_2 directly and translate it to the same clean PCE bitmask
  * pce_input.c builds for pad 1. The host force-enables the TurboTap core
@@ -801,9 +801,9 @@ void main(void) {
 
     _pce_keep[0] = 0;   /* see the EMPTY-BSS TRAP note in pce_hw.h */
 
-    /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
      * Init order: palette → VRAM uploads → BAT paint → joypad → display ON.
-     * disp_enable() also sets the VBlank IRQ bit — without it waitvsync()
+     * disp_enable() also sets the VBlank IRQ bit - without it waitvsync()
      * never returns and the game freezes on its first frame. */
     /* BG sub-pal 0: backdrop/frame/interior + text-on-band. BG sub-pal 1:
      * HUD/text (white). BG sub-pal 3: the three locked-cell hues. */
@@ -817,7 +817,7 @@ void main(void) {
     vce_set_color(3 * 16 + 1, PCE_RGB(7, 5, 0));  /* pal3 c1: amber          */
     vce_set_color(4 * 16 + 1, PCE_RGB(0, 6, 5));  /* pal4 c1: teal           */
     vce_set_color(5 * 16 + 1, PCE_RGB(7, 1, 6));  /* pal5 c1: magenta        */
-    /* sprite sub-palettes (256 + pal*16 + index) — the falling trio mirrors
+    /* sprite sub-palettes (256 + pal*16 + index) - the falling trio mirrors
      * the locked-cell hues, one sub-palette per colour so all three trio
      * colours are visible (push_sprites selects PAL_TRIO(col) per cell). */
     vce_set_color(256 + 1 * 16 + 1, PCE_RGB(7, 5, 0));  /* spr pal1 c1: amber   */
@@ -826,7 +826,7 @@ void main(void) {
 
     upload_art();
 
-    hiscore = hiscore_load();   /* always 0 — no persistence on a bare HuCard */
+    hiscore = hiscore_load();   /* always 0 - no persistence on a bare HuCard */
     state = ST_TITLE;
     paint_title();
     music_set(ST_TITLE);
@@ -838,7 +838,7 @@ void main(void) {
         waitvsync();
 
         /* ── vblank work first: BAT repaints + sprites + SATB DMA ──
-         * Whole-board BAT repaint (see the WHOLE-BOARD REPAINT idiom) — both
+         * Whole-board BAT repaint (see the WHOLE-BOARD REPAINT idiom) - both
          * dirty wells stream in this one vblank, then the SATB DMA. */
         if (board_dirty[0]) { paint_board(0); board_dirty[0] = 0; }
         if (two_player && board_dirty[1]) { paint_board(1); board_dirty[1] = 0; }
@@ -876,7 +876,7 @@ void main(void) {
             continue;
         }
 
-        /* ── ST_PLAY — both players update every frame (simultaneous versus,
+        /* ── ST_PLAY - both players update every frame (simultaneous versus,
          * not alternating turns). Any update can end the game, so re-check
          * state between them. ── */
         update_player(0, pad1);

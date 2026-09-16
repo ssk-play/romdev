@@ -1,10 +1,10 @@
-/* Hello, NES — a real hello-world scaffold, not just while(1) {}.
+/* Hello, NES - a real hello-world scaffold, not just while(1) {}.
  *
  * What this does:
  *   1. Disables PPU during init (avoids race with first frame).
  *   2. Uploads a 4-color palette.
  *   3. Writes a single 8x8 tile (a yellow 'H') into CHR-RAM.
- *   4. Drops a single sprite into shadow OAM ($0200..) — the NMI
+ *   4. Drops a single sprite into shadow OAM ($0200..) - the NMI
  *      handler DMAs it to the PPU every vblank.
  *   5. Enables the PPU and loops forever (NMI does all the real work).
  *
@@ -43,12 +43,12 @@
 #define OAMADDR    (*(volatile uint8_t*)0x2003)
 #define OAMDMA     (*(volatile uint8_t*)0x4014)
 
-/* Shadow OAM — DMA'd to PPU sprite RAM every vblank by the NMI. */
+/* Shadow OAM - DMA'd to PPU sprite RAM every vblank by the NMI. */
 #pragma bss-name(push, "OAM")
 uint8_t oam[256];
 #pragma bss-name(pop)
 
-/* Tile 1 — an 8x8 'H' glyph. NES tiles are 2bpp (16 bytes per tile:
+/* Tile 1 - an 8x8 'H' glyph. NES tiles are 2bpp (16 bytes per tile:
  * 8 bytes plane 0, 8 bytes plane 1). For a 1-color glyph we use plane
  * 0 only; plane 1 is all zeros. */
 static const uint8_t tile_H[16] = {
@@ -73,7 +73,7 @@ static const uint8_t palette[32] = {
     0x0F, 0x27, 0x17, 0x07,   /* orange */
     0x0F, 0x2A, 0x1A, 0x0A,   /* green */
     /* Sprite palette 0..3 (color 0 is transparent) */
-    0x0F, 0x28, 0x18, 0x08,   /* yellow — used by our sprite */
+    0x0F, 0x28, 0x18, 0x08,   /* yellow - used by our sprite */
     0x0F, 0x21, 0x11, 0x01,
     0x0F, 0x27, 0x17, 0x07,
     0x0F, 0x2A, 0x1A, 0x0A,
@@ -93,11 +93,11 @@ static void ppu_addr(uint16_t a) {
 void main(void) {
     uint16_t i;
 
-    /* 1. Initial PPU off — disable rendering, NMI, IRQ. */
+    /* 1. Initial PPU off - disable rendering, NMI, IRQ. */
     PPUCTRL = 0;
     PPUMASK = 0;
 
-    /* 2. Wait two vblanks (NES init protocol — PPU warm-up). */
+    /* 2. Wait two vblanks (NES init protocol - PPU warm-up). */
     wait_vblank();
     wait_vblank();
 
@@ -128,7 +128,7 @@ void main(void) {
     /* Scroll regs would go here (write to $2005) if we wanted to scroll. */
 
     /* 7. One-shot OAM DMA now (NMI will keep doing this every frame
-     *    if you install an NMI handler — see nmi_handler.c). */
+     *    if you install an NMI handler - see nmi_handler.c). */
     OAMADDR = 0;
     OAMDMA = 0x02;  /* DMA from $0200 */
 

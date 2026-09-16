@@ -1,11 +1,11 @@
-// PCE (geargrafx / HuC6280) callSubroutine instruction WATCHDOG — end to end.
+// PCE (geargrafx / HuC6280) callSubroutine instruction WATCHDOG - end to end.
 //
 // callSubroutine can be pointed at a routine that loops FOREVER. Each emulator
 // frame spins inside HuC6280::RunInstruction, so the host's per-frame cap can't
 // catch it and the WASM would hang. The watchdog (romdev_watchdog_set, hooked
 // into RunInstruction, force-stops via romdev_pc_hit + romdev_pc_watchdog and the
 // existing retro_run frame-loop drain) must force-stop at the host-set
-// instruction budget and report watchdog:true — NOT hang.
+// instruction budget and report watchdog:true - NOT hang.
 //
 // Mirrors test/lynx-watchdog.test.js for the HuC6280 core. We build a tiny PCE
 // ROM whose main() is `while(1){}` (a guaranteed runaway), load it into a bare
@@ -39,7 +39,7 @@ const toJSON = (res) => {
   return JSON.parse(res.content[0].text);
 };
 
-// main() never returns — a guaranteed runaway the watchdog must catch. PCE needs
+// main() never returns - a guaranteed runaway the watchdog must catch. PCE needs
 // a real GLOBAL so .bss isn't empty (the empty-BSS crt0 trap → ld65 range error);
 // a local won't do it, so g_c lives at module scope.
 const SRC = `
@@ -58,13 +58,13 @@ test("PCE watchdog force-stops an infinite loop (geargrafx HuC6280)", { timeout:
 
   const { LibretroHost } = await import("romdev-core-host/LibretroHost.js");
   const core = resolveCore("pce");
-  assert.ok(core, "resolveCore('pce') returned null — geargrafx_libretro.{js,wasm} missing?");
+  assert.ok(core, "resolveCore('pce') returned null - geargrafx_libretro.{js,wasm} missing?");
   const host = new LibretroHost();
   await host.loadCore(core.jsPath, core.wasmPath);
   await host.loadMedia({ platform: "pce", path: build.binaryPath });
 
   // Feature detection: the whole point of this change.
-  assert.equal(host.watchdogSupported(), true, "watchdogSupported() false — romdev_watchdog_set missing on geargrafx");
+  assert.equal(host.watchdogSupported(), true, "watchdogSupported() false - romdev_watchdog_set missing on geargrafx");
   assert.equal(host.pcBreakSupported(), true, "pcBreakSupported() false");
 
   // Boot a few frames into the spin loop.
@@ -72,7 +72,7 @@ test("PCE watchdog force-stops an infinite loop (geargrafx HuC6280)", { timeout:
 
   // KEY assertion: arm a TINY instruction budget. The ROM is spinning forever in
   // main(), so the watchdog MUST force-stop within a single frame and report the
-  // flag — and the core must NOT hang. A PC breakpoint at an address the spin
+  // flag - and the core must NOT hang. A PC breakpoint at an address the spin
   // never reaches ensures ONLY the watchdog can stop it.
   host.setWatchdog(50000);
   host.setPCBreak(0xFFFF, true, false);

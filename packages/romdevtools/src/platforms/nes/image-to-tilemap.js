@@ -162,7 +162,7 @@ export function nesImageToTilemap(args) {
   }
 
   // Single-palette mode: make every BG palette identical to the first 3
-  // image colors. The whole image renders through one palette — limits to
+  // image colors. The whole image renders through one palette - limits to
   // 4 colors total but eliminates all per-cell color shifts.
   if (args.singlePalette) {
     const triplet = usefulColors.slice(0, 3);
@@ -216,7 +216,7 @@ export function nesImageToTilemap(args) {
   // 6) Pack 8×8 tiles into 2bpp planar; dedupe by the resulting CHR bytes.
   //    (Deduping by RGB content alone is WRONG: identical RGB content shown
   //    in two cells with different attribute palettes must encode to
-  //    DIFFERENT CHR bytes — they reference the same CHR slot but the
+  //    DIFFERENT CHR bytes - they reference the same CHR slot but the
   //    palette swap recolors them.)
   const dedup = args.dedup !== false;
   const makeTileBytes = (tx, ty) => {
@@ -259,14 +259,14 @@ export function nesImageToTilemap(args) {
   }
   const uniqueTilesBeforeMerge = tileList.length;
 
-  // (Removed the hard-throw — the caller can read `uniqueTiles` from the
+  // (Removed the hard-throw - the caller can read `uniqueTiles` from the
   // return value and decide what to do. Indices that exceed 255 will wrap
   // on hardware, so it's a warning not a crash.)
 
   // 7) (Disabled) Merge similar tiles down to maxTiles.
   //
   // The greedy "merge nearest tile pairs" approach measures bit-pattern
-  // distance, which is a terrible proxy for visual distance — a mostly-
+  // distance, which is a terrible proxy for visual distance - a mostly-
   // empty tile and a tile with one distinct pixel look alike to the merger
   // but completely different on screen. Result: scrambled output.
   //

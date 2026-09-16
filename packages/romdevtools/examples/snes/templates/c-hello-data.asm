@@ -1,10 +1,10 @@
-; ── c-hello-data.asm — font data symbols for the c-hello template ──
+; ── c-hello-data.asm - font data symbols for the c-hello template ──
 ;
 ; Two symbols required by main.c's consoleInitText call:
 ;
-;   tilfont   — 8x8 4bpp console font tiles (96 glyphs, ASCII 0x20-0x7F).
+;   tilfont   - 8x8 4bpp console font tiles (96 glyphs, ASCII 0x20-0x7F).
 ;               consoleInitText DMAs 3072 bytes (96 x 32) from here.
-;   palfont   — 32-byte SNES CGRAM blob: 16 colours x 2 bytes (BGR555);
+;   palfont   - 32-byte SNES CGRAM blob: 16 colours x 2 bytes (BGR555);
 ;               colour 0 transparent, colour 1 white.
 ;
 ; This used to be an 8-byte stub which made consoleDrawText render

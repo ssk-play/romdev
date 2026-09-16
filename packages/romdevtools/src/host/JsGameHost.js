@@ -1,4 +1,4 @@
-// JsGameHost — adapts jsgamelauncher's (rungame) headless host session to the subset
+// JsGameHost - adapts jsgamelauncher's (rungame) headless host session to the subset
 // of the LibretroHost surface romdev's shared tools drive.
 //
 // A jsgame is a JS web game run in a sandboxed V8 realm (no emulation). rungame's
@@ -21,7 +21,7 @@ import { framebufferToRgba } from "romdev-core-host/framebuffer.js";
 import { framebufferToScreenshot } from "romdev-core-host/framebuffer-png.js";
 import { ROMDEV_PIXEL_FORMAT_RGBA8888 } from "romdev-core-host/retroConstants.js";
 
-// canvas.data() is RGBA already — reuse romdev's RGBA framebuffer format (no decode).
+// canvas.data() is RGBA already - reuse romdev's RGBA framebuffer format (no decode).
 const JSGAME_FB_FORMAT = ROMDEV_PIXEL_FORMAT_RGBA8888;
 
 const DEFAULT_W = 640;
@@ -59,7 +59,7 @@ export class JsGameHost {
       hasAudio: false, // audio plays through the game's own WebAudio graph; not captured here yet
       hasSaveData: false,
       hasMemoryRegions: false,
-      // Runs in real V8 — JS heap/globals introspection (globalThis._jsg, the realm)
+      // Runs in real V8 - JS heap/globals introspection (globalThis._jsg, the realm)
       // is the bonus axis an emulator can't offer. Exposed via jsGlobals()/jsEval hooks.
       hasJsIntrospection: true,
       hasCpuState: false,
@@ -70,7 +70,7 @@ export class JsGameHost {
   }
 
   /**
-   * Load a jsgame (dir / .jsg / .jsgame). `mediaPath` only — a jsgame is a directory
+   * Load a jsgame (dir / .jsg / .jsgame). `mediaPath` only - a jsgame is a directory
    * tree / archive on disk, not in-memory bytes. Async: settles initial asset loads +
    * renders a first frame so screenshot works immediately.
    */
@@ -128,7 +128,7 @@ export class JsGameHost {
 
   /**
    * Advance n frames. stepFrame is async (it yields so the game's async work settles),
-   * so this returns a Promise — the tools await it (LibretroHost.stepFrames is sync, but
+   * so this returns a Promise - the tools await it (LibretroHost.stepFrames is sync, but
    * the frame tool already awaits host.stepFrames for proxied cores).
    */
   /**
@@ -145,7 +145,7 @@ export class JsGameHost {
   }
 
   async stepFrames(n) {
-    if (!this.session) throw new Error("no jsgame loaded — loadMedia first");
+    if (!this.session) throw new Error("no jsgame loaded - loadMedia first");
     if (this.status.paused) return 0;
     this.session.setInput(this._inputPorts);
     for (let i = 0; i < n; i++) {
@@ -162,14 +162,14 @@ export class JsGameHost {
     };
     this.status.fbWidth = f.width;
     this.status.fbHeight = f.height;
-    // The canvas IS the display (square pixels) — report the real ratio; a 0
+    // The canvas IS the display (square pixels) - report the real ratio; a 0
     // here zero-sizes the playtest window.
     this.status.displayAspect = f.height > 0 ? f.width / f.height : 0;
     return n;
   }
 
   getFramebuffer() {
-    if (!this.state.lastFrame) throw new Error("no frame produced yet — step frames first");
+    if (!this.state.lastFrame) throw new Error("no frame produced yet - step frames first");
     return this.state.lastFrame;
   }
 
@@ -180,14 +180,14 @@ export class JsGameHost {
 
   screenshotRgba() {
     const f = this.getFramebuffer();
-    // Key is `rgba` — the LibretroHost contract (same fix as WasmcartHost:
+    // Key is `rgba` - the LibretroHost contract (same fix as WasmcartHost:
     // `pixels` made frame({op:'verify'}) throw on every jsgame session).
     return { width: f.width, height: f.height,
              rgba: framebufferToRgba(f.width, f.height, f.pixels, f.pitch, f.format) };
   }
 
   // ── JS introspection (the V8-runtime bonus) ──────────────────────────────────
-  /** The game's exposed globals bag (rungame sets globalThis._jsg = {controllers, rom, …}). */
+  /** The game's exposed globals bag (rungame sets globalThis._jsg = {controllers, rom, ...}). */
   jsGlobals() {
     return globalThis._jsg ? Object.keys(globalThis._jsg) : [];
   }

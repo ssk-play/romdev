@@ -1,10 +1,10 @@
 /*
- * racing/main.c — POLE BENDER: a 3D Nintendo 64 racer.
+ * racing/main.c - POLE BENDER: a 3D Nintendo 64 racer.
  *
  * The road is a ribbon of quads receding to the horizon (real perspective, drawn
  * far-to-near). You steer a car near the camera between the verges; the world
  * scrolls toward you and the track curves. Rival cars (cubes) sit further up the
- * road and grow as you close on them — collide and you spin out (lose time/score).
+ * road and grow as you close on them - collide and you spin out (lose time/score).
  * Title -> race -> results state machine, distance score, a lap timer.
  *
  * Build: build({ platform:"n64", language:"c" }). Controls: LEFT/RIGHT steer,

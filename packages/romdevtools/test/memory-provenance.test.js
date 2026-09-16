@@ -1,6 +1,6 @@
 // Client ask (2026-09-16): a game copies routines out of ROM into RAM and jumps
 // there, executing 100% of some frames from RAM. A static recompiler with no
-// interpreter can compile those ranges a second time at their RAM addresses —
+// interpreter can compile those ranges a second time at their RAM addresses -
 // but only if it knows which ROM range each came from, and a byte scan on the
 // client's side cannot find the copy site (the destination arrives in a
 // register or through a shared memcpy: cross-bank dataflow).
@@ -47,7 +47,7 @@ test("the verbatim run is measured past the query, and its cap is disclosed", as
   // A fixed-length query is the wrong shape alone: the caller cannot know the
   // copied run's length. Measured on a real cart, one routine was verbatim for
   // 9 bytes and diverged, so a 20-byte query returned NOTHING while an 8-byte
-  // query resolved uniquely — an empty result that is easy to misread as "not
+  // query resolved uniquely - an empty result that is easy to misread as "not
   // from ROM at all".
   const s = await src();
   const fn = s.match(/async function memProvenance\([\s\S]*?\n\}/)?.[0] ?? "";
@@ -59,7 +59,7 @@ test("the verbatim run is measured past the query, and its cap is disclosed", as
 
 test("extending past the region end does not fail the query", async () => {
   // extendBy:4096 on an 8KB region read out of bounds and threw, turning "look
-  // further" into "the query fails" — and near the end of a region that is
+  // further" into "the query fails" - and near the end of a region that is
   // every query.
   const s = await src();
   const fn = s.match(/async function memProvenance\([\s\S]*?\n\}/)?.[0] ?? "";

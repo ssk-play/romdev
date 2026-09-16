@@ -1,4 +1,4 @@
-# Game Boy Advance — mental model
+# Game Boy Advance - mental model
 
 One page. Read once before you write your first GBA game. The
 TROUBLESHOOTING.md alongside this file is for when something's broken;
@@ -9,19 +9,19 @@ this is the "what's going on" version.
 Two C runtimes ship bundled. Pass `runtime:` to `build({output:'rom'})` /
 `build({output:'run'})` to pick:
 
-- **`"libtonc"` (default)** — Tonc-tutorial aligned. `#include <tonc.h>`,
+- **`"libtonc"` (default)** - Tonc-tutorial aligned. `#include <tonc.h>`,
   TTE (Tonc Text Engine) for text via `tte_init_chr4c_default` +
   `tte_write` / `tte_printf`, `tonccpy` / `toncset` for VRAM-safe copy,
   `OBJ_ATTR` shadow buffer + `oam_copy` for sprite updates,
   `key_poll` + `key_held`. Matches what every published tutorial at
   gbadev.net teaches.
-- **`"libgba"`** — devkitPro's official SDK. `#include <gba.h>`,
+- **`"libgba"`** - devkitPro's official SDK. `#include <gba.h>`,
   `REG_DISPCNT`, `MODE3_FB`, `SPRITE_GFX`, `OAM`, `KEY_A`, etc. Opt in
   with `runtime: "libgba"` (or legacy `libgba: true`).
-- **`"none"`** — bare gcc + newlib only. For people writing their own
+- **`"none"`** - bare gcc + newlib only. For people writing their own
   abstractions or porting bare-metal code.
 
-Sound — both runtimes ship `gba_sfx.h` / `gba_sfx.c` (3 functions:
+Sound - both runtimes ship `gba_sfx.h` / `gba_sfx.c` (3 functions:
 `sfx_init` / `sfx_tone(channel, freq_period, length)` / `sfx_noise`)
 wrapping the DMG-compatible APU. Channels 3 (wave) + Direct Sound are
 left to user code (they need more setup than a one-call sfx helper).
@@ -29,15 +29,15 @@ left to user code (they need more setup than a one-call sfx helper).
 ## CPU memory map (ARM7TDMI)
 
 ```
-$00000000-$00003FFF  BIOS ROM (16 KB) — read-only firmware
-$02000000-$0203FFFF  EWRAM (256 KB) — slow but big main work RAM
-$03000000-$03007FFF  IWRAM (32 KB) — fast on-chip RAM
+$00000000-$00003FFF  BIOS ROM (16 KB) - read-only firmware
+$02000000-$0203FFFF  EWRAM (256 KB) - slow but big main work RAM
+$03000000-$03007FFF  IWRAM (32 KB) - fast on-chip RAM
 $04000000-$040003FE  I/O registers (memory-mapped MMIO)
 $05000000-$050003FF  BG palette + OBJ palette (1 KB)
-$06000000-$06017FFF  VRAM (96 KB) — BG tile data, sprite tile data, framebuffer
-$07000000-$070003FF  OAM (1 KB) — sprite attributes
-$08000000-$09FFFFFF  Game Pak ROM (up to 32 MB) — your .gba lives here
-$0E000000-$0E00FFFF  Game Pak SRAM (64 KB) — battery-backed saves
+$06000000-$06017FFF  VRAM (96 KB) - BG tile data, sprite tile data, framebuffer
+$07000000-$070003FF  OAM (1 KB) - sprite attributes
+$08000000-$09FFFFFF  Game Pak ROM (up to 32 MB) - your .gba lives here
+$0E000000-$0E00FFFF  Game Pak SRAM (64 KB) - battery-backed saves
 ```
 
 The ARM7TDMI runs in two modes:
@@ -64,7 +64,7 @@ Mode 5: 160×128 BGR555 framebuffer + back buffer.
 ```
 
 Most published GBA games use mode 0. The `MODE_3` path (used in our
-`gba_hello` template) is the simplest — write directly to the
+`gba_hello` template) is the simplest - write directly to the
 framebuffer like a modern game.
 
 ## Sprites (OAM)
@@ -105,16 +105,16 @@ the inverted byte so pressed = 1.
 
 ### Driving input over MCP
 
-mGBA maps `input({op:'set'})` button names **straight through** — verified live, no
+mGBA maps `input({op:'set'})` button names **straight through** - verified live, no
 inversion: `{a}`→A, `{b}`→B, `{l}`→L, `{r}`→R, `{start}`/`{select}`, plus the
-d-pad. So `input({op:'set', a: true})` presses GBA A as expected — unlike the
+d-pad. So `input({op:'set', a: true})` presses GBA A as expected - unlike the
 genesis_plus_gx platforms (Genesis/SMS/GG), there's no surprise here.
 
 ## Sound
 
 Two parallel paths:
 
-1. **Tone channels** (4): identical to GBC — 2 squares + 1 wave + 1 noise.
+1. **Tone channels** (4): identical to GBC - 2 squares + 1 wave + 1 noise.
    Backwards-compatible with GBC games. Programmed via $04000060 +.
 2. **Direct Sound** (2): 8-bit PCM channels with DMA streaming. The
    modern path for sample-based music. Programmed via $04000082 + DMA.
@@ -123,7 +123,7 @@ libgba sound API in `gba_sound.h` covers the tone channels but the
 DMA-driven PCM streaming is something you'd typically pair with
 maxmod (separate library, not bundled here).
 
-**Debugging sound:** `audioDebug({op:'inspect', chip:"gba"})` decodes the live APU —
+**Debugging sound:** `audioDebug({op:'inspect', chip:"gba"})` decodes the live APU -
 per-channel freq→note/duty/volume for the 4 tone channels plus the 2 Direct
 Sound FIFO states. See "MCP debug & inspection tooling" below for the rest of
 the live-debug loop (sprites / palette / background / cpu / breakpoint + the
@@ -138,71 +138,71 @@ racing) use it.
 
 ## MCP debug & inspection tooling
 
-GBA runs on mGBA (patched). These inspectors read the *live* core state —
+GBA runs on mGBA (patched). These inspectors read the *live* core state -
 reach for them when a sprite, palette, or BG renders wrong and the source
 alone doesn't explain it. (The audio inspector is also summarized under
 "Sound" above.)
 
-- **`sprites({op:'inspect'})`** — decodes all **128 OAM sprites** into a
+- **`sprites({op:'inspect'})`** - decodes all **128 OAM sprites** into a
   generic shape: attr0/1/2 unpacked to shape + size, **9-bit signed X**,
   the affine and hidden flags, and tile / palette / priority.
-- **`palette({source:'live'})`** — reads the palette as **15-bit BGR555**:
+- **`palette({source:'live'})`** - reads the palette as **15-bit BGR555**:
   256 BG entries + 256 OBJ entries. Pass `area:'bg'` or `area:'sprite'` to
   pick the half.
-- **`cpu({op:'read'})`** — ARM7TDMI dump: the 16 general regs **r0-r15**,
+- **`cpu({op:'read'})`** - ARM7TDMI dump: the 16 general regs **r0-r15**,
   `cpsr` + `spsr`, the processor mode, the ARM/THUMB state bit, and an
   **`execPc`** field that is r15 adjusted back for the pipeline prefetch
-  (r15 reads ahead of the executing instruction, so raw r15 is misleading —
+  (r15 reads ahead of the executing instruction, so raw r15 is misleading -
   use `execPc` for "where am I really").
-- **`audioDebug({op:'inspect', chip:'gba'})`** — the 4 DMG-compatible PSG
+- **`audioDebug({op:'inspect', chip:'gba'})`** - the 4 DMG-compatible PSG
   channels (per-channel freq→note / duty / volume) plus the **2 Direct Sound
   DMA FIFO** states, and master / bias. See "Sound" above.
-- **`background({view:'renderState'})`** — decodes DISPCNT: the BG mode, and
+- **`background({view:'renderState'})`** - decodes DISPCNT: the BG mode, and
   per-BG enable / priority / char-base / map-base / color-mode, the
   forced-blank bit, and OBJ enable. Use it to confirm REG_DISPCNT and the
   REG_BGxCNT bases match where you uploaded tiles + maps.
 
-### Memory regions (`memory({op:'read', region:…})`)
+### Memory regions (`memory({op:'read', region:...})`)
 
 | Region          | Address / size                     | Contents                                  |
 |-----------------|------------------------------------|-------------------------------------------|
-| `gba_cpu_regs`  | —                                  | ARM7TDMI register snapshot                 |
-| `gba_io_regs`   | $04000000-$040003FE (1 KB)         | the I/O page — **video AND audio** MMIO    |
+| `gba_cpu_regs`  | -                                  | ARM7TDMI register snapshot                 |
+| `gba_io_regs`   | $04000000-$040003FE (1 KB)         | the I/O page - **video AND audio** MMIO    |
 | `gba_palette`   | $05000000-$050003FF (1 KB)         | 256 BG + 256 OBJ BGR555 entries            |
 | `gba_oam`       | $07000000-$070003FF (1 KB)         | 128 sprite attribute entries (8 B each)    |
-| `system_ram`    | $02000000-$0203FFFF (256 KB)       | **EWRAM only** — the big/slow work RAM     |
-| `gba_iwram`     | $03000000-$03007FFF (32 KB)        | **IWRAM** — the C stack + libtonc/maxmod `.bss` live HERE, not in EWRAM |
+| `system_ram`    | $02000000-$0203FFFF (256 KB)       | **EWRAM only** - the big/slow work RAM     |
+| `gba_iwram`     | $03000000-$03007FFF (32 KB)        | **IWRAM** - the C stack + libtonc/maxmod `.bss` live HERE, not in EWRAM |
 | `video_ram`     | $06000000-$06017FFF (96 KB)        | BG + sprite tile data + framebuffer        |
 | `save_ram`      | $0E000000-$0E00FFFF (64 KB)        | battery-backed SRAM                        |
 
-**IWRAM vs EWRAM — the debugging footgun:** a `$0300xxxx` address (SP, maxmod's
+**IWRAM vs EWRAM - the debugging footgun:** a `$0300xxxx` address (SP, maxmod's
 `mmLayerMain`, most C globals on this toolchain) lives in `gba_iwram`, NOT
-`system_ram`. Reading `system_ram` at that low 16-bit offset returns EWRAM bytes —
-real memory, wrong RAM — which "confirms" false hypotheses. Map the address by its
+`system_ram`. Reading `system_ram` at that low 16-bit offset returns EWRAM bytes -
+real memory, wrong RAM - which "confirms" false hypotheses. Map the address by its
 prefix first: `$02xxxxxx` → `system_ram`, `$03xxxxxx` → `gba_iwram`.
 
 Pair `sprites` / `palette` / `background` / `cpu` with
 `breakpoint({on:'write'})` for the full live-debug loop.
 
-### Disassembly (`disasm({target:…})`)
+### Disassembly (`disasm({target:...})`)
 
 `disasm({target:'rom'})`, `disasm({target:'references'})`, and
 `disasm({target:'project'})` run the native binutils
-**`arm-none-eabi-objdump`** (WASM) — **ARM mode by default**, pass
+**`arm-none-eabi-objdump`** (WASM) - **ARM mode by default**, pass
 `thumb:true` for Thumb code. To rebuild, **`build({output:'reassemble',
 platform:'gba', path})` turns the project dir back into a byte-identical ROM in
-one call** — it assembles each region through `arm-none-eabi-as`/`ld`/`objcopy` and
+one call** - it assembles each region through `arm-none-eabi-as`/`ld`/`objcopy` and
 splices the results into the original's header/pad (you don't run them yourself).
 
 **Gotcha (until ARM/Thumb mode-tracking lands):** GBA C compiles mostly to
 **Thumb** reached via an **ARM crt0 stub**, so an ARM-mode disasm of a full
-ROM decodes the Thumb spans as `.byte` — still byte-exact, just less readable.
+ROM decodes the Thumb spans as `.byte` - still byte-exact, just less readable.
 Disasm the Thumb spans with `thumb:true` to get real mnemonics.
 
 ## Frame heartbeat
 
 ```c
-/* libtonc setup — REQUIRED before any VBlankIntrWait() call. */
+/* libtonc setup - REQUIRED before any VBlankIntrWait() call. */
 irq_init(NULL);
 irq_add(II_VBLANK, NULL);
 
@@ -216,9 +216,9 @@ while (1) {
 `VBlankIntrWait()` calls a BIOS function that puts the CPU to sleep
 until the vblank IRQ fires. **You MUST install the IRQ table BEFORE
 the first call** (`irq_init(NULL)` + `irq_add(II_VBLANK, NULL)` with
-libtonc — `irqInit(NULL)` + `irqEnable(IRQ_VBLANK)` with libgba).
+libtonc - `irqInit(NULL)` + `irqEnable(IRQ_VBLANK)` with libgba).
 Without this, the BIOS halts the CPU forever waiting for an IRQ that
-never fires. ROM appears to compile + load but freezes on frame 1 —
+never fires. ROM appears to compile + load but freezes on frame 1 -
 single most common GBA gotcha. Every bundled example does it; copy
 the pattern.
 
@@ -226,7 +226,7 @@ the pattern.
 
 ```
 $00-$03  ARM 'b' instruction branching to your _start
-$04-$9F  Nintendo logo (156 bytes) — required for real-hardware boot
+$04-$9F  Nintendo logo (156 bytes) - required for real-hardware boot
 $A0-$AB  Game title (12 ASCII chars)
 $AC-$AF  Game code
 $B0-$B1  Maker code
@@ -234,7 +234,7 @@ $B2-$BB  Header bytes (unit code, device type, version, complement check)
 $BC-$BF  Reserved
 ```
 
-mGBA does NOT enforce the Nintendo logo (which is good — bundling it
+mGBA does NOT enforce the Nintendo logo (which is good - bundling it
 would be a copyright issue). The `gba_crt0.s` we ship leaves it as
 zeros. Real-hardware ROMs need it; mGBA and our test pipeline run
 fine without it.
@@ -261,9 +261,9 @@ Loadable via mGBA (`loadMedia`).
   `arm-none-eabi-gcc` 14.2.0** only. The byte-exact decompilations + romhacks
   (pokeruby / pokeemerald / pokefirered, etc.) build with agbcc + a custom
   `ld_script.txt`, so romdev **cannot reproduce a matching retail ROM** for those.
-  That's a hard limit, not a missing feature — see "romdev's build model" below.
+  That's a hard limit, not a missing feature - see "romdev's build model" below.
 - **libgba's `console.c`** (iprintf-style stdio output). Pulls in
-  devkitPro's libsysbase header chain — not yet ported. See
+  devkitPro's libsysbase header chain - not yet ported. See
   TROUBLESHOOTING.md for the trade-off rationale and workarounds.
 - **maxmod** (sample-based music driver). Separate library; not
   bundled. Add manually if you need it.
@@ -276,9 +276,9 @@ Everything else from a stock devkitARM install (homebrew-style) works.
 
 `build` is a **single-shot "compile these sources → one ROM" tool**, NOT an arbitrary
 build-system backend. The toolchain binaries are **WASM, run only inside romdev's build
-worker (virtual FS)** — they are **not host-callable** and **cannot back an external
+worker (virtual FS)** - they are **not host-callable** and **cannot back an external
 project's `Makefile`** as `$(TOOLCHAIN)/bin`. (The `.mjs` wrappers under `node_modules`
-export a worker factory, not a CLI `main` — invoking one directly exits 0 and writes
+export a worker factory, not a CLI `main` - invoking one directly exits 0 and writes
 nothing.)
 
 So for an **existing decomp/romhack** (agbcc-era or any project with its own Makefile):
@@ -290,7 +290,7 @@ byte-matching ROM). romdev's value here is everything AFTER the build, not the b
 
 ## Horizontal scrolling (for side-scrollers)
 
-GBA tiled BG modes (0-2) give each BG layer a hardware scroll register —
+GBA tiled BG modes (0-2) give each BG layer a hardware scroll register -
 `REG_BG0HOFS` / `REG_BG0VOFS` (and BG1/2/3). Write the camera offset each
 frame; scroll a second layer at a fraction of camX for parallax. BG maps are
 32×32 (or larger via screen-block size); for a wider world, stream the column
@@ -303,4 +303,4 @@ camX.
 
 The Rizin/Ghidra analysis engine works here like everywhere: `disasm({target:'functions'})` to carve the program, `disasm({target:'cfg'|'xrefs'})` to trace it, `symbols({op:'analyze'})` for a one-shot structural map.
 
-**Decompiler quality on ARM7TDMI: EXCELLENT.** Most GBA code was compiled C, so the decompiler often recovers something close to the original source — lean on it. `disasm({target:'decompile', address})` returns C-like pseudocode (the `qualityNote` field restates this). Read it to UNDERSTAND a routine; use `disasm({target:'project'})` to actually edit + rebuild. See the cross-platform ROM-hacking playbook §5f for the full loop.
+**Decompiler quality on ARM7TDMI: EXCELLENT.** Most GBA code was compiled C, so the decompiler often recovers something close to the original source - lean on it. `disasm({target:'decompile', address})` returns C-like pseudocode (the `qualityNote` field restates this). Read it to UNDERSTAND a routine; use `disasm({target:'project'})` to actually edit + rebuild. See the cross-platform ROM-hacking playbook §5f for the full loop.

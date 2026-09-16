@@ -1,4 +1,4 @@
-// Unit test for framebuffer.js — XRGB8888 / RGB565 / 0RGB1555 → PNG.
+// Unit test for framebuffer.js - XRGB8888 / RGB565 / 0RGB1555 → PNG.
 //
 // Run: npm test  (or: node --test src/host/framebuffer.test.js)
 
@@ -80,7 +80,7 @@ test("XRGB8888 with pitch padding skips correctly", () => {
 
 // ── resamplePng: nearest-neighbor scaling, both directions ──────────────────
 
-// A 2x2 PNG with four distinct corner colors, as base64 — the fixture for the
+// A 2x2 PNG with four distinct corner colors, as base64 - the fixture for the
 // resample tests. Top-left red, top-right green, bottom-left blue, bottom-right
 // white. Returns { base64, png } so tests can assert against the source.
 function checker2x2() {
@@ -150,7 +150,7 @@ test("resamplePng: down-scale (0.5) halves dims and keeps nearest pixels", () =>
   assert.equal(height, 2);
   const img = decode(Buffer.from(base64, "base64"));
   // Nearest-neighbor (not averaged): top row sampled from a red source row,
-  // bottom row from a blue source row — no purple blend.
+  // bottom row from a blue source row - no purple blend.
   assert.deepEqual(pixelAt(img, 0, 0), [0xff, 0x00, 0x00, 0xff]);
   assert.deepEqual(pixelAt(img, 0, 1), [0x00, 0x00, 0xff, 0xff]);
 });

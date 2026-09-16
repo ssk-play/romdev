@@ -1,4 +1,4 @@
-// R39 — C64 tier-1: 5 genre scaffolds (shmup/platformer/puzzle/sports/racing)
+// R39 - C64 tier-1: 5 genre scaffolds (shmup/platformer/puzzle/sports/racing)
 // + SID sfx wrapper.
 
 import { test } from "node:test";

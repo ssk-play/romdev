@@ -1,4 +1,4 @@
-// NES→SNES recompiler robustness — tool-level gate. Drives
+// NES→SNES recompiler robustness - tool-level gate. Drives
 // disasm({target:'recompile'}) on synthetic ROMs to prove:
 //   1. it disassembles from the REAL reset vector (not blindly $8000), so a
 //      reset routine placed away from the PRG base is found + recompiled;
@@ -57,7 +57,7 @@ test("recompile follows the reset vector when the routine is NOT at $8000", asyn
   try {
     const resetAddr = 0x8100;
     const code = [...BOOT];
-    // patch the trailing jmp to spin on itself (jmp $810C) — keeps the slice tidy
+    // patch the trailing jmp to spin on itself (jmp $810C) - keeps the slice tidy
     const jmpAt = resetAddr + (code.length - 3);
     code[code.length - 2] = jmpAt & 0xff;
     code[code.length - 1] = (jmpAt >> 8) & 0xff;
@@ -74,7 +74,7 @@ test("recompile follows the reset vector when the routine is NOT at $8000", asyn
     assert.ok(r.seamCount >= 2, `seam accesses translated: ${r.seamCount}`);
     assert.equal(r.residue.length, 0, `clean translation, no residue: ${JSON.stringify(r.residue)}`);
 
-    // And the entry anchors to the routine's OPENING instruction — the emitted
+    // And the entry anchors to the routine's OPENING instruction - the emitted
     // main.asm must contain the reset handoff + the entry label before the body.
     assert.ok(r.mainAsm, "returned inline mainAsm (no outputDir)");
     assert.match(r.mainAsm, /jmp\s+RECOMPILE_ENTRY/, "reset handoff targets the injected entry");
@@ -92,7 +92,7 @@ test("recompile rejects out-of-scope ROMs with clear, specific errors", async ()
   const dir = await mkdtemp(path.join(os.tmpdir(), "recompile-reject-"));
   const disasm = toolHandler(registerDisasmTools, "disasm");
   // The tool wrapper catches thrown errors and returns them as { isError, content }
-  // (the MCP convention) — assert on that, not a thrown rejection.
+  // (the MCP convention) - assert on that, not a thrown rejection.
   const expectError = async (bytes, name, re) => {
     const p = path.join(dir, name);
     await writeFile(p, bytes);
@@ -102,7 +102,7 @@ test("recompile rejects out-of-scope ROMs with clear, specific errors", async ()
     assert.match(msg, re, `${name} error message: ${msg}`);
   };
   try {
-    // mapper 2 (UxROM) — bank-switched, not NROM
+    // mapper 2 (UxROM) - bank-switched, not NROM
     await expectError(nromRom({ mapper: 2, code: [...BOOT] }), "mapper2.nes", /mapper 2 is not supported|only NROM/i);
     // a 24KB PRG (mapper 0 but odd size)
     await expectError(nromRom({ prgSize: 0x6000, code: [...BOOT] }), "odd.nes", /16KB or 32KB|only those two sizes/i);

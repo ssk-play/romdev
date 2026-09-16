@@ -1,8 +1,8 @@
-// C64 SID song compiler — note/duration → the bundled c64_music.c driver's
+// C64 SID song compiler - note/duration → the bundled c64_music.c driver's
 // per-voice (freq, length_frames) tables. Driver contract:
 //   typedef struct { uint16_t freq; uint8_t len; } Note;
 //   static const Note melody[]/bass[]/harmony[];  // voices 0/1/2
-//   freq = round(Hz / 0.0596);  freq==0 is a rest;  no sentinel — voices wrap.
+//   freq = round(Hz / 0.0596);  freq==0 is a rest;  no sentinel - voices wrap.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {

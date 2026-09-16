@@ -18,7 +18,7 @@ import {
 /**
  * Convert a libretro framebuffer to a flat RGBA8888 Uint8Array (one
  * row at a time, no padding). Same pixel-format decode as
- * framebufferToPng but skips the PNG encode step — useful when the
+ * framebufferToPng but skips the PNG encode step - useful when the
  * caller wants raw pixels (e.g. piping into chafa-wasm for ASCII
  * rendering, or blitting to a browser canvas).
  *
@@ -39,7 +39,7 @@ export function framebufferToRgba(width, height, src, pitch, format) {
  *  ImageData buffer). Exported for framebuffer-png.js and direct blitters. */
 export function decodePixelsInto(dst, width, height, src, pitch, format) {
   if (format === ROMDEV_PIXEL_FORMAT_RGBA8888) {
-    // HW-render readback: already RGBA. Copy RGB row-by-row but FORCE alpha=255 —
+    // HW-render readback: already RGBA. Copy RGB row-by-row but FORCE alpha=255 -
     // the N64/PS1 GL framebuffer leaves alpha at 0 (it's the render target's unused
     // channel), which would make every pixel transparent → composites to white.
     for (let y = 0; y < height; y++) {

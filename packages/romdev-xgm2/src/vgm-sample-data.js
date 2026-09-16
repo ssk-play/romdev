@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.VGMSampleData — single timed byte of VGM sample data.
+// Port of sgdk.xgm2tool.format.VGMSampleData - single timed byte of VGM sample data.
 
 /**
  * Single byte of VGM sample data (time is expressed in 1/44100 of second).

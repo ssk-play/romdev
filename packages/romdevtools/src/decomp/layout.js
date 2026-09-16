@@ -1,4 +1,4 @@
-// layout.js — stack maps and data ownership, from the instruction stream.
+// layout.js - stack maps and data ownership, from the instruction stream.
 //
 // §8 of the 2026-09-15 report. The concrete case: a 1,256-byte function whose
 // original frame is 472 bytes; the refreshed draft had the same instruction
@@ -29,7 +29,7 @@ const FRAME_RE = /^sp,sp,(-?\d+)$/;
 /**
  * An ADDRESS-TAKEN local: `addiu s0,sp,184` computes &local rather than
  * loading it. These never appear as lw/sw against sp, so a scanner that looked
- * only at loads and stores missed exactly the homes that mattered — the
+ * only at loads and stores missed exactly the homes that mattered - the
  * reporter's two fixed-matrix objects at 184/120 differ by four bytes and are
  * reached ONLY this way, because they are passed to a helper by address.
  */
@@ -67,7 +67,7 @@ export function frameSizeOf(stream) {
  * Every sp-relative access in a stream, grouped into SLOTS.
  *
  * A slot is a distinct (offset, width) the code touches. Saved registers,
- * outgoing arguments and real locals all look the same here — they are
+ * outgoing arguments and real locals all look the same here - they are
  * separated by position, and that separation is labelled as inference.
  */
 export function stackSlots(stream, { frameSize = null } = {}) {
@@ -170,7 +170,7 @@ export function compareStackMaps(targetMap, candidateMap) {
     why = `${moved.length} slot(s) moved while their neighbours did not. This is a declaration ORDER or alignment difference for those objects specifically, not a size error in an earlier one.`;
   } else if (moved.length) {
     shape = "mixed";
-    why = `slots moved by several different deltas (${deltas.slice(0, 5).join(", ")}): more than one object differs. Fix the earliest difference first and re-measure — later deltas usually collapse.`;
+    why = `slots moved by several different deltas (${deltas.slice(0, 5).join(", ")}): more than one object differs. Fix the earliest difference first and re-measure - later deltas usually collapse.`;
   } else {
     shape = "frame-size-only";
     why = `every slot is at its original offset but the frame size differs by ${frameDelta} bytes. The difference is in space that nothing loads or stores: alignment, or an object that is declared but never accessed.`;
@@ -191,7 +191,7 @@ export function compareStackMaps(targetMap, candidateMap) {
  *
  * The report's case: `D_801C2C70 + i*0x378` is `D_801C2938[i].unk338`. A tool
  * that proposed a new stride array there would have invented a second name for
- * memory that is already named — and the caller would have had to discover
+ * memory that is already named - and the caller would have had to discover
  * that by hand anyway.
  *
  * @param {Map<string,{va:number,size?:number}>} symbols known symbols by name
@@ -224,7 +224,7 @@ export function resolveAddress(symbols, va) {
     expression: delta === 0 ? best.name : `${best.name} + 0x${delta.toString(16)}`,
     guidance: delta === 0
       ? "this is the symbol itself"
-      : `this address is INSIDE an existing symbol. Prefer an existing member at offset 0x${delta.toString(16)} of ${best.name} over declaring a new symbol here — a second name for the same bytes is how one object becomes two incompatible types.`,
+      : `this address is INSIDE an existing symbol. Prefer an existing member at offset 0x${delta.toString(16)} of ${best.name} over declaring a new symbol here - a second name for the same bytes is how one object becomes two incompatible types.`,
   };
 }
 

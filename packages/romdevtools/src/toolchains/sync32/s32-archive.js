@@ -8,7 +8,7 @@
 //
 // A game that reads resources through the disk API needs the folder or the
 // archive, because its namespace has to travel with it. The archive is an
-// UNCOMPRESSED, SORTED, plain-ustar tar and nothing more — the firmware walks
+// UNCOMPRESSED, SORTED, plain-ustar tar and nothing more - the firmware walks
 // it with a 512-byte header scan and no index, which is exactly why tar was
 // chosen (ABI 3.4). `tar cf game.s32 -C gamedir .` produces the same bytes.
 //
@@ -38,7 +38,7 @@ function writeAscii(buf, offset, text, width) {
  */
 function ustarHeader({ name, size, mtime = 0, mode = 0o644, uname = "root", gname = "root", uid = 0, gid = 0 }) {
   if (new TextEncoder().encode(name).length > 100) {
-    throw new Error(`'${name}' is too long for a ustar header (100 bytes max) — rename the resource`);
+    throw new Error(`'${name}' is too long for a ustar header (100 bytes max) - rename the resource`);
   }
   const h = new Uint8Array(BLOCK);
   writeAscii(h, 0, name, 100);
@@ -55,7 +55,7 @@ function ustarHeader({ name, size, mtime = 0, mode = 0o644, uname = "root", gnam
   writeAscii(h, 297, gname, 32);
   let sum = 0;
   for (let i = 0; i < BLOCK; i++) sum += h[i];
-  // Checksum: 6 octal digits, NUL, space — the historical layout.
+  // Checksum: 6 octal digits, NUL, space - the historical layout.
   writeAscii(h, 148, octal(sum, 7), 7);
   h[154] = 0;
   h[155] = 0x20;
@@ -68,13 +68,13 @@ function ustarHeader({ name, size, mtime = 0, mode = 0o644, uname = "root", gnam
  * @param {Record<string, Uint8Array>} files name → bytes. `main.s32e` is
  *   required: a folder without it is not a game (ABI 3.2).
  * @param {{mtime?: number}} [opts] mtime is fixed at 0 by default so the same
- *   inputs always produce the same archive — a build that changes its bytes
+ *   inputs always produce the same archive - a build that changes its bytes
  *   every run cannot be diffed or checksummed.
  * @returns {Uint8Array}
  */
 export function packS32Archive(files, opts = {}) {
   if (!files || !files["main.s32e"]) {
-    throw new Error("a sync32 archive needs `main.s32e` (the packed executable) — without it, it is not a game (ABI 3.2)");
+    throw new Error("a sync32 archive needs `main.s32e` (the packed executable) - without it, it is not a game (ABI 3.2)");
   }
   const mtime = opts.mtime ?? 0;
   // Sorted, matching s32pack.py's `sorted(os.listdir(...))`.

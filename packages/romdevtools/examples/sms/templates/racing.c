@@ -1,59 +1,59 @@
-/* ── racing.c — SMS top-down road racer (complete example game) ──────────────
+/* ── racing.c - SMS top-down road racer (complete example game) ──────────────
  *
- * FENDER FURY — a COMPLETE, working game: title screen, 1P endless race with
+ * FENDER FURY - a COMPLETE, working game: title screen, 1P endless race with
  * speed control, 2P simultaneous SPLIT-LANE VERSUS (both cars on screen at
- * once — player 2 on PORT B), a vertically-scrolling road done the SMS way
+ * once - player 2 on PORT B), a vertically-scrolling road done the SMS way
  * (whole-plane R9 vertical scroll, latched once per frame), streamed roadside
  * scenery rows, crash/lives rules, persistent best DISTANCE (Sega-mapper cart
- * RAM — see the honesty note at best_save), PSG music + SFX, and the SMS's
+ * RAM - see the honesty note at best_save), PSG music + SFX, and the SMS's
  * signature LINE-INTERRUPT split holding a fixed HUD strip over the road.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented SMS footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented SMS footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — traffic patterns, speeds, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - traffic patterns, speeds, tuning, art: reshape freely.
  *
  * What depends on what:
  *   sms_hw.h / vdp_init.c / load_tiles.c / load_palette.c / sprite_table.c /
- *     joypad_read.c — the bundled VDP + input runtime (this file's externs).
- *   sms_sfx.{h,c} + sms_music.{h,c} — SN76489 PSG sound layers.
- *   sms_crt0.s — boot + vector table. Its $0038 IM-1 handler is the OTHER
+ *     joypad_read.c - the bundled VDP + input runtime (this file's externs).
+ *   sms_sfx.{h,c} + sms_music.{h,c} - SN76489 PSG sound layers.
+ *   sms_crt0.s - boot + vector table. Its $0038 IM-1 handler is the OTHER
  *     HALF of the line-interrupt idiom below: one status-port read acks BOTH
  *     the frame and line IRQ flags, then ei/reti. Load-bearing; edit with
  *     TROUBLESHOOTING open.
  *
  * THE DESIGN (read before reshaping):
- *   Scrolling — the road is the BACKGROUND, scrolled DOWN by DECREMENTING the
+ *   Scrolling - the road is the BACKGROUND, scrolled DOWN by DECREMENTING the
  *     vertical-scroll register R9 each frame (the driving-up illusion). Cars
  *     and traffic are sprites with their own Y. Compare the Genesis version of
  *     this game (examples/genesis/templates/racing.c): there a single VSRAM
  *     value scrolls the whole plane and the VDP wraps it in hardware at 256.
- *     The SMS is the SAME idea — ONE register, whole-plane, single-plane — with
+ *     The SMS is the SAME idea - ONE register, whole-plane, single-plane - with
  *     two twists this file is built around: (1) R9 is LATCHED ONCE PER FRAME,
- *     not per scanline (so the road scrolls per-frame, never mid-frame — see
+ *     not per scanline (so the road scrolls per-frame, never mid-frame - see
  *     the R9 idiom); (2) in 192-line mode the name table is 32x28 = 224 px
  *     tall, so R9 WRAPS AT 224, not 256 (the SMS analog of the NES's 240-wrap;
- *     plain uint8 math overruns it — see scroll_road_down).
- *   Streamed scenery — as the road scrolls, name-table rows re-enter at the
+ *     plain uint8 math overruns it - see scroll_road_down).
+ *   Streamed scenery - as the road scrolls, name-table rows re-enter at the
  *     TOP; the moment a row becomes the top road row we restamp its roadside
  *     cells with fresh random scenery, so the 224-px loop never shows the same
  *     scenery twice. The restamp lands UNDER the HUD strip, which hides it.
- *   HUD — the line-IRQ split. The road scrolls vertically (R9, whole plane),
- *     so the HUD strip's name-table rows scroll with it — a BG HUD over a
+ *   HUD - the line-IRQ split. The road scrolls vertically (R9, whole plane),
+ *     so the HUD strip's name-table rows scroll with it - a BG HUD over a
  *     vertical road would crawl. So HUD GLYPHS ARE SPRITES on the fixed top
  *     scanlines (immune to R9, exactly as the NES version uses sprite digits
  *     for the same reason). The line-IRQ split still earns its keep: it holds
  *     the top HUD band at horizontal scroll 0 while the road BELOW it SWAYS
- *     left/right per-strip (R8 — the one scroll axis you CAN change mid-frame),
+ *     left/right per-strip (R8 - the one scroll axis you CAN change mid-frame),
  *     a gentle curve that reads as the road bending ahead. Fixed un-swayed HUD
  *     band on top, curving road below: a real line-IRQ fixed-HUD split.
- *   2P VERSUS — ONE VDP means ONE road scroll, so both players share one road
+ *   2P VERSUS - ONE VDP means ONE road scroll, so both players share one road
  *     at a fixed speed and only steer (the same constraint the NES/Genesis
  *     versions explain): solid center divider, P1 (white, port A) owns the left
  *     two lanes, P2 (red, port B) the right two. Each starts with 3 crashes;
  *     first to use them all LOSES.
- *   1P RACE — all four lanes, button 1/UP accelerates, button 2/DOWN brakes
+ *   1P RACE - all four lanes, button 1/UP accelerates, button 2/DOWN brakes
  *     (speed 1-4); 3 crashes end the run. Persistent stat: best DISTANCE
  *     (uint16, one unit = 16 scrolled pixels ≈ one car length) via best_save.
  *
@@ -62,7 +62,7 @@
  * restamp at most every other frame run in the active frame with room to
  * spare. The sway table is 21 R8 writes scheduled off the line IRQ.
  *
- * SDCC FOOTGUN (bites every fork): uint8 loop bounds silently wrap —
+ * SDCC FOOTGUN (bites every fork): uint8 loop bounds silently wrap -
  * `for (uint8_t i = 0; i < 24 * 32; i++)` is an INFINITE loop (768 > 255;
  * SDCC even warns "comparison is always true"). Treat that warning as an
  * error: widen the counter to uint16_t or keep loops nested per-row like the
@@ -73,7 +73,7 @@
 #include "sms_music.h"
 #include <stdint.h>
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "FENDER FURY"
 
@@ -91,7 +91,7 @@ extern void    sms_sprite_init(void);
 extern void    sms_sprite_set(uint8_t slot, uint8_t x, uint8_t y, uint8_t tile);
 extern void    sms_sat_upload(void);
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Palettes. SMS CRAM is 2-2-2 BGR (--BBGGRR): R bits 0-1, G bits 2-3,
  * B bits 4-5. White = 0x3F. BG colour 0 doubles as the backdrop/border. */
 static const uint8_t palette[32] = {
@@ -101,17 +101,17 @@ static const uint8_t palette[32] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   /* Sprites: 1 = white (P1 car + HUD digits), 2 = red (P2 car + traffic),
    * 3 = gold (checkpoint flash, unused-by-default). One shared sprite palette
-   * on SMS — per-"car" colour means per-TILE colour indices. */
+   * on SMS - per-"car" colour means per-TILE colour indices. */
   0x00, 0x3F, 0x03, 0x0F, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-/* ── GAME LOGIC (clay) — BG tile inventory (BG bank $0000) ───────────────────
+/* ── GAME LOGIC (clay) - BG tile inventory (BG bank $0000) ───────────────────
  * tile 0          = blank (shows the colour-0 asphalt backdrop = the road)
  * tiles 1..37     = font: digits 0-9, A-Z, '-'  (uploaded 1bpp→4bpp below)
  * tile 38         = grass (colour 1)
  * tile 39         = tuft (grass + speck, colour 1/3)
- * tile 40         = solid HUD bar (colour 4) — the split seam hides in it
+ * tile 40         = solid HUD bar (colour 4) - the split seam hides in it
  * tile 41         = tarmac speck (colour 3 dot on asphalt)
  * tile 42         = solid shoulder/divider line (colour 2 = white)
  * tile 43         = dashed lane line (colour 2, 4 px on / 4 off) */
@@ -123,7 +123,7 @@ static const uint8_t palette[32] = {
 #define BG_EDGE    42
 #define BG_DASH    43
 
-/* 1bpp font (same glyph set as the platformer/shmup examples — 0-9, A-Z, '-').
+/* 1bpp font (same glyph set as the platformer/shmup examples - 0-9, A-Z, '-').
  * Expanded to the SMS's 32-byte 4bpp tiles at upload (see load_font), so the
  * ROM carries 296 bytes instead of 1184. */
 static const uint8_t font8[37][8] = {
@@ -167,7 +167,7 @@ static void load_font(void) {
   }
 }
 
-/* Road/roadside/HUD-bar tiles (4bpp, 32 bytes each — rows of plane0..3). */
+/* Road/roadside/HUD-bar tiles (4bpp, 32 bytes each - rows of plane0..3). */
 static const uint8_t deco_tiles[192] = {
   /* BG_GRASS: solid colour 1 (plane 0) */
   0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00,
@@ -175,7 +175,7 @@ static const uint8_t deco_tiles[192] = {
   /* BG_TUFT: grass (colour 1) with a couple speck dots (colour 3 = planes 0+1) */
   0xFF,0x00,0x00,0x00, 0xFF,0x18,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x42,0x00,0x00,
   0xFF,0x00,0x00,0x00, 0xFF,0x18,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00,
-  /* BG_HUDBAR: solid colour 4 (binary 100 → plane 2 only) — the split seam
+  /* BG_HUDBAR: solid colour 4 (binary 100 → plane 2 only) - the split seam
    * lands inside this row */
   0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00,
   0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00, 0x00,0x00,0xFF,0x00,
@@ -186,16 +186,16 @@ static const uint8_t deco_tiles[192] = {
   /* BG_EDGE: solid white vertical stripe (colour 2 = plane 1), 2 px wide */
   0x00,0x18,0x00,0x00, 0x00,0x18,0x00,0x00, 0x00,0x18,0x00,0x00, 0x00,0x18,0x00,0x00,
   0x00,0x18,0x00,0x00, 0x00,0x18,0x00,0x00, 0x00,0x18,0x00,0x00, 0x00,0x18,0x00,0x00,
-  /* BG_DASH: dashed lane line — 4 px white (colour 2) on, 4 off, stacked */
+  /* BG_DASH: dashed lane line - 4 px white (colour 2) on, 4 off, stacked */
   0x00,0x18,0x00,0x00, 0x00,0x18,0x00,0x00, 0x00,0x18,0x00,0x00, 0x00,0x18,0x00,0x00,
   0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
 };
 
-/* Sprite tiles (sprite bank $2000 — vdp_init's R6=0xFF baseline reads sprite
+/* Sprite tiles (sprite bank $2000 - vdp_init's R6=0xFF baseline reads sprite
  * patterns from $2000, so upload there, not $0000).
- *   T_CAR     — player car, nose up, colour 1 (white)
- *   T_TRAFFIC — slow traffic, tail up, colour 2 (red)
- *   T_DIGIT0  — 3x5 HUD digits 0-9 (sprites, colour 1) on the fixed top line */
+ *   T_CAR     - player car, nose up, colour 1 (white)
+ *   T_TRAFFIC - slow traffic, tail up, colour 2 (red)
+ *   T_DIGIT0  - 3x5 HUD digits 0-9 (sprites, colour 1) on the fixed top line */
 static const uint8_t sprite_tiles[(2 + 10) * 32] = {
   /* T_CAR (white, plane 0) */
   0x18,0x00,0x00,0x00, 0x7E,0x00,0x00,0x00, 0x5A,0x00,0x00,0x00, 0x7E,0x00,0x00,0x00,
@@ -203,7 +203,7 @@ static const uint8_t sprite_tiles[(2 + 10) * 32] = {
   /* T_TRAFFIC (red, plane 1) */
   0x00,0x66,0x00,0x00, 0x00,0x5A,0x00,0x00, 0x00,0x7E,0x00,0x00, 0x00,0x3C,0x00,0x00,
   0x00,0x7E,0x00,0x00, 0x00,0x5A,0x00,0x00, 0x00,0x7E,0x00,0x00, 0x00,0x18,0x00,0x00,
-  /* T_DIGIT0..9 — compact 3x5 white digits (plane 0) on a fixed HUD scanline */
+  /* T_DIGIT0..9 - compact 3x5 white digits (plane 0) on a fixed HUD scanline */
   /* 0 */ 0xE0,0,0,0, 0xA0,0,0,0, 0xA0,0,0,0, 0xA0,0,0,0, 0xE0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
   /* 1 */ 0x40,0,0,0, 0xC0,0,0,0, 0x40,0,0,0, 0x40,0,0,0, 0xE0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
   /* 2 */ 0xE0,0,0,0, 0x20,0,0,0, 0xE0,0,0,0, 0x80,0,0,0, 0xE0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
@@ -219,7 +219,7 @@ static const uint8_t sprite_tiles[(2 + 10) * 32] = {
 #define T_TRAFFIC 1
 #define T_DIGIT0  2          /* sprite tiles 2..11 = digits 0..9 */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Road geometry. Four 4-cell-wide lanes between shoulders, a solid center
  * divider (also the 2P territory line). Name-table columns (cells):
  *   8 = left shoulder, 12/20 = dashed lane lines, 16 = center divider,
@@ -234,15 +234,15 @@ static const uint8_t lane_x[4] = { 76, 108, 140, 172 };
 
 #define MAX_TRAFFIC  6
 #define CAR_Y        160       /* both players' fixed screen Y                 */
-#define SPAWN_Y      32        /* traffic entry Y — below the HUD strip        */
+#define SPAWN_Y      32        /* traffic entry Y - below the HUD strip        */
 #define DESPAWN_Y    184       /* traffic exits past the player                */
 #define START_LIVES  3         /* crashes per run / per player                 */
-#define SPAWN_PERIOD 40        /* frames between traffic spawns — traffic moves
+#define SPAWN_PERIOD 40        /* frames between traffic spawns - traffic moves
                                 * at road speed, so per-meter density stays
                                 * constant whatever the player does            */
 #define SPEED_2P     2         /* fixed road speed in versus (one VDP =
                                 * one scroll = one shared speed)               */
-#define MAX_SPEED    4         /* px/frame — MUST stay under 8: the row
+#define MAX_SPEED    4         /* px/frame - MUST stay under 8: the row
                                 * streamer restamps one row per crossing and a
                                 * >8 px step could skip a row                  */
 
@@ -253,7 +253,7 @@ static const uint8_t lane_x[4] = { 76, 108, 140, 172 };
 #define HUD_PX      (HUD_ROWS * 8)
 #define HUD_Y       1          /* sprite-HUD scanline (top of the fixed band)  */
 
-/* Players: index 0 = P1 (port A), 1 = P2 (port B — versus only). */
+/* Players: index 0 = P1 (port A), 1 = P2 (port B - versus only). */
 static uint8_t car_lane[2];
 static uint8_t car_active[2];
 static uint8_t crashes_left[2];
@@ -279,18 +279,18 @@ static uint8_t  hud_dirty;         /* lives/speed changed → restage sprite HUD
 static uint8_t  over_step;         /* result text, one piece per vblank        */
 static uint16_t rng = 0xC0DE;
 
-/* HUD digit cache — SDCC's 16-bit div/mod helpers cost hundreds of cycles
+/* HUD digit cache - SDCC's 16-bit div/mod helpers cost hundreds of cycles
  * each; recompute the 5 distance digits only when dist actually changes. */
 static uint8_t  hud_digits[5];
 static uint16_t hud_cached = 0xFFFF;
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static uint8_t state;
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call) ── */
 static uint8_t random8(void) {
   uint16_t r = rng;
   r ^= r << 7;
@@ -304,18 +304,18 @@ static uint8_t dist8(uint8_t a, uint8_t b) {
   return (a > b) ? (uint8_t)(a - b) : (uint8_t)(b - a);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * WHOLE-PLANE VERTICAL ROAD SCROLL — R9, the SMS road. The vertical-scroll
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * WHOLE-PLANE VERTICAL ROAD SCROLL - R9, the SMS road. The vertical-scroll
  * register R9 scrolls the ENTIRE name-table plane up/down; screen line y shows
  * plane line (y + R9) mod (plane height), so DECREMENTING R9 slides the road
- * DOWN — the driving-up illusion — for the cost of ONE register write per
+ * DOWN - the driving-up illusion - for the cost of ONE register write per
  * frame. Zero tilemap writes for the motion itself (rewriting the tilemap in
  * the loop is the #1 "choppy movement" bug).
  *
  * TWO twists this game is built around (vs the Genesis donor's plain u16):
  *   1. R9 IS LATCHED ONCE PER FRAME. The VDP samples R9 at the start of the
  *      active display and ignores mid-frame writes until the next frame. So a
- *      vertical scroll is a per-FRAME whole-plane move — you cannot split it
+ *      vertical scroll is a per-FRAME whole-plane move - you cannot split it
  *      mid-screen the way you split X-scroll (R8). (That's why the fixed HUD
  *      below uses SPRITE glyphs + an R8 sway split, not a mid-frame R9 swap.)
  *      Always write R9 in vblank.
@@ -332,7 +332,7 @@ static void scroll_road_down(uint8_t px) {
   sms_vdp_write_reg(9, road_scroll);   /* commit vertical scroll (vblank only) */
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * STREAMED ROADSIDE ROWS. As R9 shrinks, name-table rows recycle into the top
  * of the screen; the road row entering at the top is plane row (R9 >> 3) mod
  * 28. The moment it changes we restamp THAT ONE row's roadside cells with
@@ -354,10 +354,10 @@ static void stream_road_row(uint8_t row) {
   r = random8(); sms_set_tilemap_cell(row, 30, (r & 7) == 0 ? BG_TUFT : BG_GRASS, 0);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * LINE-INTERRUPT FIXED-HUD SPLIT + per-strip road SWAY. The VDP has ONE scroll
  * register pair for the whole frame; the line interrupt lets you change the X
- * scroll (R8) MID-FRAME (R8 is sampled per line — R9 is NOT, see above). Where
+ * scroll (R8) MID-FRAME (R8 is sampled per line - R9 is NOT, see above). Where
  * the NES needs the sprite-0-hit HACK (park a sprite, busy-poll, burn
  * scanlines), the SMS has a real, PROGRAMMABLE line counter:
  *
@@ -367,19 +367,19 @@ static void stream_road_row(uint8_t row) {
  *   R1 bit 5 (IE0) frame(vblank)-IRQ enable (set by sms_vdp_display_on's 0xE0).
  *
  * Both IRQs land on the Z80 IM-1 vector at $0038. The crt0 handler does the
- * minimal handshake: push af / in a,($BF) / pop af / ei / reti — the status
+ * minimal handshake: push af / in a,($BF) / pop af / ei / reti - the status
  * read ACKS the VDP (clears BOTH flags; skip it and the IRQ line stays
  * asserted = interrupt storm), and EI must precede RETI.
  *
  * The handler does no work, so the MAIN loop syncs with HALT: sleep until an
- * interrupt, then read the V-counter (port $7E) to learn WHICH one woke us —
+ * interrupt, then read the V-counter (port $7E) to learn WHICH one woke us -
  * line IRQs fire in the active area (V < 0xC0), the frame IRQ at vblank
  * (V ≥ 0xC0). Here the road scrolls VERTICALLY (R9, whole plane), so we cannot
  * keep the HUD's name-table rows still by splitting R9. Instead:
  *   - HUD GLYPHS ARE SPRITES on the fixed top scanline (immune to R9).
  *   - The split holds the top HUD band at R8 = 0 (un-swayed), then below the
  *     bar applies a per-strip horizontal SWAY so the road bends left/right
- *     ahead of the player — a real raster road-curve effect. Fixed HUD band
+ *     ahead of the player - a real raster road-curve effect. Fixed HUD band
  *     on top, curving road below.
  *
  * wait_vblank(): sleep to the frame IRQ → R8 = 0 (HUD band un-swayed) and do
@@ -390,14 +390,14 @@ static void stream_road_row(uint8_t row) {
  *                per frame here; reshape into a per-line table for a deeper
  *                curve, budgeting OUTs against the line time.)
  *
- * FOOTGUN — you cannot poll once IRQs are on: a status-port poll races the
+ * FOOTGUN - you cannot poll once IRQs are on: a status-port poll races the
  * ISR, which always wins and eats the flag, hanging the poll forever. HALT +
  * V-counter is the IRQ-era replacement.
  *
  * Requires: R10 programmed, IE1 + IE0 enabled, EI executed once after
  * display-on, the crt0 ack-only ISR, and wait_vblank/wait_split called EVERY
  * frame in this order. R10 reloads after each underflow, so the line IRQ
- * re-fires every HUD_PX lines down the frame — the later wakes harmlessly
+ * re-fires every HUD_PX lines down the frame - the later wakes harmlessly
  * interrupt game logic (the ISR acks them) and we re-halt in the NEXT
  * wait_vblank(). */
 #define SPLIT_LINE (HUD_PX - 1)
@@ -418,7 +418,7 @@ static void wait_split(void) {
   sms_vdp_write_reg(8, (uint8_t)sway);  /* road below the bar sways */
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * BEST-DISTANCE in Sega-mapper cart RAM. The Sega mapper's control register at
  * $FFFC: bit 3 maps the cart's 8KB battery RAM into $8000-$BFFF (bank slot 2).
  * Map → copy → unmap; keep the window short so stray pointer bugs can't shred
@@ -426,7 +426,7 @@ static void wait_split(void) {
  * $FF) reads back as "no save" instead of a garbage best.
  *
  * NOTE the $FFFC address: it's IN the WRAM mirror ($C000-$DFFF mirrors at
- * $E000-$FFFF), so this write also lands in WRAM at $DFFC — the mapper just
+ * $E000-$FFFF), so this write also lands in WRAM at $DFFC - the mapper just
  * snoops the bus. That's why the crt0 parks SP at $DFF0.
  *
  * HONESTY (verified against the bundled gpgx core): gpgx only instantiates the
@@ -460,7 +460,7 @@ static uint16_t best_load(void) {
   return v;
 }
 
-/* ── GAME LOGIC (clay) — text via the font tiles (BG name table) ─────────────
+/* ── GAME LOGIC (clay) - text via the font tiles (BG name table) ─────────────
  * These write the name table directly, so call them only during vblank (or
  * with the display off): VRAM access during active display races the VDP's
  * own fetches and drops/garbles bytes on real hardware. */
@@ -482,12 +482,12 @@ static void draw_u16(uint8_t row, uint8_t col, uint16_t v) {
     sms_set_tilemap_cell(row, (uint8_t)(col + i), (uint8_t)(FONT_BASE + d[4 - i]), 0);
 }
 
-/* ── GAME LOGIC (clay) — sprite HUD (digits ride the fixed top scanline) ─────
+/* ── GAME LOGIC (clay) - sprite HUD (digits ride the fixed top scanline) ─────
  * HUD glyphs are SPRITES (immune to the road's R9 vertical scroll), staged
  * into the SAT shadow each frame the HUD changes. Slot map (after the cars +
  * traffic): see stage_sprites. 1P: lives digit + 5-digit distance = 6 sprites
  * on the line; 2P: one crashes-left digit per player = 2. Mind the 8-sprites-
- * PER-SCANLINE limit — traffic spawns BELOW the HUD line so it never shares. */
+ * PER-SCANLINE limit - traffic spawns BELOW the HUD line so it never shares. */
 static uint8_t hud_slot;           /* first SAT slot the HUD digits use        */
 static void stage_hud_sprites(void) {
   uint8_t i, s = hud_slot;
@@ -506,12 +506,12 @@ static void stage_hud_sprites(void) {
     sms_sprite_set(s++, (uint8_t)(200 + i * 8), HUD_Y, (uint8_t)(T_DIGIT0 + hud_digits[i]));
 }
 
-/* ── GAME LOGIC (clay) — paint the road into the name table ──────────────────
+/* ── GAME LOGIC (clay) - paint the road into the name table ──────────────────
  * Whole-screen repaint with the DISPLAY OFF (free VRAM access, clean cut).
  * The dashed lane lines + shoulders are painted ONCE and never touched again:
  * they live in the BG, so R9 moves them with the road for free.
  * PERF FOOTGUN (inherited from the shmup): per-cell sms_set_tilemap_cell
- * redoes the 4-OUT address setup for every cell — over a full screen that's
+ * redoes the 4-OUT address setup for every cell - over a full screen that's
  * seconds of black. Set the VRAM address ONCE per row (the data port
  * autoincrements) and stream. */
 static uint8_t road_cell(uint8_t r, uint8_t c) {
@@ -558,7 +558,7 @@ static void paint_field(void) {
   paint_road();
   /* HUD strip rows 0-2: clear the BG under the sprite HUD, lay the solid bar
    * on row 2 where the split seam hides. (These rows scroll with the road via
-   * R9 — they're a curtain the streamed restamp hides behind, and the sprite
+   * R9 - they're a curtain the streamed restamp hides behind, and the sprite
    * digits ride above them.) */
   for (c = 0; c < 32; c++) {
     sms_set_tilemap_cell(0, c, 0, 0);
@@ -575,12 +575,12 @@ static void paint_field(void) {
 }
 
 /* The result card reuses the live road as its backdrop (a bare single-colour
- * card reads as a render failure — the verify tool flags >92% one-colour
+ * card reads as a render failure - the verify tool flags >92% one-colour
  * frames) and draws its text via deferred over_step pieces in the ST_OVER
  * loop, one per vblank, so each vblank→split budget stays honest. The road
  * keeps scrolling under it. */
 
-/* ── GAME LOGIC (clay) — traffic pool (fixed slots, no allocation) ── */
+/* ── GAME LOGIC (clay) - traffic pool (fixed slots, no allocation) ── */
 static void spawn_traffic(void) {
   uint8_t i;
   for (i = 0; i < MAX_TRAFFIC; i++) {
@@ -598,7 +598,7 @@ static uint8_t hits(uint8_t ax, uint8_t ay, uint8_t bx, uint8_t by) {
   return dist8(ax, bx) < 8 && dist8(ay, by) < 8;
 }
 
-/* ── GAME LOGIC (clay) — start a run / end a run ── */
+/* ── GAME LOGIC (clay) - start a run / end a run ── */
 static void start_game(uint8_t versus) {
   uint8_t i;
   two_player = versus;
@@ -622,7 +622,7 @@ static void start_game(uint8_t versus) {
   spawn_timer = 0;
   sway = 0; sway_phase = 0;
   start_pause = 30;                 /* green-light breather */
-  paint_field();                    /* display-off repaint — safe */
+  paint_field();                    /* display-off repaint - safe */
   hud_slot = (uint8_t)(2 + MAX_TRAFFIC);   /* cars=0,1; traffic=2..7; HUD=8.. */
   hud_dirty = 1;
   sfx_tone(0, 214, 8);              /* start jingle (C5) */
@@ -639,7 +639,7 @@ static void game_over(void) {
   over_step = 5;                    /* result text, one piece per vblank */
 }
 
-/* ── GAME LOGIC (clay) — crash rules ── */
+/* ── GAME LOGIC (clay) - crash rules ── */
 static void crash(uint8_t p) {
   sfx_noise(14);
   invuln[p] = 60;                   /* blink + no-collide grace */
@@ -652,10 +652,10 @@ static void crash(uint8_t p) {
   }
 }
 
-/* ── GAME LOGIC (clay) — per-player input ────────────────────────────────────
- * LEFT/RIGHT steer between lanes (edge-detected — held d-pad shouldn't
+/* ── GAME LOGIC (clay) - per-player input ────────────────────────────────────
+ * LEFT/RIGHT steer between lanes (edge-detected - held d-pad shouldn't
  * machine-gun across the road). 1P only: button 1/UP accelerate, button 2/DOWN
- * brake (speed is shared in versus — see the design note). P2 is on PORT B. */
+ * brake (speed is shared in versus - see the design note). P2 is on PORT B. */
 static void update_player(uint8_t p) {
   uint8_t pad = p ? sms_joypad_read_p2() : sms_joypad_read();
   uint8_t pressed = (uint8_t)(pad & ~prev_pad[p]);
@@ -669,7 +669,7 @@ static void update_player(uint8_t p) {
     ++car_lane[p];
     sfx_tone(1, 330, 3);
   }
-  if (!two_player) {                /* speed is shared — only 1P gets it */
+  if (!two_player) {                /* speed is shared - only 1P gets it */
     if ((pressed & (JOY_B1 | JOY_UP)) && speed < MAX_SPEED) {
       ++speed;
       sfx_tone(2, (uint16_t)(280 - speed * 30), 8);   /* engine rev */
@@ -684,9 +684,9 @@ static void update_player(uint8_t p) {
   if (invuln[p] > 0) --invuln[p];
 }
 
-/* ── GAME LOGIC (clay) — stage this frame's sprites ──────────────────────────
+/* ── GAME LOGIC (clay) - stage this frame's sprites ──────────────────────────
  * Fixed SAT slots: 0 = P1, 1 = P2, 2..7 = traffic, 8.. = HUD digits. Hidden
- * slots park at Y=$E0 (off-screen, NOT the $D0 terminator — that stops the
+ * slots park at Y=$E0 (off-screen, NOT the $D0 terminator - that stops the
  * VDP scanning and blanks every later slot). */
 static void stage_sprites(void) {
   uint8_t i;
@@ -706,10 +706,10 @@ void main(void) {
   uint8_t i, p;
   uint8_t top_row;
 
-  /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
    * Init order: VDP regs (display off) → palette → tiles → name table → SAT →
    * R10 → display on (which also enables the frame IRQ) → EI. The one hard
-   * rule: EI comes LAST, after every register is in place — the crt0 boots
+   * rule: EI comes LAST, after every register is in place - the crt0 boots
    * with DI and the FIRST halt would hang forever if interrupts were never
    * enabled. */
   sms_vdp_init();                    /* R0=0x36 already has IE1 (line IRQ) set */
@@ -723,10 +723,10 @@ void main(void) {
   music_play(0);
 
   /* R10 = SPLIT_LINE arms the line counter: IRQ at the last bar line. Set
-   * once — it reloads itself every underflow. */
+   * once - it reloads itself every underflow. */
   sms_vdp_write_reg(10, SPLIT_LINE);
 
-  best = best_load();                /* cart RAM if present — else 0 */
+  best = best_load();                /* cart RAM if present - else 0 */
   state = ST_TITLE;
   hud_slot = (uint8_t)(2 + MAX_TRAFFIC);
   paint_title();
@@ -738,7 +738,7 @@ void main(void) {
     sway = sway_wave[(uint8_t)((sway_phase >> 2) & 7)];
 
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: button 1 = 1P race, button 2 = 2P versus.
+      /* ── GAME LOGIC (clay) - title: button 1 = 1P race, button 2 = 2P versus.
        * The road idles under the title card so the screen sells the scroll
        * before anyone presses a button. */
       wait_vblank();
@@ -800,10 +800,10 @@ void main(void) {
      *
      * BUDGET FOOTGUN (inherited from the shmup): everything between
      * wait_vblank() and wait_split() must finish before the line IRQ at line
-     * 23 — vblank (70 lines) + the HUD strip (23) ≈ 21k cycles, and the SAT
+     * 23 - vblank (70 lines) + the HUD strip (23) ≈ 21k cycles, and the SAT
      * upload eats ~7k. The HUD digits are SPRITES (staged into the shadow SAT,
      * uploaded once), and dist digits recompute only when dist changes (see
-     * stage_hud_sprites) — so we never blow the budget with division here. */
+     * stage_hud_sprites) - so we never blow the budget with division here. */
     wait_vblank();
     sms_sat_upload();                /* shadow SAT staged at end of last frame */
 
@@ -825,7 +825,7 @@ void main(void) {
 
     sfx_update();
     music_update();
-    wait_split();                    /* the line-interrupt split — every frame */
+    wait_split();                    /* the line-interrupt split - every frame */
 
     /* ── GAME LOGIC (clay) from here down ── */
     update_player(0);

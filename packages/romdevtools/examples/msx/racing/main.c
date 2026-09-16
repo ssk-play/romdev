@@ -1,42 +1,42 @@
-/* ── racing/main.c — MSX top-down road racer (complete example game) ─────────
+/* ── racing/main.c - MSX top-down road racer (complete example game) ─────────
  *
- * TURBO TANGLE — a COMPLETE, working game: title screen, 1P endless race with
+ * TURBO TANGLE - a COMPLETE, working game: title screen, 1P endless race with
  * speed control + a best-distance record, 2P SIMULTANEOUS VERSUS (P2 on
  * JOYSTICK PORT 2) on one shared road, crash/lives rules into a result screen,
  * music + SFX on the AY-3-8910 PSG, and the MSX's signature SCREEN-2 PER-ROW
  * COLOR: the asphalt, the grass shoulders, the centre divider and the HUD band
  * are all ONE tile set differentiated purely by which screen-2 color third they
- * sit in — plus a one-tile vertical "shimmer" gradient down the divider — at
+ * sit in - plus a one-tile vertical "shimmer" gradient down the divider - at
  * zero extra tiles.
  *
  * The game (top-down vertical racer): a four-lane road scrolls toward you; you
  * steer LEFT/RIGHT between lanes to weave through slower traffic. In 1P,
  * UP/A accelerates and DOWN/B brakes (speed 1-4) and the run banks DISTANCE;
- * 3 crashes end it. In 2P, both cars share one road at a fixed speed — P1 owns
- * the left two lanes, P2 (port 2) the right two — and the first driver to burn
+ * 3 crashes end it. In 2P, both cars share one road at a fixed speed - P1 owns
+ * the left two lanes, P2 (port 2) the right two - and the first driver to burn
  * all 3 crashes LOSES.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented MSX footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented MSX footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — traffic patterns, speeds, scoring, art: reshape freely.
+ *   GAME LOGIC (clay) - traffic patterns, speeds, scoring, art: reshape freely.
  *
  * What depends on what:
- *   msx_hw.h / msx_vdp.c — VDP + PSG + joystick helpers (direct Z80 ports;
- *     the PSG functions carry a DI/EI guard against the BIOS KEYINT race —
+ *   msx_hw.h / msx_vdp.c - VDP + PSG + joystick helpers (direct Z80 ports;
+ *     the PSG functions carry a DI/EI guard against the BIOS KEYINT race -
  *     read msx_vdp.c before adding your own PSG pokes).
- *   msx_crt0.s — the $4000 "AB" cart header + static-init copy. Load-bearing;
+ *   msx_crt0.s - the $4000 "AB" cart header + static-init copy. Load-bearing;
  *     INIT must NEVER return, so main() ends in for(;;).
  *
  * A TEACHING POINT vs the NES version of this game
  * (examples/nes/templates/racing.c): the NES scrolls the road as the
- * BACKGROUND — it decrements the PPU's hardware scroll_y every frame and the
+ * BACKGROUND - it decrements the PPU's hardware scroll_y every frame and the
  * whole nametable slides for free. The MSX SCREEN 2 has NO HARDWARE SCROLL at
  * all (see the idiom below), so TURBO TANGLE fakes the motion by REDRAWING the
  * road's dashes + shoulder texture one phase further down the name table each
  * frame: a moving-stripe pattern, recomputed from a single scrolling offset.
- * Same genre, the opposite hardware reality — and the honest way to teach it.
+ * Same genre, the opposite hardware reality - and the honest way to teach it.
  *
  * Controls: JOYSTICK PORT 1 (or keyboard cursors) LEFT/RIGHT steers; UP/trigger
  *   A accelerates, DOWN/trigger B brakes (1P only). In 2P versus, JOYSTICK
@@ -47,23 +47,23 @@
  * Record honesty: the bundled bluemsx core build exposes NO battery save path
  *   (retro_get_memory(SAVE_RAM) is unimplemented for MSX carts), so BEST (the
  *   best 1P distance) lives in plain RAM: it survives title↔race cycles but NOT
- *   a power cycle / hardReset. Never fake persistence — if you need real saves,
+ *   a power cycle / hardReset. Never fake persistence - if you need real saves,
  *   that's a future core round (ASCII8-SRAM mapper carts exist; the core just
  *   doesn't surface their RAM yet). The Genesis/NES/SMS versions of this game
  *   DO persist the same best distance to cartridge SRAM.
  */
 #include "msx_hw.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "TURBO TANGLE"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Interrupt-free vblank sync: poll VDP status S#0 bit 7 (port 0x99). Reading
  * the port ALSO clears the flag, so one read per frame = one game step per
  * frame. We deliberately do NOT use the BIOS JIFFY counter here: this poll
  * works even with interrupts masked, and never depends on the BIOS ISR
- * keeping pace. (The BIOS KEYINT also reads S#0 — on rare frames it eats the
+ * keeping pace. (The BIOS KEYINT also reads S#0 - on rare frames it eats the
  * flag first and this loop just waits for the next one; a one-frame hiccup,
  * never a hang.) */
 __sfr __at 0x99 VDPSTATUS;
@@ -73,33 +73,33 @@ static void vsync(void) {
     }
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * NO HARDWARE SCROLL ON SCREEN 2. The TMS9918 GRAPHIC-II mode has no smooth
  * pixel-scroll register at all (the V9938's R23 is a whole-screen vertical
  * LINE shift, not a per-layer camera, and MSX1 lacks even that). So a vertical
  * road racer cannot just "scroll the background down" the way the NES version
- * does — there is no register to turn.
+ * does - there is no register to turn.
  *
  * TURBO TANGLE fakes the scroll the only cheap way screen 2 allows: it keeps a
  * single 0-7 "road phase" that advances with the car's speed, and each frame it
- * REDRAWS just the road's moving parts — the dashed lane markers and a sparse
- * shoulder speckle — one phase-step further DOWN the name table. The static
+ * REDRAWS just the road's moving parts - the dashed lane markers and a sparse
+ * shoulder speckle - one phase-step further DOWN the name table. The static
  * parts (asphalt fill, solid shoulders, centre divider) are painted ONCE and
  * never touched. Redrawing only ~2 columns of dashes + a speckle column per
  * frame keeps the per-frame VRAM burst tiny, so it never fights the per-row
  * color idiom below (the color tables still upload ONCE). The eye reads the
- * marching dashes as forward motion — exactly the trick fixed-screen arcade
+ * marching dashes as forward motion - exactly the trick fixed-screen arcade
  * racers used before hardware scroll was common.
  *
  * If you want REAL smooth scroll on MSX2, that is an R23 line-shift routine
- * plus re-streaming the name + color tables as rows enter — the single biggest
+ * plus re-streaming the name + color tables as rows enter - the single biggest
  * MSX scroller footgun; see TROUBLESHOOTING before attempting it. */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Tile font: index 0 = space, 1-26 = A-Z, 27-36 = 0-9, 37 = dash, then the
  * road tiles. One 8x8 pattern = 8 bytes, one bit per pixel; set bits draw in
  * the tile's FOREGROUND color, clear bits in its BACKGROUND color (both come
- * from the screen-2 color table — see the per-row-color idiom below). */
+ * from the screen-2 color table - see the per-row-color idiom below). */
 #define T_SPACE   0
 #define T_A       1          /* 'A'..'Z' = T_A + (c - 'A')                  */
 #define T_0       27         /* '0'..'9' = T_0 + (c - '0')                  */
@@ -107,7 +107,7 @@ static void vsync(void) {
 #define T_ASPHALT 38         /* plain road surface (faint tarmac speck)     */
 #define T_GRASS   39         /* roadside shoulder (hatch texture)           */
 #define T_LANE    40         /* the marching dashed lane marker (scrolls)   */
-#define T_DIVIDER 41         /* solid centre divider — its COLOR shimmers   */
+#define T_DIVIDER 41         /* solid centre divider - its COLOR shimmers   */
 #define T_TUFT    42         /* roadside scenery tuft (rides the speckle)   */
 #define NUM_TILES 43
 
@@ -154,17 +154,17 @@ static const uint8_t font[NUM_TILES][8] = {
                {0x00,0x00,0x00,0x10,0x00,0x00,0x02,0x00},
     /* 39 GRASS  (roadside hatch texture) */
                {0xAA,0x55,0xAA,0x55,0xAA,0x55,0xAA,0x55},
-    /* 40 LANE   (a vertical dash segment — half on, half off; phase-shifted
+    /* 40 LANE   (a vertical dash segment - half on, half off; phase-shifted
      *            by which name-table row it lands on for the marching look) */
                {0x18,0x18,0x18,0x18,0x00,0x00,0x00,0x00},
-    /* 41 DIVIDER(solid bar — its 8 COLOR bytes carry the shimmer gradient) */
+    /* 41 DIVIDER(solid bar - its 8 COLOR bytes carry the shimmer gradient) */
                {0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C,0x3C},
     /* 42 TUFT   (a little roadside bush over the grass) */
                {0x00,0x18,0x3C,0x7E,0xFF,0x7E,0x3C,0x00},
 };
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * SCREEN-2 PER-ROW COLOR — the MSX's signature background trick.
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * SCREEN-2 PER-ROW COLOR - the MSX's signature background trick.
  *
  * Screen 2 (GRAPHIC II) is NOT "one color byte per tile" like most consoles:
  *
@@ -176,17 +176,17 @@ static const uint8_t font[NUM_TILES][8] = {
  *      exploit exactly that to make ONE road tile set read as a depth-shaded
  *      track: the HUD band (third 0) gets bright text colors; the asphalt cools
  *      from a hazy distance grey at the top toward a darker near-road grey at
- *      the bottom, and the grass deepens the same way — one tile set, three
+ *      the bottom, and the grass deepens the same way - one tile set, three
  *      bands, zero extra tiles (the racing twin of the shmup's depth starfield).
  *
- *   2. Within a tile, the color table holds EIGHT bytes — one per 8x1 pixel
- *      row — each packing (foreground<<4)|background from the fixed TMS9918
+ *   2. Within a tile, the color table holds EIGHT bytes - one per 8x1 pixel
+ *      row - each packing (foreground<<4)|background from the fixed TMS9918
  *      palette. So one tile can carry an 8-color vertical gradient: T_DIVIDER's
  *      whole "shimmer" running down the centre divider is a single tile,
  *      colors only.
  *
  * Requires: the screen-2 table layout set by msx_set_screen2() (R3=0xFF,
- *   R4=0x03 — the "thirds" configuration), and pattern + color uploads to
+ *   R4=0x03 - the "thirds" configuration), and pattern + color uploads to
  *   EVERY third a tile is used in. Tile N's slot is pattern[N*8] / color[N*8].
  *
  * TMS9918 fixed palette used here: 1 black, 4 dark blue, 6 dark red, 8 medium
@@ -194,10 +194,10 @@ static const uint8_t font[NUM_TILES][8] = {
  * 11 light yellow (high nibble = fg, low nibble = bg of each row byte). */
 static const uint8_t col_text[3]    = { 0xF1, 0xF1, 0xF1 }; /* white-on-black text everywhere       */
 /* The asphalt speck, banded by third: hazy light-grey far off, mid grey, dark
- * near-road grey close — pure per-third recolor of one tile (bg = the road). */
+ * near-road grey close - pure per-third recolor of one tile (bg = the road). */
 static const uint8_t col_asphalt[3] = { 0xE4, 0xE1, 0x1E };
 /* The grass shoulders, banded so distant grass reads cooler/darker and near
- * grass brightens — same hatch tile, three colors. */
+ * grass brightens - same hatch tile, three colors. */
 static const uint8_t col_grass[3]   = { 0xC1, 0xD1, 0xD1 };
 /* The marching lane dashes: bright yellow on the road bg, banded subtly. */
 static const uint8_t col_lane[3]    = { 0xB1, 0xB4, 0xB1 };
@@ -216,7 +216,7 @@ static void load_tiles(void) {
         colbase = (uint16_t)(VRAM_COLOR   + ((uint16_t)third << 11));
         for (i = 0; i < NUM_TILES; i++) {
             uint8_t col;
-            /* pattern bits are the same in every third — only COLOR varies */
+            /* pattern bits are the same in every third - only COLOR varies */
             msx_vram_write((uint16_t)(patbase + ((uint16_t)i << 3)), font[i], 8);
             if (i == T_DIVIDER) {           /* the one per-pixel-row gradient  */
                 msx_vram_write((uint16_t)(colbase + ((uint16_t)i << 3)), col_div, 8);
@@ -232,11 +232,11 @@ static void load_tiles(void) {
     }
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — name-table drawing helpers ────────
+/* ── GAME LOGIC (clay - reshape freely) - name-table drawing helpers ────────
  * Screen 2 VRAM writes are safe at any point in the frame at C speed: the
  * TMS9918 needs ~29 Z80 cycles between VRAM accesses during active display,
  * and SDCC-compiled loops are slower than that. (Hand-tuned asm OTIR bursts
- * are the thing that outruns the VDP — see TROUBLESHOOTING.) */
+ * are the thing that outruns the VDP - see TROUBLESHOOTING.) */
 static void put_tile(uint8_t col, uint8_t row, uint8_t tile) {
     msx_vram_write((uint16_t)(VRAM_NAME + (uint16_t)row * 32 + col), &tile, 1);
 }
@@ -264,13 +264,13 @@ static void draw_num4(uint8_t col, uint8_t row, uint16_t v) {
     msx_vram_write((uint16_t)(VRAM_NAME + (uint16_t)row * 32 + col), buf, 4);
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — road geometry + race rules ─────────
+/* ── GAME LOGIC (clay - reshape freely) - road geometry + race rules ─────────
  * The road fills the 32x24 screen-2 name table. Four 2-cell lanes sit between
  * grass shoulders, with a solid divider down the middle (it is also the 2P
  * territory line). Tile columns:
- *   COL_EDGE_L/R   — solid grass-edge shoulders bounding the asphalt
- *   COL_LANE_1/2   — the two dashed inner lane lines
- *   COL_DIVIDER    — the solid centre divider
+ *   COL_EDGE_L/R   - solid grass-edge shoulders bounding the asphalt
+ *   COL_LANE_1/2   - the two dashed inner lane lines
+ *   COL_DIVIDER    - the solid centre divider
  * Row 0 is the HUD band (third 0's text colors make it a distinct strip). */
 #define COL_EDGE_L   8
 #define COL_LANE_1   12
@@ -306,12 +306,12 @@ static uint8_t traffic_y[MAX_TRAFFIC];
 static uint8_t  speed;           /* road px/frame, 1-4                         */
 static uint16_t dist;            /* 1P distance, 1 unit = 16 scrolled px        */
 static uint8_t  dist_frac;
-static uint16_t best;            /* SESSION-ONLY best 1P distance — see header.
+static uint16_t best;            /* SESSION-ONLY best 1P distance - see header.
                                   * No SAVE_RAM on this core, so it lives in
                                   * plain RAM: survives title↔race cycles, NOT
                                   * a power cycle (honest, not faked).         */
 static uint8_t  spawn_timer;
-static uint8_t  road_phase;      /* 0..7 — the faked-scroll offset (idiom)     */
+static uint8_t  road_phase;      /* 0..7 - the faked-scroll offset (idiom)     */
 
 #define ST_TITLE 0
 #define ST_PLAY  1
@@ -319,7 +319,7 @@ static uint8_t  road_phase;      /* 0..7 — the faked-scroll offset (idiom)    
 static uint8_t state;
 static uint8_t prev_t1, prev_t2; /* title/over trigger edge detection          */
 
-/* ── GAME LOGIC (clay — reshape freely) — xorshift16 PRNG.
+/* ── GAME LOGIC (clay - reshape freely) - xorshift16 PRNG.
  * Traffic lanes + spawn timing read from this so two runs never play the same;
  * ticked once per play frame so identical states a few seconds apart diverge. */
 static uint16_t rng;
@@ -330,19 +330,19 @@ static uint8_t next_rand(void) {
     return (uint8_t)(rng & 0xFF);
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — music + SFX on the AY-3-8910 ──────
+/* ── GAME LOGIC (clay - reshape freely) - music + SFX on the AY-3-8910 ──────
  * Channel plan: A = lane-tick / engine blips, B = crash + brake noise, C =
  * music. The PSG has 3 tone channels + ONE shared noise generator, mixed
  * per-channel in reg 7. All register traffic goes through msx_psg_tone/noise/
- * off — they wrap the PSGADDR/PSGWRITE pair in DI/EI because the BIOS KEYINT
+ * off - they wrap the PSGADDR/PSGWRITE pair in DI/EI because the BIOS KEYINT
  * ISR clobbers the PSG address latch every frame (the bug that once silenced
- * every MSX scaffold — see msx_vdp.c).
+ * every MSX scaffold - see msx_vdp.c).
  *
  * The tune: one period entry per half-beat, 0 = rest. AY period =
- * 1789773 / (16 * freq) — e.g. A4 (440Hz) -> 254. Ticked once per frame; a
+ * 1789773 / (16 * freq) - e.g. A4 (440Hz) -> 254. Ticked once per frame; a
  * note advances every 8 frames. The lib's built-in demo loop (msx_music_tick)
  * also uses channel C, so we switch it OFF in main() and run THIS table
- * instead — edit this table to rescore. */
+ * instead - edit this table to rescore. */
 static const uint16_t tune[32] = {
     254, 0, 254, 214, 254, 0, 285, 254,   /* A4 A4 C5 A4 G4 A4  (driving riff)   */
     214, 0, 254, 285, 254, 0,   0,   0,   /* C5 A4 G4 A4 rest                     */
@@ -375,7 +375,7 @@ static void sfx_pass(void)  { msx_psg_tone(0, 0x0C0, 8);  sfx_a_t = 2; }
 static void sfx_crash(void) { msx_psg_noise(1, 28, 15);   sfx_b_t = 20; }
 static void sfx_start(void) { msx_psg_tone(0, 0x130, 12); sfx_a_t = 6; }
 
-/* ── GAME LOGIC (clay — reshape freely) — HUD ──────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) - HUD ──────────────────────────────
  * Row 0 = the HUD band (third 0's text colors make it a distinct strip).
  * 1P: LIVES left, DIST right. 2P: P1 crashes-left | VS | P2 crashes-left. */
 static void draw_hud_labels(void) {
@@ -398,10 +398,10 @@ static void draw_lives(void) {
 }
 static void draw_dist(void) { if (!two_player) draw_num4(25, 0, dist); }
 
-/* ── GAME LOGIC (clay — reshape freely) — paint the road (name table) ───────
+/* ── GAME LOGIC (clay - reshape freely) - paint the road (name table) ───────
  * The whole 32x24 name table: HUD band on row 0, grass shoulders outside the
  * asphalt, solid edges + centre divider, asphalt fill between. The marching
- * lane dashes and roadside speckle are NOT written here — restripe_road()
+ * lane dashes and roadside speckle are NOT written here - restripe_road()
  * redraws those each frame to fake the scroll (see the no-hw-scroll idiom).
  * The per-third color idiom shades the whole thing into depth bands for free. */
 static void clear_field(void) { msx_fill_vram(VRAM_NAME, 32u * 24u, T_SPACE); }
@@ -420,11 +420,11 @@ static void paint_road(void) {
     }
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * The faked vertical scroll. Because screen 2 has no scroll register (see the
  * idiom above), we redraw only the MOVING cells each frame from road_phase:
  *   - The two dashed lane lines: a cell shows a dash when (row+phase) is in the
- *     "on" half of an 8-row cycle, asphalt otherwise — so the dash pattern
+ *     "on" half of an 8-row cycle, asphalt otherwise - so the dash pattern
  *     marches DOWN one row per phase step, reading as forward motion.
  *   - One roadside speckle column: a tuft drops down the grass with the phase,
  *     giving the shoulder a sense of speed too.
@@ -443,7 +443,7 @@ static void restripe_road(uint8_t phase) {
     }
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — sprites: cars + traffic ───────────
+/* ── GAME LOGIC (clay - reshape freely) - sprites: cars + traffic ───────────
  * 8x8 one-color hardware sprites. Plane layout: 0 = P1 car, 1 = P2 car,
  * 2..2+MAX_TRAFFIC-1 = traffic. Road art is tiles, not sprites, so the list
  * never exceeds 2 + MAX_TRAFFIC planes. */
@@ -455,15 +455,15 @@ static const uint8_t spr_traffic[8] = {0x66,0x5A,0x7E,0x3C,0x7E,0x5A,0x3C,0x18};
 #define COL_P2      13   /* light green  */
 #define COL_TRAFFIC 8    /* medium red   */
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * Sprite limits + the Y=208 terminator:
  *   - A sprite Y of 0xD0 (208) tells the TMS9918 to STOP SCANNING the
- *     attribute table — every higher-numbered plane vanishes, not just that
+ *     attribute table - every higher-numbered plane vanishes, not just that
  *     one. (msx_clear_sprites parks ALL planes at 0xD0, which is fine at the
  *     END of the list.) To hide ONE sprite mid-list, park it OFFSCREEN at
- *     PARK_Y (192 = first line below the display) — never at 0xD0.
+ *     PARK_Y (192 = first line below the display) - never at 0xD0.
  *     (On MSX2's V9938 sprite mode 2 the terminator moves to 0xD8 and 0xD0
- *     is "just offscreen" — code that leans on that breaks on MSX1.)
+ *     is "just offscreen" - code that leans on that breaks on MSX1.)
  *   - Per scanline the TMS9918 draws only 4 sprites (V9938: 8). Traffic is
  *     spread across 4 lanes and four screen-Y bands, so a single scanline
  *     almost never carries more than 2-3 of our planes; if you raise
@@ -473,7 +473,7 @@ static const uint8_t spr_traffic[8] = {0x66,0x5A,0x7E,0x3C,0x7E,0x5A,0x3C,0x18};
 static void push_sprites(void) {
     uint8_t i, plane = 0;
     uint8_t actors = (state == ST_PLAY);
-    /* P1 car — blink while invulnerable after a crash (skip on odd frames). */
+    /* P1 car - blink while invulnerable after a crash (skip on odd frames). */
     msx_set_sprite(plane++, lane_x[car_lane[0]],
         (actors && car_active[0] && !(invuln[0] & 2)) ? CAR_Y : PARK_Y,
         PAT_CAR, COL_P1);
@@ -487,7 +487,7 @@ static void push_sprites(void) {
             PAT_TRAFFIC, COL_TRAFFIC);
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — traffic pool (fixed slots) ── */
+/* ── GAME LOGIC (clay - reshape freely) - traffic pool (fixed slots) ── */
 static void spawn_traffic(void) {
     uint8_t i;
     for (i = 0; i < MAX_TRAFFIC; i++) {
@@ -507,8 +507,8 @@ static uint8_t hits(uint8_t ax, uint8_t ay, uint8_t bx, uint8_t by) {
     return (dx < 8) && (dy < 8);
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — the screens ──────────────────────
- * Title rows land across the play thirds — recolored for free by the thirds
+/* ── GAME LOGIC (clay - reshape freely) - the screens ──────────────────────
+ * Title rows land across the play thirds - recolored for free by the thirds
  * idiom. A clean name table behind the text. */
 static void paint_title(void) {
     uint8_t len = 0, col;
@@ -538,7 +538,7 @@ static void paint_over(void) {
     prev_t1 = prev_t2 = 1;             /* swallow a fire still held from play  */
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — start a run ── */
+/* ── GAME LOGIC (clay - reshape freely) - start a run ── */
 static void start_game(uint8_t versus) {
     uint8_t i;
     two_player = versus;
@@ -567,11 +567,11 @@ static void start_game(uint8_t versus) {
     state = ST_PLAY;
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — run over: result + record.
+/* ── GAME LOGIC (clay - reshape freely) - run over: result + record.
  * Persistence choice: a 1P run banks its DISTANCE; the best is the stat a
  * returning player chases. 2P matches never touch it (humans beating each
  * other isn't a record). On THIS core the best is session-only RAM (no
- * SAVE_RAM — see the file header); the Genesis/NES/SMS builds persist the
+ * SAVE_RAM - see the file header); the Genesis/NES/SMS builds persist the
  * identical best distance to cartridge SRAM. ── */
 static void end_run(void) {
     if (!two_player && dist > best) best = dist;
@@ -580,7 +580,7 @@ static void end_run(void) {
     state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — a crash ── */
+/* ── GAME LOGIC (clay - reshape freely) - a crash ── */
 static void crash(uint8_t p) {
     sfx_crash();
     invuln[p] = 60;                       /* blink + no-collide grace          */
@@ -593,9 +593,9 @@ static void crash(uint8_t p) {
     }
 }
 
-/* ── GAME LOGIC (clay — reshape freely) — per-player input ───────────────────
+/* ── GAME LOGIC (clay - reshape freely) - per-player input ───────────────────
  * P0 reads JOYSTICK PORT 1 (keyboard cursors fall back); P1 reads PORT 2.
- * LEFT/RIGHT steer between lanes (edge-detected — a held stick must NOT
+ * LEFT/RIGHT steer between lanes (edge-detected - a held stick must NOT
  * machine-gun across the road). 1P only: UP/A accelerate, DOWN/B brake. */
 static void update_player(uint8_t p) {
     uint8_t dir, left, right;
@@ -616,7 +616,7 @@ static void update_player(uint8_t p) {
     }
     prev_dir[p] = dir;
 
-    if (!two_player) {                    /* speed is shared — only 1P gets it */
+    if (!two_player) {                    /* speed is shared - only 1P gets it */
         uint8_t up   = (dir == STICK_UP   || dir == STICK_UL || dir == STICK_UR) || gttrig(1) || gttrig(0);
         uint8_t down = (dir == STICK_DOWN || dir == STICK_DL || dir == STICK_DR);
         uint8_t acc  = (uint8_t)(up ? 1 : (down ? 2 : 0));
@@ -632,18 +632,18 @@ static void update_player(uint8_t p) {
 void main(void) {
     uint8_t i, p, t1, t2;
 
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-     * Init order: set the video mode FIRST (INIGRP also clears VRAM — any
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+     * Init order: set the video mode FIRST (INIGRP also clears VRAM - any
      * upload done before it is wiped), then tiles, then sprites. The crt0's
-     * INIT contract means main() must NEVER return — the BIOS has nothing
-     * sane to fall back to — hence the for(;;) below. */
+     * INIT contract means main() must NEVER return - the BIOS has nothing
+     * sane to fall back to - hence the for(;;) below. */
     msx_set_screen2();
     msx_clear_sprites();
     load_tiles();
     msx_vram_write((uint16_t)(VRAM_SPRPAT + PAT_CAR     * 8), spr_car,     8);
     msx_vram_write((uint16_t)(VRAM_SPRPAT + PAT_TRAFFIC * 8), spr_traffic, 8);
 
-    msx_music(0);            /* the lib's demo loop also owns channel C —
+    msx_music(0);            /* the lib's demo loop also owns channel C -
                              * hand the channel to OUR tune table instead    */
     best = 0;                /* session record (no SAVE_RAM on this core)    */
     rng = 0xACE1;
@@ -661,7 +661,7 @@ void main(void) {
         sfx_tick();
 
         if (state == ST_TITLE) {
-            /* ── GAME LOGIC (clay) — title: trig A = 1P race; trig B = 2P. */
+            /* ── GAME LOGIC (clay) - title: trig A = 1P race; trig B = 2P. */
             t1 = (uint8_t)(gttrig(1) || gttrig(0));
             t2 = (uint8_t)(gttrig(3) || gttrig(2));
             if (t2 && !prev_t2)      start_game(1);
@@ -685,8 +685,8 @@ void main(void) {
             continue;
         }
 
-        /* ── ST_PLAY — GAME LOGIC (clay) ────────────────────────────────────
-         * Both players (or just P1) update EVERY frame — a simultaneous
+        /* ── ST_PLAY - GAME LOGIC (clay) ────────────────────────────────────
+         * Both players (or just P1) update EVERY frame - a simultaneous
          * versus race, not alternating turns. */
         next_rand();                 /* tick the noise source every play frame */
 

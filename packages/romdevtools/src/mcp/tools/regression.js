@@ -1,22 +1,22 @@
-// regression — a checkpoint-based golden harness. Host-kind-agnostic: works on
+// regression - a checkpoint-based golden harness. Host-kind-agnostic: works on
 // emulators AND wasmcart carts. Two ops:
-//   op:'capture' — run an input script, record observations at checkpoint frames
+//   op:'capture' - run an input script, record observations at checkpoint frames
 //                  into a golden JSON on disk.
-//   op:'check'   — re-run the same script, compare observations to the golden,
+//   op:'check'   - re-run the same script, compare observations to the golden,
 //                  return {passed, diffs[]}.
 //
 // WHY checkpoints, not full-frame replay: for large carts (a Godot game is
 // hundreds of MB to GB of heap) you can't snapshot state per frame, and full
 // frame-by-frame golden replay is impractical. Instead we replay the input
 // script from load (deterministic on a fixed-step host) and observe only at a
-// few named checkpoint frames — a framebuffer HASH (cheap change-detector),
+// few named checkpoint frames - a framebuffer HASH (cheap change-detector),
 // and/or NAMED debug-state values (wasmcart debug ABI), and/or memory regions
 // (emulators). Named-state assertions are the size-independent path: "at frame
 // 600, hp == 3" costs the same whether the heap is 128 KB or 2 GB.
 //
 // Determinism: this is only as reproducible as the host's clock. wasmcart with
 // setFixedStep and emulators are frame-deterministic for a fixed input script.
-// A cart that reads wall-clock/entropy won't reproduce a frame HASH — for those
+// A cart that reads wall-clock/entropy won't reproduce a frame HASH - for those
 // assert on named debug values that ARE deterministic, or accept hash drift
 // (the golden records which observation kinds were used).
 
@@ -114,10 +114,10 @@ export function registerRegressionTools(server, z, sessionKey) {
     frame: z.number().int().min(0).describe("frame number to observe at"),
     label: z.string().optional().describe("human name for this checkpoint (e.g. 'title', 'boss')"),
     observe: z.array(z.enum(["frameHash", "debug", "memory"])).optional()
-      .describe("what to record: 'frameHash' (framebuffer fingerprint — cheap, but only reproducible on a deterministic cart), 'debug' (wasmcart named debug-state values — the SIZE-INDEPENDENT, deterministic path), 'memory' (emulator regions). Default ['frameHash']."),
-    debugFields: z.array(z.string()).optional().describe("observe:'debug' — the debug-state field names to record (from wasm({op:'debugState'}))."),
+      .describe("what to record: 'frameHash' (framebuffer fingerprint - cheap, but only reproducible on a deterministic cart), 'debug' (wasmcart named debug-state values - the SIZE-INDEPENDENT, deterministic path), 'memory' (emulator regions). Default ['frameHash']."),
+    debugFields: z.array(z.string()).optional().describe("observe:'debug' - the debug-state field names to record (from wasm({op:'debugState'}))."),
     memory: z.array(z.object({ label: z.string().optional(), region: z.string(), offset: z.number().int().min(0), length: z.number().int().min(1).max(256) })).optional()
-      .describe("observe:'memory' — emulator regions to record."),
+      .describe("observe:'memory' - emulator regions to record."),
   });
   const scriptShape = z.array(z.object({
     atFrame: z.number().int().min(0),
@@ -126,23 +126,23 @@ export function registerRegressionTools(server, z, sessionKey) {
 
   server.tool(
     "regression",
-    "Checkpoint-based golden regression harness — prove a change didn't break a game. Host-kind-agnostic (emulators AND wasmcart). " +
+    "Checkpoint-based golden regression harness - prove a change didn't break a game. Host-kind-agnostic (emulators AND wasmcart). " +
     "`op:'capture'` runs an `inputScript`, records observations at `checkpoints` into a golden JSON at `goldenPath`. " +
     "`op:'check'` re-runs the SAME script and compares to the golden → {passed, diffs[]}. " +
-    "REPLAYS FROM THE LOADED STATE (loadMedia fresh first) — no per-frame savestate, so it scales to any cart size. " +
-    "Observations per checkpoint: 'frameHash' (framebuffer fingerprint — reproducible only on a deterministic cart), " +
-    "'debug' (wasmcart NAMED debug-state values — the size-independent, deterministic path: 'at frame 600, hp==3' costs " +
+    "REPLAYS FROM THE LOADED STATE (loadMedia fresh first) - no per-frame savestate, so it scales to any cart size. " +
+    "Observations per checkpoint: 'frameHash' (framebuffer fingerprint - reproducible only on a deterministic cart), " +
+    "'debug' (wasmcart NAMED debug-state values - the size-independent, deterministic path: 'at frame 600, hp==3' costs " +
     "the same at 128KB or 2GB of heap), 'memory' (emulator regions). For large / non-deterministic carts, prefer 'debug' " +
     "(or 'memory' on emulators) over 'frameHash'. Load the ROM/cart, then capture once, then check after every change.",
     {
       op: z.enum(["capture", "check"]).describe("capture = record a golden; check = compare a re-run to it."),
       goldenPath: z.string().describe("path to the golden JSON (written by capture, read by check)."),
-      inputScript: scriptShape.optional().describe("[{atFrame, ports:[{right:true}]}] — inputs set at each frame, held until the next. Same for capture and check (the harness stores it in the golden; check reuses the stored one if omitted)."),
+      inputScript: scriptShape.optional().describe("[{atFrame, ports:[{right:true}]}] - inputs set at each frame, held until the next. Same for capture and check (the harness stores it in the golden; check reuses the stored one if omitted)."),
       checkpoints: z.array(checkpointShape).optional().describe("frames to observe at + what to record. Required for capture; check reuses the golden's if omitted."),
     },
     safeTool(async ({ op, goldenPath, inputScript, checkpoints }) => {
       const host = getHost(sessionKey);
-      if (!host?.status?.loaded) throw new Error("regression: no media loaded — call loadMedia first (fresh, so replay starts from a known state).");
+      if (!host?.status?.loaded) throw new Error("regression: no media loaded - call loadMedia first (fresh, so replay starts from a known state).");
 
       if (op === "capture") {
         if (!checkpoints?.length) throw new Error("regression({op:'capture'}): `checkpoints` is required.");
@@ -170,14 +170,14 @@ export function registerRegressionTools(server, z, sessionKey) {
       // op === 'check'
       let golden;
       try { golden = JSON.parse(await readFile(goldenPath, "utf8")); }
-      catch { throw new Error(`regression({op:'check'}): couldn't read golden at '${goldenPath}' — run op:'capture' first.`); }
+      catch { throw new Error(`regression({op:'check'}): couldn't read golden at '${goldenPath}' - run op:'capture' first.`); }
       // Fail FAST on a seed mismatch instead of reporting it as hash noise:
       // a golden captured under seed S only reproduces under seed S.
       const goldenSeed = golden.deterministicSeed ?? null;
       const sessionSeed = host.status.deterministicSeed ?? null;
       if (goldenSeed !== sessionSeed) {
         throw new Error(
-          `regression({op:'check'}): golden was captured with deterministicSeed=${goldenSeed} but this session loaded with ${sessionSeed} — ` +
+          `regression({op:'check'}): golden was captured with deterministicSeed=${goldenSeed} but this session loaded with ${sessionSeed} - ` +
           (goldenSeed === null
             ? "reload WITHOUT deterministicSeed to match the golden."
             : `reload with loadMedia({deterministicSeed: ${goldenSeed}}) so the replay is comparable.`)
@@ -199,8 +199,8 @@ export function registerRegressionTools(server, z, sessionKey) {
         passed: diffs.length === 0,
         checkpoints: observations.length,
         diffs,
-        ...(diffs.length ? { note: "REGRESSION: a checkpoint observation changed. Each diff names the frame/checkpoint, what kind (frameHash/debug/memory), and expected-vs-actual. A frameHash diff on a non-deterministic cart may be clock drift, not a real regression — prefer 'debug' named-state checkpoints for those." }
-          : { note: "all checkpoints match the golden — no regression." }),
+        ...(diffs.length ? { note: "REGRESSION: a checkpoint observation changed. Each diff names the frame/checkpoint, what kind (frameHash/debug/memory), and expected-vs-actual. A frameHash diff on a non-deterministic cart may be clock drift, not a real regression - prefer 'debug' named-state checkpoints for those." }
+          : { note: "all checkpoints match the golden - no regression." }),
       });
     }),
   );

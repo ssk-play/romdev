@@ -1,11 +1,11 @@
-// Atari 7800 callSubroutine instruction WATCHDOG — end to end (prosystem 6502).
+// Atari 7800 callSubroutine instruction WATCHDOG - end to end (prosystem 6502).
 //
 // callSubroutine can be pointed at a routine that loops FOREVER. Each emulator
 // frame spins inside the Sally execute loop, so the host's per-frame cap can't
 // catch it and the WASM would hang. The watchdog (romdev_watchdog_set, hooked
 // into sally_ExecuteInstruction, force-stops via romdev_pc_hit + the per-frame
 // budget drain in prosystem_ExecuteFrame) must force-stop at the host-set
-// instruction budget and return {watchdog:true, finalPC:<spin>} — NOT hang.
+// instruction budget and return {watchdog:true, finalPC:<spin>} - NOT hang.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -68,7 +68,7 @@ test("Atari 7800 callSubroutine watchdog force-stops an infinite loop (prosystem
   assert.ok(spinPC > 0x4000, "spin entry PC looks wrong: $" + spinPC.toString(16));
 
   // Drive the infinite-loop routine. With a modest instruction budget the
-  // watchdog MUST trip and return — no hang.
+  // watchdog MUST trip and return - no hang.
   const r = toJSON(await client.callTool({
     name: "cpu",
     arguments: { op: "call",  pc: spinPC, maxInstructions: 200000, maxFrames: 600, sandbox: true },

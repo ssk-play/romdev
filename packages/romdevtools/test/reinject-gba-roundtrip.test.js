@@ -1,9 +1,9 @@
-// makeStoredBlock GBA LZ77 — LIVE round-trip through the REAL BIOS decompressor.
+// makeStoredBlock GBA LZ77 - LIVE round-trip through the REAL BIOS decompressor.
 //
 // The agent's whole ask for makeStoredBlock is "emit bytes the game's OWN
 // decompressor expands verbatim." The reference-decompressor test (reinject.test.js)
 // proves it against the documented algorithm; THIS test proves it against the
-// actual GBA BIOS — we build a ROM that calls SWI 0x11 (LZ77UnCompWram) on bytes
+// actual GBA BIOS - we build a ROM that calls SWI 0x11 (LZ77UnCompWram) on bytes
 // produced by makeStoredBlock, run it under mgba, and read back the decompressed
 // output. If it matches the payload, the game's own decompressor accepts our
 // stored block. This is the end-to-end proof.
@@ -24,7 +24,7 @@ test("makeStoredBlock GBA LZ77 decompresses verbatim under the real BIOS (mgba)"
   // 1) Build the stored block with the tool, emit it as a C byte array.
   const block = storedGbaLz77(Uint8Array.from(PAYLOAD));
   const blockArr = Array.from(block.bytes).map((b) => "0x" + b.toString(16)).join(",");
-  const OUT_ADDR = 0x02000000;   // EWRAM — where the BIOS writes the result
+  const OUT_ADDR = 0x02000000;   // EWRAM - where the BIOS writes the result
   const DONE_ADDR = 0x02000100;  // a "decompression finished" marker
 
   // The compressed stream MUST be 4-byte aligned (BIOS reads words); a static
@@ -46,7 +46,7 @@ int main(void) {
   // 2) Boot under mgba.
   const { LibretroHost } = await import("romdev-core-host/LibretroHost.js");
   const core = resolveCore("gba");
-  assert.ok(core, "resolveCore('gba') returned null — mgba_libretro.{js,wasm} missing?");
+  assert.ok(core, "resolveCore('gba') returned null - mgba_libretro.{js,wasm} missing?");
   const host = new LibretroHost();
   await host.loadCore(core.jsPath, core.wasmPath);
   await host.loadMedia({ platform: "gba", bytes: r.binary, virtualName: "rt.gba" });

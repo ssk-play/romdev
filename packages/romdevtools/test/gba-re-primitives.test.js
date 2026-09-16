@@ -1,10 +1,10 @@
 // GBA RE primitives round 2 (mgba/ARM7TDMI): setRegister + watchRange +
-// logPCRange — plus the setreg-PC pipeline-flush proof.
+// logPCRange - plus the setreg-PC pipeline-flush proof.
 //
 // Exercises the romdev_setreg/getreg + romdev_range_* + romdev_cov_* mgba core
 // patch (register access + the PC pipeline reload in src/arm/arm.c, the range
 // load/store hooks in src/gba/memory.c, the coverage execute hook in
-// src/arm/arm.c) through the host surface — the SAME primitives the setRegister
+// src/arm/arm.c) through the host surface - the SAME primitives the setRegister
 // / watchRange / logPCRange MCP tools drive. Tested at the host level (like
 // gba-pc-break.test.js) so the setreg-PC → stepInstruction flow can be driven
 // directly.
@@ -48,7 +48,7 @@ int main(void) {
 const COUNTER_ADDR = 0x02000000;
 
 test("GBA RE primitives: setRegister + watchRange + logPCRange + setreg-PC flush (mgba ARM7TDMI)", { timeout: 180000 }, async () => {
-  // 1) Build the ROM (libtonc C, default runtime — NOT runtime:"none", which
+  // 1) Build the ROM (libtonc C, default runtime - NOT runtime:"none", which
   //    lacks stdint.h that tonc needs).
   const r = await buildGbaC({ source: SRC });
   assert.equal(r.ok, true, `gba build failed at ${r.stage}: ${(r.log || "").slice(-600)}`);
@@ -57,14 +57,14 @@ test("GBA RE primitives: setRegister + watchRange + logPCRange + setreg-PC flush
   // 2) Boot it under mgba via the host.
   const { LibretroHost } = await import("romdev-core-host/LibretroHost.js");
   const core = resolveCore("gba");
-  assert.ok(core, "resolveCore('gba') returned null — mgba_libretro.{js,wasm} missing?");
+  assert.ok(core, "resolveCore('gba') returned null - mgba_libretro.{js,wasm} missing?");
   const host = new LibretroHost();
   await host.loadCore(core.jsPath, core.wasmPath);
   await host.loadMedia({ platform: "gba", bytes: r.binary, virtualName: "re.gba" });
 
-  // Feature detection — the whole point of this build.
-  assert.equal(host.setRegSupported(), true, "core does not expose romdev_setreg/getreg — rebuild needed");
-  assert.equal(host.rangeWatchSupported(), true, "core does not expose romdev_range_*/romdev_cov_* — rebuild needed");
+  // Feature detection - the whole point of this build.
+  assert.equal(host.setRegSupported(), true, "core does not expose romdev_setreg/getreg - rebuild needed");
+  assert.equal(host.rangeWatchSupported(), true, "core does not expose romdev_range_*/romdev_cov_* - rebuild needed");
 
   // Let it boot past the Tonc runtime init into the main loop.
   host.stepFrames(30);
@@ -87,14 +87,14 @@ test("GBA RE primitives: setRegister + watchRange + logPCRange + setreg-PC flush
   const writerPC = ev.pc >>> 0;
 
   // 5) logPCRange over the code area (GBA ROM executes at 0x08000000+; EWRAM/IWRAM
-  //    code can run too — cover the whole low cart+RAM span) returns distinct PCs.
+  //    code can run too - cover the whole low cart+RAM span) returns distinct PCs.
   const cov = host.logPCRange(0x00000000, 0x09000000, 10);
   assert.ok(cov.distinct > 0, `logPCRange found no PCs: ${JSON.stringify({ distinct: cov.distinct, total: cov.total })}`);
   assert.ok(cov.pcs.length > 0, "logPCRange returned no pcs");
 
-  // 6) setreg-PC pipeline flush — THE KEY QUESTION. Setting r15 must RELOAD the
+  // 6) setreg-PC pipeline flush - THE KEY QUESTION. Setting r15 must RELOAD the
   //    ARM7 prefetch pipeline (via ARMWritePC/ThumbWritePC) so the SET PC actually
-  //    executes — otherwise the two already-prefetched instructions run and PC
+  //    executes - otherwise the two already-prefetched instructions run and PC
   //    diverges from what we set. cpsr bit 5 = THUMB (2-byte) else ARM (4-byte).
   const cpsr = host.getReg(16) >>> 0;
   const word = (cpsr & 0x20) ? 2 : 4;
@@ -105,7 +105,7 @@ test("GBA RE primitives: setRegister + watchRange + logPCRange + setreg-PC flush
   host.setReg(15, target);
 
   // PROOF #1 (definitive, deterministic): after setReg(15), gprs[15] reads back as
-  //   target + ONE word — the pipeline advance ARMWritePC/ThumbWritePC performs
+  //   target + ONE word - the pipeline advance ARMWritePC/ThumbWritePC performs
   //   after reloading prefetch[0]/[1] from `target`. A bare `gprs[15] = target`
   //   (no pipeline reload) would read back as exactly `target`. This single
   //   invariant is the smoking gun that the pipeline was flushed and reloaded.
@@ -114,11 +114,11 @@ test("GBA RE primitives: setRegister + watchRange + logPCRange + setreg-PC flush
     `setreg-PC did not reload the pipeline: gprs[15]=0x${pcAfterSet.toString(16)}, expected 0x${((target + word) >>> 0).toString(16)} (target 0x${target.toString(16)} + one word). A bare PC stomp would leave it at 0x${target.toString(16)}.`);
 
   // PROOF #2 (live execution): single-step and confirm the CPU genuinely ran the
-  //   instruction at `target` and advanced — execution flows FORWARD from the set
+  //   instruction at `target` and advanced - execution flows FORWARD from the set
   //   PC, not from wherever the stale prefetch pointed. The instruction at the
   //   counter-store target is followed by VBlankIntrWait (an SWI), so after the
   //   step the PC may legitimately be in straight-line code OR vectored into the
-  //   BIOS/IRQ handler — either way it has MOVED away from the pre-redirect idle
+  //   BIOS/IRQ handler - either way it has MOVED away from the pre-redirect idle
   //   PC. We assert the step produced a real, advancing PC (not frozen, not the
   //   raw un-reloaded target), which it can only do if the redirect executed.
   const step = host.stepInstruction();
@@ -126,7 +126,7 @@ test("GBA RE primitives: setRegister + watchRange + logPCRange + setreg-PC flush
   const stepPC = step.pc >>> 0;
   // It must NOT have stalled at the raw set value (that would mean nothing ran).
   assert.notEqual(stepPC, target >>> 0,
-    `single-step after setreg-PC did not advance off the target — execution stalled (pipeline not live): ${JSON.stringify(step)}`);
+    `single-step after setreg-PC did not advance off the target - execution stalled (pipeline not live): ${JSON.stringify(step)}`);
 
   // 7) Normal stepping must resume cleanly (no lingering frozen/armed state).
   const before = host.status.frameCount;

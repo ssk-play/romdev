@@ -1,4 +1,4 @@
-// Disassembly MCP tools — exposed as `disassemble` and `disassembleRom`.
+// Disassembly MCP tools - exposed as `disassemble` and `disassembleRom`.
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import nodePath from "node:path";
@@ -48,7 +48,7 @@ function requireRomPath(args) {
  * CPU address → file offset for a platform's ROM image, dispatching to the
  * per-platform mapper. Returns the offset or null (out of range / unmapped /
  * unsupported platform). The single home for "where in the file is CPU address
- * X" — used by file-offset annotation AND target=pointerTable.
+ * X" - used by file-offset annotation AND target=pointerTable.
  * @param {string} platform
  * @param {Uint8Array} data   full ROM image
  * @param {number} cpuAddr
@@ -106,7 +106,7 @@ export function mapNesAddress(data, cpuAddr, length, bank) {
   //
   // `bank` (when given) explicitly selects which 16KB PRG bank is mapped into
   // the SWITCHABLE slot ($8000-$BFFF). This is the fix for "disassemble UxROM
-  // bank N at $8000" — previously impossible without slicing the ROM by hand.
+  // bank N at $8000" - previously impossible without slicing the ROM by hand.
   // A $C000+ address still resolves to the fixed top bank regardless of `bank`.
   let offsetInPrg;
   let mapperLabel;
@@ -115,7 +115,7 @@ export function mapNesAddress(data, cpuAddr, length, bank) {
       throw new Error(`NES bank ${bank} out of range (ROM has ${num16kBanks} × 16KB PRG banks, 0-${num16kBanks - 1})`);
     }
     if (cpuAddr >= 0xC000) {
-      // Fixed top bank — `bank` doesn't apply here.
+      // Fixed top bank - `bank` doesn't apply here.
       offsetInPrg = (prgSize - 0x4000) + (cpuAddr - 0xC000);
       mapperLabel = `mapper ${mapperNum} (fixed top bank at $C000; bank arg ignored above $C000)`;
     } else if (cpuAddr >= 0x8000) {
@@ -126,7 +126,7 @@ export function mapNesAddress(data, cpuAddr, length, bank) {
       mapperLabel = `mapper ${mapperNum}`;
     }
   } else if (prgSize === 16384) {
-    // NROM-128 — mirror.
+    // NROM-128 - mirror.
     offsetInPrg = cpuAddr & 0x3FFF;
     mapperLabel = `mapper ${mapperNum} (NROM-128 mirror)`;
   } else if (mapperNum === 0) {
@@ -141,7 +141,7 @@ export function mapNesAddress(data, cpuAddr, length, bank) {
     } else {
       offsetInPrg = -1;
     }
-    mapperLabel = `mapper ${mapperNum} (top bank fixed at $C000, bank 0 at $8000 — pass bank:N for a different switchable bank)`;
+    mapperLabel = `mapper ${mapperNum} (top bank fixed at $C000, bank 0 at $8000 - pass bank:N for a different switchable bank)`;
   }
   if (offsetInPrg < 0 || offsetInPrg >= prgSize) {
     throw new Error(`CPU address $${cpuAddr.toString(16)} outside PRG ROM (${prgSize} bytes, ${mapperLabel})`);
@@ -163,7 +163,7 @@ export function mapNesAddress(data, cpuAddr, length, bank) {
  * SNES LoROM / HiROM file. Handles optional 512-byte SMC copier header,
  * picks LoROM vs HiROM by checking the internal header at $7FC0 or $FFC0.
  *
- * Mapping (no SA-1 / ExHiROM support yet — those are rare for the kind
+ * Mapping (no SA-1 / ExHiROM support yet - those are rare for the kind
  * of homebrew agents we care about):
  *   LoROM: bank $80-$FF mirrors $00-$7F. Address $XX:8000-$XX:FFFF →
  *          file offset = (bank & 0x7F) * 0x8000 + (addr & 0x7FFF) + copier_off
@@ -190,10 +190,10 @@ export function mapSnesAddress(data, cpuAddr, length, mapperHint) {
     const detectedLo = loMapperByte === 0x20 || loMapperByte === 0x30 || loMapperByte === 0x32;
     const detectedHi = hiMapperByte === 0x21 || hiMapperByte === 0x31;
     if (!detectedLo && !detectedHi) {
-      // No valid header — small homebrew often doesn't ship one. Default
+      // No valid header - small homebrew often doesn't ship one. Default
       // to LoROM (most common for small carts; HiROM is unusual at <256KB).
       isLo = true;
-      mapper = "LoROM (assumed — no valid header found)";
+      mapper = "LoROM (assumed - no valid header found)";
     } else {
       isLo = detectedLo;
       mapper = isLo ? "LoROM" : "HiROM";
@@ -230,7 +230,7 @@ export function mapSnesAddress(data, cpuAddr, length, mapperHint) {
 
 /**
  * Walk a da65-format asm string and prepend `label:` to lines whose
- * leading "$XXXX" address matches a symbol. Loose pattern match — works
+ * leading "$XXXX" address matches a symbol. Loose pattern match - works
  * with da65's default `<addr>  <bytes>  <mnem>` columnar output.
  */
 function annotateDisasmWithSymbols(asm, symbolMap) {
@@ -323,7 +323,7 @@ function annotateRegisters(asm, registers) {
   if (!registers) return asm;
   return asm.split(/\r?\n/).map((line) => {
     if (line.startsWith(";")) return line;
-    // Split into source + existing-comment. Conservative — we only consider
+    // Split into source + existing-comment. Conservative - we only consider
     // the FIRST `; ` as the comment boundary (da65 always emits one).
     const sepIdx = line.indexOf(";");
     const src = sepIdx >= 0 ? line.slice(0, sepIdx) : line;
@@ -427,7 +427,7 @@ function findFirstReturnLine(asm, cpuFamily = "6502") {
     if (cpuFamily === "z80" || cpuFamily === "sm83") {
       // SM83 differs from Z80 only by missing `retn` (no NMI-return alias).
       // Bare ret, reti, jp <addr>, jp <label> all terminate. Conditional
-      // ret (`ret nz` etc) does NOT — routine continues past it.
+      // ret (`ret nz` etc) does NOT - routine continues past it.
       if (/^ret\s*(;|$)/.test(trimmed)) return i + 1;
       if (/^reti\b/.test(trimmed)) return i + 1;
       if (cpuFamily === "z80" && /^retn\b/.test(trimmed)) return i + 1;
@@ -463,7 +463,7 @@ export function mapSmsAddress(data, cpuAddr, length, bank, options = {}) {
  * Game Boy / Game Boy Color address mapping.
  *   Slot 0: $0000-$3FFF = file 0..$3FFF (bank 0, fixed)
  *   Slot 1: $4000-$7FFF = file (bank * 0x4000)..(bank * 0x4000 + 0x3FFF)
- *           Default bank 1 — pass `bank` to disassembleRom for a different one.
+ *           Default bank 1 - pass `bank` to disassembleRom for a different one.
  * RAM ($8000+) and I/O are not in the ROM file.
  */
 export function mapGbAddress(data, cpuAddr, length, bank = 1) {
@@ -502,9 +502,9 @@ export function mapGbAddress(data, cpuAddr, length, bank = 1) {
 
 /**
  * Atari 2600 address mapping. 4 KB carts mirror through $F000-$FFFF (and
- * $D000, $B000, etc. — the 2600 only decodes the low 13 bits of the
+ * $D000, $B000, etc. - the 2600 only decodes the low 13 bits of the
  * address). 8 KB+ carts use bank-switching schemes (F8, F6, F4, etc.)
- * that we don't fully model here — disassembling those needs the bank
+ * that we don't fully model here - disassembling those needs the bank
  * arg to slice into the right 4KB window.
  */
 export function mapAtari2600Address(data, cpuAddr, length, bank = 0) {
@@ -540,7 +540,7 @@ export function mapAtari2600Address(data, cpuAddr, length, bank = 0) {
 
 /**
  * Genesis / Mega Drive address mapping. The cartridge ROM maps 1:1 into
- * the 68000 address space starting at $000000 — flat, big-endian, no
+ * the 68000 address space starting at $000000 - flat, big-endian, no
  * mapper for ROMs ≤ 4 MB (the common case). $000000-$0000FF is the vector
  * table (SP at $000000, reset PC at $000004); cart code typically begins
  * at the reset vector. We treat the CPU address as the file offset
@@ -582,7 +582,7 @@ export function mapAtari7800Address(data, cpuAddr, length, bank = null) {
   const romSize = data.length - headerSize;
   // SuperGame banking: 16KB banks page into $8000-$BFFF; the LAST bank is fixed
   // at $C000-$FFFF. Pass `bank` to select the paged bank for a $8000-window
-  // address (a $C000+ address always resolves to the fixed top bank, NES-style —
+  // address (a $C000+ address always resolves to the fixed top bank, NES-style -
   // `bank` is ignored there, never silently misapplied).
   if (bank != null && bank !== 0 && cpuAddr >= 0x8000 && cpuAddr < 0xC000) {
     const numBanks = Math.floor(romSize / 0x4000);
@@ -630,7 +630,7 @@ export function mapAtari7800Address(data, cpuAddr, length, bank = null) {
  *   file[2..]  = program bytes loaded contiguously starting at that addr
  *
  * For .crt cart images we'd need to honor the C64 cart header (see CCS64
- * docs); not implemented here — pass `bank` instead and call with the raw
+ * docs); not implemented here - pass `bank` instead and call with the raw
  * binary if you're hand-mapping.
  */
 export function mapC64Address(data, cpuAddr, length, _bank = 0) {
@@ -642,7 +642,7 @@ export function mapC64Address(data, cpuAddr, length, _bank = 0) {
   if (cpuAddr < loadAddr) {
     throw new Error(
       `CPU $${cpuAddr.toString(16)} is below the .prg load address $${loadAddr.toString(16)}. ` +
-      `This file loads at $${loadAddr.toString(16)} — start disasm there.`
+      `This file loads at $${loadAddr.toString(16)} - start disasm there.`
     );
   }
   if (fileOffset < 2 || fileOffset >= data.length) {
@@ -665,7 +665,7 @@ async function disassembleCore({ path: inPath, base64, startAddress = 0x8000, cp
       // target:'bytes' is the da65 path, which is 6502-FAMILY ONLY (see the
       // `cpu` enum). A `platform` whose CPU is something else was silently
       // ignored, so `disasm({target:'bytes', platform:'sms'})` handed Z80 bytes
-      // to a 6502 disassembler and returned confident nonsense — `dd 7e 05`
+      // to a 6502 disassembler and returned confident nonsense - `dd 7e 05`
       // came back as `cmp $057E,x` instead of `ld a,(ix+5)`. Refuse instead,
       // and name the op that does handle the platform.
       const NON_6502_CPU = {
@@ -679,7 +679,7 @@ async function disassembleCore({ path: inPath, base64, startAddress = 0x8000, cp
           `disasm({target:'bytes'}) is the da65 path and decodes 6502-family CPUs only `
           + `(${cpu}), but platform '${platform}' is ${NON_6502_CPU[platform]}. Decoding those bytes `
           + `as 6502 would return plausible-looking wrong instructions. Use `
-          + `disasm({target:'rom', path, platform:'${platform}', startAddress, length}) — it dispatches `
+          + `disasm({target:'rom', path, platform:'${platform}', startAddress, length}) - it dispatches `
           + `to the right binutils objdump for the platform's CPU.`);
       }
       if (!inPath && !base64) {
@@ -692,7 +692,7 @@ async function disassembleCore({ path: inPath, base64, startAddress = 0x8000, cp
       const r = await runDa65({ bytes, startAddress, cpu });
       let asm = r.asm;
 
-      // On failure, surface the error in the response — never write the raw
+      // On failure, surface the error in the response - never write the raw
       // da65 error text into outputPath (it'd masquerade as partial asm).
       if (r.exitCode !== 0) {
         return jsonContent({
@@ -703,11 +703,11 @@ async function disassembleCore({ path: inPath, base64, startAddress = 0x8000, cp
           cpu,
           error: firstErrorLine(asm) ?? `da65 exited ${r.exitCode}`,
           errorText: asm,
-          note: "Disassembly FAILED — outputPath not written. See `error`.",
+          note: "Disassembly FAILED - outputPath not written. See `error`.",
         });
       }
 
-      // Round-trip origin (cc65 family only — da65 is always 6502-family here).
+      // Round-trip origin (cc65 family only - da65 is always 6502-family here).
       if (addOrigin) asm = injectOrigin(asm, startAddress);
 
       let symbolCount = 0;
@@ -807,29 +807,29 @@ async function disassembleRomCore(args) {
         startAddress = 0x08000000;
       }
       // Lynx: 65C02 cart image (after a 64-byte "LYNX" header). Homebrew runs
-      // from $0200, not the $8000 6502 default — auto-bump when unspecified.
+      // from $0200, not the $8000 6502 default - auto-bump when unspecified.
       if (resolved === "lynx" && startAddress === 0x8000 && args.endAddress === undefined) {
         startAddress = 0x0200;
       }
 
-      // `bank` handling — NEVER silently ignore it (field report: SNES LoROM
+      // `bank` handling - NEVER silently ignore it (field report: SNES LoROM
       // `{startAddress:$83CD, bank:2}` used to read BANK 0's bytes and return a
-      // plausible disassembly under the caller's bank-2 label — silently the
+      // plausible disassembly under the caller's bank-2 label - silently the
       // wrong 32KB, worse than an error).
       //  - SNES: the bank IS the address's high byte. Compose the full 24-bit
       //    address (same mapping readCart honors); the da65 bank-local masking
       //    + file-offset annotation (0.90.0) handle everything downstream.
       //  - sms/gg + atari7800: honored in their mappers (slot-2 / SuperGame
-      //    windows) — see mapSmsAddress/mapAtari7800Address.
+      //    windows) - see mapSmsAddress/mapAtari7800Address.
       //  - flat platforms (genesis/gba/lynx/c64 .prg): a meaningful bank is a
-      //    caller error — REJECT it rather than return flat bytes under a
+      //    caller error - REJECT it rather than return flat bytes under a
       //    banked label.
       if (resolved === "snes" && args.bank != null && startAddress < 0x10000) {
         startAddress = ((args.bank & 0xFF) << 16) | startAddress;
       }
       if (args.bank != null && args.bank !== 0 && (resolved === "genesis" || resolved === "gba" || resolved === "lynx" || resolved === "c64")) {
         throw new Error(
-          `disasm({target:'rom'}): \`bank\` is not applicable on ${resolved} (flat address space — no cart banking). ` +
+          `disasm({target:'rom'}): \`bank\` is not applicable on ${resolved} (flat address space - no cart banking). ` +
           `Pass the address directly.`,
         );
       }
@@ -932,7 +932,7 @@ async function disassembleRomCore(args) {
         //   $0058 serial IRQ
         //   $0060 joypad IRQ
         //   $0100 entry point (cart code starts here after Nintendo logo)
-        //   $0104-$0133 logo bytes (NOT code — auto-skip if window includes them)
+        //   $0104-$0133 logo bytes (NOT code - auto-skip if window includes them)
         const gbVectors = {
           reset: 0x0000,
           rst08: 0x0008, rst10: 0x0010, rst18: 0x0018,
@@ -968,7 +968,7 @@ async function disassembleRomCore(args) {
       }
       // Dedup vector labels by ADDRESS. Two interrupt vectors legitimately
       // sharing one target is valid 6502 (e.g. one NES cart points NMI and IRQ both at
-      // $C0F6) — but da65's LABELDEF and every dasm injector reject two labels
+      // $C0F6) - but da65's LABELDEF and every dasm injector reject two labels
       // at the same address ("Label for address $XXXX already defined"). Keep
       // the first name (vector iteration order is reset/nmi/irq) and record the
       // dropped aliases so the response can surface them.
@@ -1010,8 +1010,8 @@ async function disassembleRomCore(args) {
         if (labels.length > 0 && cpuFamily !== "arm") asm = injectVectorLabels(asm, labels);
       } else {
         // da65's --start-addr is a 16-bit address (it aborts on >= 0x10000). For a
-        // banked SNES/PCE/… address (e.g. LoROM $02AF86, bank 2), the in-bank CPU
-        // address IS the low 16 bits ($AF86) — so disassemble with the bank-local
+        // banked SNES/PCE/... address (e.g. LoROM $02AF86, bank 2), the in-bank CPU
+        // address IS the low 16 bits ($AF86) - so disassemble with the bank-local
         // start and remember the bank base to fold back into the file-offset
         // annotation, which needs the FULL cpu address to map to a ROM offset.
         const bankBase = startAddress & ~0xFFFF;      // 0 for a $0000-$FFFF address
@@ -1032,7 +1032,7 @@ async function disassembleRomCore(args) {
         if (mapped.cpu === "65816" && args.widths) {
           // EXPLICIT entry-width override (v0.94.0 round 2): the agent often
           // KNOWS the width (live P capture, surrounding code) when a blob has
-          // no in-window caller — inference can only guess there. Forced entry
+          // no in-window caller - inference can only guess there. Forced entry
           // width, single da65 call, no symptom scoring; in-window rep/sep are
           // still followed by the dataflow.
           const entry = { m8: args.widths.a !== 16, x8: args.widths.i !== 16 };
@@ -1043,9 +1043,9 @@ async function disassembleRomCore(args) {
         } else if (mapped.cpu === "65816") {
           // ENTRY-WIDTH INFERENCE (same heuristic as target:'project'): decode
           // at post-reset 8/8 first; if the listing shows desync symptoms
-          // (stray brk/cop/wdm/stp — vanishingly rare in real code), retry the
+          // (stray brk/cop/wdm/stp - vanishingly rare in real code), retry the
           // other three entry widths and keep the cleanest. A mid-function
-          // window entered in 16-bit mode from its caller needs this — there's
+          // window entered in 16-bit mode from its caller needs this - there's
           // no leading rep/sep to re-sync from.
           const symptomCount = (asmText) => (asmText.match(/\b(brk|cop|wdm|stp)\b/gi) || []).length;
           const runWith = (entry) => runDa65({
@@ -1085,7 +1085,7 @@ async function disassembleRomCore(args) {
         // file mapper resolves to the right ROM offset for a banked SNES address.
         const bankBase = args._bankBase ?? 0;
         const cpuToFile = (cpuAddr) => cpuAddrToFileOffset(resolved, data, (cpuAddr & 0xFFFF) + bankBase, { ...args, snesMapper: mapper });
-        // Secondary translator for NES — also report the header-stripped
+        // Secondary translator for NES - also report the header-stripped
         // PRG offset, since patchFile against `prg.bin` (from extractCart)
         // needs the header-less frame.
         let secondaryCpuToFile;
@@ -1149,7 +1149,7 @@ async function disassembleRomCore(args) {
         truncatedAtReturn: truncatedAtReturn || undefined,
       };
 
-      // On a disassembler failure, do NOT write outputPath — otherwise the raw
+      // On a disassembler failure, do NOT write outputPath - otherwise the raw
       // da65 error string lands in the file the caller intends to Read as asm,
       // and looks like partial output. Surface a top-level `error` + ok:false
       // and keep the (error) text in `errorText` for diagnosis.
@@ -1160,12 +1160,12 @@ async function disassembleRomCore(args) {
           error: firstErrorLine(asm) ?? `disassembler exited ${exitCode}`,
           errorText: asm,
           note: (baseResult.note ? baseResult.note + " " : "") +
-            "Disassembly FAILED — outputPath was NOT written (so a prior good file isn't clobbered with an error). See `error`.",
+            "Disassembly FAILED - outputPath was NOT written (so a prior good file isn't clobbered with an error). See `error`.",
         });
       }
 
       if (outputPath) {
-        // Create the parent dir like every other file-writing tool does — a raw
+        // Create the parent dir like every other file-writing tool does - a raw
         // ENOENT for a missing directory cost an agent a retry (v0.94.0 round 2).
         await mkdir(nodePath.dirname(outputPath), { recursive: true });
         await writeFile(outputPath, asm);
@@ -1183,7 +1183,7 @@ async function disassembleRomCore(args) {
 }
 
 // The job-status file dropped in the output dir so a background disassembly's
-// progress survives across MCP calls (no in-memory registry — poll reads the
+// progress survives across MCP calls (no in-memory registry - poll reads the
 // file). Presence + `status` is the source of truth.
 const JOB_FILE = ".romdev-job.json";
 
@@ -1209,7 +1209,7 @@ export async function disassembleProjectCore(args) {
       return jsonContent({
         ok: null, status: "running", jobId: job, platform: st.platform, outputDir,
         regionsDone: st.regionsDone ?? 0, regionsTotal: st.regionsTotal ?? null,
-        note: `Still disassembling — ${st.regionsDone ?? 0}/${st.regionsTotal ?? "?"} regions done. Poll again: disasm({target:'project', job:'${job}', outputDir:'${outputDir}'}).`,
+        note: `Still disassembling - ${st.regionsDone ?? 0}/${st.regionsTotal ?? "?"} regions done. Poll again: disasm({target:'project', job:'${job}', outputDir:'${outputDir}'}).`,
       });
     }
     if (st.status === "error") {
@@ -1231,7 +1231,7 @@ export async function disassembleProjectCore(args) {
     const statusPath = nodePath.join(outputDir, JOB_FILE);
     await writeFile(statusPath, JSON.stringify({ jobId, status: "running", platform: resolved, regionsDone: 0, regionsTotal: null }, null, 2));
     // Fire-and-forget: run the work, updating the status file as it goes. Errors
-    // are caught and recorded in the status file (the poll surfaces them) — an
+    // are caught and recorded in the status file (the poll surfaces them) - an
     // unhandled rejection here must never crash the server.
     runProjectDisassembly(args, resolved, { statusPath, jobId }).then(
       async (payload) => { await writeFile(statusPath, JSON.stringify({ jobId, status: "done", platform: resolved, result: payload }, null, 2)); },
@@ -1255,7 +1255,7 @@ let bgJobCounter = 1;
 
 /**
  * The actual disassemble-project work. Returns the payload OBJECT (not wrapped in
- * jsonContent — the caller wraps, so the same object can also be stored in the job
+ * jsonContent - the caller wraps, so the same object can also be stored in the job
  * status file). `progress` (or null) receives {statusPath, jobId} to checkpoint
  * per-region completion for the poll surface.
  */
@@ -1275,17 +1275,17 @@ async function runProjectDisassembly({ path: romPath, outputDir }, resolved, pro
 
       // Reassemble every region CONCURRENTLY. Each region is independent (its own
       // WASM worker job + its own file write), and the worker pool caps real
-      // parallelism at ROM_DEV_WASM_POOL_SIZE — so firing all banks at once runs
+      // parallelism at ROM_DEV_WASM_POOL_SIZE - so firing all banks at once runs
       // pool-many at a time and cuts wall-time by that factor on multi-bank ROMs
       // (a 32-bank SNES cart no longer serializes 32 heal loops). Order is
       // preserved by mapping over indices. (For very large ROMs the async-job
       // path below still applies so the client never times out mid-run.)
-      // CODE/DATA MAP — the fix for the readability floor. da65/objdump decode a
+      // CODE/DATA MAP - the fix for the readability floor. da65/objdump decode a
       // whole region as if it were all code; when they hit a DATA byte mid-region
       // it mis-decodes, desyncs the byte stream (and, on 65816, the .a8/.i8 width
       // state), and the heal loop can't reconverge → the whole region floors to
       // `.byte`, 0% readable. Instead: run the analysis engine (rizin) ONCE to get
-      // the real function byte-spans, and disassemble ONLY those — data between
+      // the real function byte-spans, and disassemble ONLY those - data between
       // functions is emitted as clean `.byte` up front, so nothing desyncs and the
       // real code stays readable. Best-effort: if analysis is unavailable the
       // per-region reassembler falls back to its old whole-region heal.
@@ -1297,7 +1297,7 @@ async function runProjectDisassembly({ path: romPath, outputDir }, resolved, pro
       let regionsDone = 0;
       const out = await Promise.all(regions.map(async (reg) => {
         // Known-data regions (e.g. the GBA cartridge header) are emitted as a
-        // clean `.byte` dump — byte-exact by construction, NOT a failed disasm.
+        // clean `.byte` dump - byte-exact by construction, NOT a failed disasm.
         // Per-region code spans (file-offset ranges) → relative to this region's
         // bytes, so the reassembler disassembles code + `.byte`s the gaps.
         const regionSpans = codeSpans ? spansForRegion(codeSpans, reg.fileOffset, reg.bytes.length) : null;
@@ -1305,16 +1305,16 @@ async function runProjectDisassembly({ path: romPath, outputDir }, resolved, pro
           ? { ok: true, readablePercent: 0, source: dataRegionSource(reg.bytes, reg.startAddress, CPU_FAMILY[resolved]), note: "data region (not code)" }
           : await reassembleForPlatform({ platform: resolved, bytes: reg.bytes, startAddress: reg.startAddress, codeSpans: regionSpans });
         // A uniform-FILL region ($FF/$00 padding) disassembles into junk that
-        // reports a high readablePercent — a trap (the emptiest bank looks the
+        // reports a high readablePercent - a trap (the emptiest bank looks the
         // "most readable"). Detect it and report readability HONESTLY as null +
         // a `fill` flag, so `readablePercent` never lies about padding.
         const fillByte = uniformFillByte(reg.bytes);
         const isFill = fillByte != null && reg.kind !== "data";
         const readablePercent = isFill ? null : r.readablePercent;
-        const header = `; ${reg.label} — ${reg.bytes.length} bytes @ $${reg.startAddress.toString(16).toUpperCase()} ` +
+        const header = `; ${reg.label} - ${reg.bytes.length} bytes @ $${reg.startAddress.toString(16).toUpperCase()} ` +
           `(file 0x${reg.fileOffset.toString(16).toUpperCase()}), ${resolved}\n` +
           `; round-trip: ${r.ok ? "BYTE-EXACT" : "FAILED"} · ` +
-          (isFill ? `FILL region (all $${fillByte.toString(16).toUpperCase().padStart(2, "0")}) — readability N/A`
+          (isFill ? `FILL region (all $${fillByte.toString(16).toUpperCase().padStart(2, "0")}) - readability N/A`
                   : `readable ${r.readablePercent}%`) +
           (r.note ? ` · ${r.note}` : "") + "\n\n";
         await writeFile(nodePath.join(outputDir, reg.file), header + r.source);
@@ -1334,7 +1334,7 @@ async function runProjectDisassembly({ path: romPath, outputDir }, resolved, pro
       }));
 
       const allOk = out.every((r) => r.roundTripOk);
-      // Average readability over CODE regions only — fill regions have no
+      // Average readability over CODE regions only - fill regions have no
       // meaningful percent (readablePercent:null) and would skew the average.
       const codeRegions = out.filter((r) => r.readablePercent != null);
       const avgReadable = codeRegions.length
@@ -1366,7 +1366,7 @@ async function runProjectDisassembly({ path: romPath, outputDir }, resolved, pro
       });
       await writeFile(nodePath.join(outputDir, "BUILD.md"), buildMd);
 
-      // reassemble.json — the UNIFORM byte-exact rebuild manifest, written for
+      // reassemble.json - the UNIFORM byte-exact rebuild manifest, written for
       // EVERY platform (unlike rebuild.json's one-call subset). It lets
       // build({output:'reassemble', path}) rebuild the ROM in one call on any
       // platform: assemble each region .asm and splice it into a copy of the
@@ -1374,11 +1374,11 @@ async function runProjectDisassembly({ path: romPath, outputDir }, resolved, pro
       // inter-region gaps, and trailing pad come back verbatim. See toolchain.js.
       await writeFile(nodePath.join(outputDir, "original.rom"), data);
       // original.rom is a verbatim copy of the source ROM (the reassemble splice
-      // template) — copyrighted cartridge data that must NEVER be committed. Emit
+      // template) - copyrighted cartridge data that must NEVER be committed. Emit
       // a .gitignore that excludes it plus common ROM extensions so a scaffolded
       // project can't accidentally check the ROM into git. Append (deduped) if a
       // .gitignore already exists so we don't clobber the user's rules.
-      // NOTE: no `*.md` — Genesis ROMs share that extension with Markdown, and
+      // NOTE: no `*.md` - Genesis ROMs share that extension with Markdown, and
       // ignoring it would exclude BUILD.md. `original.rom` covers the template on
       // every platform regardless; the extension list is a belt-and-suspenders
       // for any raw ROM a user drops in the dir.
@@ -1433,12 +1433,12 @@ async function runProjectDisassembly({ path: romPath, outputDir }, resolved, pro
             (absBuild
               ? ` (build() one-call rebuild also available via rebuild.json.)`
               : ``)
-          : `Some regions did NOT round-trip byte-exact — see regions[].note. build({output:'reassemble', platform:'${resolved}', path:'${outputDir}'}) still rebuilds the original bytes (edited regions must reassemble to their length).`,
+          : `Some regions did NOT round-trip byte-exact - see regions[].note. build({output:'reassemble', platform:'${resolved}', path:'${outputDir}'}) still rebuilds the original bytes (edited regions must reassemble to their length).`,
       };
 }
 
 /**
- * If a region is (near-)uniform fill — one byte value repeated — return that
+ * If a region is (near-)uniform fill - one byte value repeated - return that
  * byte; else null. Padding banks ($FF/$00) disassemble into junk that reports a
  * bogus-high readablePercent, so we flag them and exclude them from readability.
  * Threshold: ≥99.5% one value AND ≥256 bytes (small regions aren't "padding"),
@@ -1496,33 +1496,33 @@ function renderBuildMd({ platform, romPath, outputDir, regions, blobs, build, ve
   lines.push(`Disassembled from \`${nodePath.basename(romPath)}\` by \`disasm({target:'project'})\`.`, "");
   lines.push("## Files", "");
   for (const r of regions) {
-    lines.push(`- \`${r.file}\` — ${r.region}${r.kind === "data" ? " (data)" : ""}, byte-exact${r.roundTripOk === false ? " ⚠ round-trip FAILED" : ""}.`);
+    lines.push(`- \`${r.file}\` - ${r.region}${r.kind === "data" ? " (data)" : ""}, byte-exact${r.roundTripOk === false ? " ⚠ round-trip FAILED" : ""}.`);
   }
-  for (const b of blobs) lines.push(`- \`${b.file}\` — ${b.bytes} bytes of binary data (extracted from the ROM; do not hand-edit).`);
-  lines.push("- `original.rom` — a verbatim copy of the source ROM (the rebuild template; do not edit). **Copyrighted ROM data — never commit it. A `.gitignore` excluding it (and ROM extensions) is written for you.**");
-  lines.push("- `reassemble.json` — the region→offset manifest the one-call rebuild reads.");
-  lines.push("- `.gitignore` — keeps `original.rom` + raw ROM files out of git (appended if you already had one).");
-  if (build) lines.push("- `rebuild.json` — the alternate cc65-native `build()` args below.");
+  for (const b of blobs) lines.push(`- \`${b.file}\` - ${b.bytes} bytes of binary data (extracted from the ROM; do not hand-edit).`);
+  lines.push("- `original.rom` - a verbatim copy of the source ROM (the rebuild template; do not edit). **Copyrighted ROM data - never commit it. A `.gitignore` excluding it (and ROM extensions) is written for you.**");
+  lines.push("- `reassemble.json` - the region→offset manifest the one-call rebuild reads.");
+  lines.push("- `.gitignore` - keeps `original.rom` + raw ROM files out of git (appended if you already had one).");
+  if (build) lines.push("- `rebuild.json` - the alternate cc65-native `build()` args below.");
   lines.push("");
 
-  // The UNIFORM one-call rebuild — available on EVERY platform.
-  lines.push("## Rebuild (recommended — one call, all platforms)", "");
+  // The UNIFORM one-call rebuild - available on EVERY platform.
+  lines.push("## Rebuild (recommended - one call, all platforms)", "");
   lines.push("Rebuild this project into a **byte-identical** ROM in one call:", "");
   lines.push("```json", JSON.stringify({ output: "reassemble", platform, path: outputDir }, null, 2), "```", "");
   lines.push(
     "Pass these as the arguments to the `build` tool. It assembles each region `.asm` " +
     "and splices the result into a copy of `original.rom`, so the header, gaps, and pad " +
     "return verbatim. `byteExact:true` = the rebuild equals the original exactly. Edit a " +
-    "region `.asm` first to make a change — a same-length edit rebuilds a modified ROM; a " +
+    "region `.asm` first to make a change - a same-length edit rebuilds a modified ROM; a " +
     "length-changing edit is reported (splicing would shift every later byte).", "",
   );
 
   if (build) {
-    lines.push("## Rebuild (alternate — cc65-native `build()`)", "");
+    lines.push("## Rebuild (alternate - cc65-native `build()`)", "");
     if (verifiable) {
       lines.push("This platform also has a native `build()` recipe that rebuilds byte-identical:", "");
     } else {
-      lines.push("Alternate native `build()` recipe (see Notes — may need linker adjustments):", "");
+      lines.push("Alternate native `build()` recipe (see Notes - may need linker adjustments):", "");
     }
     lines.push("```json", JSON.stringify(build, null, 2), "```", "");
     lines.push("The same JSON is in `rebuild.json`.", "");
@@ -1533,7 +1533,7 @@ function renderBuildMd({ platform, romPath, outputDir, regions, blobs, build, ve
 }
 
 /**
- * target:'recompile' — NES (6502) → SNES (65816) static recompile (emit backend
+ * target:'recompile' - NES (6502) → SNES (65816) static recompile (emit backend
  * phase 1). Reads the NES ROM's PRG, disassembles the reset routine with da65,
  * translates it to asar-ready 65816 (the 6502 logic runs in EMULATION mode), and
  * returns the main.asm + seam include + a residue report. Optionally writes the
@@ -1542,10 +1542,10 @@ function renderBuildMd({ platform, romPath, outputDir, regions, blobs, build, ve
  *
  * v1 scope: NROM, documented 6502, the reset/boot routine. The PPU/APU seam is
  * stubbed (no real NES-PPU-on-SNES runtime yet) so the port boots + runs the
- * logic but renders blank — the runtime shim is a separate task.
+ * logic but renders blank - the runtime shim is a separate task.
  */
 /**
- * target=pointerTable — STATIC decode of a jump/pointer table into an
+ * target=pointerTable - STATIC decode of a jump/pointer table into an
  * index→handler map (+ optional reverse lookup). The static complement to the
  * LIVE resolveJumptable. Handles contiguous LE/BE tables, SPLIT lo/hi arrays at
  * two bases, and the 6502 RTS-trick (+1). Works on every platform with an address
@@ -1554,10 +1554,10 @@ function renderBuildMd({ platform, romPath, outputDir, regions, blobs, build, ve
  * overridable via `endian`.
  */
 /**
- * target='source' — return a cart's high-level SOURCE instead of a disassembly, for
+ * target='source' - return a cart's high-level SOURCE instead of a disassembly, for
  * platforms where the "cart" IS source (not machine code). Today: PICO-8 (.p8 = Lua +
  * data sections; .p8.png = the same cart embedded in a label PNG). This is the honest
- * "understand this cart" path for a Lua VM — there's no machine code to disassemble, so
+ * "understand this cart" path for a Lua VM - there's no machine code to disassemble, so
  * we hand back the actual Lua the game runs, plus a map of the other sections.
  */
 async function readCartSourceCore(args) {
@@ -1573,9 +1573,9 @@ async function readCartSourceCore(args) {
     );
   }
   if (isPng) {
-    // A .p8.png embeds the cart in the PNG's low bits — decoding needs the FAKE-08 core.
+    // A .p8.png embeds the cart in the PNG's low bits - decoding needs the FAKE-08 core.
     throw new Error(
-      "disasm({target:'source'}): .p8.png carts store the source steganographically in the PNG — " +
+      "disasm({target:'source'}): .p8.png carts store the source steganographically in the PNG - " +
       "load it (loadMedia({platform:'pico8'})) to run it; export the .p8 text form to read the Lua. " +
       "Pass a plain-text .p8 here to read its source directly.",
     );
@@ -1596,7 +1596,7 @@ async function readCartSourceCore(args) {
     platform: "pico8",
     kind: "source",
     format: ".p8",
-    note: "PICO-8 carts are SOURCE, not machine code — this is the Lua the game runs (+ its data sections). There is no disassembly to do.",
+    note: "PICO-8 carts are SOURCE, not machine code - this is the Lua the game runs (+ its data sections). There is no disassembly to do.",
     lua: sections.lua ?? "",
     sections: Object.keys(sections),
     // Include non-lua data sections so callers can see the full cart shape (gfx/map/sfx/music/gff/label).
@@ -1678,7 +1678,7 @@ async function recompileZ80(args, targetPlatform) {
     source: platform, targetPlatform,
     romPath, startAddress: start, length,
     note: `Z80 source lifted from ${platform} $${start.toString(16)}..$${(start + length).toString(16)}. `
-      + "Refusals in `residue` are instructions no static pass can translate — "
+      + "Refusals in `residue` are instructions no static pass can translate - "
       + "computed jumps (jp (hl)) need breakpoint({on:'jumptable'}) to resolve their arms, "
       + "then re-run with those addresses. The hardware seam is Z80 I/O space (in/out), "
       + "which the IR keeps separate so the target's own hardware can be wired in.",
@@ -1697,7 +1697,7 @@ async function recompileCore(args) {
   }
   // The generic engine targets any platform with a registered emitter. SNES is the
   // 1:1 emulation-mode path (with the PPU shim/runtime render layers); Genesis is a
-  // real 6502→68000 LOGIC translation (presentation seam stubbed — verify with the
+  // real 6502→68000 LOGIC translation (presentation seam stubbed - verify with the
   // RAM-diff oracle, frame({op:'compareRam'})).
   const { supportedPairs } = await import("../../analysis/recompile/index.js");
   const validTargets = new Set(supportedPairs().filter((p) => p.startsWith("nes→")).map((p) => p.split("→")[1]));
@@ -1715,7 +1715,7 @@ async function recompileCore(args) {
   }
   const mapper = (rom[6] >> 4) | (rom[7] & 0xf0);
   if (mapper !== 0) {
-    throw new Error(`disasm({target:'recompile'}): mapper ${mapper} is not supported in phase 1 — only NROM (mapper 0). Bank-switched carts need the per-bank recompile path (not yet built).`);
+    throw new Error(`disasm({target:'recompile'}): mapper ${mapper} is not supported in phase 1 - only NROM (mapper 0). Bank-switched carts need the per-bank recompile path (not yet built).`);
   }
   const prgSize = rom.length - 16;
   if (prgSize !== 0x4000 && prgSize !== 0x8000) {
@@ -1725,7 +1725,7 @@ async function recompileCore(args) {
   const prgBase = prgSize === 0x4000 ? 0xC000 : 0x8000; // 16KB mirrors into $C000
 
   // Disassemble from the REAL reset vector, not blindly from the PRG base. The
-  // reset routine lives wherever $FFFC/$FFFD point — often deep in PRG, with data
+  // reset routine lives wherever $FFFC/$FFFD point - often deep in PRG, with data
   // or padding ($00 = brk) at the base. Starting at the base translated that
   // padding as 6 garbage `brk`s; starting at the reset vector yields the actual
   // boot routine (robotfindskitten: 6-instr-garbage → 70-instr clean, 0 residue).
@@ -1739,7 +1739,7 @@ async function recompileCore(args) {
   const { runDa65 } = await import("../../toolchains/cc65/da65.js");
   const da = await runDa65({ bytes: codeBytes, cpu: "6502", startAddress: resetVec, options: ["--comments", "4"] });
   const da65Full = da.asm ?? "";
-  // Slice the first routine (the reset path) — a flat disasm renders data tables
+  // Slice the first routine (the reset path) - a flat disasm renders data tables
   // after it as bogus code. Phase 1 = the boot routine.
   const da65Asm = sliceFirstRoutine(da65Full);
 
@@ -1750,7 +1750,7 @@ async function recompileCore(args) {
   // STATUS (WORKING, default OFF): the JS-side conversion (NES 2bpp→SNES 4bpp
   // tiles, NES palette→BGR555 CGRAM, nametable→tilemap) is correct and
   // unit-tested, and the emitted 65816 UPLOAD routine now DMAs all three to SNES
-  // VRAM/CGRAM and turns the screen on — verified end-to-end on snes9x
+  // VRAM/CGRAM and turns the screen on - verified end-to-end on snes9x
   // (test/recompile-shim-render.test.js). It is still OFF by default because
   // phase 1 only draws the STATIC first screen: after the shim, the recompiled
   // NES logic runs against a STUBBED PPU seam, so animation/scroll/sprites are
@@ -1759,7 +1759,7 @@ async function recompileCore(args) {
   // The phase-2 runtime (withRuntime) implies the shim (it needs the BG + tiles
   // the shim uploads); enabling it turns the static port into a LIVE one (sprites
   // animate each vblank, the game's NMI runs). withShim alone is the static path.
-  // The PPU shim/runtime are NES-PPU-on-SNES render layers — SNES target only. A
+  // The PPU shim/runtime are NES-PPU-on-SNES render layers - SNES target only. A
   // Genesis (or other) target is a LOGIC port (presentation seam stubbed); verify
   // it with the RAM-diff oracle, not a rendered screen.
   const snesTarget = targetPlatform === "snes";
@@ -1849,23 +1849,23 @@ async function recompileCore(args) {
     ...(snesTarget ? {
       shim: shimDrawn
         ? { applied: true, phase: runtimeOn ? "live-background" : "static-boot-picture", tiles: shimInfo.tileCount, note: "Emitted the NES-PPU-on-SNES shim (converted tiles/nametable/palette → VRAM/CGRAM, BG1 on). It draws the original ROM's boot screen background." }
-        : { applied: false, reason: shimInfo?.error || "withShim not set (default off)", note: "No PPU shim — the port runs the logic but renders blank. Pass withShim:true (static) or withRuntime:true (live) to draw the original ROM's picture on SNES." },
+        : { applied: false, reason: shimInfo?.error || "withShim not set (default off)", note: "No PPU shim - the port runs the logic but renders blank. Pass withShim:true (static) or withRuntime:true (live) to draw the original ROM's picture on SNES." },
       runtime: runtimeOn
-        ? { applied: true, phase: "live-sprites", gameNmi: nmiInfo?.gameNmi || null, note: "PHASE 2: the per-frame runtime is wired — each vblank it flushes the game's shadow OAM to SNES sprites and runs the game's NMI handler, so sprites ANIMATE (not a static screenshot). Background is from the shim; live nametable streaming is phase 3. Build all emitted files together with build({platform:'snes'})." }
+        ? { applied: true, phase: "live-sprites", gameNmi: nmiInfo?.gameNmi || null, note: "PHASE 2: the per-frame runtime is wired - each vblank it flushes the game's shadow OAM to SNES sprites and runs the game's NMI handler, so sprites ANIMATE (not a static screenshot). Background is from the shim; live nametable streaming is phase 3. Build all emitted files together with build({platform:'snes'})." }
         : { applied: false, note: "Static port (no per-frame runtime). Pass withRuntime:true to animate sprites + run the game's NMI each vblank." },
     } : {
-      port: { kind: "logic-recompile", targetIsa, note: `LOGIC port: the NES 6502 was TRANSLATED to ${targetIsa} (not emulated) — game logic runs, the PPU/APU presentation seam is STUBBED. Build with the platform's toolchain, then VERIFY with the RAM-diff oracle: load the original NES ROM and this port side by side and frame({op:'compareRam'}) the work-RAM mirror. Presentation (a ${targetPlatform} render runtime) is a separate layer.` },
+      port: { kind: "logic-recompile", targetIsa, note: `LOGIC port: the NES 6502 was TRANSLATED to ${targetIsa} (not emulated) - game logic runs, the PPU/APU presentation seam is STUBBED. Build with the platform's toolchain, then VERIFY with the RAM-diff oracle: load the original NES ROM and this port side by side and frame({op:'compareRam'}) the work-RAM mirror. Presentation (a ${targetPlatform} render runtime) is a separate layer.` },
     }),
     note:
       `Recompiled the NES reset${runtimeOn ? " + NMI" : ""} routine(s) to ${targetIsa}. ${instrCount} instrs, ${seamCount} PPU/APU seam calls, ` +
       `${stubbed.length} callee(s) stubbed (isolation), ${residue.length} residue line(s). ` +
       (snesTarget
         ? (runtimeOn
-          ? "PHASE 2: the 6502 logic runs in emulation mode; the runtime flushes sprites + runs the game NMI every vblank, and the shim draws the BG — so the port is LIVE (sprites move). "
+          ? "PHASE 2: the 6502 logic runs in emulation mode; the runtime flushes sprites + runs the game NMI every vblank, and the shim draws the BG - so the port is LIVE (sprites move). "
           : shimDrawn
             ? `The 6502 logic runs in 65816 EMULATION mode; the shim draws the converted static boot picture (${shimInfo.tileCount} tiles). `
             : "The 6502 logic runs in 65816 EMULATION mode; the hardware seam is STUBBED so the port renders blank. ")
-        : `The 6502 logic is TRANSLATED to ${targetIsa} (real ISA translation, not emulation); the PPU/APU seam is STUBBED so it's a LOGIC port — verify with frame({op:'compareRam'}) vs the NES original. `) +
+        : `The 6502 logic is TRANSLATED to ${targetIsa} (real ISA translation, not emulation); the PPU/APU seam is STUBBED so it's a LOGIC port - verify with frame({op:'compareRam'}) vs the NES original. `) +
       (written
         ? `Wrote ${Object.values(written).join(" + ")}. Build with the ${targetPlatform} toolchain; then loadMedia + frame({op:'compareRam'}) vs the NES original.`
         : `Pass outputDir to write the .asm files to disk for build({platform:'${targetPlatform}'}).`),
@@ -1905,7 +1905,7 @@ async function buildNesPpuShim(romBytes) {
 export async function scriptCore(args) {
   const { grammar, address, fileOffset, maxRecords, platform, bank } = args;
   if (!grammar) {
-    throw new Error("disasm({target:'script'}): `grammar` is required — the declarative opcode table (see the tool description). Decode the interpreter first (that's where the grammar comes from), then this target decodes any amount of script data mechanically.");
+    throw new Error("disasm({target:'script'}): `grammar` is required - the declarative opcode table (see the tool description). Decode the interpreter first (that's where the grammar comes from), then this target decodes any amount of script data mechanically.");
   }
   const romPath = requireRomPath(args);
   const data = new Uint8Array(await readFile(romPath));
@@ -1944,70 +1944,70 @@ export async function scriptCore(args) {
 export function registerDisasmTools(server, z) {
   server.tool(
     "disasm",
-    "Disassemble code — raw bytes, a whole ROM (mapper-aware), a full re-buildable project, or find references to " +
+    "Disassemble code - raw bytes, a whole ROM (mapper-aware), a full re-buildable project, or find references to " +
     "an address. `target`: 'bytes' | 'rom' | 'project' | 'references'.\n" +
     "'bytes' = RAW da65 over a chunk (path/base64), 6502-family CPU via `cpu`; emits `.org` so it re-assembles.\n" +
     "'rom' = mapper-aware ROM disassembly with agent annotations: auto-tagged reset/nmi/irq vectors, hardware " +
     "register names on operands, per-line `; @0xNNNN` file offsets ready for romPatch (NES reports .nes AND PRG " +
     "offsets). Platform sniffed from extension. GBA=ARM7TDMI (ARM by default, `thumb:true` for Thumb). Use " +
     "`endAddress`/`untilReturn` for one routine, `dataRanges` to mark non-code, `bank` for a banked slot. " +
-    "pce/msx are 'project'-only here — 'rom' doesn't map them yet.\n" +
+    "pce/msx are 'project'-only here - 'rom' doesn't map them yet.\n" +
     "'project' = turn a ROM into a complete re-buildable disassembly in one call across all systems; splits into " +
     "regions (PER-BANK on every banked format: NES mappers, SNES LoROM, GB MBC, Sega-mapper SMS/GG, MSX megaROM, " +
     "2600 F8/F6/F4, 7800 SuperGame, >32KB HuCards), REASSEMBLES each and verifies BYTE-EXACT (`roundTripOk`); " +
     "non-faithful lines fall back to `.byte` so it ALWAYS rebuilds; `readablePercent` reports instruction-vs-data (a uniform-FILL " +
-    "bank — all $FF/$00 padding — reports `readablePercent:null` + `fill:true`, NOT a bogus 100%). Also writes a `.gitignore` " +
+    "bank - all $FF/$00 padding - reports `readablePercent:null` + `fill:true`, NOT a bogus 100%). Also writes a `.gitignore` " +
     "so the kept `original.rom` (copyrighted ROM data) can't be committed. **LARGE ROM (≥512KB, e.g. a 1MB SNES cart)? Pass " +
-    "`background:true`** — the reassemble can take minutes and would time out the call; you get a `{jobId}` immediately, then poll " +
+    "`background:true`** - the reassemble can take minutes and would time out the call; you get a `{jobId}` immediately, then poll " +
     "`disasm({target:'project', job, outputDir})` (reports `regionsDone/regionsTotal`, then the full result when `status:'done'`). " +
     "REBUILD (one call, ALL 15 classic platforms): `build({output:'reassemble', platform, path})` turns the project " +
-    "dir back into a BYTE-IDENTICAL ROM — it assembles each region + splices them into the kept `original.rom` " +
+    "dir back into a BYTE-IDENTICAL ROM - it assembles each region + splices them into the kept `original.rom` " +
     "(header/gaps/pad verbatim). Edit a region `.asm` first for a change: a same-length edit rebuilds a modified " +
     "ROM (`byteExact:false`), a length-changing edit is refused. NES/C64/7800/Lynx/PCE ALSO ship a cc65-native " +
     "one-call `build({output:'rom'})` recipe in rebuild.json (flat AND banked). (SNES 65816 usually lands at the " +
-    "byte-exact data-only floor — its `.a8/.i8` width state desyncs when instructions and pinned `.byte` mix; the " +
+    "byte-exact data-only floor - its `.a8/.i8` width state desyncs when instructions and pinned `.byte` mix; the " +
     "reassemble rebuild is byte-identical regardless of readability.)\n" +
     "'references' = scan a ROM's code for operands matching a CPU `address` and classify each (call/jump/branch/" +
-    "read/write); also walks the vector table. Banked carts are scanned PER BANK (all of the formats above) — " +
+    "read/write); also walks the vector table. Banked carts are scanned PER BANK (all of the formats above) - " +
     "refs carry `prgBank` (NES) / `romBank` (everything else). LIMITATION: direct addressing only " +
     "(indirect/computed jumps are missed).\n" +
     "── RE ENGINE (Rizin + Ghidra, all platforms incl. the 3D CPUs: MIPS R3000/R4300 + SH-4) ──\n" +
     "'functions' = Rizin auto-detected function list {address,size,nbbs,cc,callers,callees,looksLikeData}; the " +
-    "structural map of an unknown ROM. Sorted REAL CODE FIRST (by nbbs/cc) — don't rank by `size`, which is a lie " +
+    "structural map of an unknown ROM. Sorted REAL CODE FIRST (by nbbs/cc) - don't rank by `size`, which is a lie " +
     "(rizin folds data tables into giant pseudo-functions). `looksLikeData:true` (and the top-level `dataCount`) flags " +
     "those data-folds so you don't waste a decompile on a graphics blob. " +
     "'cfg' = basic-block control-flow graph of the function at `address` (nodes + typed edges: " +
     "jump/branch_true/branch_false). 'xrefs' = every cross-reference TO `address`, following Rizin's analysis graph " +
-    "'script' = decode a DATA region as custom bytecode from a declarative `grammar` (level/map scripts, spawn lists, cutscene command streams, music macros — any in-game interpreter whose opcode shapes you've verified against its dispatch routine). The grammar lives in the CALL, so the decode is reproducible by any future session instead of living in a side script: per-opcode field lists with flag-conditional presence + implied defaults, counted and terminator-ended lists, stop/chain commands. Returns structured records + a machine-readable stop reason; bounds-checked, never crashes on data. Works on every platform (pure byte decoding; `address` maps through banking on the mapped platforms, `fileOffset` works everywhere).\n" +
-    "'sourceLookup' = show YOUR OWN annotated project source for a CPU `address`/range (the annotation session's most-repeated nav op). Reads the project's .asm/.s files under `projectDir` and returns the lines whose trailing address comment (`; E4DB 20 E4 D2`, what disasm({target:'project'}) emits) falls in range, with context — annotations intact, unlike target:'rom' which re-decodes fresh. Replaces the hand-built nibble-class grep over a huge bank file.\n" +
-    "'accessScan' = bound every instruction that can REACH a RAM `address` — the 'who can write this byte' scan. Direct operands PLUS indexed forms whose base sits within `window` below the target or at its page base (sta $0181,y reaching $0182; lda $0100,y reaching page-1 bytes), classified read/write/rmw/pointerLoad with the index offset needed. On Z80/SM83/m68k, where access flows through register bases, it reports the pointer LOADS that take the address (ld hl,$nnnn / lea). Bounds DIRECT access exhaustively; table-driven + fully indirect access still needs watch({on:'range'}) — the result says so. Literal-pool ISAs (GBA) are refused with the live-tool pointer.\n" +
-    "(DEEPER than 'references', which is a flat da65 operand scan — prefer 'xrefs' once you've run a function pass, " +
+    "'script' = decode a DATA region as custom bytecode from a declarative `grammar` (level/map scripts, spawn lists, cutscene command streams, music macros - any in-game interpreter whose opcode shapes you've verified against its dispatch routine). The grammar lives in the CALL, so the decode is reproducible by any future session instead of living in a side script: per-opcode field lists with flag-conditional presence + implied defaults, counted and terminator-ended lists, stop/chain commands. Returns structured records + a machine-readable stop reason; bounds-checked, never crashes on data. Works on every platform (pure byte decoding; `address` maps through banking on the mapped platforms, `fileOffset` works everywhere).\n" +
+    "'sourceLookup' = show YOUR OWN annotated project source for a CPU `address`/range (the annotation session's most-repeated nav op). Reads the project's .asm/.s files under `projectDir` and returns the lines whose trailing address comment (`; E4DB 20 E4 D2`, what disasm({target:'project'}) emits) falls in range, with context - annotations intact, unlike target:'rom' which re-decodes fresh. Replaces the hand-built nibble-class grep over a huge bank file.\n" +
+    "'accessScan' = bound every instruction that can REACH a RAM `address` - the 'who can write this byte' scan. Direct operands PLUS indexed forms whose base sits within `window` below the target or at its page base (sta $0181,y reaching $0182; lda $0100,y reaching page-1 bytes), classified read/write/rmw/pointerLoad with the index offset needed. On Z80/SM83/m68k, where access flows through register bases, it reports the pointer LOADS that take the address (ld hl,$nnnn / lea). Bounds DIRECT access exhaustively; table-driven + fully indirect access still needs watch({on:'range'}) - the result says so. Literal-pool ISAs (GBA) are refused with the live-tool pointer.\n" +
+    "(DEEPER than 'references', which is a flat da65 operand scan - prefer 'xrefs' once you've run a function pass, " +
     "'references' for a quick header-less operand sweep). Typical RE loop: 'functions' to carve → 'cfg'/'xrefs' to " +
     "trace → then the live tools (memory search, write-breakpoints, watch copy) to LABEL what you carved.\n" +
     "'decompile' = Ghidra C-like PSEUDOCODE for the function at `address`, with the decompiler's own WARNINGs and a " +
     "`qualityNote`. Hardware-register MMIO is NAMED in the output (e.g. `PPUMASK = 0x1e;` not `*0x2001 = 0x1e;`) " +
-    "with a `/* hw registers: … */` legend at the top listing each substitution — on platforms with a register map " +
+    "with a `/* hw registers: ... */` legend at the top listing each substitution - on platforms with a register map " +
     "(NES/SNES/Genesis/GB/GBC/SMS/GG/2600/7800/C64). On the 6502 family (NES/2600/7800/C64/Lynx/PCE) a 6502-fold pass also " +
     "cleans the SLEIGH clutter: width types become C99 stdint (uint1→uint8_t, uint2→uint16_t), redundant nested width " +
-    "casts collapse, and zero-page byte refs are named zp_XX — a `/* 6502 fold: … */` legend notes what was applied. ALTITUDE RULE: decompile is for UNDERSTANDING (and as a port spec when retargeting to a bigger " +
-    "machine) — it is NOT the same-platform edit path. To CHANGE a ROM and rebuild it, use target:'project' " +
+    "casts collapse, and zero-page byte refs are named zp_XX - a `/* 6502 fold: ... */` legend notes what was applied. ALTITUDE RULE: decompile is for UNDERSTANDING (and as a port spec when retargeting to a bigger " +
+    "machine) - it is NOT the same-platform edit path. To CHANGE a ROM and rebuild it, use target:'project' " +
     "(byte-exact rebuildable asm); read the pseudocode as documentation alongside it. Per-CPU quality (calibrate, " +
     "don't treat low quality as a bug): ARM/GBA + M68K/Genesis = excellent (mostly-C games, real stack frames); " +
     "SM83/GB + Z80/SMS/GG/MSX = good; 65816/SNES + HuC6280/PCE = medium; 6502 family (NES/2600/7800/C64/Lynx) = " +
-    "rough — carry-flag idioms and 16-bit math on an 8-bit CPU decompile to noise that only reads cleanly once an " +
+    "rough - carry-flag idioms and 16-bit math on an 8-bit CPU decompile to noise that only reads cleanly once an " +
     "LLM folds it. `address` for all four comes from target:'functions' (a CPU/virtual address; the file-offset " +
     "mapping is handled for you).",
     {
-      target: z.enum(["bytes", "rom", "range", "project", "references", "cfg", "xrefs", "functions", "reachable", "decompile", "source", "resolveJumptable", "pointerTable", "recompile", "script", "accessScan", "sourceLookup"]).describe("bytes = raw chunk; rom = mapper-aware ROM (on SNES/65816 it runs the SAME per-instruction M/X width dataflow as target:'project' — in-window rep/sep are followed, entry width is inferred — so a re-decode of one range under corrected widths is one call, no project regen); project = full rebuildable disasm; references = flat da65 operand-refs to an address; functions/cfg/xrefs = Rizin RE engine (function list / control-flow graph / deep graph xrefs); decompile = Ghidra C pseudocode; resolveJumptable = recover a computed-jump dispatcher's targets (LIVE — redirects to breakpoint({on:'jumptable'}), which runs the emulator and records the real switch arms a static decompiler can't follow); range = alias of 'rom' (the natural guess for a ROM-range dump); reachable = the CLOSED SET of basic blocks reachable from one or more `entries`, following BOTH halves of every call (the callee AND the return site) — what a recompiler/decompiler/coverage tool needs; computed jumps are NOT followed and the response says so (resolve them with breakpoint({on:'jumptable'}) and pass the arms back as entries); recompile = EMIT backend — statically recompile a routine to target asm that builds + boots. Sources: nes (6502) and sms/gg/msx/z80 (Z80, one lifter for all four). Targets: snes (65816) and genesis (m68k); an unsupported source→target pair is REFUSED rather than emitting unassemblable text. Hardware is left at a stubbed seam (PPU/APU on 6502, Z80 I/O space on Z80). See the tool description for the RE loop + the decompile altitude rule + per-CPU quality (all 14 platforms)."),
+      target: z.enum(["bytes", "rom", "range", "project", "references", "cfg", "xrefs", "functions", "reachable", "decompile", "source", "resolveJumptable", "pointerTable", "recompile", "script", "accessScan", "sourceLookup"]).describe("bytes = raw chunk; rom = mapper-aware ROM (on SNES/65816 it runs the SAME per-instruction M/X width dataflow as target:'project' - in-window rep/sep are followed, entry width is inferred - so a re-decode of one range under corrected widths is one call, no project regen); project = full rebuildable disasm; references = flat da65 operand-refs to an address; functions/cfg/xrefs = Rizin RE engine (function list / control-flow graph / deep graph xrefs); decompile = Ghidra C pseudocode; resolveJumptable = recover a computed-jump dispatcher's targets (LIVE - redirects to breakpoint({on:'jumptable'}), which runs the emulator and records the real switch arms a static decompiler can't follow); range = alias of 'rom' (the natural guess for a ROM-range dump); reachable = the CLOSED SET of basic blocks reachable from one or more `entries`, following BOTH halves of every call (the callee AND the return site) - what a recompiler/decompiler/coverage tool needs; computed jumps are NOT followed and the response says so (resolve them with breakpoint({on:'jumptable'}) and pass the arms back as entries); recompile = EMIT backend - statically recompile a routine to target asm that builds + boots. Sources: nes (6502) and sms/gg/msx/z80 (Z80, one lifter for all four). Targets: snes (65816) and genesis (m68k); an unsupported source→target pair is REFUSED rather than emitting unassemblable text. Hardware is left at a stubbed seam (PPU/APU on 6502, Z80 I/O space on Z80). See the tool description for the RE loop + the decompile altitude rule + per-CPU quality (all 14 platforms)."),
       // shared
       path: z.string().optional().describe("target=bytes: raw binary path. target=rom/project/references: ROM file path."),
       base64: z.string().optional().describe("target=bytes: base64 of the bytes (OR `path`)."),
       platform: z.enum(DISASM_PLATFORMS).optional().describe("target=rom/project/references: override platform (else sniffed from extension). target=source: pico8 (.p8 carts are Lua source). n64/ps1/dreamcast: functions/cfg/xrefs/decompile (the MIPS/SH-4 RE engine); their bytes/rom/project/references targets are not implemented and return a capability error."),
-      startAddress: z.number().int().min(0).max(0xffffffff).default(0x8000).describe("target=bytes/rom/range/recompile: address of the first byte (GBA auto-bumped to 0x08000000). On target=recompile this is the routine to lift — NOT `address`, which belongs to the analysis targets."),
+      startAddress: z.number().int().min(0).max(0xffffffff).default(0x8000).describe("target=bytes/rom/range/recompile: address of the first byte (GBA auto-bumped to 0x08000000). On target=recompile this is the routine to lift - NOT `address`, which belongs to the analysis targets."),
       length: z.number().int().min(1).max(65536).optional().describe("target=rom/range/recompile: bytes to disassemble or lift (default 256; mutually exclusive with endAddress)."),
       emit: z.enum(["asm", "ir"]).default("asm").describe("target=recompile: asm preserves existing output; ir exports decoded/lifted Z80 instructions as JSONL at outputPath, with byte offsets, CPU addresses, banks, cycles and flags. No WAT backend."),
       allOffsets: z.boolean().default(false).describe("target=recompile emit=ir: export the entire SMS/GG ROM in bank-sized windows in one call, including ROMs larger than 64KB. Linear decode, not reachability proof."),
-      alignments: z.enum(["primary", "all"]).default("primary").describe("target=recompile emit=ir: 'primary' (default) emits ONE linear tiling — every byte owned by exactly one instruction. 'all' additionally emits a decode STARTING at every offset the tiling did not begin an instruction at, marked alignment:'secondary'. A static recompiler needs those: a computed jump (jp (hl), an rst table) can land mid-instruction. Secondary records overlap by design and must NOT be summed against romBytes."),
+      alignments: z.enum(["primary", "all"]).default("primary").describe("target=recompile emit=ir: 'primary' (default) emits ONE linear tiling - every byte owned by exactly one instruction. 'all' additionally emits a decode STARTING at every offset the tiling did not begin an instruction at, marked alignment:'secondary'. A static recompiler needs those: a computed jump (jp (hl), an rst table) can land mid-instruction. Secondary records overlap by design and must NOT be summed against romBytes."),
 
       slot: z.number().int().min(0).max(2).optional().describe("target=recompile emit=ir: CPU slot for exported SMS/GG banks (16KB each). Default bank0 at slot0, bank1 at slot1, other banks at slot2; targets remain CPU addresses."),
       addOrigin: z.boolean().default(true).describe("target=bytes/rom: prepend `.org` so the asm re-assembles through ca65."),
@@ -2019,11 +2019,11 @@ export function registerDisasmTools(server, z) {
       symbolsText: z.string().optional().describe("target=bytes: inline symbol-file text."),
       symbolsFormat: z.enum(["wla", "cc65-lbl"]).optional().describe("target=bytes: explicit symbol-file format override."),
       // rom
-      bank: z.number().int().min(0).max(255).optional().describe("target=rom / range / pointerTable / decompile / reachable: switchable ROM bank to map into the windowed slot. NES (mapper>0, $8000), GB/GBC ($4000), SMS/GG (Sega-mapper slot 2, $8000), Atari 2600/7800 (SuperGame $8000). SNES: the bank IS the address high byte — pass either a full 24-bit startAddress ($02AF86) OR a bank-local address + bank:2 (composed to $02AF86 internally); both map correctly. Flat platforms (Genesis/GBA/Lynx/C64) have no cart banking — a non-zero `bank` is REJECTED, never silently applied to bank 0. target=decompile NEEDS this for a switchable-mapper address: a live CPU address like $AAC5 on MMC1 has no bank in it, so without `bank` the decompiler reads bank 0 — which usually holds $FF filler there and returns \"bad instruction data\". Take the bank from a breakpoint/watch result (they report bank + prgOffset) or from where you know the code lives."),
-      thumb: z.boolean().default(false).describe("target=rom: GBA — disassemble as THUMB (16-bit) instead of ARM."),
-      widths: z.object({ a: z.union([z.literal(8), z.literal(16)]).optional(), i: z.union([z.literal(8), z.literal(16)]).optional() }).optional().describe("target=rom, SNES/65816 — FORCE the ENTRY width (a = accumulator/M, i = index/X, default 8) instead of inferring it. Use when YOU know the width (live P capture, surrounding code) for a window with no in-window caller — e.g. widths:{a:16,i:16} to decode a blob entered in 16-bit mode. In-window rep/sep are still followed."),
+      bank: z.number().int().min(0).max(255).optional().describe("target=rom / range / pointerTable / decompile / reachable: switchable ROM bank to map into the windowed slot. NES (mapper>0, $8000), GB/GBC ($4000), SMS/GG (Sega-mapper slot 2, $8000), Atari 2600/7800 (SuperGame $8000). SNES: the bank IS the address high byte - pass either a full 24-bit startAddress ($02AF86) OR a bank-local address + bank:2 (composed to $02AF86 internally); both map correctly. Flat platforms (Genesis/GBA/Lynx/C64) have no cart banking - a non-zero `bank` is REJECTED, never silently applied to bank 0. target=decompile NEEDS this for a switchable-mapper address: a live CPU address like $AAC5 on MMC1 has no bank in it, so without `bank` the decompiler reads bank 0 - which usually holds $FF filler there and returns \"bad instruction data\". Take the bank from a breakpoint/watch result (they report bank + prgOffset) or from where you know the code lives."),
+      thumb: z.boolean().default(false).describe("target=rom: GBA - disassemble as THUMB (16-bit) instead of ARM."),
+      widths: z.object({ a: z.union([z.literal(8), z.literal(16)]).optional(), i: z.union([z.literal(8), z.literal(16)]).optional() }).optional().describe("target=rom, SNES/65816 - FORCE the ENTRY width (a = accumulator/M, i = index/X, default 8) instead of inferring it. Use when YOU know the width (live P capture, surrounding code) for a window with no in-window caller - e.g. widths:{a:16,i:16} to decode a blob entered in 16-bit mode. In-window rep/sep are still followed."),
       endAddress: z.number().int().min(0).max(0xffffff).optional().describe("target=rom: CPU end address (inclusive); alternative to length."),
-      untilReturn: z.boolean().default(false).describe("target=rom: stop at the first return/unconditional-jump (rts/rti/rtl/jmp, or ret/reti/jp per CPU) — grab one routine."),
+      untilReturn: z.boolean().default(false).describe("target=rom: stop at the first return/unconditional-jump (rts/rti/rtl/jmp, or ret/reti/jp per CPU) - grab one routine."),
       mapper: z.enum(["lorom", "hirom", "sega", "codemasters", "korean", "korean-16k-v2"]).optional().describe("Static mapping only: SNES lorom/hirom; SMS/GG rom/recompile sega/codemasters/korean (A000 16KB)/korean-16k-v2 (4000+8000). Does not change runtime core mapper detection. Other Korean boards are not implied."),
       mapperState: z.object({ pages: z.tuple([z.number().int().min(0).max(255), z.number().int().min(0).max(255), z.number().int().min(0).max(255)]), control: z.number().int().min(0).max(255).optional(), ramEnabled: z.boolean().optional() }).optional().describe("SMS/GG rom/recompile CPU mapping: three physical 16KB page indices; Sega control register or Codemasters ramEnabled. Cartridge RAM is rejected as ROM. Physical allOffsets export does not use mapper state."),
       dataRanges: z.array(z.object({
@@ -2035,46 +2035,46 @@ export function registerDisasmTools(server, z) {
       annotateFileOffsets: z.boolean().default(true).describe("target=rom: append `; @0xNNNN` file offset to every line (for romPatch)."),
       // project
       outputDir: z.string().optional().describe("target=project: directory to write the project into (one .asm per region). target=recompile: directory to write main.asm + nes_seam.asm for build({platform:'snes'})."),
-      background: z.boolean().default(false).describe("target=project: run the disassembly in the BACKGROUND and return IMMEDIATELY with a {jobId} instead of blocking. Use this for LARGE ROMs (≥512KB — a multi-bank SNES/Genesis cart) where the full reassemble can take minutes and would otherwise time out the tool call. Poll with disasm({target:'project', job:'<jobId>', outputDir}) until status is 'done' (or 'error'); the final poll returns the same payload the synchronous call would have. Small ROMs don't need this — they finish well within the call."),
+      background: z.boolean().default(false).describe("target=project: run the disassembly in the BACKGROUND and return IMMEDIATELY with a {jobId} instead of blocking. Use this for LARGE ROMs (≥512KB - a multi-bank SNES/Genesis cart) where the full reassemble can take minutes and would otherwise time out the tool call. Poll with disasm({target:'project', job:'<jobId>', outputDir}) until status is 'done' (or 'error'); the final poll returns the same payload the synchronous call would have. Small ROMs don't need this - they finish well within the call."),
       job: z.string().optional().describe("target=project: poll a background job started with background:true. Pass the jobId you got back (and the same outputDir). Returns {status:'running', regionsDone, regionsTotal} while working, or the full completion payload once status is 'done'. On 'error' the failure reason is included."),
       targetPlatform: z.string().optional().describe("target=recompile: the platform to EMIT (default 'snes'). The engine is generic (lift source→IR→emit target): 'snes' = 1:1 emulation-mode port with the PPU render layers (withShim/withRuntime); 'genesis' = real 6502→68000 LOGIC translation (presentation stubbed, verify with frame({op:'compareRam'})). Source `platform` is 'nes' today; more source lifters land as built."),
-      withShim: z.boolean().default(false).describe("target=recompile: phase-1 STATIC render (default off). Emit the NES-PPU-on-SNES shim — boots the original ROM, converts its tiles/nametable/palette to SNES VRAM/CGRAM data + a 65816 upload routine that draws the original's STATIC boot screen on SNES (verified on snes9x). Draws the first screen only; sprites don't animate. For a LIVE port use withRuntime instead."),
-      withRuntime: z.boolean().default(false).describe("target=recompile: phase-2 LIVE render (default off). Implies withShim (BG) and adds the per-frame runtime: each vblank it flushes the game's shadow OAM to SNES sprites and runs the game's own NMI handler, so SPRITES ANIMATE and the game's per-frame logic runs — the port plays, not just boots to a screenshot. Background is static from the shim; live nametable/scroll streaming is phase 3. Verified on snes9x."),
+      withShim: z.boolean().default(false).describe("target=recompile: phase-1 STATIC render (default off). Emit the NES-PPU-on-SNES shim - boots the original ROM, converts its tiles/nametable/palette to SNES VRAM/CGRAM data + a 65816 upload routine that draws the original's STATIC boot screen on SNES (verified on snes9x). Draws the first screen only; sprites don't animate. For a LIVE port use withRuntime instead."),
+      withRuntime: z.boolean().default(false).describe("target=recompile: phase-2 LIVE render (default off). Implies withShim (BG) and adds the per-frame runtime: each vblank it flushes the game's shadow OAM to SNES sprites and runs the game's own NMI handler, so SPRITES ANIMATE and the game's per-frame logic runs - the port plays, not just boots to a screenshot. Background is static from the shim; live nametable/scroll streaming is phase 3. Verified on snes9x."),
       // references / cfg / xrefs
       topN: z.number().int().min(1).max(20000).optional().describe("target=functions: how many functions to return, most code-like first. DEFAULT: all of them. Pass a number to cap. When capped, the array is named `functionsPage` (not `functions`) and `truncated`/`total` are set, so a truncated read cannot be mistaken for a complete one."),
       entries: z.array(z.union([
         z.number().int().min(0).max(0xFFFFFFFF),
         z.tuple([z.number().int().min(0).max(0xFFFFFFFF), z.number().int().min(0)]),
         z.object({ address: z.number().int().min(0).max(0xFFFFFFFF), bank: z.number().int().min(0).optional() }),
-      ])).optional().describe("target=reachable: entry points for the walk (reset vector, IRQ/NMI handlers, jumptable arms recovered via breakpoint({on:'jumptable'})). On a BANKED cart an address in the paged window means different code per bank, so pass [address, bank] pairs or {address, bank} objects there — a bare address is walked against whichever bank the flat image holds, and the response says so. `address` is accepted as a one-entry shorthand; a top-level `bank` applies to every bare entry."),
+      ])).optional().describe("target=reachable: entry points for the walk (reset vector, IRQ/NMI handlers, jumptable arms recovered via breakpoint({on:'jumptable'})). On a BANKED cart an address in the paged window means different code per bank, so pass [address, bank] pairs or {address, bank} objects there - a bare address is walked against whichever bank the flat image holds, and the response says so. `address` is accepted as a one-entry shorthand; a top-level `bank` applies to every bare entry."),
       maxBlocks: z.number().int().min(1).max(200000).optional().describe("target=reachable: stop after this many basic blocks (default 20000). Sets `truncated` when hit."),
       minSize: z.number().int().min(0).optional().describe("target=functions: drop functions smaller than this many bytes. A cc65 ROM is roughly half 1-15 byte runtime stubs with no RE signal; minSize:32 removes them."),
       address: z.number().int().min(0).max(0xFFFFFFFF).optional().describe("target=references: CPU address to find references TO. target=cfg: address inside the function to graph. target=xrefs: address to find cross-references TO. target=decompile: address of the function to decompile (use an address from target='functions')."),
       maxRefsReturned: z.number().int().min(1).max(2048).default(256).describe("target=references: cap the references returned."),
-      includeTableHits: z.boolean().default(false).describe("target=references: also scan the raw ROM for the address as a 16-bit POINTER (LE/BE, + the 6502 RTS-trick addr-1) — finds inline jump-table / trampoline call sites that no jsr/jmp/branch names. Auto-on when no direct refs are found; set true to get tableHits alongside direct refs too."),
+      includeTableHits: z.boolean().default(false).describe("target=references: also scan the raw ROM for the address as a 16-bit POINTER (LE/BE, + the 6502 RTS-trick addr-1) - finds inline jump-table / trampoline call sites that no jsr/jmp/branch names. Auto-on when no direct refs are found; set true to get tableHits alongside direct refs too."),
       // target=pointerTable
       loBase: z.number().int().min(0).max(0xFFFFFF).optional().describe("target=pointerTable: CPU address of the table (contiguous form) OR the LOW-byte array (split form). Required."),
       hiBase: z.number().int().min(0).max(0xFFFFFF).optional().describe("target=pointerTable: CPU address of the HIGH-byte array (SPLIT lo/hi form). Omit for a contiguous `dw` table (hi byte follows each lo byte)."),
       count: z.number().int().min(1).max(4096).optional().describe("target=pointerTable: number of entries to decode."),
       convention: z.enum(["direct", "rts+1"]).default("direct").describe("target=pointerTable: 'direct' = the stored word IS the handler; 'rts+1' = the 6502 RTS-trick (table holds handler-1; +1 is applied)."),
       grammar: z.record(z.string(), z.any()).optional().describe("target=script: the declarative bytecode grammar. {endian?, recordPrefix?: [field...], opcode?: {type}, commands: {'<opcode>': {name, fields?: [field...], stop?, chain?: '<fieldName>'}}, unknownOpcode?: 'stop'|'error'}. field = {name, type: u8|i8|u16|i16|u24|u32, if?: {field, mask?, eq|ne}, default?, pointer?, repeat?: {count: '<field>'|N} | {until: {name, type, gte|eq}}, fields?: [...]}. `if` reads already-decoded fields ((value & mask) vs eq/ne) so flag-gated layouts ('bit 7 set = delay omitted') are one line; `default` records the implied value when the condition fails. repeat.until reads the leading field each iteration and ends the list (terminator consumed) when it trips."),
-      // ONE declaration for both uses. This key was declared twice — once for
-      // target=recompile emit=ir and once for target=script — and an object
+      // ONE declaration for both uses. This key was declared twice - once for
+      // target=recompile emit=ir and once for target=script - and an object
       // literal keeps only the LAST, so the recompile form silently lost its
       // min(0) bound and its documentation.
       fileOffset: z.number().int().min(0).optional().describe("target=recompile emit=ir: physical ROM byte offset, explicitly distinct from startAddress (CPU address). target=script: raw file offset of the script start (alternative to `address`, which maps through the platform's banking)."),
       maxRecords: z.number().int().optional().describe("target=script: decode cap (default 256)."),
-      project: z.string().optional().describe("target=decompile, n64: a decomp-registered project id (decomp({op:'import'})) — the VA is resolved through the project's splat segment map (relocated segments + overlays) and the output is symbolized with the project's names. Without it the header-entry formula is used, which maps ONLY the boot segment (the result says so)."),
+      project: z.string().optional().describe("target=decompile, n64: a decomp-registered project id (decomp({op:'import'})) - the VA is resolved through the project's splat segment map (relocated segments + overlays) and the output is symbolized with the project's names. Without it the header-entry formula is used, which maps ONLY the boot segment (the result says so)."),
       splatYaml: z.string().optional().describe("target=decompile, n64: path to a splat yaml to use for segment mapping when no project is registered."),
       segment: z.string().optional().describe("target=decompile, n64: segment name to disambiguate an overlay VA (the error for an ambiguous VA lists the candidates)."),
       projectDir: z.string().optional().describe("target=sourceLookup (or target='source', which routes here when this is set): the disasm PROJECT root (the dir with your annotated .asm/.s files). Searched recursively."),
       context: z.number().int().min(0).max(20).optional().describe("target=sourceLookup: source lines of context each side of a hit block (default 2)."),
-      window: z.number().int().min(0).max(64).optional().describe("target=accessScan: how far below the target an indexed/pointer BASE may sit and still count as reaching it (default 2 — catches base-1/base-2 index-from-1 loops; the target's page base $xx00 is always checked too)."),
+      window: z.number().int().min(0).max(64).optional().describe("target=accessScan: how far below the target an indexed/pointer BASE may sit and still count as reaching it (default 2 - catches base-1/base-2 index-from-1 loops; the target's page base $xx00 is always checked too)."),
       banks: z.array(z.number().int().min(0)).optional().describe("target=accessScan: scan ONLY these banks. The fix for a flooded scan: a DATA bank's bytes decode as fiction that still boundary-verifies, and on 6502 a zero-page target hits constantly inside tile/level data (`C6 C0`, `01 C0` are ordinary byte pairs). If you know banks 6-7 hold the code, banks:[6,7] turns hundreds of junk sites into the real answer."),
-      maxSitesPerBank: z.number().int().min(1).max(4096).optional().describe("target=accessScan: cap the rows returned PER BANK (default 32). Without a per-bank cap a flooded data bank consumes the whole `maxRefsReturned` budget and truncates away the real hits from the code banks; each bank now gets its own slice, so a handful of genuine sites always survive however loud a data bank is. `sitesFound` and `perBank` still report the true totals — only the ROWS are bounded."),
-      excludeBanks: z.array(z.number().int().min(0)).optional().describe("target=accessScan: scan every bank EXCEPT these — the inverse of `banks`, for when the data banks are the short list. See `perBank` in the result for which banks are dense enough to suspect."),
-      endian: z.enum(["LE", "BE"]).optional().describe("target=pointerTable: byte order of the CONTIGUOUS form (split lo/hi ignores this). Default follows the CPU — Genesis/m68k is BE, everything else LE; override only if a table is stored against type."),
-      reverseHandler: z.number().int().min(0).max(0xFFFF).optional().describe("target=pointerTable: also report which dispatch INDEX/indices land on this handler address (reverse lookup — 'what state triggers this routine?')."),
+      maxSitesPerBank: z.number().int().min(1).max(4096).optional().describe("target=accessScan: cap the rows returned PER BANK (default 32). Without a per-bank cap a flooded data bank consumes the whole `maxRefsReturned` budget and truncates away the real hits from the code banks; each bank now gets its own slice, so a handful of genuine sites always survive however loud a data bank is. `sitesFound` and `perBank` still report the true totals - only the ROWS are bounded."),
+      excludeBanks: z.array(z.number().int().min(0)).optional().describe("target=accessScan: scan every bank EXCEPT these - the inverse of `banks`, for when the data banks are the short list. See `perBank` in the result for which banks are dense enough to suspect."),
+      endian: z.enum(["LE", "BE"]).optional().describe("target=pointerTable: byte order of the CONTIGUOUS form (split lo/hi ignores this). Default follows the CPU - Genesis/m68k is BE, everything else LE; override only if a table is stored against type."),
+      reverseHandler: z.number().int().min(0).max(0xFFFF).optional().describe("target=pointerTable: also report which dispatch INDEX/indices land on this handler address (reverse lookup - 'what state triggers this routine?')."),
     },
     safeTool(async (args) => {
       const smsMapper = ["sega", "codemasters", "korean", "korean-16k-v2"].includes(args.mapper);
@@ -2140,7 +2140,7 @@ export function registerDisasmTools(server, z) {
         case "sourceLookup": return jsonContent(await sourceLookupCore(args));
         case "resolveJumptable":
           // A4: jumptable recovery is fundamentally a LIVE operation (it needs a
-          // running emulator to observe the computed targets) — disasm is static
+          // running emulator to observe the computed targets) - disasm is static
           // ROM analysis with no session. Redirect to the live op rather than
           // silently doing nothing.
           return jsonContent({
@@ -2148,7 +2148,7 @@ export function registerDisasmTools(server, z) {
             redirect: "breakpoint({on:'jumptable'})",
             address: args.address != null ? "$" + (args.address >>> 0).toString(16).toUpperCase() : null,
             note: "Computed-jumptable recovery is LIVE, not static: it breaks at the dispatcher in a RUNNING emulator, single-steps through the indirect JMP (table,X)/RTS-trick, and records the targets it actually lands on. Load the ROM (playtest/loadMedia), drive it to the state that runs the dispatcher, then call breakpoint({on:'jumptable', address" +
-              (args.address != null ? `: ${args.address}` : "") + "}). That returns the distinct computed targets; decompile({address: target}) each to read the switch arms. No static-only tool can do this — it needs the live emulator.",
+              (args.address != null ? `: ${args.address}` : "") + "}). That returns the distinct computed targets; decompile({address: target}) each to read the switch arms. No static-only tool can do this - it needs the live emulator.",
           });
         default: throw new Error(`disasm: unknown target '${args.target}'`);
       }
@@ -2172,7 +2172,7 @@ function trimTrailingPad(bytes) {
  * byte-spans as {start, end} FILE offsets (merged, sorted). Data-flagged
  * pseudo-functions (graphics/tables mis-detected as code) are excluded. This is
  * the code/data map that lets reassembly disassemble only real code and `.byte`
- * the rest — the fix for the whole-region-floors-to-.byte readability problem.
+ * the rest - the fix for the whole-region-floors-to-.byte readability problem.
  * 6502/65816 only for now (the platforms whose da65 path desyncs on data); other
  * families fall through to null and keep the whole-region heal.
  * @returns {Promise<Array<{start:number,end:number}>|null>}
@@ -2183,13 +2183,13 @@ async function extractCodeSpans(romPath, platform) {
   // families ONLY: 6502 (nes/c64/atari/pce/lynx/gametank) + 65816 (snes). da65
   // decodes only what its info-file marks as Code, so a gap needs a span map and
   // speculative recovery. The GNU families (m68k/z80/sm83/arm) use objdump, which
-  // does a full LINEAR sweep — it already decodes every byte as an instruction
+  // does a full LINEAR sweep - it already decodes every byte as an instruction
   // (reachable-code-missed can't happen there), so a span map would only DEGRADE
   // them by forcing correctly-decoded gaps to `.byte`. They intentionally get no
   // spans (verified: whole-region objdump decodes a rizin-missed routine fine).
   if (fam !== "6502" && fam !== "65816") return null;
   const { analyzeFunctions } = await import("../../analysis/analyze.js");
-  // topN: Infinity — this builds a code-span MAP and needs every function, not
+  // topN: Infinity - this builds a code-span MAP and needs every function, not
   // the 25 most interesting ones. The tool-facing default caps the response for
   // context reasons; truncating here would silently degrade the disassembly.
   const res = await analyzeFunctions(romPath, platform, { topN: Number.MAX_SAFE_INTEGER });
@@ -2244,17 +2244,17 @@ function spansForRegion(codeSpans, fileOffset, regionLen) {
 // Max bytes per disasm/reassemble region. The reassembler's heal loop is
 // SUPERLINEAR in region size (it re-assembles the whole growing region every
 // pass), so a single large flat region (e.g. a ~500KB Genesis ROM) can take
-// minutes and monopolize the WASM worker — the MCP server appears locked up.
+// minutes and monopolize the WASM worker - the MCP server appears locked up.
 // Bounding each region keeps every heal loop fast AND lets planRegions' consumers
 // run them across the worker pool in parallel. 32KB matched the sweet spot in
-// timing (32KB ≈ 2s vs 64KB ≈ 8s — the superlinearity is steep).
+// timing (32KB ≈ 2s vs 64KB ≈ 8s - the superlinearity is steep).
 const FLAT_REGION_CHUNK = 0x8000;
 
 /**
  * Split a flat code `body` (already pad-trimmed) starting at CPU/file `start`
  * into ≤FLAT_REGION_CHUNK-byte regions. One region if it fits; else chunkN.asm
  * pieces at consecutive offsets. A chunk boundary that splits an instruction
- * just floors those bytes to `.byte` in each piece — still byte-exact, since the
+ * just floors those bytes to `.byte` in each piece - still byte-exact, since the
  * reassemble rebuild splices each region into the original by fileOffset.
  * @returns {Array<{name,file,bytes,startAddress,fileOffset,label}>}
  */
@@ -2316,7 +2316,7 @@ function sniffPlatformFromPath(p) {
   if (/\.gba$/i.test(p)) return "gba";
   if (/\.gtr$/i.test(p)) return "gametank";
   if (/\.(z64|n64|v64)$/i.test(p)) return "n64";
-  if (/\.(psexe|psx)$/i.test(p)) return "ps1"; // .exe/.bin are ambiguous — pass platform explicitly
+  if (/\.(psexe|psx)$/i.test(p)) return "ps1"; // .exe/.bin are ambiguous - pass platform explicitly
   if (/\.(gen|md|bin)$/i.test(p)) return "genesis";
   return null;
 }
@@ -2381,9 +2381,9 @@ function planRegions(platform, data) {
     return regions;
   }
   if (platform === "sms" || platform === "gg") {
-    // Z80 mapped at $0000. ≤48KB fits the three slots flat — one region.
+    // Z80 mapped at $0000. ≤48KB fits the three slots flat - one region.
     // Bigger carts use the Sega mapper: 16KB banks, banks 0-1 fixed in slots
-    // 0-1 ($0000/$4000), banks 2+ page into slot 2 ($8000) — one region per
+    // 0-1 ($0000/$4000), banks 2+ page into slot 2 ($8000) - one region per
     // bank so instructions never straddle a bank edge and every bank gets a
     // correct base address.
     if (data.length <= 0xC000) {
@@ -2412,7 +2412,7 @@ function planRegions(platform, data) {
     const body = trimTrailingPad(data.slice(start));
     // CHUNK the flat region. The m68k heal loop is superlinear in region size
     // (it re-assembles the whole growing region each pass), so one ~500KB flat
-    // region took ~5 MINUTES — the MCP server appeared LOCKED UP. Splitting into
+    // region took ~5 MINUTES - the MCP server appeared LOCKED UP. Splitting into
     // bounded chunks makes each heal loop fast AND lets the per-region loop run
     // them across the worker pool in parallel (a 512KB cart: ~5min → ~15s). A
     // chunk boundary that splits an instruction just floors those bytes to
@@ -2427,7 +2427,7 @@ function planRegions(platform, data) {
   }
   if (platform === "atari2600") {
     // 4KB carts map flat at $F000. Banked carts (F8=8KB, F6=16KB, F4=32KB)
-    // page 4KB banks into the SAME $F000 window — one region per bank.
+    // page 4KB banks into the SAME $F000 window - one region per bank.
     if (data.length <= 0x1000) {
       regions.push({ name: "rom", file: "rom.asm", bytes: data.slice(0), startAddress: 0xF000, fileOffset: 0, label: "4KB cart @ $F000" });
       return regions;
@@ -2481,7 +2481,7 @@ function planRegions(platform, data) {
     return regions;
   }
   if (platform === "lynx") {
-    // The Lynx CPU is a 65C02 — the 6502-family da65/ca65 reassembly path
+    // The Lynx CPU is a 65C02 - the 6502-family da65/ca65 reassembly path
     // already handles it (CPU_FAMILY.lynx === "6502" in reassemble.js). A `.lnx`
     // file is a 64-byte LNX header ("LYNX" magic) followed by the raw cart
     // image; an unheadered `.o`/`.bin` is the image directly. Strip the header,
@@ -2496,20 +2496,20 @@ function planRegions(platform, data) {
     regions.push({
       name: "cart", file: "cart.asm", bytes: body,
       startAddress: 0x0200, fileOffset: base,
-      label: `Lynx 65C02 cart @ $0200 (ASSUMED load addr — loader-dependent)${hasLnxHeader ? ", LNX header stripped" : ""}`,
+      label: `Lynx 65C02 cart @ $0200 (ASSUMED load addr - loader-dependent)${hasLnxHeader ? ", LNX header stripped" : ""}`,
     });
     return regions;
   }
   if (platform === "pce") {
     // PC Engine HuCard: the HuC6280 (65C02-family) image, banked in 8KB pages
     // via the MPRs. A 512-byte copier header (len % 1024 == 512) is split into
-    // its own data region. NO trailing-pad trim — HuCard $FF padding is REAL
+    // its own data region. NO trailing-pad trim - HuCard $FF padding is REAL
     // cart bytes and trimming it made the old rebuild lossy (the planner's own
     // notes flagged this as the fix needed).
     //   ≤32KB: flat at the top of the address space (vectors at $FFF6+ land
-    //          correctly — the proven small-HuCard assumption).
+    //          correctly - the proven small-HuCard assumption).
     //   >32KB: one region per 8KB page; page 0 at $E000 (where MPR7 maps it
-    //          at reset — the vectors live there), pages 1+ at $8000 (neutral
+    //          at reset - the vectors live there), pages 1+ at $8000 (neutral
     //          window; bank registers decide at runtime).
     const hasCopier = (data.length % 1024) === 512;
     const base = hasCopier ? 512 : 0;
@@ -2538,14 +2538,14 @@ function planRegions(platform, data) {
         name: `page${b}`, file: `page${b}.asm`,
         bytes: body.slice(b * PAGE, (b + 1) * PAGE),
         startAddress: org, fileOffset: base + b * PAGE,
-        label: `HuCard 8KB page ${b}${b === 0 ? " (reset MPR7 → $E000, vectors)" : " ($8000 ASSUMED — MPRs map pages at runtime)"}`,
+        label: `HuCard 8KB page ${b}${b === 0 ? " (reset MPR7 → $E000, vectors)" : " ($8000 ASSUMED - MPRs map pages at runtime)"}`,
       });
     }
     return regions;
   }
   if (platform === "gametank") {
     // GameTank (Clyde Shaffer's open W65C02S console): a flat, size-keyed EEPROM
-    // cart (default 32KB = EEPROM32K) mapped so the image ends at $FFFF — a 32KB
+    // cart (default 32KB = EEPROM32K) mapped so the image ends at $FFFF - a 32KB
     // ROM spans $8000-$FFFF, with the 6-byte NMI/RESET/IRQ vector table at $FFFA.
     // One flat region at the top of the address space; the 65C02 rides the same
     // da65/ca65 6502-family path (--cpu 65c02). No trailing-pad trim: the cart is
@@ -2562,7 +2562,7 @@ function planRegions(platform, data) {
     // MSX cartridge maps at $4000-$BFFF; the 16-byte "AB" header at $4000 is
     // data (magic + INIT/STATEMENT/DEVICE/TEXT pointers), code follows.
     //   ≤32KB: skip the header, one flat region from $4010.
-    //   >32KB (megaROM): 16KB banks via an ASCII16-style mapper — bank 0 at
+    //   >32KB (megaROM): 16KB banks via an ASCII16-style mapper - bank 0 at
     //   $4000 (header split out as a data region), banks 1+ at $8000.
     const hdr = data.length >= 2 && data[0] === 0x41 && data[1] === 0x42;
     const base = hdr ? 16 : 0;
@@ -2590,7 +2590,7 @@ function planRegions(platform, data) {
         name: `bank${b}`, file: `bank${b}.asm`,
         bytes: data.slice(b * BANK + skip, (b + 1) * BANK),
         startAddress: org, fileOffset: b * BANK + skip,
-        label: `megaROM 16KB bank ${b}${b === 0 ? ` ($${org.toString(16)})` : " ($8000 ASSUMED — mapper pages at runtime)"}`,
+        label: `megaROM 16KB bank ${b}${b === 0 ? ` ($${org.toString(16)})` : " ($8000 ASSUMED - mapper pages at runtime)"}`,
       });
     }
     return regions;
@@ -2598,13 +2598,13 @@ function planRegions(platform, data) {
   if (platform === "gba") {
     // GBA = ARM7TDMI. ROM maps flat at 0x08000000.
     //   0x000-0x0BF (192 B) = the cartridge HEADER (entry branch, Nintendo logo,
-    //     title, checksums) — pure DATA. Disassembling it as code = garbage, so
+    //     title, checksums) - pure DATA. Disassembling it as code = garbage, so
     //     it's its own data-only region.
     //   0x0C0+ = code. Disassembled in ARM mode. HONEST CAVEAT: most GBA C code
     //     is compiled as THUMB (16-bit), which an ARM-mode disassembly decodes
     //     as garbage → it falls back to byte-exact `.byte` (low readability).
     //     Per-region ARM/Thumb mode-tracking isn't built yet (it's a real
-    //     feature — the Thumb spans LOOK like valid ARM, including fake `bx`es,
+    //     feature - the Thumb spans LOOK like valid ARM, including fake `bx`es,
     //     so naive mode-switch following is unreliable). To READ Thumb code use
     //     disassembleRom({platform:'gba', thumb:true}) on the span. The project
     //     ALWAYS rebuilds byte-exact regardless.
@@ -2616,7 +2616,7 @@ function planRegions(platform, data) {
     regions.push({
       name: "code", file: "code.asm", bytes: trimTrailingPad(data.slice(0xC0)),
       startAddress: 0x080000C0, fileOffset: 0xC0,
-      label: "GBA code @ 0x080000C0 (ARM7TDMI, ARM mode) — Thumb spans fall back to byte-exact data; use disassembleRom({thumb:true}) to read them",
+      label: "GBA code @ 0x080000C0 (ARM7TDMI, ARM mode) - Thumb spans fall back to byte-exact data; use disassembleRom({thumb:true}) to read them",
     });
     return regions;
   }
@@ -2665,7 +2665,7 @@ function firstErrorLine(text) {
  * except where the agent marked data.
  *
  * da65 errors with "Duplicate style for address ..." if any byte is covered
- * by two RANGEs — so we partition [startAddress, endAddress] into Code
+ * by two RANGEs - so we partition [startAddress, endAddress] into Code
  * gaps around the data ranges, rather than declaring one big Code RANGE
  * with data RANGEs on top.
  */

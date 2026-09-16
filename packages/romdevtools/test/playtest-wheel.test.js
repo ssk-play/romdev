@@ -1,7 +1,7 @@
 // The playtest window forwards the scroll wheel to the cart.
 //
 // 0.118.0 taught `input({op:'wheel'})` to reach a cart, which fixed the
-// HEADLESS path — but it never touched playtest.js, so the window itself
+// HEADLESS path - but it never touched playtest.js, so the window itself
 // still dropped every platform wheel event on the floor. A cart whose only
 // mouse zoom is the wheel was therefore driveable by an agent and NOT by the
 // human holding the mouse, which reads as a broken game rather than a
@@ -35,11 +35,11 @@ test("several notches scale linearly", () => {
 test("a trackpad fraction survives instead of truncating to nothing", () => {
   // THE control for the rounding rule: a slow two-finger drag is a run of
   // small fractions. Truncated, the smallest of them are zero and the
-  // gesture silently does nothing — indistinguishable from no handler.
+  // gesture silently does nothing - indistinguishable from no handler.
   //
   // The values here are chosen to DISCRIMINATE. 0.25 and 0.1 do not: they
   // land on 30 and 12 exactly, so trunc and round agree and a sabotaged
-  // build passes (verified — the first version of this test did exactly
+  // build passes (verified - the first version of this test did exactly
   // that). A delta whose *120 has a fractional part is the only thing that
   // tells the two apart.
   // 0.006 * 120 = 0.72 -> rounds to 1, truncates to 0.

@@ -1,5 +1,5 @@
 // Verify createProject scaffolds correctly for every platform that has a
-// template — and that the resulting project actually builds via the same
+// template - and that the resulting project actually builds via the same
 // MCP tools an agent would call.
 //
 // Each subtest:
@@ -63,7 +63,7 @@ for (const c of SCAFFOLD_CHECKS) {
       assert.equal(res.platform, c.platform);
       const onDisk = readdirSync(tmp).sort();
       for (const f of c.expectFiles) {
-        assert.ok(onDisk.includes(f), `expected ${f} in ${tmp} — got ${onDisk.join(", ")}`);
+        assert.ok(onDisk.includes(f), `expected ${f} in ${tmp} - got ${onDisk.join(", ")}`);
       }
       // README should mention romdev + the right toolchain.
       const readme = readFileSync(path.join(tmp, "README.md"), "utf-8");
@@ -81,7 +81,7 @@ for (const c of SCAFFOLD_CHECKS) {
 // ── A single end-to-end build test per new platform that confirms the
 // scaffolded project actually compiles. Picks SMS (cleanest hw.h) +
 // C64 (cc65 path) + SNES (asar path with incsrc snippets) + Genesis
-// (vasm68k path with incsrc snippets) — covers all four toolchain
+// (vasm68k path with incsrc snippets) - covers all four toolchain
 // flavors among the new templates. The other Z80 platform (gg) shares
 // the SDCC z80 path validated by SMS. ───────────────────────────────
 
@@ -143,7 +143,7 @@ test("createProject(snes, template:c_hello) → builds via PVSnesLib runtime", a
     // Confirm both files landed.
     const onDisk = readdirSync(tmp).sort();
     for (const f of ["main.c", "data.asm", "README.md", ".gitignore"]) {
-      assert.ok(onDisk.includes(f), `missing ${f} — got ${onDisk.join(", ")}`);
+      assert.ok(onDisk.includes(f), `missing ${f} - got ${onDisk.join(", ")}`);
     }
     // Read both files + call buildSource with sources map.
     const mainC = readFileSync(path.join(tmp, "main.c"), "utf-8");

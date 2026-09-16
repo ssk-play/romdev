@@ -1,13 +1,13 @@
 // SMS/GG (Genesis Plus GX / Z80) callSubroutine instruction WATCHDOG.
 //
 // This is the v0.6.0 cross-system gap: the watchdog counter was wired ONLY into
-// m68k_run, so on SMS/GG — where the Z80 is the active CPU — a wrong-entry
+// m68k_run, so on SMS/GG - where the Z80 is the active CPU - a wrong-entry
 // free-run reported watchdog:false and fell to the per-frame cap, exactly the
 // hang/ambiguity the watchdog exists to kill, just relocated to the Z80
 // platforms. The gpgx patch now mirrors the counter into z80_run.
 //
 // We drive cpu({op:'call'}) into the SMS main loop (which never RTSes back to the
-// sentinel) and confirm the run terminates via the watchdog — with the DEFAULT
+// sentinel) and confirm the run terminates via the watchdog - with the DEFAULT
 // budget (the property that was broken) AND an explicit small budget.
 //
 // Run timeout-guarded (a watchdog bug could hang): `timeout 240 node --test`.
@@ -36,7 +36,7 @@ async function startClient() {
 const toJSON = (res) => { assert.equal(res.isError, undefined, "isError: " + JSON.stringify(res)); return JSON.parse(res.content[0].text); };
 
 // SMS main: a deterministic per-iteration write to $C000 gives findWriter a real
-// PC inside an infinite Z80 loop — driving callSubroutine there never returns.
+// PC inside an infinite Z80 loop - driving callSubroutine there never returns.
 const MAIN = `
 void main(void) {
     __asm

@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 18
 __lua__
--- star sweeper — a shmup scaffold
+-- star sweeper - a shmup scaffold
 -- genre example for romdev/pico8. real sprites (see __gfx__), looping
 -- music (__music__), sfx, title/play/gameover states, projectile pool,
 -- wave spawner, aabb collision, score + hi-score, thruster animation.

@@ -1,4 +1,4 @@
-// romdev-core-flycast — binary package: Flycast libretro core (Dreamcast).
+// romdev-core-flycast - binary package: Flycast libretro core (Dreamcast).
 // A CUSTOM romdev build: the upstream core compiled to single-threaded WASM (the
 // SH-4/ARM/DSP interpreters, no JIT), with worker-thread creation neutered
 // (pthread_create no-op), ThreadedRendering forced off, and the reios HLE BIOS
@@ -13,7 +13,7 @@ const WASM = path.join(__dirname, "wasm");
 
 export const platform = "dreamcast";
 
-// Emulator core (libretro) — glue .js + .wasm.
+// Emulator core (libretro) - glue .js + .wasm.
 export const core = {
   name: "flycast",
   jsPath: path.join(WASM, "flycast_libretro.js"),

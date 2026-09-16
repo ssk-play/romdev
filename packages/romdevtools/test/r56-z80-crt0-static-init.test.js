@@ -1,8 +1,8 @@
-// R56 — z80 (SMS/GG) crt0 did not initialise C statics.
+// R56 - z80 (SMS/GG) crt0 did not initialise C statics.
 //
 // Found 2026-06-08 while investigating two reported "SDCC sm83 miscompiles"
 // from a GBC Columns build session (a degenerate 32-bit xorshift PRNG and a
-// looped grid-collision read). NEITHER reproduced as an sm83 codegen bug —
+// looped grid-collision read). NEITHER reproduced as an sm83 codegen bug -
 // the GBC results were byte-for-byte correct. But the same xorshift repro on
 // the SMS/GG z80 port booted its `static uint32_t rng = 0x1357;` as 0, so the
 // PRNG never advanced and every "roll" came out identical ("monochrome RNG").
@@ -115,15 +115,15 @@ async function buildRun(platform, src) {
 for (const platform of ["sms", "gg"]) {
     test(`R56: ${platform} crt0 initialises value-statics + zeroes BSS`, { timeout: 180000 }, async () => {
         const w = await buildRun(platform, STATIC_INIT_SRC);
-        assert.equal(w[8], 0xA5, `${platform}: main() didn't run (no sentinel) — crt0 boot broken`);
-        assert.equal(w[0], 0x57, `${platform}: gv32 byte0 — static init failed (got 0x${w[0].toString(16)}, want 0x57)`);
+        assert.equal(w[8], 0xA5, `${platform}: main() didn't run (no sentinel) - crt0 boot broken`);
+        assert.equal(w[0], 0x57, `${platform}: gv32 byte0 - static init failed (got 0x${w[0].toString(16)}, want 0x57)`);
         assert.equal(w[1], 0x13, `${platform}: gv32 byte1 (got 0x${w[1].toString(16)}, want 0x13)`);
         assert.equal(w[2], 0x00, `${platform}: gv32 byte2`);
         assert.equal(w[3], 0x00, `${platform}: gv32 byte3`);
         assert.equal(w[4], 0xEF, `${platform}: gv16 low (got 0x${w[4].toString(16)}, want 0xEF)`);
         assert.equal(w[5], 0xBE, `${platform}: gv16 high (got 0x${w[5].toString(16)}, want 0xBE)`);
         assert.equal(w[6], 0x42, `${platform}: gv8 (got 0x${w[6].toString(16)}, want 0x42)`);
-        assert.equal(w[7], 0x00, `${platform}: bss8 — BSS not zeroed (got 0x${w[7].toString(16)}, want 0)`);
+        assert.equal(w[7], 0x00, `${platform}: bss8 - BSS not zeroed (got 0x${w[7].toString(16)}, want 0)`);
     });
 
     test(`R56: ${platform} static-seeded xorshift PRNG is varied, not monochrome`, { timeout: 180000 }, async () => {

@@ -38,7 +38,7 @@ import { CAPABILITIES } from "../../cores/capabilities.js";
  * A wasmcart/jsgame cart is not an emulated machine: there is no CPU address
  * space to name, and the host says so with `hasMemoryRegions: false`. That fact
  * was not reaching this tool, so every region read returned a success-SHAPED
- * response with `length: 0` and `hex: ""` — indistinguishable from "this region
+ * response with `length: 0` and `hex: ""` - indistinguishable from "this region
  * is legitimately all zeroes", which on a freshly booted cart is exactly what a
  * caller expects to see. One reporter briefly believed they were reading a
  * cart's RAM and getting valid data.
@@ -47,7 +47,7 @@ import { CAPABILITIES } from "../../cores/capabilities.js";
  * in one call that the whole approach was wrong.
  */
 function assertHostHasRegions(host, region) {
-  // The host exposes this as a METHOD, not a property — reading it as a field
+  // The host exposes this as a METHOD, not a property - reading it as a field
   // silently yielded undefined and the gate never fired.
   const caps = (typeof host?.getCapabilities === "function" ? host.getCapabilities() : null)
     ?? host?.status?.capabilities ?? host?.capabilities ?? null;
@@ -59,7 +59,7 @@ function assertHostHasRegions(host, region) {
   throw Object.assign(new Error(
     `memory: '${platform}' has NO memory regions (the host reports hasMemoryRegions:false)`
     + `${region ? `, so region '${region}' cannot be read` : ""}. ${alt} `
-    + `Refusing rather than returning length:0/hex:"" — an empty read is indistinguishable from a region that is legitimately all zeroes.`),
+    + `Refusing rather than returning length:0/hex:"" - an empty read is indistinguishable from a region that is legitimately all zeroes.`),
     { code: "NO_MEMORY_REGIONS" });
 }
 
@@ -73,7 +73,7 @@ function assertRegionOnPlatform(host, region) {
   if (allowed.includes(region)) return;
 
   // Prefer suggesting this platform's OWN specific regions -- the generic ones
-  // (system_ram, video_ram, …) are on every platform and are rarely what a
+  // (system_ram, video_ram, ...) are on every platform and are rarely what a
   // caller who named a platform-specific region actually wanted.
   const specific = allowed.filter((r) => r.includes("_") && !GENERIC_REGION_NAMES.has(r));
   const suggest = (specific.length ? specific : allowed).join(", ");
@@ -89,8 +89,8 @@ function assertRegionOnPlatform(host, region) {
 const GENERIC_REGION_NAMES = new Set(["system_ram", "save_ram", "video_ram", "rtc"]);
 
 // Small reads stay inline (hex) for ergonomics; large reads must go to disk
-// (raw bytes) unless inline:true. The common case — peeking a few bytes of
-// RAM/OAM/palette — never requires a path.
+// (raw bytes) unless inline:true. The common case - peeking a few bytes of
+// RAM/OAM/palette - never requires a path.
 const INLINE_HEX_LIMIT = 4096;
 
 // Derive the allowed-region list from the host's authoritative map so
@@ -111,35 +111,35 @@ const REGIONS = /** @type {[string, ...string[]]} */ (Object.keys(MemoryRegionTo
 //   - Atari (6502/6507)  : little-endian
 // For sub-CPUs the rule follows that chip: SNES SPC700 = little,
 // Genesis Z80 = little. Generic regions (system_ram) inherit their
-// platform's CPU endianness — they hold whatever the CPU wrote.
+// platform's CPU endianness - they hold whatever the CPU wrote.
 //
 // "wordSize" hints how to interpret multi-byte reads: 1 = bytes
 // (e.g. NES OAM), 2 = 16-bit words (e.g. Genesis CRAM, SNES CGRAM).
 const REGION_INFO = {
-  // Generic. The endianness depends on the loaded platform — leave
+  // Generic. The endianness depends on the loaded platform - leave
   // unset and let the host fill it in based on host.status.platform.
   system_ram:        { wordSize: 1 },
   save_ram:          { wordSize: 1 },
   video_ram:         { wordSize: 1 },
   rtc:               { wordSize: 1 },
-  // NES (fceumm patch) — little-endian, byte-oriented.
+  // NES (fceumm patch) - little-endian, byte-oriented.
   nes_nametables:    { endianness: "little", wordSize: 1, note: "2KB CIRAM (NES nametables)" },
   nes_palette:       { endianness: "little", wordSize: 1, note: "32 bytes, BG palette $00-$0F + sprite palette $10-$1F" },
   nes_oam:           { endianness: "little", wordSize: 1, note: "256B = 64 sprites × 4 bytes {y, tile, attr, x}" },
-  nes_chr:           { endianness: "little", wordSize: 1, note: "8KB CHR via VPage[0..7] — refreshed on read" },
-  // SNES (snes9x patch) — little-endian (65816). CGRAM is BGR555 words.
+  nes_chr:           { endianness: "little", wordSize: 1, note: "8KB CHR via VPage[0..7] - refreshed on read" },
+  // SNES (snes9x patch) - little-endian (65816). CGRAM is BGR555 words.
   snes_oam:          { endianness: "little", wordSize: 1, note: "544B = 512B low table (128 sprites × 4) + 32B hi table (2 bits/sprite)" },
   snes_cgram:        { endianness: "little", wordSize: 2, note: "512B = 256 colors × uint16 BGR555 (bit 15 unused, bits 10-14 B, 5-9 G, 0-4 R)" },
   snes_aram:         { endianness: "little", wordSize: 1, note: "64KB SPC700 audio CPU RAM" },
   snes_fillram:      { endianness: "little", wordSize: 1, note: "32KB PPU/DMA register shadow at $00:2000+" },
-  // Genesis (gpgx patch) — BIG-ENDIAN (68000 chip). CRAM is BGR words.
+  // Genesis (gpgx patch) - BIG-ENDIAN (68000 chip). CRAM is BGR words.
   genesis_cram:      { endianness: "big",    wordSize: 2, note: "128B = 64 colors × uint16 big-endian, 9-bit effective (bits 1-3 R, 5-7 G, 9-11 B)" },
   genesis_vsram:     { endianness: "big",    wordSize: 2, note: "128B vertical scroll table (per-cell or per-line depending on VDP reg $0B)" },
   genesis_vdp_regs:  { endianness: "big",    wordSize: 1, note: "32 VDP registers $00-$1F (write-only on hardware; this is gpgx's mirror)" },
   genesis_z80_ram:   { endianness: "little", wordSize: 1, note: "8KB Z80 sound CPU RAM (Z80 is little-endian even though main CPU is big)" },
   genesis_m68k:      { endianness: "little", wordSize: 4, note: "Live m68ki_cpu_core struct from gpgx. Host-side fields are wasm32 native LE. Use getCPUState({platform:'genesis'}) instead of decoding by hand." },
-  genesis_ym2612:    { endianness: "little", wordSize: 1, note: "YM2612 internal context snapshot (gpgx-private layout — diff-only)" },
-  genesis_psg:       { endianness: "little", wordSize: 1, note: "PSG (SN76489) internal context snapshot — parse via getAudioState({chip:'psg'})" },
+  genesis_ym2612:    { endianness: "little", wordSize: 1, note: "YM2612 internal context snapshot (gpgx-private layout - diff-only)" },
+  genesis_psg:       { endianness: "little", wordSize: 1, note: "PSG (SN76489) internal context snapshot - parse via getAudioState({chip:'psg'})" },
 };
 
 // Per-platform fallback endianness for generic regions (system_ram etc).
@@ -166,10 +166,10 @@ function genericEndianness(platform) {
 // router dispatches on `op`. They share the module-scope helpers below.
 
 /**
- * op:'read' — bytes out of a live memory region.
+ * op:'read' - bytes out of a live memory region.
  *
  * RESULT SHAPE, spelled out because a JSON result has no type system to catch
- * a wrong key: `{region, offset, length, endianness, wordSize, hex}` — or
+ * a wrong key: `{region, offset, length, endianness, wordSize, hex}` - or
  * `{reads:[...]}` with `offsets`, or `{"0xOFF": "hex"}` with `compact`.
  *
  * The bytes are on `hex`. There is NO `base64` on a read result. That is an
@@ -188,7 +188,7 @@ async function memRead(sessionKey, { region, offset = 0, length, offsets, output
       const endianness0 = info0.endianness ?? genericEndianness(host.status.platform);
 
       // BATCH path: read each requested spot and return them in order. Always
-      // inline (these are small, scattered reads — the whole point is one call).
+      // inline (these are small, scattered reads - the whole point is one call).
       if (offsets && offsets.length) {
         const reads = offsets.map((o) => {
           const off = typeof o === "number" ? o : o.offset;
@@ -200,7 +200,7 @@ async function memRead(sessionKey, { region, offset = 0, length, offsets, output
             hex: Array.from(b, (x) => x.toString(16).padStart(2, "0")).join(""),
           };
         });
-        // compact:true — the "sample N flags" shape: one {"0xOFF":"hex"} map
+        // compact:true - the "sample N flags" shape: one {"0xOFF":"hex"} map
         // instead of an object per read (~4x fewer tokens on a dozen 1-2 byte
         // probes; v0.94.0 feedback). Region/endianness still echoed once.
         if (compact) {
@@ -221,24 +221,24 @@ async function memRead(sessionKey, { region, offset = 0, length, offsets, output
       // agent doesn't have to figure byte order out empirically. For
       // generic regions (system_ram etc) fall back to the loaded
       // platform's CPU endianness.
-      const info = REGION_INFO[region] ?? {};   /* (restored — a careless replace-all removed it) */
+      const info = REGION_INFO[region] ?? {};   /* (restored - a careless replace-all removed it) */
       const endianness = info.endianness ?? genericEndianness(host.status.platform);
       // Genesis VRAM is stored by genesis-plus-gx as 16-bit words in HOST
       // (little-endian) byte order, so these raw bytes have each word's two
-      // bytes swapped vs the VDP-logical layout — a raw read is NOT a direct
+      // bytes swapped vs the VDP-logical layout - a raw read is NOT a direct
       // tile/pixel map. (The VDP un-swaps when rendering, so the screen is
       // correct.) Use getTile (logicalPixels:true, the default) to decode tiles
       // in render order instead of un-swapping by hand.
       let note = info.note ?? null;
       if (region === "system_ram" && host.status.platform === "genesis") {
         note = (note ? note + " " : "") +
-          "GENESIS: normalized to CPU byte order — offset X IS the byte the 68k sees at $FF0000+X " +
+          "GENESIS: normalized to CPU byte order - offset X IS the byte the 68k sees at $FF0000+X " +
           "(the host un-swaps gpgx's word-swapped storage), so offsets line up with disassembly " +
           "addresses and cheat-DB maps. Words are big-endian, as the meta says.";
       }
       if (region === "video_ram" && host.status.platform === "genesis") {
         note = (note ? note + " " : "") +
-          "GENESIS: these are RAW host-LE bytes — each 16-bit VRAM word's two bytes are SWAPPED " +
+          "GENESIS: these are RAW host-LE bytes - each 16-bit VRAM word's two bytes are SWAPPED " +
           "vs the VDP-logical order, so this is not a direct tile/pixel map. getTile({logicalPixels:true}) " +
           "decodes tiles in render order for you.";
       }
@@ -248,7 +248,7 @@ async function memRead(sessionKey, { region, offset = 0, length, offsets, output
         length: bytes.length,
         endianness,
         wordSize: info.wordSize ?? 1,
-        // Only emit `note` when there's actually one — a region with no note
+        // Only emit `note` when there's actually one - a region with no note
         // (system_ram, most work-RAM) used to return `note: null` every read
         // (field report: pure noise on a batch RE loop).
         ...(note ? { note } : {}),
@@ -259,7 +259,7 @@ async function memRead(sessionKey, { region, offset = 0, length, offsets, output
         const { path, bytes: written } = writeOutput(bytes, { outputPath, what: `readMemory(${region})` });
         return jsonContent({ ...meta, path, bytes: written });
       }
-      // Small read WITH an explicit outputPath: honor it — write the raw bytes
+      // Small read WITH an explicit outputPath: honor it - write the raw bytes
       // to disk AND (by default) still return the hex inline. Pass echo:false
       // to get just {path, bytes}: a 2KB RAM dump's ~4KB hex echo was the
       // largest avoidable token cost in a real RE session (0.27.0 feedback #4)
@@ -314,7 +314,7 @@ async function memWrite(sessionKey, { region, offset = 0, hex, base64, data, byt
  *
  * Client ask (2026-09-16): a game copies routines out of ROM into RAM and jumps
  * there. A static recompiler can compile those ranges a second time at their RAM
- * addresses — but only if it knows which ROM range each one came from, and a
+ * addresses - but only if it knows which ROM range each one came from, and a
  * byte scan on the client's side cannot find the copy site: the destination
  * arrives in a register or through a shared memcpy, which is cross-bank
  * dataflow.
@@ -326,14 +326,14 @@ async function memWrite(sessionKey, { region, offset = 0, hex, base64, data, byt
  * reported, each a unique hit.
  *
  * What this is NOT: proof of how the bytes got there, or that they were copied
- * at all. Identical bytes can appear at several ROM offsets — measured on a
- * 256KB cart, ~13% of 32-byte ranges match more than one offset — so EVERY
+ * at all. Identical bytes can appear at several ROM offsets - measured on a
+ * 256KB cart, ~13% of 32-byte ranges match more than one offset - so EVERY
  * candidate is returned with its bank, and the caller decides. Picking one
  * silently is the failure mode this tool exists to avoid.
  */
 async function memProvenance(sessionKey, { region = "system_ram", offset = 0, length = 32, romPath, platform: romPlatform, maxCandidates = 8, minLength = 8, extendBy = 4096, nearDistance = 4 }) {
   if (length < minLength) {
-    throw new Error(`memory({op:'provenance'}): \`length\` ${length} is below minLength ${minLength}. A short byte run matches many ROM offsets by coincidence — measured on a 256KB cart, a 4-byte range is ambiguous about half the time. Ask for at least ${minLength} bytes, or lower \`minLength\` deliberately and read the candidate count.`);
+    throw new Error(`memory({op:'provenance'}): \`length\` ${length} is below minLength ${minLength}. A short byte run matches many ROM offsets by coincidence - measured on a 256KB cart, a 4-byte range is ambiguous about half the time. Ask for at least ${minLength} bytes, or lower \`minLength\` deliberately and read the candidate count.`);
   }
   const host = getHost(sessionKey);
   const live = host.readMemory(region, offset, length);
@@ -342,7 +342,7 @@ async function memProvenance(sessionKey, { region = "system_ram", offset = 0, le
 
   let rom;
   if (romPath) {
-    if (!romPlatform) throw new Error("memory({op:'provenance', romPath}): `platform` is required alongside `romPath` — header layout is per-platform.");
+    if (!romPlatform) throw new Error("memory({op:'provenance', romPath}): `platform` is required alongside `romPath` - header layout is per-platform.");
     rom = cartImageFromBytes(new Uint8Array(await readFile(romPath)), romPlatform);
   } else {
     rom = host.getCartRom();
@@ -370,14 +370,14 @@ async function memProvenance(sessionKey, { region = "system_ram", offset = 0, le
   //
   // A fixed-length query is the wrong shape on its own: the caller cannot know
   // the copied run's length in advance. Measured on a real cart, one routine
-  // was verbatim ROM for 9 bytes and then diverged — so a 20-byte query
+  // was verbatim ROM for 9 bytes and then diverged - so a 20-byte query
   // returned NOTHING while an 8-byte query resolved uniquely, and the honest
   // reading of the empty result is "not copied verbatim at this length", which
   // is easy to misread as "not from ROM at all". For each candidate, extend the
   // comparison past the queried range and report where it stops.
   // Extend by `extendBy` bytes past the query, CLAMPED to what the region
   // actually holds. Reading past the end throws ("read out of bounds"), which
-  // would turn a larger window from "look further" into "the query fails" —
+  // would turn a larger window from "look further" into "the query fails" -
   // and near the end of a region that is every query. A run that reaches
   // whichever limit comes first is reported as capped rather than as a final
   // length: a number that silently means "at least this" is the same trap as
@@ -457,11 +457,11 @@ async function memProvenance(sessionKey, { region = "system_ram", offset = 0, le
     resolved: candidates.length === 1,
     verdict: uniform ? "not-searched: uniform byte run"
       : candidates.length === 0 ? (nearMatches.length
-        ? `no EXACT match, but ${nearMatches.length} ROM range(s) differ by at most ${nearDistance} byte(s) — see nearMatches. A near match is usually a copy the game PATCHED after relocating it, which is still ROM-derived and still compilable: emit the ROM range and treat the differing bytes as data. Confirm by looking at the differing positions before relying on it.`
-        : `no ROM range holds these exact bytes, and none differs by ${nearDistance} byte(s) or fewer. That is evidence AGAINST a verbatim or lightly-patched copy from this cartridge — the bytes may be generated, assembled from pieces, more heavily patched (raise nearDistance), or come from elsewhere. It is not proof of any of those.`)
-      : candidates.length === 1 ? "exactly one ROM range holds these bytes. That is the likely origin — but identical bytes CAN occur once by coincidence, so treat it as a strong lead, not proof of a copy."
+        ? `no EXACT match, but ${nearMatches.length} ROM range(s) differ by at most ${nearDistance} byte(s) - see nearMatches. A near match is usually a copy the game PATCHED after relocating it, which is still ROM-derived and still compilable: emit the ROM range and treat the differing bytes as data. Confirm by looking at the differing positions before relying on it.`
+        : `no ROM range holds these exact bytes, and none differs by ${nearDistance} byte(s) or fewer. That is evidence AGAINST a verbatim or lightly-patched copy from this cartridge - the bytes may be generated, assembled from pieces, more heavily patched (raise nearDistance), or come from elsewhere. It is not proof of any of those.`)
+      : candidates.length === 1 ? "exactly one ROM range holds these bytes. That is the likely origin - but identical bytes CAN occur once by coincidence, so treat it as a strong lead, not proof of a copy."
       : `${candidates.length} ROM ranges hold these exact bytes. This tool does NOT choose between them: pick using the bank that was mapped when the code ran, or ask about a longer range.`,
-    ...(candidates.length ? { verbatimNote: `\`verbatimBytes\` is how far each candidate stays identical BEYOND the queried range, found by extending the comparison. A copied routine usually runs longer than you asked about; where it stops, \`divergesAt\` names the first differing byte. That boundary is the end of the verbatim copy, not necessarily the end of the routine — the rest may be patched after the copy or built in place.` } : {}),
+    ...(candidates.length ? { verbatimNote: `\`verbatimBytes\` is how far each candidate stays identical BEYOND the queried range, found by extending the comparison. A copied routine usually runs longer than you asked about; where it stops, \`divergesAt\` names the first differing byte. That boundary is the end of the verbatim copy, not necessarily the end of the routine - the rest may be patched after the copy or built in place.` } : {}),
     policy: "this answers 'which ROM bytes are identical to these RAM bytes' (plus, when nothing is identical, which are CLOSE), by searching the ROM image. It does NOT prove a copy happened, does not identify the copying instruction, and makes no claim about reachability. Longer ranges are more distinctive: on a 256KB cart ~13% of 32-byte ranges still match more than one offset.",
   });
 }
@@ -479,7 +479,7 @@ async function memReadCart(sessionKey, { offset = 0, length = 16, cpuAddress, ba
       if (romPath) {
         if (!romPlatform) {
           throw new Error(
-            "memory({op:'readCart', romPath}): `platform` is required alongside `romPath` — " +
+            "memory({op:'readCart', romPath}): `platform` is required alongside `romPath` - " +
             "header layout is per-platform (NES skips 16 bytes, SNES 512 if a copier " +
             "header is present), so the bytes cannot be interpreted without it. " +
             "Example: memory({op:'readCart', romPath:'/roms/game.gb', platform:'gb', offset:0, length:16})."
@@ -492,7 +492,7 @@ async function memReadCart(sessionKey, { offset = 0, length = 16, cpuAddress, ba
         rom = host.getCartRom();
       }
 
-      // findHex (v0.94.0 round 2): byte-pattern scan over the LOADED cart image —
+      // findHex (v0.94.0 round 2): byte-pattern scan over the LOADED cart image -
       // the call-site hunt ("who jsr's $873C?" = scan for `20 3C 87`) that agents
       // otherwise script in Python over the ROM file. Each match returns the file
       // offset AND the mapped CPU address (the offset→bank:addr arithmetic is
@@ -560,8 +560,8 @@ async function memReadCart(sessionKey, { offset = 0, length = 16, cpuAddress, ba
           note: (rom.platform === "nes"
             ? "cpuAddress assumes the standard $8000-window convention (last PRG bank fixed at $C000); on an exotic mapper trust bank+the $3FFF offset over the literal address. "
             : rom.platform === "snes" ? "cpuAddress is bank:addr in the cart's detected mapping (LoROM/HiROM from the header). "
-            : rom.platform === "gb" || rom.platform === "gbc" ? "cpuAddress uses the MBC convention (bank 0 at $0000, banks ≥1 through the $4000 window) — trust bank+offset on an exotic mapper. "
-            : rom.platform === "sms" || rom.platform === "gg" ? "cpuAddress uses the Sega-mapper convention (banks ≥2 through slot 2 at $8000) — trust bank+offset if the game repages slots. "
+            : rom.platform === "gb" || rom.platform === "gbc" ? "cpuAddress uses the MBC convention (bank 0 at $0000, banks ≥1 through the $4000 window) - trust bank+offset on an exotic mapper. "
+            : rom.platform === "sms" || rom.platform === "gg" ? "cpuAddress uses the Sega-mapper convention (banks ≥2 through slot 2 at $8000) - trust bank+offset if the game repages slots. "
             : "") +
             "Scan is over the header-stripped cart image (fileOffset is image-relative" + ((rom.raw?.length ?? 0) > (rom.bytes?.length ?? 0) ? `; add ${(rom.raw.length - rom.bytes.length)} for the raw file` : "") + ").",
         });
@@ -577,7 +577,7 @@ async function memReadCart(sessionKey, { offset = 0, length = 16, cpuAddress, ba
           m = mapNesAddress(rom.raw, cpuAddress >>> 0, length, bank);
         } else if (rom.platform === "snes") {
           // SNES: the bank IS the address's high byte. `mapSnesAddress` ignores a
-          // separate `bank` param — field report: a bank-local addr + bank:2 read
+          // separate `bank` param - field report: a bank-local addr + bank:2 read
           // BANK 0 silently. Compose it into the 24-bit address, same fix as
           // disasm({target:'rom', bank}).
           let addr = cpuAddress >>> 0;
@@ -632,17 +632,17 @@ async function memReadCart(sessionKey, { offset = 0, length = 16, cpuAddress, ba
       return jsonContent({ ...meta, hex });
 }
 
-// ── snapshotMemory / diffMemory — "which bytes changed across this event?" ──
+// ── snapshotMemory / diffMemory - "which bytes changed across this event?" ──
 async function memSnapshot(sessionKey, { region, name = "default", offset = 0, length }) {
       const host = getHost(sessionKey);
       assertHostHasRegions(host, region);
       assertRegionOnPlatform(host, region);
       const bytes = host.readMemory(region, offset, length ?? regionLength(host, region, offset));
       memSnapshots(sessionKey).set(snapKey(region, name), { offset, bytes: Uint8Array.from(bytes) });
-      return jsonContent({ region, name, offset, length: bytes.length, note: "Baseline captured — trigger your event, then memory({op:'diff', region, name}) for the changed bytes." });
+      return jsonContent({ region, name, offset, length: bytes.length, note: "Baseline captured - trigger your event, then memory({op:'diff', region, name}) for the changed bytes." });
 }
 
-// ── diffRuns — A/B scenario diff: THE input→RAM mapping primitive ─────────
+// ── diffRuns - A/B scenario diff: THE input→RAM mapping primitive ─────────
 // Runs the SAME starting state twice (savestate restore in between) under two
 // different held inputs, then diffs the two post-run memories. Replaces the
 // hand-rolled save → hold A → step → dump → restore → hold B → step → dump →
@@ -700,7 +700,7 @@ async function memDiffRuns(sessionKey, { region, frames = 60, portsA, portsB, of
         ...(stride !== null ? { stride: "0x" + stride.toString(16) } : {}),
         ...(clusters.length > out.length ? { truncated: true } : {}),
         note: divergent.length === 0
-          ? "No divergent bytes — the two inputs produced identical memory after " + frames + " frames. Try more frames, or inputs the game actually distinguishes in this state."
+          ? "No divergent bytes - the two inputs produced identical memory after " + frames + " frames. Try more frames, or inputs the game actually distinguishes in this state."
           : "Each cluster diverges between the two runs; runA/runB are the post-run bytes (small clusters only). The byte that tracks your input is usually the small cluster whose runA-vs-runB delta matches the expected movement. Emulator is left at the END OF RUN B.",
       });
 }
@@ -716,10 +716,10 @@ async function memDiff(sessionKey, { region, name = "default", view = "summary",
       // Collect changed offsets once, applying server-side predicate filters so
       // the lives/score/ammo hunt is ONE call instead of dumping the whole diff
       // and filtering client-side (0.28.0 feedback #3). All filters AND together:
-      //   minDelta   — |after-before| >= minDelta (drop small wiggles; 0.27.0 #5)
-      //   changeDir  — 'dec' (after<before) | 'inc' (after>before)
-      //   deltaEq    — after-before === deltaEq EXACTLY (signed; e.g. -1 for "lost one life")
-      //   beforeMin/Max, afterMin/Max — value-range gates on the old/new byte
+      //   minDelta   - |after-before| >= minDelta (drop small wiggles; 0.27.0 #5)
+      //   changeDir  - 'dec' (after<before) | 'inc' (after>before)
+      //   deltaEq    - after-before === deltaEq EXACTLY (signed; e.g. -1 for "lost one life")
+      //   beforeMin/Max, afterMin/Max - value-range gates on the old/new byte
       // Example: a 537-byte death diff → the ~3 "decreased by exactly 1 from a
       // small value" rows with {changeDir:'dec', beforeMax:9, deltaEq:-1}.
       const changedOffsets = [];
@@ -759,7 +759,7 @@ async function memDiff(sessionKey, { region, name = "default", view = "summary",
       // SUMMARY: cluster adjacent changes (within `gap`) into ranges + stride.
       const { clusters, stride } = clusterChanges(changedOffsets.map((i) => snap.offset + i), { gap });
       const strideNote = stride !== null
-        ? `${clusters.length} change-islands evenly spaced at stride 0x${stride.toString(16)} — likely a struct/entity ARRAY (each island = one record's changed fields).`
+        ? `${clusters.length} change-islands evenly spaced at stride 0x${stride.toString(16)} - likely a struct/entity ARRAY (each island = one record's changed fields).`
         : null;
       // Per-cluster before/after for SMALL clusters (≤8 bytes): the summary
       // view used to give only ranges, forcing a fall back to view:'raw' to
@@ -815,7 +815,7 @@ function diffOut(result, { outputPath, echo, region, heavyKey, count }) {
 
 // diffState lives in the `state` tool (state({op:'diff'})).
 
-// ── classifyRegion — "what kind of data is at this offset?" ──────────────
+// ── classifyRegion - "what kind of data is at this offset?" ──────────────
 async function memClassify(sessionKey, { region = "system_ram", offset = 0, length = 256 }) {
       const host = getHost(sessionKey);
       assertHostHasRegions(host, region);
@@ -825,7 +825,7 @@ async function memClassify(sessionKey, { region = "system_ram", offset = 0, leng
       return jsonContent({ region, offset: "0x" + offset.toString(16), length: bytes.length, ...cls });
 }
 
-// ── searchValue / searchNext — the iterative RAM value search (Cheat Engine /
+// ── searchValue / searchNext - the iterative RAM value search (Cheat Engine /
 //    RetroArch cheat-search workflow). THE primitive for "the screen shows X;
 //    find its RAM address." Seed with op:'search', then narrow each time the
 //    value changes with op:'searchNext' (compare:'eq'|'changed'|'unchanged'|'gt'|'lt'|'inc'|'dec').
@@ -833,11 +833,11 @@ async function memClassify(sessionKey, { region = "system_ram", offset = 0, leng
 //    the region fresh and keeps only candidates that still satisfy the compare.
 /**
  * Decode one candidate value at `i` under the search's representation.
- *   raw    — `size`-byte unsigned int, region endianness.
- *   bcd    — `size` bytes of packed BCD (2 decimal digits per byte, region
+ *   raw    - `size`-byte unsigned int, region endianness.
+ *   bcd    - `size` bytes of packed BCD (2 decimal digits per byte, region
  *            endianness): bytes [0x25,0x01] (LE) = 125. Returns null when any
  *            nibble is >9 (not a BCD value).
- *   digits — `digitLen` consecutive bytes, one DECIMAL DIGIT per byte, most
+ *   digits - `digitLen` consecutive bytes, one DECIMAL DIGIT per byte, most
  *            significant first (HUD order), each offset by the candidate's
  *            constant tile base `k` (0 for raw digits, 0x30 for ASCII, or the
  *            game's digit-tile index). Returns null when any byte fails to
@@ -902,7 +902,7 @@ async function memSearch(sessionKey, { value, size = 1, as = "raw", region = "sy
       }
       // Baseline EVERY candidate at seed time so relative compares
       // ('inc'/'dec'/'changed'/'unchanged') work as the FIRST narrow. Pre-fix,
-      // the baseline only existed after a value-based round — the first
+      // the baseline only existed after a value-based round - the first
       // relative searchNext silently returned 0 candidates (a real session
       // burned rounds on this; it was documented as a footgun instead of fixed).
       const prevMap = new Map();
@@ -914,14 +914,14 @@ async function memSearch(sessionKey, { value, size = 1, as = "raw", region = "sy
         candidates: candidates.slice(0, maxCandidates).map((a) =>
           "0x" + a.toString(16) + (kMap && kMap.get(a) ? ` (digitBase 0x${kMap.get(a).toString(16)})` : "")),
         note: candidates.length === 0
-          ? "0 matches — wrong size? (try size:2 for a score). Stored ≠ displayed is common: lives are often displayed−1 (re-seed with value-1), scores ÷10. Try as:'bcd' (packed BCD) or as:'digits' (one byte per on-screen digit, any constant tile base) — or a different region."
+          ? "0 matches - wrong size? (try size:2 for a score). Stored ≠ displayed is common: lives are often displayed−1 (re-seed with value-1), scores ÷10. Try as:'bcd' (packed BCD) or as:'digits' (one byte per on-screen digit, any constant tile base) - or a different region."
           : candidates.length === 1
-          ? "1 candidate — likely THE address. Confirm with memory({op:'write', region, offset, hex}) and watch the screen."
-          : "Change the value in-game, then memory({op:'searchNext', name, compare:'eq', value:<new>}) to narrow — or compare:'inc'/'dec'/'changed' right away (baselines are recorded at seed). Repeat until 1-2 remain.",
+          ? "1 candidate - likely THE address. Confirm with memory({op:'write', region, offset, hex}) and watch the screen."
+          : "Change the value in-game, then memory({op:'searchNext', name, compare:'eq', value:<new>}) to narrow - or compare:'inc'/'dec'/'changed' right away (baselines are recorded at seed). Repeat until 1-2 remain.",
       });
 }
 
-// op:'searchUnknown' — the Cheat-Engine UNKNOWN-INITIAL-VALUE hunt: seed the
+// op:'searchUnknown' - the Cheat-Engine UNKNOWN-INITIAL-VALUE hunt: seed the
 // candidate set to the WHOLE region (every size-aligned offset, baselined to
 // its current value), with NO value filter. Then narrow across in-game events
 // with searchNext compare:'dec'/'inc'/'unchanged'/'changed'/'gt'/'lt'. This is
@@ -950,7 +950,7 @@ async function memSearchUnknown(sessionKey, { size = 1, as = "raw", region = "sy
       return jsonContent({
         searchId: name, region, size, as, mode: "unknown",
         count: candidates.length,
-        note: `Seeded ${candidates.length} candidates (the whole region, no value filter). Now cause the value to change in-game, then narrow with memory({op:'searchNext', name:'${name}', compare:'dec'|'inc'|'unchanged'|'changed'|'gt'|'lt'}) — e.g. 'dec' after losing a life, 'unchanged' across a frame where it shouldn't move. Repeat until 1-2 remain, then confirm with op:'write'.`,
+        note: `Seeded ${candidates.length} candidates (the whole region, no value filter). Now cause the value to change in-game, then narrow with memory({op:'searchNext', name:'${name}', compare:'dec'|'inc'|'unchanged'|'changed'|'gt'|'lt'}) - e.g. 'dec' after losing a life, 'unchanged' across a frame where it shouldn't move. Repeat until 1-2 remain, then confirm with op:'write'.`,
       });
 }
 
@@ -992,16 +992,16 @@ async function memSearchNext(sessionKey, { compare, value, name = "default", max
         searchId: name, compare, count: kept.length,
         candidates: kept.slice(0, maxCandidates).map((a) => "0x" + a.toString(16) + "=" + read(a)),
         note: kept.length === 0
-          ? "0 left — narrowed too far (wrong op, or the value moved between reads — e.g. the scene changed/player died mid-step; screenshot before blaming the compare). Re-seed with memory({op:'search'}). If the on-screen number narrows to 0 on a correct op, it may be stored as BCD/digits, not binary — re-seed with as:'bcd' (a SNES timer hunt went 22 raw candidates → 1 in one 'dec' pass that way)."
+          ? "0 left - narrowed too far (wrong op, or the value moved between reads - e.g. the scene changed/player died mid-step; screenshot before blaming the compare). Re-seed with memory({op:'search'}). If the on-screen number narrows to 0 on a correct op, it may be stored as BCD/digits, not binary - re-seed with as:'bcd' (a SNES timer hunt went 22 raw candidates → 1 in one 'dec' pass that way)."
           : kept.length <= 2
-          ? "Down to 1-2 — confirm: memory({op:'write', region, offset, hex:'..'}) and watch the screen change."
-          : "Still multiple — change the value again and memory({op:'searchNext'}) to keep narrowing.",
+          ? "Down to 1-2 - confirm: memory({op:'write', region, offset, hex:'..'}) and watch the screen change."
+          : "Still multiple - change the value again and memory({op:'searchNext'}) to keep narrowing.",
       });
 }
 
 
 /**
- * List the memory regions valid for a platform — the discoverability op.
+ * List the memory regions valid for a platform - the discoverability op.
  *
  * There are 126 region ids across all cores, and until now the only index was
  * the enum inside an error message, which the response truncates. A caller who
@@ -1024,7 +1024,7 @@ function listRegions(sessionKey, args) {
 
   // A HOST WITH NO REGIONS GETS A SENTENCE, NOT A CATALOGUE. Listing 126 ids
   // that will all return empty is the same wall of `nes_*` that hid a real
-  // region for a whole project — and the generic note promised "a read of one
+  // region for a whole project - and the generic note promised "a read of one
   // this core does not expose returns an error rather than wrong bytes", which
   // was FALSE on this host before the gate above existed. Say the true thing.
   const caps = (typeof host?.getCapabilities === "function" ? host.getCapabilities() : null)
@@ -1036,9 +1036,9 @@ function listRegions(sessionKey, args) {
       hasMemoryRegions: false,
       note: `'${platform ?? "this host"}' carts are not emulated machines: there is no CPU address space, so there are NO memory regions. `
         + (caps.hasWasmIntrospection
-          ? "Read the cart's own linear memory through its WASM exports instead — wasm({op:'memory'}) and wasm({op:'exports'}) give you the real cart heap, which an emulator cannot."
+          ? "Read the cart's own linear memory through its WASM exports instead - wasm({op:'memory'}) and wasm({op:'exports'}) give you the real cart heap, which an emulator cannot."
           : "This host exposes no address space to read."),
-      reads: "memory({op:'read'}) on this host ERRORS rather than returning an empty success — an empty read is indistinguishable from a region that is legitimately all zeroes.",
+      reads: "memory({op:'read'}) on this host ERRORS rather than returning an empty success - an empty read is indistinguishable from a region that is legitimately all zeroes.",
     };
   }
 
@@ -1046,7 +1046,7 @@ function listRegions(sessionKey, args) {
   if (!platform) {
     return {
       platform: null,
-      note: "No platform given and no ROM loaded — listing EVERY region across all cores. "
+      note: "No platform given and no ROM loaded - listing EVERY region across all cores. "
         + "Pass `platform`, or load media first, to see just the ones that work here.",
       count: all.length,
       regions: all,
@@ -1095,24 +1095,24 @@ export function registerMemoryTools(server, z, sessionKey) {
     "OP CHEAT-SHEET (params each op uses): " +
     "read → {region, offset?, length?|offsets?, outputPath?|inline?}; " +
     "write → {region, offset, hex|base64}; " +
-    "readCart → {offset?, length?, outputPath?|inline?} — or {path, platform, ...} with NO host; " +
+    "readCart → {offset?, length?, outputPath?|inline?} - or {path, platform, ...} with NO host; " +
     "snapshot → {region, name, offset?, length?}; " +
     "diff → {region, name, view?}; " +
     "classify → {region?, offset?, length?}; " +
     "search → {value, size?, as?, region?}; " +
     "searchNext → {compare, value?}.\n" +
-    `• op:'read' — bytes as a \`hex\` string. ≤${INLINE_HEX_LIMIT}B come back inline; >${INLINE_HEX_LIMIT}B need \`outputPath\` (RAW bytes written → {path,bytes}) or \`inline:true\`. BATCH: \`offsets\` (addresses or {offset,length}) reads many non-contiguous spots in ONE call → reads:[{offset,length,hex}]. (Genesis video_ram is raw host-LE word-swapped — not a direct tile map; use tiles({op:'pixels'}).)\n` +
-    "• op:'write' — pass payload as `hex` (e.g. 'deadbeef') OR `base64` — **NOT `data`, `bytes`, or an array (those are REJECTED with guidance).** hex for byte patterns, base64 for binary blobs.\n" +
-    "• op:'readCart' — read a CARTRIDGE ROM image. Reads the LOADED cart by default ('is the emulator running my patched bytes?'), or pass `path`+`platform` to read a ROM FILE with NO host loaded (same host-free ergonomics as disasm({target:'rom', path}) — byte verification keeps working after an eviction/restart, and static romhacking never needs loadMedia at all). With `findHex` it SCANS the whole image for a byte pattern and maps every hit to a CPU address (call-site hunts: '20 3C 87' finds every jsr $873C). For 'who can write/read RAM address X' prefer disasm({target:'accessScan', address}) — it also catches indexed forms whose BASE differs from X (sta $0181,y reaching $0182), which a raw byte pattern can never match. For un-banked platforms (Genesis/GB/SMS/Lynx/PCE) the file `offset` IS the CPU ROM address; **NES/SNES skip the header and reach bytes through a mapper, so `mapped:true`+note say the offset is not a flat CPU address.**\n" +
-    "• op:'snapshot' — capture a baseline of `region` (server RAM, keyed by `name`) to later diff. The 'which bytes did THIS event touch?' workflow: snapshot → trigger event → op:'diff'.\n" +
-    "• op:'diff' — compare a region against a snapshot baseline → the CHANGED bytes. DEFAULT `view:'summary'` is a CLUSTERED summary (+ stride detection — '4 islands at stride 0x80' = a struct array) so a churny gameplay diff doesn't flood context; `view:'raw'` = the per-byte before/after list.\n" +
-    "• op:'classify' — heuristically classify the bytes at an offset BEFORE you trust a 'found table'. **Kills the classic trap: a run that 'matches' your stats is often ASCII TEXT (bytes 82/79/68 = 'ROD' from a taunt string) or code.** Returns looksLike/printableRatio/entropy/asciiPreview/confidence.\n" +
-    "• op:'search' — seed the iterative RAM value search (Cheat Engine / RetroArch style): all addresses currently holding `value` (`size` 1/2/4 bytes, region's endianness). The primitive for 'the screen shows X, find its RAM address' — better than snapshot+diff for this. STORED ≠ DISPLAYED is common — `as:'bcd'` (packed BCD scores) and `as:'digits'` (one byte per on-screen digit at ANY constant tile base, auto-detected per candidate) search those representations directly; for displayed−1 lives or ÷10 scores just seed the transformed number.\n" +
-    "• op:'searchUnknown' — the UNKNOWN-INITIAL-VALUE hunt (Cheat Engine's 'Unknown initial value'): seed the WHOLE region as candidates with NO value, then narrow across in-game events with op:'searchNext' compare 'dec'/'inc'/'unchanged'/'changed'/'gt'/'lt'. THE way to find a value you can't see (lives/timer/ammo not on the HUD): searchUnknown → lose a life → searchNext compare:'dec' → repeat. Use this when you don't know the number; use op:'search' when you do.\n" +
-    "• op:'searchNext' — narrow the active candidate list against CURRENT memory. `compare`: 'eq'/'gt'/'lt' (need `value`), 'changed'/'unchanged'/'inc'/'dec' (vs the previous read — usable as the FIRST narrow too; baselines are recorded at seed). Comparisons happen in the seed's `as` representation. Repeat until 1-2 remain, then confirm with op:'write'. (For values an INPUT drives — position, velocity — op:'diffRuns' is usually one call instead of a narrowing loop.)",
+    `• op:'read' - bytes as a \`hex\` string. ≤${INLINE_HEX_LIMIT}B come back inline; >${INLINE_HEX_LIMIT}B need \`outputPath\` (RAW bytes written → {path,bytes}) or \`inline:true\`. BATCH: \`offsets\` (addresses or {offset,length}) reads many non-contiguous spots in ONE call → reads:[{offset,length,hex}]. (Genesis video_ram is raw host-LE word-swapped - not a direct tile map; use tiles({op:'pixels'}).)\n` +
+    "• op:'write' - pass payload as `hex` (e.g. 'deadbeef') OR `base64` - **NOT `data`, `bytes`, or an array (those are REJECTED with guidance).** hex for byte patterns, base64 for binary blobs.\n" +
+    "• op:'readCart' - read a CARTRIDGE ROM image. Reads the LOADED cart by default ('is the emulator running my patched bytes?'), or pass `path`+`platform` to read a ROM FILE with NO host loaded (same host-free ergonomics as disasm({target:'rom', path}) - byte verification keeps working after an eviction/restart, and static romhacking never needs loadMedia at all). With `findHex` it SCANS the whole image for a byte pattern and maps every hit to a CPU address (call-site hunts: '20 3C 87' finds every jsr $873C). For 'who can write/read RAM address X' prefer disasm({target:'accessScan', address}) - it also catches indexed forms whose BASE differs from X (sta $0181,y reaching $0182), which a raw byte pattern can never match. For un-banked platforms (Genesis/GB/SMS/Lynx/PCE) the file `offset` IS the CPU ROM address; **NES/SNES skip the header and reach bytes through a mapper, so `mapped:true`+note say the offset is not a flat CPU address.**\n" +
+    "• op:'snapshot' - capture a baseline of `region` (server RAM, keyed by `name`) to later diff. The 'which bytes did THIS event touch?' workflow: snapshot → trigger event → op:'diff'.\n" +
+    "• op:'diff' - compare a region against a snapshot baseline → the CHANGED bytes. DEFAULT `view:'summary'` is a CLUSTERED summary (+ stride detection - '4 islands at stride 0x80' = a struct array) so a churny gameplay diff doesn't flood context; `view:'raw'` = the per-byte before/after list.\n" +
+    "• op:'classify' - heuristically classify the bytes at an offset BEFORE you trust a 'found table'. **Kills the classic trap: a run that 'matches' your stats is often ASCII TEXT (bytes 82/79/68 = 'ROD' from a taunt string) or code.** Returns looksLike/printableRatio/entropy/asciiPreview/confidence.\n" +
+    "• op:'search' - seed the iterative RAM value search (Cheat Engine / RetroArch style): all addresses currently holding `value` (`size` 1/2/4 bytes, region's endianness). The primitive for 'the screen shows X, find its RAM address' - better than snapshot+diff for this. STORED ≠ DISPLAYED is common - `as:'bcd'` (packed BCD scores) and `as:'digits'` (one byte per on-screen digit at ANY constant tile base, auto-detected per candidate) search those representations directly; for displayed−1 lives or ÷10 scores just seed the transformed number.\n" +
+    "• op:'searchUnknown' - the UNKNOWN-INITIAL-VALUE hunt (Cheat Engine's 'Unknown initial value'): seed the WHOLE region as candidates with NO value, then narrow across in-game events with op:'searchNext' compare 'dec'/'inc'/'unchanged'/'changed'/'gt'/'lt'. THE way to find a value you can't see (lives/timer/ammo not on the HUD): searchUnknown → lose a life → searchNext compare:'dec' → repeat. Use this when you don't know the number; use op:'search' when you do.\n" +
+    "• op:'searchNext' - narrow the active candidate list against CURRENT memory. `compare`: 'eq'/'gt'/'lt' (need `value`), 'changed'/'unchanged'/'inc'/'dec' (vs the previous read - usable as the FIRST narrow too; baselines are recorded at seed). Comparisons happen in the seed's `as` representation. Repeat until 1-2 remain, then confirm with op:'write'. (For values an INPUT drives - position, velocity - op:'diffRuns' is usually one call instead of a narrowing loop.)",
     {
       op: z.enum(["read", "write", "readCart", "regions", "snapshot", "diff", "diffRuns", "classify", "search", "searchUnknown", "searchNext", "provenance"])
-        .describe("read=bytes→hex; write=hex/base64→region; readCart=loaded cart ROM image; snapshot=capture a baseline; diff=changed bytes vs a baseline; diffRuns=run the SAME start state twice under two different held inputs and return only the DIVERGENT bytes (THE input→RAM mapping primitive — replaces save/run/dump/restore/run/dump/python-diff); classify=what kind of data is here; search=seed a value search (you know the number); searchUnknown=seed the whole region (you DON'T know the number); searchNext=narrow either; provenance=which ROM offset holds bytes identical to a RAM range (for code copied out of ROM and executed in RAM — returns ALL candidates with banks, never picks one)."),
+        .describe("read=bytes→hex; write=hex/base64→region; readCart=loaded cart ROM image; snapshot=capture a baseline; diff=changed bytes vs a baseline; diffRuns=run the SAME start state twice under two different held inputs and return only the DIVERGENT bytes (THE input→RAM mapping primitive - replaces save/run/dump/restore/run/dump/python-diff); classify=what kind of data is here; search=seed a value search (you know the number); searchUnknown=seed the whole region (you DON'T know the number); searchNext=narrow either; provenance=which ROM offset holds bytes identical to a RAM range (for code copied out of ROM and executed in RAM - returns ALL candidates with banks, never picks one)."),
       region: z.enum(REGIONS).optional().describe("Memory region. Required for read/write/snapshot/diff; defaults to system_ram for classify/search. (readCart targets the cart ROM image, not a region.)"),
       /*
        * NO `.default(0)` here, deliberately.
@@ -1127,54 +1127,54 @@ export function registerMemoryTools(server, z, sessionKey) {
        * the alias has had its chance.
        */
       offset: z.number().int().min(0).optional().describe("Byte offset within the region (read/write/snapshot/classify) or the cart ROM image (readCart). Defaults to 0. `address` is accepted as an alias (the name breakpoint/disasm use for the same thing), defaulting `region` to system_ram."),
-      address: z.union([z.number().int().min(0), z.string()]).optional().describe("Alias for `offset` — the spelling breakpoint({on:'write'}) and disasm use. Accepts a number or \"$74\"/\"0x74\". Defaults `region` to system_ram when it's the only location given."),
+      address: z.union([z.number().int().min(0), z.string()]).optional().describe("Alias for `offset` - the spelling breakpoint({on:'write'}) and disasm use. Accepts a number or \"$74\"/\"0x74\". Defaults `region` to system_ram when it's the only location given."),
       length: z.number().int().min(1).max(1 << 20).optional().describe("Bytes to read (max 1MB). op:read default 1; op:readCart default 16; op:snapshot default = whole region from offset; op:classify default 256."),
-      cpuAddress: z.number().int().min(0).optional().describe("op:readCart (NES/SNES) — read by a BANKED CPU ADDRESS instead of a flat offset (the inverse of the breakpoint result's bank/prgOffset). e.g. read a jump table at $8654 in bank 6: {op:'readCart', cpuAddress:0x8654, bank:6}. A $C000+ NES address resolves to the fixed top bank. Saves the cpuAddr-0x8000+bank*0x4000 hand-arithmetic."),
-      bank: z.number().int().min(0).optional().describe("op:readCart with cpuAddress — which 16KB PRG bank is mapped into the switchable $8000-$BFFF window (NES). Ignored for $C000+ (fixed top bank) and for non-banked ROMs."),
-      mapper: z.enum(["lorom", "hirom"]).optional().describe("op:readCart with cpuAddress (SNES) — force LoROM/HiROM mapping if auto-detect is wrong."),
-      offsets: offsetsShape.optional().describe("op:read BATCH — a list of addresses (each read `length` bytes, default 1) or {offset,length} objects → reads:[{offset,length,hex}]. Takes precedence over offset/length."),
-      compact: z.boolean().optional().describe("op:read with `offsets` — return reads as ONE {\"0xOFF\": \"hex\"} map instead of an object per read (~4x fewer tokens for the sample-N-flags pattern)."),
-      romPath: z.string().optional().describe("op:'readCart' — read this ROM FILE instead of the loaded cart. Requires `platform` (header layout is per-platform). No emulator/host needed, exactly like disasm({target:'rom', path}). NOTE it is `romPath`, not `path`: on this tool `path` is the OUTPUT alias (where bytes get written), so the input ROM needs its own name."),
-      platform: z.string().optional().describe("op:'readCart' with `path` — which platform the file is, so the right header is skipped (nes=16B iNES, snes=512B copier if present, gba=flat at 0x08000000, others un-banked)."),
-      findHex: z.string().optional().describe("op:'readCart' — byte-pattern SCAN over the loaded cart image (even-length hex, spaces/$ ok — e.g. '20 3C 87' = jsr $873C). Returns matches as {fileOffset, cpuAddress[, bank]} — the offset→bank:addr mapping done for you. THE call-site hunt for annotation work; replaces scripting over the ROM file."),
-      maxMatches: z.number().int().min(1).max(1000).optional().describe("op:'readCart' findHex — cap on returned matches (default 100; truncated:true when hit)."),
+      cpuAddress: z.number().int().min(0).optional().describe("op:readCart (NES/SNES) - read by a BANKED CPU ADDRESS instead of a flat offset (the inverse of the breakpoint result's bank/prgOffset). e.g. read a jump table at $8654 in bank 6: {op:'readCart', cpuAddress:0x8654, bank:6}. A $C000+ NES address resolves to the fixed top bank. Saves the cpuAddr-0x8000+bank*0x4000 hand-arithmetic."),
+      bank: z.number().int().min(0).optional().describe("op:readCart with cpuAddress - which 16KB PRG bank is mapped into the switchable $8000-$BFFF window (NES). Ignored for $C000+ (fixed top bank) and for non-banked ROMs."),
+      mapper: z.enum(["lorom", "hirom"]).optional().describe("op:readCart with cpuAddress (SNES) - force LoROM/HiROM mapping if auto-detect is wrong."),
+      offsets: offsetsShape.optional().describe("op:read BATCH - a list of addresses (each read `length` bytes, default 1) or {offset,length} objects → reads:[{offset,length,hex}]. Takes precedence over offset/length."),
+      compact: z.boolean().optional().describe("op:read with `offsets` - return reads as ONE {\"0xOFF\": \"hex\"} map instead of an object per read (~4x fewer tokens for the sample-N-flags pattern)."),
+      romPath: z.string().optional().describe("op:'readCart' - read this ROM FILE instead of the loaded cart. Requires `platform` (header layout is per-platform). No emulator/host needed, exactly like disasm({target:'rom', path}). NOTE it is `romPath`, not `path`: on this tool `path` is the OUTPUT alias (where bytes get written), so the input ROM needs its own name."),
+      platform: z.string().optional().describe("op:'readCart' with `path` - which platform the file is, so the right header is skipped (nes=16B iNES, snes=512B copier if present, gba=flat at 0x08000000, others un-banked)."),
+      findHex: z.string().optional().describe("op:'readCart' - byte-pattern SCAN over the loaded cart image (even-length hex, spaces/$ ok - e.g. '20 3C 87' = jsr $873C). Returns matches as {fileOffset, cpuAddress[, bank]} - the offset→bank:addr mapping done for you. THE call-site hunt for annotation work; replaces scripting over the ROM file."),
+      maxMatches: z.number().int().min(1).max(1000).optional().describe("op:'readCart' findHex - cap on returned matches (default 100; truncated:true when hit)."),
       // write
-      hex: z.string().optional().describe("op:write — hex string, e.g. 'deadbeef' (even length; spaces/$/_ separators are stripped). `dataHex` is accepted as an alias."),
+      hex: z.string().optional().describe("op:write - hex string, e.g. 'deadbeef' (even length; spaces/$/_ separators are stripped). `dataHex` is accepted as an alias."),
       dataHex: z.string().optional().describe("Alias for `hex` (op:write)."),
-      base64: z.string().optional().describe("op:write ONLY — base64 bytes (binary blobs). NOT returned by op:'read': a read result carries the bytes as `hex` and nothing else, so reaching for `result.base64` after a read gets undefined. (Easy wrong guess because WRITE takes hex OR base64, so a caller who writes first learns both are currency.) For binary OUT of a read, use `outputPath` — it writes the raw bytes to a file."),
-      data: z.any().optional().describe("op:write — REJECTED. Pass `hex` (string) or `base64` (string), not an array."),
-      bytes: z.any().optional().describe("op:write — REJECTED. Pass `hex` (string) or `base64` (string)."),
+      base64: z.string().optional().describe("op:write ONLY - base64 bytes (binary blobs). NOT returned by op:'read': a read result carries the bytes as `hex` and nothing else, so reaching for `result.base64` after a read gets undefined. (Easy wrong guess because WRITE takes hex OR base64, so a caller who writes first learns both are currency.) For binary OUT of a read, use `outputPath` - it writes the raw bytes to a file."),
+      data: z.any().optional().describe("op:write - REJECTED. Pass `hex` (string) or `base64` (string), not an array."),
+      bytes: z.any().optional().describe("op:write - REJECTED. Pass `hex` (string) or `base64` (string)."),
       // snapshot/diff/search session label
-      name: z.string().default("default").describe("op:snapshot/diff — baseline label (same name to compare). op:search/searchNext — search-session label (narrow the same name; run independent searches with different names)."),
+      name: z.string().default("default").describe("op:snapshot/diff - baseline label (same name to compare). op:search/searchNext - search-session label (narrow the same name; run independent searches with different names)."),
       // diff
-      view: z.enum(["summary", "raw"]).default("summary").describe("op:diff — 'summary' (default, clustered ranges + stride) or 'raw' (per-byte before/after)."),
-      maxChanges: z.number().int().min(1).max(65536).default(4096).describe("op:diff raw view — cap the per-byte list (changedCount is the true total)."),
-      maxClusters: z.number().int().min(1).max(4096).default(64).describe("op:diff summary view — cap the cluster list (clusterCount is the true total)."),
-      gap: z.number().int().min(1).max(256).default(4).describe("op:diff summary view — merge changed bytes within this many bytes into one cluster (default 4)."),
-      minDelta: z.number().int().min(1).max(255).optional().describe("op:diff — ignore changes where |after-before| < minDelta (filters RNG/counter wiggle so a position byte that moved by the entity's speed stands out)."),
-      changeDir: z.enum(["inc", "dec"]).optional().describe("op:diff — keep only bytes that went UP ('inc', after>before) or DOWN ('dec', after<before). The lives/score/ammo hunt: a death window's 'dec' bytes are the candidates."),
-      deltaEq: z.number().int().min(-255).max(255).optional().describe("op:diff — keep only bytes whose signed change (after-before) is EXACTLY this. e.g. deltaEq:-1 = 'decreased by one' (lost a life); deltaEq:10 = '+10 score tick'."),
-      beforeMin: z.number().int().min(0).max(255).optional().describe("op:diff — keep only bytes whose BEFORE value was >= this."),
-      beforeMax: z.number().int().min(0).max(255).optional().describe("op:diff — keep only bytes whose BEFORE value was <= this (e.g. beforeMax:9 = a small counter like lives, not a coordinate)."),
-      afterMin: z.number().int().min(0).max(255).optional().describe("op:diff — keep only bytes whose AFTER value was >= this."),
-      afterMax: z.number().int().min(0).max(255).optional().describe("op:diff — keep only bytes whose AFTER value was <= this."),
-      frames: z.number().int().min(1).max(100000).default(60).describe("op:diffRuns — frames to run EACH scenario from the same start state."),
-      portsA: z.array(z.record(z.string(), z.boolean())).max(2).optional().describe("op:diffRuns — held input for run A (e.g. [{right:true}]). Default released."),
-      portsB: z.array(z.record(z.string(), z.boolean())).max(2).optional().describe("op:diffRuns — held input for run B. Default released — A-vs-idle is the classic 'which byte does this input drive?' probe."),
+      view: z.enum(["summary", "raw"]).default("summary").describe("op:diff - 'summary' (default, clustered ranges + stride) or 'raw' (per-byte before/after)."),
+      maxChanges: z.number().int().min(1).max(65536).default(4096).describe("op:diff raw view - cap the per-byte list (changedCount is the true total)."),
+      maxClusters: z.number().int().min(1).max(4096).default(64).describe("op:diff summary view - cap the cluster list (clusterCount is the true total)."),
+      gap: z.number().int().min(1).max(256).default(4).describe("op:diff summary view - merge changed bytes within this many bytes into one cluster (default 4)."),
+      minDelta: z.number().int().min(1).max(255).optional().describe("op:diff - ignore changes where |after-before| < minDelta (filters RNG/counter wiggle so a position byte that moved by the entity's speed stands out)."),
+      changeDir: z.enum(["inc", "dec"]).optional().describe("op:diff - keep only bytes that went UP ('inc', after>before) or DOWN ('dec', after<before). The lives/score/ammo hunt: a death window's 'dec' bytes are the candidates."),
+      deltaEq: z.number().int().min(-255).max(255).optional().describe("op:diff - keep only bytes whose signed change (after-before) is EXACTLY this. e.g. deltaEq:-1 = 'decreased by one' (lost a life); deltaEq:10 = '+10 score tick'."),
+      beforeMin: z.number().int().min(0).max(255).optional().describe("op:diff - keep only bytes whose BEFORE value was >= this."),
+      beforeMax: z.number().int().min(0).max(255).optional().describe("op:diff - keep only bytes whose BEFORE value was <= this (e.g. beforeMax:9 = a small counter like lives, not a coordinate)."),
+      afterMin: z.number().int().min(0).max(255).optional().describe("op:diff - keep only bytes whose AFTER value was >= this."),
+      afterMax: z.number().int().min(0).max(255).optional().describe("op:diff - keep only bytes whose AFTER value was <= this."),
+      frames: z.number().int().min(1).max(100000).default(60).describe("op:diffRuns - frames to run EACH scenario from the same start state."),
+      portsA: z.array(z.record(z.string(), z.boolean())).max(2).optional().describe("op:diffRuns - held input for run A (e.g. [{right:true}]). Default released."),
+      portsB: z.array(z.record(z.string(), z.boolean())).max(2).optional().describe("op:diffRuns - held input for run B. Default released - A-vs-idle is the classic 'which byte does this input drive?' probe."),
       // search / searchNext
-      value: z.number().int().optional().describe("op:search — the value the screen shows now. op:searchNext — required for compare 'eq'/'gt'/'lt'."),
-      size: z.number().int().min(1).max(4).default(1).describe("op:search — value width in bytes: 1 (stats/lives), 2 (scores/timers), 4 (big counters). Ignored for as:'digits' (width = the value's digit count)."),
-      as: z.enum(["raw", "bcd", "digits"]).default("raw").describe("op:search — value representation: 'raw' (binary int, region endianness), 'bcd' (packed BCD, 2 decimal digits/byte — common for NES scores), 'digits' (one byte per ON-SCREEN digit, MSD first, any constant tile base — HUD/tile-index score buffers; the matched base is reported per candidate). searchNext compares in the SAME representation automatically."),
-      compare: z.enum(["eq", "changed", "unchanged", "inc", "dec", "gt", "lt"]).optional().describe("op:searchNext — eq=now equals `value`; changed/unchanged vs the last read; inc/dec=went up/down. All of these work as the FIRST narrow too (baselines are recorded at seed). gt/lt=now >/< `value`."),
-      maxCandidates: z.number().int().min(1).max(8192).default(64).describe("op:search/searchNext — cap the candidates RETURNED (the full list is kept server-side; `count` is the true total). op:'provenance' — cap the ROM offsets returned (default 8); a range matching many places is not distinctive enough to identify an origin."),
-      nearDistance: z.number().int().min(0).max(64).default(4).describe("op:'provenance' — when NOTHING matches exactly, also report ROM ranges differing by at most this many bytes. A game often patches a routine after copying it out of ROM, and a patched copy is still ROM-derived and still compilable, while genuinely generated code is not — 'zero exact matches' alone conflates the two. Set 0 to skip the near search."),
-      extendBy: z.number().int().min(0).max(65536).default(4096).describe("op:'provenance' — how far past the queried range to keep comparing, to find the real length of the copied block. A run that reaches this cap is flagged `verbatimAtLeast` so the number is never mistaken for the end of the copy."),
-      minLength: z.number().int().min(1).max(4096).default(8).describe("op:'provenance' — refuse a query shorter than this, because a short byte run matches many ROM offsets by coincidence (a 4-byte range on a 256KB cart is ambiguous about half the time). Lower it deliberately and read `candidateCount`."),
+      value: z.number().int().optional().describe("op:search - the value the screen shows now. op:searchNext - required for compare 'eq'/'gt'/'lt'."),
+      size: z.number().int().min(1).max(4).default(1).describe("op:search - value width in bytes: 1 (stats/lives), 2 (scores/timers), 4 (big counters). Ignored for as:'digits' (width = the value's digit count)."),
+      as: z.enum(["raw", "bcd", "digits"]).default("raw").describe("op:search - value representation: 'raw' (binary int, region endianness), 'bcd' (packed BCD, 2 decimal digits/byte - common for NES scores), 'digits' (one byte per ON-SCREEN digit, MSD first, any constant tile base - HUD/tile-index score buffers; the matched base is reported per candidate). searchNext compares in the SAME representation automatically."),
+      compare: z.enum(["eq", "changed", "unchanged", "inc", "dec", "gt", "lt"]).optional().describe("op:searchNext - eq=now equals `value`; changed/unchanged vs the last read; inc/dec=went up/down. All of these work as the FIRST narrow too (baselines are recorded at seed). gt/lt=now >/< `value`."),
+      maxCandidates: z.number().int().min(1).max(8192).default(64).describe("op:search/searchNext - cap the candidates RETURNED (the full list is kept server-side; `count` is the true total). op:'provenance' - cap the ROM offsets returned (default 8); a range matching many places is not distinctive enough to identify an origin."),
+      nearDistance: z.number().int().min(0).max(64).default(4).describe("op:'provenance' - when NOTHING matches exactly, also report ROM ranges differing by at most this many bytes. A game often patches a routine after copying it out of ROM, and a patched copy is still ROM-derived and still compilable, while genuinely generated code is not - 'zero exact matches' alone conflates the two. Set 0 to skip the near search."),
+      extendBy: z.number().int().min(0).max(65536).default(4096).describe("op:'provenance' - how far past the queried range to keep comparing, to find the real length of the copied block. A run that reaches this cap is flagged `verbatimAtLeast` so the number is never mistaken for the end of the copy."),
+      minLength: z.number().int().min(1).max(4096).default(8).describe("op:'provenance' - refuse a query shorter than this, because a short byte run matches many ROM offsets by coincidence (a 4-byte range on a 256KB cart is ambiguous about half the time). Lower it deliberately and read `candidateCount`."),
       // shared output
-      outputPath: z.string().optional().describe(`op:read/readCart — write RAW bytes here. Required for reads >${INLINE_HEX_LIMIT}B unless inline. Small reads honor it too (writes file AND returns hex), so 'dump to disk then diff two files' works at any size. (Ignored with offsets.) op:diff — write the FULL diff JSON here regardless of size (so a big diff routes to YOUR path, not a harness path). 'path' is accepted as an alias (the spelling frame({op:'screenshot'}) uses).`),
-      path: z.string().optional().describe("Alias for `outputPath` — the spelling frame({op:'screenshot'}) uses for the same idea."),
-      inline: z.boolean().default(false).describe(`op:read/readCart — for reads >${INLINE_HEX_LIMIT}B, return the hex in the response instead of writing to disk.`),
-      echo: z.boolean().default(true).describe("op:read/readCart with outputPath — false = return only {path, bytes} with NO inline hex (keeps a 2-4KB dump out of context; the raw bytes are in the file). op:diff with outputPath — false = return only the slim envelope (counts + path), omitting the changes/clusters array."),
+      outputPath: z.string().optional().describe(`op:read/readCart - write RAW bytes here. Required for reads >${INLINE_HEX_LIMIT}B unless inline. Small reads honor it too (writes file AND returns hex), so 'dump to disk then diff two files' works at any size. (Ignored with offsets.) op:diff - write the FULL diff JSON here regardless of size (so a big diff routes to YOUR path, not a harness path). 'path' is accepted as an alias (the spelling frame({op:'screenshot'}) uses).`),
+      path: z.string().optional().describe("Alias for `outputPath` - the spelling frame({op:'screenshot'}) uses for the same idea."),
+      inline: z.boolean().default(false).describe(`op:read/readCart - for reads >${INLINE_HEX_LIMIT}B, return the hex in the response instead of writing to disk.`),
+      echo: z.boolean().default(true).describe("op:read/readCart with outputPath - false = return only {path, bytes} with NO inline hex (keeps a 2-4KB dump out of context; the raw bytes are in the file). op:diff with outputPath - false = return only the slim envelope (counts + path), omitting the changes/clusters array."),
     },
     safeTool(async (rawArgs) => {
       // Accept `address` (what breakpoint/disasm call it) and `cpuAddress` as
@@ -1263,7 +1263,7 @@ const _memSnaps = new Map();
 function memSnapshots(key) { let m = _memSnaps.get(key); if (!m) { m = new Map(); _memSnaps.set(key, m); } return m; }
 const snapKey = (region, name) => region + "" + name;
 
-/** Bytes from `offset` to the end of the region — for a whole-region snapshot
+/** Bytes from `offset` to the end of the region - for a whole-region snapshot
  *  when no explicit length is given. Uses the core-reported region size. */
 function regionLength(host, region, offset) {
   const size = host.regionSize ? host.regionSize(region) : 0;

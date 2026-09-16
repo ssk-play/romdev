@@ -1,4 +1,4 @@
-# PC Engine — sprite_move
+# PC Engine - sprite_move
 
 A joypad-controlled 16x16 sprite over a tiled checkerboard background. The d-pad
 slides the sprite around the screen. Exercises the whole PCE helper lib:

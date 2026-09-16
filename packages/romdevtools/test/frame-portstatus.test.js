@@ -1,4 +1,4 @@
-// frame({op:'portStatus'}) — the capstone. ONE call fusing logic (RAM),
+// frame({op:'portStatus'}) - the capstone. ONE call fusing logic (RAM),
 // presentation (render state), and pixels into a single 'state of your port'
 // verdict + next action. Two real hosts.
 

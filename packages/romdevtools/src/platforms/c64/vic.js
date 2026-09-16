@@ -173,7 +173,7 @@ export function decodeSprites(regs) {
       slot: i,
       x,
       y: yLo,
-      tile: null,        // VIC-II sprites don't have a "tile index" — their
+      tile: null,        // VIC-II sprites don't have a "tile index" - their
                          // pixel data lives at screen[0x3F8 + i] × 64 in RAM.
                          // Agents read screen RAM directly via getPointer().
       palette: null,
@@ -204,7 +204,7 @@ export function decodeSprites(regs) {
  *   bytes[6]    = SP
  *
  * Plus the IO port at $0001 (mem_ram[1]) which controls KERNAL/BASIC/CHAR-ROM
- * banking — included by the caller (cpu-state.js) since it lives in main RAM
+ * banking - included by the caller (cpu-state.js) since it lives in main RAM
  * not in the CPU regs themselves.
  */
 export function decodeC64CpuState(bytes) {
@@ -234,9 +234,9 @@ function hex2(n) {
 // ─── inspectPalette glue ───────────────────────────────────────────
 
 /**
- * snapshotPalette(host) — pull current VIC-II palette state + render the
+ * snapshotPalette(host) - pull current VIC-II palette state + render the
  * fixed 16-color palette as a swatch PNG. (Note: C64 palette is hardware-
- * fixed — programs only choose which 16 indices to use, not their RGB.)
+ * fixed - programs only choose which 16 indices to use, not their RGB.)
  */
 export function snapshotPalette(host) {
   const regs = host.readMemory("c64_vic_regs", 0, 0x2F);
@@ -261,7 +261,7 @@ export function snapshotPalette(host) {
 }
 
 /**
- * snapshotSprites(host) — read VIC-II regs + return the 8 sprites in the
+ * snapshotSprites(host) - read VIC-II regs + return the 8 sprites in the
  * generic shape inspectSprites uses across platforms.
  */
 export function snapshotSprites(host) {

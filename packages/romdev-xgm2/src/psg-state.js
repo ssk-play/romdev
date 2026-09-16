@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.struct.PSGState — SN76489 PSG register state + delta encoder.
+// Port of sgdk.xgm2tool.struct.PSGState - SN76489 PSG register state + delta encoder.
 
 import { VGMCommand } from "./vgm-command.js";
 

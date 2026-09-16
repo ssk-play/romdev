@@ -1,7 +1,7 @@
-# Sega Master System / Game Gear — troubleshooting
+# Sega Master System / Game Gear - troubleshooting
 
 > **A build failed? Read `issues[]` FIRST.** Every build/compile call returns
-> `issues: [{file, line, col, severity, message, stage}]` — the structured error
+> `issues: [{file, line, col, severity, message, stage}]` - the structured error
 > list. It almost always names the exact line to fix. Read that before matching a
 > symptom below or touching your source. Fall back to the raw `log` only if
 > `issues[]` is empty but `ok:false`.
@@ -13,16 +13,16 @@ When something's broken. Read MENTAL_MODEL.md first for the
 
 The SMS/GG button map is **inverted** vs the libretro names. genesis_plus_gx
 maps button 1 (TL, the main fire) onto libretro **b** and button 2 (TR) onto
-libretro **a** — so `input({op:'set', a:true})` presses button **2**, not button 1
+libretro **a** - so `input({op:'set', a:true})` presses button **2**, not button 1
 (`JOY_B1`).
 
-Fix — press the button you actually mean:
+Fix - press the button you actually mean:
 - Button 1 (main fire, `JOY_B1`) → `input({op:'set', ports:[{b:true}]})` or `{west:true}`
 - Button 2 (`JOY_B2`) → `{a:true}` / `{east:true}`
 
 Prefer the spatial names or `input({op:'press', button:'1'|'2'})` (they resolve
 correctly per platform). `input({op:'layout', platform:'sms'})` has the full map.
-(Note: `input({op:'set'})` takes a `ports` array — `{ports:[{b:true}]}`, not a bare
+(Note: `input({op:'set'})` takes a `ports` array - `{ports:[{b:true}]}`, not a bare
 `{b:true}`. Same inversion on Game Gear.)
 
 ## "ROM builds but the screen is blank / black"
@@ -62,7 +62,7 @@ as 0x00, 0x01, 0x02, 0x03 in the channel). So:
 
 ```
 0x00 = black
-0x3F = white (red=3, green=3, blue=3 — all max)
+0x3F = white (red=3, green=3, blue=3 - all max)
 0x03 = pure red
 0x0C = pure green
 0x30 = pure blue
@@ -84,7 +84,7 @@ one:
   `do { ... } while (1)` (matches the bundled `default` template's
   branchless update pattern).
 - Split very-long functions into smaller ones.
-- Avoid mid-block `uint8_t var = expr;` — hoist to function top
+- Avoid mid-block `uint8_t var = expr;` - hoist to function top
   (SDCC z80 is C89-strict).
 
 The full list of patterns and workarounds is in
@@ -109,7 +109,7 @@ GG ROMs need:
 
 - 4-bit-per-channel palette (use `gg_load_palette`, not `sms_load_palette`)
 - Lower-left 160×144 area of the 256×192 VDP framebuffer (it's
-  hardware-cropped on the GG screen — content outside that window
+  hardware-cropped on the GG screen - content outside that window
   is invisible)
 - Some GG-specific I/O (port $00 for Start, port $06 for stereo
   PSG mute control)
@@ -121,7 +121,7 @@ and the visible area is in the top-left corner.
 Also check the header region byte at `$7FFF` (high nibble = region,
 low nibble = size): romdev stamps `$7C` (GG international) on `.gg`
 builds, but an SMS nibble there (`$4x`) makes gpgx boot the file in
-SMS compatibility mode — wrong resolution and palette depth no matter
+SMS compatibility mode - wrong resolution and palette depth no matter
 what your code does.
 
 ## "ROM > 32 KB doesn't run"
@@ -142,7 +142,7 @@ genesis_plus_gx (which we use for SMS) snapshots VDP/CRAM/VRAM
 fully. If you find a sprite missing after `state({op:'load'})`, the cause
 is usually game-side: your shadow OAM lives in WRAM, which IS
 snapshotted, but your `oam_dma_flush`/`sms_sat_upload`-equivalent
-fires *next frame* — so the very first frame after load may show
+fires *next frame* - so the very first frame after load may show
 stale SAT until your loop ticks once.
 
 ## "First build is slow but later ones are fast"

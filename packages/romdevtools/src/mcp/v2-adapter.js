@@ -46,7 +46,7 @@ export function withV1ToolApi(v2Server, opts = {}) {
   const sessionShape = sessionParam
     ? {
         [SESSION_ARG]: z.string().optional().describe(
-          "Session handle (optional). Every stateful tool (loadMedia, build run, frame, memory, input, state, playtest, …) drives ONE emulator per session. Omit it and the server keys your session to your connection and reports the handle it chose as a trailing `session: <id>` line in each result; pass that id back here to pin later calls to the same emulator even if your connection changes, or pass your own stable slug to name the session up front. A DIFFERENT value is a fully isolated second emulator (e.g. deterministic stepping while a human plays in the first)."),
+          "Session handle (optional). Every stateful tool (loadMedia, build run, frame, memory, input, state, playtest, ...) drives ONE emulator per session. Omit it and the server keys your session to your connection and reports the handle it chose as a trailing `session: <id>` line in each result; pass that id back here to pin later calls to the same emulator even if your connection changes, or pass your own stable slug to name the session up front. A DIFFERENT value is a fully isolated second emulator (e.g. deterministic stepping while a human plays in the first)."),
       }
     : null;
   return new Proxy(v2Server, {

@@ -1,10 +1,10 @@
 // N64 AI (Audio Interface) decoder.
 //
-// Data source: the romdev_ai_get export (parallel_n64) — the 6 AI registers + the
+// Data source: the romdev_ai_get export (parallel_n64) - the 6 AI registers + the
 // VI clock. The N64 has no per-voice sound chip like the SNES DSP; audio is mixed
 // by the RSP (microcode-dependent) and streamed to the AI's DAC via DMA. So the
 // AI tells us the OUTPUT state: sample rate, whether audio is playing (a buffer is
-// queued), and the DMA source address — the actionable "is sound on, at what rate"
+// queued), and the DMA source address - the actionable "is sound on, at what rate"
 // answer, not a per-channel breakdown (which lives in game-specific RSP audio lists).
 //
 // out layout: [DRAM_ADDR, LEN, CONTROL, STATUS, DACRATE, BITRATE, VI_CLOCK]

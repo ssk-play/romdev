@@ -10,15 +10,15 @@
 
 FT_BASE_ADR		= $0700	;page in the RAM used for FT2 variables, should be $xx00
 				;romdev: pinned to $0700 (the SNDRAM page reserved in
-				;chr-ram-runtime.cfg). $0300 — the cc65 default — overlaps
+				;chr-ram-runtime.cfg). $0300 - the cc65 default - overlaps
 				;the C BSS/DATA region, so FT2's per-frame writes would
 				;clobber _ppuctrl_value / NMI state and stall rendering.
 FT_TEMP			= $fd	;3 bytes in zeropage used by the library as a scratchpad
 FT_DPCM_OFF		= $fc00	;$c000..$ffc0, 64-byte steps
 FT_SFX_STREAMS	= 1		;number of sound effects played at once, 1..4
 
-FT_DPCM_ENABLE = 0		;undefine to exclude all DMC code  (romdev: off by default — re-enable by editing this line)
-FT_SFX_ENABLE = 0		;undefine to exclude all sound effects code  (romdev: off by default — re-enable by editing this line)
+FT_DPCM_ENABLE = 0		;undefine to exclude all DMC code  (romdev: off by default - re-enable by editing this line)
+FT_SFX_ENABLE = 0		;undefine to exclude all sound effects code  (romdev: off by default - re-enable by editing this line)
 FT_THREAD = 1			;undefine if you are calling sound effects from the same thread as the sound update call
 
 FT_PAL_SUPPORT = 1		;undefine to exclude PAL support

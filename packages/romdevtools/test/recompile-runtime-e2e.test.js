@@ -1,7 +1,7 @@
-// NES→SNES phase-2 LIVE port — tool-level e2e. Drives
+// NES→SNES phase-2 LIVE port - tool-level e2e. Drives
 // disasm({target:'recompile', withRuntime:true}) on a hand-built NROM whose NMI
 // handler animates a sprite (writes the shadow OAM + OAMDMA each frame), then
-// builds the emitted asm with asar and boots it in snes9x — asserting the runtime
+// builds the emitted asm with asar and boots it in snes9x - asserting the runtime
 // is wired (NMI vector → NES_RT_NMI), the game's NMI runs each vblank, and the
 // sprite reaches SNES OAM and ANIMATES. This is the phase-2 acceptance gate
 // through the actual tool, per the MCP-server-path convention.

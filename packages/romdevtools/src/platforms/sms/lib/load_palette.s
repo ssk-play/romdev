@@ -7,7 +7,7 @@
 ;
 ; To write CRAM:
 ;   1. Set the VDP address to CRAM via control port:
-;        send word (cram_offset | $C000) — the $C000 prefix tells the VDP
+;        send word (cram_offset | $C000) - the $C000 prefix tells the VDP
 ;        "the next data-port write goes to CRAM at this address".
 ;        Use $4000 prefix for VRAM writes instead.
 ;   2. Write each color byte to VDP_DATA ($BE). Auto-increments the

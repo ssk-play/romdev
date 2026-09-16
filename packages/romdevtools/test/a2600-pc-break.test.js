@@ -1,8 +1,8 @@
-// Atari 2600 PC breakpoint / read watchpoint / single-step — end to end.
+// Atari 2600 PC breakpoint / read watchpoint / single-step - end to end.
 //
 // Exercises the stella2014 core patch (6502 / M6502::execute PC-break hook +
 // M6502::peek read-watch; the hit sets StopExecutionBit so TIA::update's
-// endFrame() runs and retro_run returns — no hang) through the MCP tool surface:
+// endFrame() runs and retro_run returns - no hang) through the MCP tool surface:
 // runUntilPC freezes the CPU at an exact instruction, runUntilRead catches a
 // reader of an address, stepInstruction single-steps and must ADVANCE the PC.
 // The breakpoint PC is discovered self-referentially via findWriter (no
@@ -35,7 +35,7 @@ const toJSON = (res) => {
 // Minimal 2600 cart: increment a counter in RIOT RAM ($80) every frame AND read
 // it back, so both the write watch and the read watch have a deterministic
 // target. The writing/reading instruction PCs are stable breakpoint targets we
-// discover via findWriter. (6507 asm via dasm — the 2600 has no C path.)
+// discover via findWriter. (6507 asm via dasm - the 2600 has no C path.)
 const COUNTER = 0x80;
 const SRC = `
   processor 6502
@@ -141,7 +141,7 @@ test("Atari 2600 PC breakpoint + read watch + single-step (stella2014 6502)", { 
   const bp = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "pc",  address: writerPC, maxFrames: 120 },
   }));
-  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported — core patch missing?");
+  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported - core patch missing?");
   assert.equal(bp.hit, true, "runUntilPC did not hit the writer PC: " + JSON.stringify(bp));
   assert.equal(bp.pcRaw, writerPC, "frozen PC != requested PC");
 
@@ -159,11 +159,11 @@ test("Atari 2600 PC breakpoint + read watch + single-step (stella2014 6502)", { 
   assert.ok(stepRes.pcRaw >= 0, "single-step returned no pc");
   assert.notEqual(stepRes.pcRaw, writerPC, "single-step did not advance PC: " + JSON.stringify(stepRes));
 
-  // 5) runUntilRead on the counter — the program reads $80 each frame: positive hit.
+  // 5) runUntilRead on the counter - the program reads $80 each frame: positive hit.
   const rd = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "read",  address: COUNTER, maxFrames: 60 },
   }));
-  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported — read-watch patch missing?");
+  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported - read-watch patch missing?");
   assert.equal(rd.hit, true, "runUntilRead did not catch the $80 read: " + JSON.stringify(rd));
   assert.ok(rd.pcRaw > 0, "runUntilRead returned no reader pc");
 });

@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.VGM — Sega Megadrive VGM file decoder / optimizer.
+// Port of sgdk.xgm2tool.format.VGM - Sega Megadrive VGM file decoder / optimizer.
 
 import * as Util from "./util.js";
 import { Command } from "./command.js";
@@ -15,7 +15,7 @@ import { XGMSample } from "./xgm-sample.js";
  * Runtime configuration flags (mirror of sgdk.xgm2tool.Launcher's static flags
  * that influence VGM conversion logic). The original Launcher is not ported;
  * index.js assembles the public API and may flip these. Debug prints gated on
- * `silent` / `verbose` are dropped per the porting contract — only the flags
+ * `silent` / `verbose` are dropped per the porting contract - only the flags
  * that affect actual data transformation are preserved.
  * @type {{silent:boolean, verbose:boolean, sampleRateFix:boolean, sampleIgnore:boolean, delayKeyOff:boolean}}
  */

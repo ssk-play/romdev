@@ -4,7 +4,7 @@
 // shorthand like "PPUCTRL". The disassembler walks asm output line-by-line
 // and appends `  ; <REG>` whenever an operand resolves to one of these.
 //
-// Tables are intentionally compact — register *names* only, not full
+// Tables are intentionally compact - register *names* only, not full
 // descriptions. Agents look up details via the existing input-layout /
 // platform-tools when they need bit-level meaning.
 
@@ -145,13 +145,13 @@ export const GB_REGISTERS = {
 /**
  * SMS / Game Gear I/O ports + VDP. The Z80 sees these via IN/OUT
  * instructions, not memory-mapped reads, but disassemblers commonly
- * show the port number as an immediate — `out ($BE),a` etc — so
+ * show the port number as an immediate - `out ($BE),a` etc - so
  * annotating those operands is what helps.
  *
  * SMS uses 8-bit ports; we annotate on 8-bit hits. Code that does
  * `out ($BE),a` should pick up `; VDP_DATA`.
  *
- * Key: SMS VDP register *numbers* (0-10) are NOT memory addresses —
+ * Key: SMS VDP register *numbers* (0-10) are NOT memory addresses -
  * the agent writes them via VDP_CTRL. We annotate the VDP ports
  * ($BE/$BF) and the I/O ports ($DC/$DD joypad, $3E/$3F memory control,
  * $7E/$7F PSG/V-counter, $C0-$C1 GG-extras).
@@ -216,13 +216,13 @@ export const ATARI2600_REGISTERS = {
 };
 
 /**
- * Atari 7800 (MARIA + TIA-audio + RIOT). Memory map differs from 2600 —
+ * Atari 7800 (MARIA + TIA-audio + RIOT). Memory map differs from 2600 -
  * registers live at the bottom of the 6502 address space.
  *
  * @type {RegisterTable}
  */
 export const ATARI7800_REGISTERS = {
-  // TIA audio regs (subset, $15-$1A — overlap with 2600 names)
+  // TIA audio regs (subset, $15-$1A - overlap with 2600 names)
   0x15: "AUDC0",     0x16: "AUDC1",     0x17: "AUDF0",     0x18: "AUDF1",
   0x19: "AUDV0",     0x1A: "AUDV1",
   // MARIA regs $20-$3F
@@ -237,7 +237,7 @@ export const ATARI7800_REGISTERS = {
   0x36: "P5C1",      0x37: "P5C2",      0x38: "P5C3",
   0x3A: "P6C1",      0x3B: "P6C2",
   // $3C is BOTH the MARIA control reg (CTRL) and P6C3 depending on the
-  // reference's naming convention — a JS object holds one value per key, so
+  // reference's naming convention - a JS object holds one value per key, so
   // name it for both rather than silently dropping one.
   0x3C: "CTRL/P6C3",
   0x3E: "P7C1",      0x3F: "P7C2",      // P7C3 lives at $40 in some refs
@@ -251,7 +251,7 @@ export const ATARI7800_REGISTERS = {
 };
 
 /**
- * Commodore 64 register table — VIC-II ($D000-$D02E), SID ($D400-$D41C),
+ * Commodore 64 register table - VIC-II ($D000-$D02E), SID ($D400-$D41C),
  * CIA1 ($DC00-$DC0F), CIA2 ($DD00-$DD0F), plus the 6510 IO ports at $00/$01.
  * @type {RegisterTable}
  */

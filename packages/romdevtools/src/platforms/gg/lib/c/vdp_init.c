@@ -1,4 +1,4 @@
-/* SMS VDP — minimum viable initialization (C).
+/* SMS VDP - minimum viable initialization (C).
  *
  * Writes the 11 mode-4 registers to a sane baseline:
  *   display OFF, vblank IRQ off, 192-line mode 4, name table at $3800,
@@ -8,7 +8,7 @@
  *
  * Sprite-tile base: R6 bit 2 (SA13) selects $0000 (clear) vs $2000 (set).
  * We default to R6=0xFF ($2000) because EVERY bundled scaffold uploads its
- * sprite tiles to $2000 (gg_load_tiles(0x2000, ...)) — so the baseline must
+ * sprite tiles to $2000 (gg_load_tiles(0x2000, ...)) - so the baseline must
  * match what consumers do, or sprites read from the empty/BG bank and render
  * invisible. (Many SMS/GG references say "R6=0xFB → $2000", which is backwards:
  * 0xFB has SA13 CLEAR = $0000.) If you instead keep sprite tiles in the BG

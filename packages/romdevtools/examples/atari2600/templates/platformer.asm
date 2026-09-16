@@ -1,43 +1,43 @@
-; ── platformer.asm — PERCH PATROL — Atari 2600 single-screen platformer ──────
+; ── platformer.asm - PERCH PATROL - Atari 2600 single-screen platformer ──────
 ;
-; A COMPLETE, working game — drawn title screen, a single-SCREEN platformer
+; A COMPLETE, working game - drawn title screen, a single-SCREEN platformer
 ; (you hop a P0 hero across PLAYFIELD ledges, grab the bouncing coin, dodge
 ; the patrolling spike), score + in-session hi-score, TIA sound effects + a
 ; title jingle, game-over with auto-return to the title, and the 2600's
 ; signature feature: THE WHOLE MACHINE. There is no framebuffer, no tilemap,
-; no OS — every visible scanline below is composed live by racing the beam,
+; no OS - every visible scanline below is composed live by racing the beam,
 ; and this file teaches the platformer's load-bearing TIA tricks while doing
 ; it:
 ;
-;   1. PLAYFIELD-AS-LEVEL (the ledges + floor + pit) — the 2600 has NO
+;   1. PLAYFIELD-AS-LEVEL (the ledges + floor + pit) - the 2600 has NO
 ;      tilemap and NO hardware scroll, so the level IS the playfield. PF0/
 ;      PF1/PF2 are reloaded per scanline band from a per-row table; a lit PF
 ;      pixel is solid ground, a gap is a pit. This is exactly how the era's
 ;      single-screen platformers drew their arenas: the honest 2600
 ;      platformer is a FIXED screen (those games flip whole new screens at
-;      the edges — they never scroll), so this one is too.
-;   2. CODE COLLISION, NOT TIA LATCHES (land-on-ledge) — a shooter reads the
+;      the edges - they never scroll), so this one is too.
+;   2. CODE COLLISION, NOT TIA LATCHES (land-on-ledge) - a shooter reads the
 ;      TIA's hardware overlap latch (FLAK FRENZY does), but a platformer must
 ;      know WHICH surface it's standing on to stop the fall there. So ground
 ;      contact is tested in CODE: sample the level's PF bit directly under
-;      the hero's column at his feet's Y. (TIA latches are still used — for
+;      the hero's column at his feet's Y. (TIA latches are still used - for
 ;      the coin pickup and the spike death, where "did I touch it" is enough.)
-;   3. RESP/HMOVE BEAM POSITIONING (the SBC-#15 idiom) — there is no sprite X
+;   3. RESP/HMOVE BEAM POSITIONING (the SBC-#15 idiom) - there is no sprite X
 ;      register; you strobe RESPx/RESBL/RESM0 WHERE THE BEAM IS, then nudge
 ;      ±7px with HMOVE. Hero P0, coin BL and spike M0 are positioned this way
 ;      every frame, inside the timed VBLANK window.
-;   4. TIM64T/INTIM FRAME TIMING — set the RIOT timer for VBLANK/overscan and
+;   4. TIM64T/INTIM FRAME TIMING - set the RIOT timer for VBLANK/overscan and
 ;      let it absorb however much the game logic costs, instead of hand-
 ;      counting WSYNCs (which rolls the picture the moment logic grows).
 ;
-; THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+; THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
 ; very different one. The markers tell you what's what:
-;   HARDWARE IDIOM (load-bearing) — cycle-counted / footgun-dodging code;
+;   HARDWARE IDIOM (load-bearing) - cycle-counted / footgun-dodging code;
 ;     reshape your gameplay around it (see TROUBLESHOOTING before changing).
-;   GAME LOGIC (clay) — physics, level layout, scoring, tuning, art: reshape
-;     freely (the LEVEL table near the bottom is pure clay — redraw it).
+;   GAME LOGIC (clay) - physics, level layout, scoring, tuning, art: reshape
+;     freely (the LEVEL table near the bottom is pure clay - redraw it).
 ;
-; GAME_TITLE: on the 2600 a title is DRAWN, not printed — there is no font
+; GAME_TITLE: on the 2600 a title is DRAWN, not printed - there is no font
 ; hardware. The PERCH/PATROL banner bitmaps near the bottom of this file ARE
 ; the title; redraw them for your game (the comment above each table shows
 ; the 40-pixel artwork and the PF0/PF1/PF2 bit-order encoding).
@@ -49,17 +49,17 @@
 ;   Grab the bouncing coin to score; touch the patrolling spike and it's
 ;   game over. Your best SCORE this session is shown on the title screen.
 ;
-; PLAYERS — 1P, honest. The 2600 has two joystick ports, but this single-
+; PLAYERS - 1P, honest. The 2600 has two joystick ports, but this single-
 ; screen kernel is already spending its scanline budget on the PLAYFIELD
 ; level (per-row PF reload), the hero (P0), the coin (BL) and the spike
 ; (M0). A second human hero would need its own positioned object competing
 ; for the SAME 76-cycle lines the level reload already fills. To add 2P
-; alternating TURNS instead — cheap, no extra kernel objects — keep a second
+; alternating TURNS instead - cheap, no extra kernel objects - keep a second
 ; score/lives pair and swap on death; left as an exercise.
 ;
 ; HI-SCORE HONESTY: real 2600 cartridges had NO battery, NO SRAM, NO
 ; persistence of any kind. The hi-score here lives in RIOT RAM ($A0) and
-; survives game → title cycles only WITHIN one power-on session — exactly
+; survives game → title cycles only WITHIN one power-on session - exactly
 ; like the arcade machines of the era. Power off and it is gone. Do not
 ; fake an EEPROM; state it honestly in your fork too.
 ;
@@ -102,7 +102,7 @@ AUDF0    = $17
 AUDF1    = $18
 AUDV0    = $19
 AUDV1    = $1A
-; ── TIA READ registers (separate read map — the same addresses as some
+; ── TIA READ registers (separate read map - the same addresses as some
 ; write strobes; e.g. CXP0FB reads $02 while STA $02 strobes WSYNC) ─────
 CXP0FB   = $02          ; bit6 = player0 / ball collision (latched)
 CXM0P    = $00          ; bit7 = missile0 / player0 collision (latched)
@@ -113,7 +113,7 @@ SWCHB    = $282         ; console: bit0 RESET, bit1 SELECT (ACTIVE LOW)
 INTIM    = $284         ; timer read
 TIM64T   = $296         ; timer set, 64-cycle ticks
 
-; ── Zero-page state (the 2600's ENTIRE RAM is $80-$FF — 128 bytes; in
+; ── Zero-page state (the 2600's ENTIRE RAM is $80-$FF - 128 bytes; in
 ; core memory dumps system_ram offset 0 = $80) ────────────────────────
 STATE     = $80         ; 0 = title, 1 = play, 2 = game over
 P_X       = $81         ; hero X column (visible 0..159; kept 12..148)
@@ -140,18 +140,18 @@ EDGEB     = $95         ; this frame's RESET press-edge (bit0)
 FIRE_EDG  = $96         ; this frame's fire press-edge (bit7)
 TMP       = $97
 TMP2      = $98
-P_ROW     = $99         ; hero's current level ROW (Y/16) — picked in logic,
+P_ROW     = $99         ; hero's current level ROW (Y/16) - picked in logic,
                         ;   reused by the kernel to draw the hero band
 COIN_ROW  = $9A         ; coin's level row (for the kernel)
 SPK_ROW   = $9B         ; spike's level row (for the kernel)
 GFXIDX    = $9C         ; hero sprite frame base (0 = idle, 6 = walk)
-SCORE_HSV = $A0         ; SESSION hi-score (BCD low byte). RAM only — real
+SCORE_HSV = $A0         ; SESSION hi-score (BCD low byte). RAM only - real
 SCORE_HSH = $A1         ;   2600 carts have no battery; honest by design.
 S0BUF     = $A2         ; 6 rows: packed score digits for the play kernel
 HSBUF     = $A8         ; 6 rows: hi-score, packed (for the title kernel)
 SCRATCH   = $AE         ; 6 bytes general kernel/packer scratch
 
-; ── level geometry constants (clay — change to reshape the arena) ──────
+; ── level geometry constants (clay - change to reshape the arena) ──────
 ; The level is NROWS bands of 16 scanlines. Each row carries a PF0/PF1/PF2
 ; triple (LEVEL table) = where the ground/ledges are on that band. P_Y is
 ; the hero's FEET measured 0 (bottom of the arena) upward; row = P_Y/16.
@@ -182,7 +182,7 @@ START:
 .clr:
   STA $00,X             ; clears ALL of $00-$FF: zero page RAM AND the TIA
   DEX                   ; write registers (GRP/ENAxx/HMxx/audio all silenced
-  BNE .clr              ; — the standard 2600 power-on hygiene)
+  BNE .clr              ; - the standard 2600 power-on hygiene)
 
   ; Fixed identity colors (the kernels rewrite COLUPF per band, but the
   ; object colors are constant all session).
@@ -196,14 +196,14 @@ START:
   JSR enter_title
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
 ; THE FRAME LOOP. 262 scanlines, every frame, forever. VBLANK and overscan
 ; are timed with the RIOT timer (TIM64T) instead of counted WSYNCs: set the
 ; timer, run however much game logic the state needs, then spin on INTIM.
 ; This is how shipped 2600 games did it, and it kills the classic homebrew
 ; bug class where adding one branch to the game logic emits a 263rd line
 ; and the TV loses vsync (rolling picture). The VISIBLE 192 lines are still
-; counted exactly — every STA WSYNC below is one scanline, and each state's
+; counted exactly - every STA WSYNC below is one scanline, and each state's
 ; kernel accounts for all 192.
 ; ──────────────────────────────────────────────────────────────────────
 MAIN:
@@ -228,7 +228,7 @@ MAIN:
   BNE .vbwait
   STA WSYNC
 
-  ; kernel dispatch — title has its own kernel; play and game-over share one
+  ; kernel dispatch - title has its own kernel; play and game-over share one
   LDA STATE
   BNE .ingame
   JMP title_kernel
@@ -249,13 +249,13 @@ kernel_done:
 
 ; ──────────────────────────────────────────────────────────────────────
 ; Per-frame logic, dispatched by state. Runs entirely inside the timed
-; VBLANK window (~2800 cycles — an eternity next to the kernel's 76/line).
+; VBLANK window (~2800 cycles - an eternity next to the kernel's 76/line).
 ; ──────────────────────────────────────────────────────────────────────
 frame_logic:
   INC FRAME
   JSR audio_tick
 
-  ; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  ; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
   ; Console RESET + fire button are ACTIVE LOW and not debounced; a held
   ; RESET would restart every frame. Convert to press-EDGES once per frame:
   ; edge = was-released-last-frame AND pressed-now.
@@ -288,7 +288,7 @@ frame_logic:
 logic_play_jmp:
   JMP logic_play
 
-; ── GAME LOGIC (clay — reshape freely) ── title-screen behavior ────────
+; ── GAME LOGIC (clay - reshape freely) ── title-screen behavior ────────
 logic_title:
   ; fire 0 or console RESET starts the game.
   LDA FIRE_EDG
@@ -301,7 +301,7 @@ logic_title:
   JMP start_game
 .packtitle:
   ; Pack the hi-score into the title's display buffer (the kernel just
-  ; streams bytes — all per-frame thinking happens HERE, in VBLANK, never
+  ; streams bytes - all per-frame thinking happens HERE, in VBLANK, never
   ; inside a kernel). Two visible digits, packed two-per-PF1-row.
   LDA SCORE_HSV
   JSR pack_two_digits
@@ -320,7 +320,7 @@ logic_title:
   STA ENAM0
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── one frame of the platformer ──
+; ── GAME LOGIC (clay - reshape freely) ── one frame of the platformer ──
 logic_play:
   LDA EDGEB
   AND #$01              ; console RESET → back to title
@@ -328,10 +328,10 @@ logic_play:
   JMP enter_title
 .noquit:
 
-  ; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  ; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
   ; SWCHA is ACTIVE LOW (0 = pressed) and must be RE-LOADED for every
   ; direction check. The classic bug: caching it in A and chaining ASLs,
-  ; then clobbering A with game state between shifts — "right works once,
+  ; then clobbering A with game state between shifts - "right works once,
   ; left never moves". Fresh LDA SWCHA + AND #mask per check is immune.
   ; Joystick 0 lives in the HIGH nibble: bit7 right, bit6 left, bit4 up.
   LDA SWCHA
@@ -345,7 +345,7 @@ logic_play:
   LDA #6
   STA GFXIDX           ; walk frame while moving
 .nr:
-  LDA SWCHA            ; RE-LOAD — never trust A to still hold SWCHA
+  LDA SWCHA            ; RE-LOAD - never trust A to still hold SWCHA
   AND #$40             ; joy0 left
   BNE .nl
   LDA P_X
@@ -357,11 +357,11 @@ logic_play:
   STA GFXIDX
 .nl:
 
-  ; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-  ; JUMP / GRAVITY — a fixed-point vertical-velocity counter, the heart of
+  ; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+  ; JUMP / GRAVITY - a fixed-point vertical-velocity counter, the heart of
   ; any platformer. P_VY is signed: positive = rising, negative = falling.
   ; JUMP is only allowed when ON_GND was true (set by the ground test BELOW,
-  ; from last frame's footing) — the canonical "no mid-air double jump" gate.
+  ; from last frame's footing) - the canonical "no mid-air double jump" gate.
   ; Beam-Y runs 192→1 top-to-bottom, but we keep P_Y in LEVEL space (0 =
   ; arena floor, growing UP) so the physics reads naturally; the kernel maps
   ; it back to a scanline.
@@ -418,8 +418,8 @@ logic_play:
   JMP .landDone
 .nfloor:
 
-  ; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-  ; LAND-ON-LEDGE collision — done in CODE, not via a TIA latch. A shooter
+  ; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+  ; LAND-ON-LEDGE collision - done in CODE, not via a TIA latch. A shooter
   ; can ask the TIA "did anything overlap?", but a platformer must know
   ; WHICH surface stopped the fall, to settle the hero exactly on top of it.
   ; Rule: only when FALLING (P_VY <= 0), look up the LEVEL row at the hero's
@@ -456,7 +456,7 @@ logic_play:
   STA ON_GND
 .landDone:
 
-  ; ── GAME LOGIC (clay) — the COIN bounces in place; grab it to score ────
+  ; ── GAME LOGIC (clay) - the COIN bounces in place; grab it to score ────
   ; The coin (TIA ball, BL) bounces vertically between COIN_FLR and
   ; COIN_CEIL. Touch it (P0/BL collision latch) → score + respawn it at a
   ; new pseudo-random column.
@@ -476,11 +476,11 @@ logic_play:
   STA COIN_VY
 .ncoinBot:
 
-  ; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  ; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
   ; Coin pickup AND spike death both use the TIA's hardware collision
   ; LATCHES (P0/ball, P0/missile0). The TIA detects pixel overlap in silicon
   ; as it draws; we read the latched result here, one frame later, free.
-  ; Rules: latches accumulate until CXCLR — clear them EVERY frame (we do at
+  ; Rules: latches accumulate until CXCLR - clear them EVERY frame (we do at
   ; the end of this block), or a stale hit fires phantom pickups/deaths long
   ; after the object moved.
   BIT CXP0FB           ; bit6 (V flag) = P0/ball (hero/coin) overlapped
@@ -493,7 +493,7 @@ logic_play:
   JSR sfx_play
 .noCoin:
 
-  ; ── GAME LOGIC (clay) — the SPIKE patrols a ledge left/right ───────────
+  ; ── GAME LOGIC (clay) - the SPIKE patrols a ledge left/right ───────────
   LDA SPK_X
   CLC
   ADC SPK_DIR
@@ -543,7 +543,7 @@ logic_play:
 .pk:
   JMP pack_score       ; render SCORE into S0BUF (tail-RTS ends frame_logic)
 
-; ── GAME LOGIC (clay — reshape freely) ── game-over freeze-frame ───────
+; ── GAME LOGIC (clay - reshape freely) ── game-over freeze-frame ───────
 logic_over:
   LDA EDGEB
   AND #$01
@@ -557,9 +557,9 @@ logic_over:
 .stay:
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── helpers ──────────────────────
+; ── GAME LOGIC (clay - reshape freely) ── helpers ──────────────────────
 
-; ground_under_hero — is there a solid LEVEL pixel under the hero's column
+; ground_under_hero - is there a solid LEVEL pixel under the hero's column
 ; in row TMP? Returns C=1 if solid (can stand), C=0 if pit/gap.
 ; The hero stands at a coarse 1-of-40 column: PF pixel = P_X/4 across the 40
 ; playfield pixels of a (reflect-mode) symmetric arena. We fold the right
@@ -742,10 +742,10 @@ digit_times6:           ; A = digit 0-9 → A = digit*6 (DIGITS row index)
   ASL                 ; *6
   RTS
 
-; pack_two_digits — A = a BCD byte (two digits). Writes 6 rows into SCRATCH,
+; pack_two_digits - A = a BCD byte (two digits). Writes 6 rows into SCRATCH,
 ; left digit (high nibble) in PF1 high nibble, right digit (low nibble) in
-; PF1 low nibble. In SCORE mode the byte draws twice (two colors) — the
-; classic dual-score look — but here both halves carry the SAME packed pair.
+; PF1 low nibble. In SCORE mode the byte draws twice (two colors) - the
+; classic dual-score look - but here both halves carry the SAME packed pair.
 pack_two_digits:
   PHA
   LSR
@@ -793,7 +793,7 @@ pack_score:             ; render the low two SCORE digits into S0BUF
   BNE .pks
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── TIA sound ────────────────────
+; ── GAME LOGIC (clay - reshape freely) ── TIA sound ────────────────────
 ; Voice 0 = one-shot sound effects; voice 1 = the jingle player. Keeping
 ; them on separate voices means a jump blip never cuts the tune off.
 sfx_play:               ; A = AUDF pitch, X = AUDC waveform, Y = frames
@@ -856,8 +856,8 @@ audio_tick:             ; called once per frame, every state
   RTS
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-; OBJECT POSITIONING — the canonical SBC-#15 beam-race. There is no "X
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+; OBJECT POSITIONING - the canonical SBC-#15 beam-race. There is no "X
 ; register" for sprites: you strobe RESP0/RESBL/RESM0 and the object lands
 ; WHEREVER THE BEAM IS. Each SBC/BCS lap is 5 CPU cycles = 15 beam pixels,
 ; so when the subtraction underflows the beam has crossed x/15 coarse
@@ -913,12 +913,12 @@ position_objects:
   RTS                   ; come fresh after a WSYNC (mid-line HMOVE combs)
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-; THE PLAY/GAME-OVER KERNEL — 192 visible lines, fully accounted:
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+; THE PLAY/GAME-OVER KERNEL - 192 visible lines, fully accounted:
 ;   24 = score bar  +  144 = arena (9 rows × 16)  +  24 = pad  = 192
 ;
 ; SCORE BAR (SCORE mode): CTRLPF = $02 colors the LEFT playfield half with
-; COLUP0 and the RIGHT half with COLUP1 — a two-color scoreboard with zero
+; COLUP0 and the RIGHT half with COLUP1 - a two-color scoreboard with zero
 ; sprites. We stream the packed score digits into PF1, one font row / 4 lines.
 ;
 ; ARENA: the level is NROWS bands of 16 lines. Each band reloads PF0/PF1/PF2
@@ -1076,12 +1076,12 @@ play_kernel:
   JMP kernel_done
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-; THE TITLE KERNEL — 192 lines, banded:
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+; THE TITLE KERNEL - 192 lines, banded:
 ;   24 blank + 28 banner "PERCH" + 8 gap + 28 banner "PATROL" + 16 gap +
 ;   24 hi-score + remainder pad = 192
 ;
-; The banner is an ASYMMETRIC PLAYFIELD — the 2600's only way to draw
+; The banner is an ASYMMETRIC PLAYFIELD - the 2600's only way to draw
 ; full-width artwork. The playfield registers hold just 20 pixels; the TIA
 ; replays them for the right half of the line (CTRLPF bit0 chooses repeat
 ; or mirror). For 40 INDEPENDENT pixels you rewrite all three registers
@@ -1090,7 +1090,7 @@ play_kernel:
 ;   PF0 again after cycle ~28 (left copy drawn) before ~49 (right copy reads)
 ;   PF1 again after cycle ~39                   before ~54
 ;   PF2 again after cycle ~50                   before ~65
-; The code below hits those windows by instruction order alone — count
+; The code below hits those windows by instruction order alone - count
 ; cycles before you reorder ANYTHING between the WSYNC and the last STA.
 ; REQUIRES: CTRLPF bit0 = 0 (repeat mode). In mirror mode the right half
 ; reads the registers in REVERSE order and every window above is wrong.
@@ -1105,7 +1105,7 @@ title_kernel:
   STA GRP0
   STA ENABL
   STA ENAM0
-  STA CTRLPF           ; REPEAT mode — required by the banner (see above)
+  STA CTRLPF           ; REPEAT mode - required by the banner (see above)
   STA VBLANK           ; beam on
 
   LDX #24              ; band 1: 24 blank lines
@@ -1194,7 +1194,7 @@ title_kernel:
 
   ; band 6: hi-score, 24 lines (6 rows × 4). Packed digits stream into PF1;
   ; SCORE mode draws them twice in the two player colors. In-session best;
-  ; honest: there is no battery — gone at power-off, like the arcades.
+  ; honest: there is no battery - gone at power-off, like the arcades.
   LDA #COL_HUD
   STA COLUPF
   LDX #0
@@ -1222,10 +1222,10 @@ title_kernel:
   JMP kernel_done
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── GAME LOGIC (clay — reshape freely) ── data tables ──────────────────
+; ── GAME LOGIC (clay - reshape freely) ── data tables ──────────────────
 
 ; Digit font: 4 pixels wide × 6 rows, stored in the HIGH nibble (PF1 bit7
-; is the LEFTMOST pixel of the left playfield half — high nibble = left).
+; is the LEFTMOST pixel of the left playfield half - high nibble = left).
 DIGITS:
   .byte $60,$90,$90,$90,$90,$60   ; 0
   .byte $20,$60,$20,$20,$20,$70   ; 1
@@ -1240,7 +1240,7 @@ DIGITS:
 
 ; ── THE HERO SPRITE ───────────────────────────────────────────────────
 ; 6 rows tall, P0. Two frames stacked: idle (base 0) and a walk pose
-; (base 6) selected by GFXIDX in the kernel — a cheap 1977-style 2-frame
+; (base 6) selected by GFXIDX in the kernel - a cheap 1977-style 2-frame
 ; animation. Drawn TOP-row first (the kernel scans the band downward).
 HERO:
   ; idle (GFXIDX = 0)
@@ -1258,7 +1258,7 @@ HERO:
   .byte %00100100
   .byte %01000010
 
-; Title jingle (voice 1, AUDC $04 square; AUDF divider — LOWER = higher
+; Title jingle (voice 1, AUDC $04 square; AUDF divider - LOWER = higher
 ; pitch; 10 frames per note; $FF terminates). The table IS the song.
 TITLE_TUNE:
   .byte $1B,$17,$13,$0F,$13,$17,$13,$0F,$FF
@@ -1269,41 +1269,41 @@ OVER_TUNE:
 ; ── THE LEVEL ─────────────────────────────────────────────────────────
 ; NROWS rows × (PF0, PF1, PF2). A lit pixel = solid ground; a gap = pit.
 ; REFLECT mode mirrors the 20 stored pixels into a symmetric 40-px arena,
-; so you only author the LEFT half — the arena is naturally left/right
+; so you only author the LEFT half - the arena is naturally left/right
 ; symmetric (for an asymmetric arena, switch the kernel to a per-line
 ; asymmetric reload like the title banner). Row 0 = BOTTOM (the floor),
 ; row NROWS-1 = TOP. PF bit order, as ever on the 2600:
 ;   PF0: bits 4..7 used, bit4 = leftmost (reversed)
 ;   PF1: bit7 = leftmost (normal)
 ;   PF2: bit0 = leftmost (reversed)
-; This is the workhorse "clay" of the file — every ledge, pit and the floor
+; This is the workhorse "clay" of the file - every ledge, pit and the floor
 ; lives here; ground_under_hero reads the SAME table so code and picture
 ; never disagree. (The hero spawns on row 2; row 0 is a solid landing floor
 ; so a fall always ends on ground.)
 LEVEL:
-  ; row 0 — solid floor (full left half → mirrored = full floor)
+  ; row 0 - solid floor (full left half → mirrored = full floor)
   .byte %11110000, %11111111, %11111111
-  ; row 1 — a low ledge on the left (the spike's patrol band)
+  ; row 1 - a low ledge on the left (the spike's patrol band)
   .byte %11110000, %11110000, %00000000
-  ; row 2 — a mid ledge (the hero's start perch)
+  ; row 2 - a mid ledge (the hero's start perch)
   .byte %00000000, %00001111, %11110000
-  ; row 3 — open (air)
+  ; row 3 - open (air)
   .byte %00000000, %00000000, %00000000
-  ; row 4 — a high ledge near the wall
+  ; row 4 - a high ledge near the wall
   .byte %11110000, %00000000, %00000000
-  ; row 5 — open
+  ; row 5 - open
   .byte %00000000, %00000000, %00000000
-  ; row 6 — a small floating ledge centre-left
+  ; row 6 - a small floating ledge centre-left
   .byte %00000000, %00111100, %00000000
-  ; row 7 — open
+  ; row 7 - open
   .byte %00000000, %00000000, %00000000
-  ; row 8 — top cap ledge (a landing under the HUD)
+  ; row 8 - top cap ledge (a landing under the HUD)
   .byte %11110000, %00000011, %00000000
 
 ; ── THE TITLE BANNER ──────────────────────────────────────────────────
 ; 40-pixel-wide artwork, 7 rows per word, drawn by the asymmetric-playfield
 ; kernel above. Each row is six bytes across six tables (left PF0/PF1/PF2,
-; right PF0/PF1/PF2). PF bit order is the 2600's great prank — three
+; right PF0/PF1/PF2). PF bit order is the 2600's great prank - three
 ; registers, three different orders:
 ;   PF0: only bits 4-7 used, bit 4 = LEFTMOST pixel   (reversed)
 ;   PF1: bit 7 = leftmost                              (normal)

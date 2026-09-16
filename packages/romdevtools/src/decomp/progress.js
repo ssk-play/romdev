@@ -1,4 +1,4 @@
-// progress.js — honest progress from the SELECTED BUILD's actual objects, not
+// progress.js - honest progress from the SELECTED BUILD's actual objects, not
 // from pragma counts or a README badge. States are reported separately and
 // never collapsed into one percentage:
 //   asm            GLOBAL_ASM functions (the .NON_MATCHING symbol exists)
@@ -13,7 +13,7 @@ import { readFile } from "node:fs/promises";
 
 export async function computeProgress(project) {
   const ld = await project.linkerMap();
-  if (!ld) return { ok: false, error: "no linker map — build the project first", map: project.m.built?.map };
+  if (!ld) return { ok: false, error: "no linker map - build the project first", map: project.m.built?.map };
   const map = await project.map();
   const srcRoot = project.m.splat.srcPath;
   const buildPath = project.m.splat.buildPath;

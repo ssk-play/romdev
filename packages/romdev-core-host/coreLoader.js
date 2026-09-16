@@ -4,13 +4,13 @@
 // `<name>_libretro.wasm` (the binary). The .js is a factory.
 //
 // Two ways in (the isomorphic seam):
-//   { jsPath, wasmPath }        — Node: import the glue off disk; the wasm is
+//   { jsPath, wasmPath }        - Node: import the glue off disk; the wasm is
 //                                 read (or Emscripten-located) next to it.
-//   { factory, wasmBinary }     — any runtime: the CALLER imported/fetched the
+//   { factory, wasmBinary }     - any runtime: the CALLER imported/fetched the
 //                                 glue's default export + wasm bytes (a
 //                                 browser bundle, a worker). No disk touched.
 //
-// This module has no top-level `node:` imports — the path-based branches
+// This module has no top-level `node:` imports - the path-based branches
 // lazy-import node builtins, so a bytes-based load never loads them.
 
 import { RETRO_API_VERSION } from "./retroConstants.js";
@@ -28,7 +28,7 @@ import { RETRO_API_VERSION } from "./retroConstants.js";
  */
 
 /**
- * Loads a libretro core's Emscripten module. Does NOT call _retro_init() —
+ * Loads a libretro core's Emscripten module. Does NOT call _retro_init() -
  * the caller must register callbacks first, then init.
  * @param {LoadCoreArgs} args
  */
@@ -117,7 +117,7 @@ export async function loadLibretroCore(args) {
     // routes instantiation through a path that skips the GL runtime init, so
     // `Module.GL` (the WebGL2/native-gles context the SET_HW_RENDER path needs) is
     // never created. Let Emscripten locate `<name>.wasm` next to the `.js` itself
-    // (via locateFile) — the same way retroemu loads parallel_n64/flycast.
+    // (via locateFile) - the same way retroemu loads parallel_n64/flycast.
     const wasmDir = wasmPath.slice(0, wasmPath.lastIndexOf("/") + 1);
     opts.locateFile = (file) => wasmDir + file;
   }

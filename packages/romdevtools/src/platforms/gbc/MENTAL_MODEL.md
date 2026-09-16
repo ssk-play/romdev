@@ -1,4 +1,4 @@
-# Game Boy Color — mental model
+# Game Boy Color - mental model
 
 The Game Boy Color is the DMG (original Game Boy) with **color
 extensions** layered on. Most of the hardware (CPU, instruction set,
@@ -18,7 +18,7 @@ the same wall.
    $0143 is set to $80 (CGB-aware + DMG-compatible). You do **not** run
    `romPatch({op:'gbHeader'})` on a freshly built ROM. Reach for `romPatch({op:'gbHeader'})` only
    to fix up an existing / externally built ROM whose header was never
-   set, or to override a field — e.g. starting from a `.gb` ROM and
+   set, or to override a field - e.g. starting from a `.gb` ROM and
    wanting CGB color, pass `cgb: true` explicitly.
 
 2. **OAM shadow buffer must be page-aligned.** `shadow_oam` is pinned
@@ -31,7 +31,7 @@ the same wall.
    cast through `volatile uint8_t *`. See `lib/c/SDCC_GOTCHAS.md`
    § "Writes to VRAM".
 
-3b. **OAM DMA goes FIRST after `wait_vblank()` — before any staging work.**
+3b. **OAM DMA goes FIRST after `wait_vblank()` - before any staging work.**
    The vblank window is ~10 scanlines (~1140 cycles) and SDCC call overhead
    is brutal: even a few dozen `oam_set()` CALLS before the flush push the
    DMA out of vblank into active display, where it tears the sprites on one
@@ -53,18 +53,18 @@ the same wall.
    that helper, call `oam_dma_init_hram()` yourself before any DMA.
 
 5. **`gb_crt0.s` zeros BSS correctly.** Pre-r55's gsinit zeroed
-   `_INITIALIZED` (wrong section — gets overwritten by the copy loop)
+   `_INITIALIZED` (wrong section - gets overwritten by the copy loop)
    instead of `_DATA` (actual BSS). Result: uninitialized statics
    booted with WRAM garbage. The fixed crt0 zeros `_DATA` from
    `s__DATA` for `l__DATA` bytes; bring-your-own crt0 should do the
    same.
 
-6. **Don't poke a hardcoded `$C0xx` WRAM pointer for game state — it
+6. **Don't poke a hardcoded `$C0xx` WRAM pointer for game state - it
    overlaps your statics.** SDCC links the C runtime's data + BSS (every
    `static` global: your PRNG seed, your grids, your scores) at the BOTTOM
    of WRAM starting `$C000`. A `volatile uint8_t *board = (uint8_t*)0xC000;`
    then scribbles right over `static uint32_t rng = ...;` et al. Symptom
-   looks exactly like an SDCC *codegen* bug — e.g. a 32-bit xorshift PRNG
+   looks exactly like an SDCC *codegen* bug - e.g. a 32-bit xorshift PRNG
    that "degenerates" so every roll is identical (its seed is being
    clobbered, not miscompiled). **Use a `static` array and let the linker
    place it** (`static uint8_t board[78]; board[i]=p;`), or hardcode at
@@ -72,7 +72,7 @@ the same wall.
    → check `s__DATA`/`s__BSS`). Full write-up + repro in
    `lib/c/SDCC_GOTCHAS.md` § "sm83 codegen traps in plain game logic".
 
-- **Two VRAM banks** (switched via VBK at $FF4F) — bank 0 holds tile
+- **Two VRAM banks** (switched via VBK at $FF4F) - bank 0 holds tile
   pattern data, bank 1 holds per-tile BG attributes (palette index,
   H/V flip, priority, tile bank).
 - **8 BG palettes × 4 colors** (indexed via BCPS/BCPD at $FF68/$FF69).
@@ -80,17 +80,17 @@ the same wall.
   $FF6A/$FF6B).
 - **Each color is 15-bit BGR** (5+5+5), stored as two little-endian
   bytes per entry.
-- **Double-speed mode** via KEY1 ($FF4D) — Z80 runs at ~8 MHz instead
+- **Double-speed mode** via KEY1 ($FF4D) - Z80 runs at ~8 MHz instead
   of ~4 MHz. Most homebrew ignores this; lots of cycle-counted code
   breaks under it.
-- **HDMA** ($FF51-$FF55) for fast block transfers during HBlank —
+- **HDMA** ($FF51-$FF55) for fast block transfers during HBlank -
   used for live tile streaming.
 
 ## MCP debug & inspection tooling
 
 GBC shares the patched gambatte core with DMG, so **all the live inspectors
 and `gb_*` memory regions documented in the GB MENTAL_MODEL apply unchanged
-here** — `sprites({op:'inspect'})`, `tiles({op:'png'})`, `cpu({op:'read'})`,
+here** - `sprites({op:'inspect'})`, `tiles({op:'png'})`, `cpu({op:'read'})`,
 `audioDebug({op:'inspect', chip:'gb'})`, and the `gb_vram` / `gb_oam` / `gb_io`
 / `gb_hram` / `gb_cpu_regs` regions (same gotcha: it's `gb_vram`, NOT the
 generic `video_ram`). Disassembly routes through the same `-m gbz80` objdump.
@@ -114,7 +114,7 @@ The CGB boot ROM checks header byte **`$0143`**:
 - `$80` → CGB-enhanced mode (color works, DMG-compat fallback)
 - `$C0` → CGB-only mode (refuses to boot on a DMG)
 
-**Every bundled GBC example game is built with `$0143 = $80`** — `build({output:'rom'})`
+**Every bundled GBC example game is built with `$0143 = $80`** - `build({output:'rom'})`
 / `build({output:'run'})` set this automatically at build time when `platform:"gbc"`,
 so a freshly built `.gbc` boots in color with no extra step. (Build it as
 `platform:"gb"` instead and the flag stays `$00` → DMG green-shade mode,
@@ -161,7 +161,7 @@ bit 7     BG-over-OBJ priority
 
 ## Audio
 
-Identical to DMG — same 4-channel APU. `sound_init` / `sound_play_tone`
+Identical to DMG - same 4-channel APU. `sound_init` / `sound_play_tone`
 / `sound_play_noise` / `sound_off` from `gb_runtime.h` work unchanged
 on GBC. See the GB MENTAL_MODEL.md for the channel layout.
 `audioDebug({op:'inspect', chip:"gb"})` decodes the live APU on GBC too.
@@ -187,31 +187,31 @@ void main(void) {
 
 ## Input
 
-Joypad is identical to DMG — `JOYP` ($FF00), row-select multiplex, active-low
+Joypad is identical to DMG - `JOYP` ($FF00), row-select multiplex, active-low
 (see the GB mental model for the read sequence).
 
 ### Driving input over MCP
 
-gambatte maps `input({op:'set'})` button names **straight through** — verified live, no
+gambatte maps `input({op:'set'})` button names **straight through** - verified live, no
 inversion: `{a}`→A, `{b}`→B, `{start}`/`{select}`, plus the d-pad (spatial
-east→A, west→B). So `input({op:'set', a: true})` presses GBC A as expected — unlike
+east→A, west→B). So `input({op:'set', a: true})` presses GBC A as expected - unlike
 the genesis_plus_gx platforms (Genesis/SMS/GG), there's no surprise here.
 
 ## Example games
 
 All GB example games (`shmup`, `platformer`, `puzzle`, `sports`, `racing`,
-`hello_sprite`, `tile_engine`) compile identically as GBC ROMs — the
+`hello_sprite`, `tile_engine`) compile identically as GBC ROMs - the
 bundled GB runtime is already CGB-aware (writes OCPD/OCPS for color).
 The genre examples inherit from GB via `TEMPLATES.gbc = TEMPLATES.gb`;
 the only differences at build time are:
 
 - ROM extension: `.gbc` (vs `.gb`)
 - the build sets `$0143 = $80` to flip CGB mode on (automatic when you
-  build with `platform:"gbc"` — no manual `romPatch({op:'gbHeader'})` step)
+  build with `platform:"gbc"` - no manual `romPatch({op:'gbHeader'})` step)
 - gambatte core accepts both DMG + CGB-mode ROMs
 
 For new GBC code that wants to be CGB-only (no DMG fallback) set the
-CGB byte to `$C0` instead of `$80` — `romPatch({op:'gbHeader', path, cgb:true})`
+CGB byte to `$C0` instead of `$80` - `romPatch({op:'gbHeader', path, cgb:true})`
 on the built ROM can override it.
 
 ## Horizontal scrolling (for side-scrollers)
@@ -220,7 +220,7 @@ Identical to DMG: write `SCX` ($FF43) each frame for hardware scroll through
 the wrapping 32×32 BG map, and stream the next BG-map column (its tile IDs +,
 on CGB, its BG attribute byte in VRAM bank 1) each time the camera crosses an
 8-px boundary. Use the Window (LCDC bit 5) for a fixed HUD. CGB adds nothing
-that changes the scroll mechanism — just remember the per-tile attribute in
+that changes the scroll mechanism - just remember the per-tile attribute in
 bank 1 when you stream columns. See the GB MENTAL_MODEL for the full pattern.
 
 ## Reverse-engineering & decompilation

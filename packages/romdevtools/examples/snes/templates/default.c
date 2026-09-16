@@ -1,13 +1,13 @@
-/* default.c — SNES PVSnesLib starter (C).
+/* default.c - SNES PVSnesLib starter (C).
  *
  * Smallest "ROM that does something visible": a full-screen diamond-tile
  * background (BG0) with a movable white sprite parked in the centre.
  * Pressing the d-pad moves the sprite. The tiled backdrop means the very
- * first build shows recognizable content, not a flat colour — the SNES
+ * first build shows recognizable content, not a flat colour - the SNES
  * equivalent of the "is anything even rendering?" smoke test.
  *
  * Picked as the default SNES template because:
- *   - PVSnesLib gives a clean C API (bgInitTileSet, oamSet, padsCurrent…)
+ *   - PVSnesLib gives a clean C API (bgInitTileSet, oamSet, padsCurrent...)
  *     instead of raw 65816 / direct register pokes.
  *   - tcc-65816 builds it in <2s.
  *   - You read this file once and know how every SNES C scaffold is
@@ -17,7 +17,7 @@
  * setScreenOn() lifts forced blank (INIDISP $80) AND at least one layer
  * (a BG or the sprite layer) actually has tiles + a non-black palette.
  * Disabling every BG and showing one sprite (the obvious "minimal" move)
- * leaves a near-blank screen — so here we light up BG0 too.
+ * leaves a near-blank screen - so here we light up BG0 too.
  *
  * For text-mode console output see template:"c_hello".
  * For raw 65816 see template:"asm" (kept for cycle-accurate work).
@@ -25,7 +25,7 @@
  *
  * Sibling `data.asm` provides tilsprite (one 8×8 4bpp diamond tile) +
  * palsprite (its 16-colour palette). We reuse that one tile for BOTH the
- * sprite and the BG wallpaper — replace with real gfx4snes .pic/.pal art.
+ * sprite and the BG wallpaper - replace with real gfx4snes .pic/.pal art.
  */
 #include <snes.h>
 
@@ -41,7 +41,7 @@ int main(void) {
     u16 x = 120, y = 100;
     u16 i;
 
-    /* BG_MODE1: BG0/BG1 are 16-colour, BG2 is 4-colour — standard mix.
+    /* BG_MODE1: BG0/BG1 are 16-colour, BG2 is 4-colour - standard mix.
      * We use BG0 for the wallpaper and the sprite layer on top. */
     setMode(BG_MODE1, 0);
     bgSetDisable(1);

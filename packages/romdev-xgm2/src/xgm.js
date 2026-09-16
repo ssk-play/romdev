@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.XGM — single-track XGM2 music file (parse/convert/build).
+// Port of sgdk.xgm2tool.format.XGM - single-track XGM2 music file (parse/convert/build).
 
 import { getASCIIString, getInt8, getInt16, alignBytes } from "./util.js";
 import { Command } from "./command.js";
@@ -22,7 +22,7 @@ import {
 } from "./xgm-psg-command.js";
 
 /**
- * Append every byte of `src` (Uint8Array / number[]) onto `arr` — mirrors
+ * Append every byte of `src` (Uint8Array / number[]) onto `arr` - mirrors
  * Java's ByteArrayOutputStream.write(byte[]).
  * @param {number[]} arr
  * @param {Uint8Array|number[]} src
@@ -36,9 +36,9 @@ export class XGM {
 
   /**
    * Construct an XGM. Three forms mirror the Java overloads:
-   *   new XGM()                  — empty (protected)
-   *   new XGM(data)              — parse from a byte buffer (Uint8Array)
-   *   new XGM(vgm, pack)         — convert from a VGM instance
+   *   new XGM()                  - empty (protected)
+   *   new XGM(data)              - parse from a byte buffer (Uint8Array)
+   *   new XGM(vgm, pack)         - convert from a VGM instance
    *
    * @param {?(Uint8Array|import("./vgm.js").VGM)} [arg]
    * @param {boolean} [pack]
@@ -2226,7 +2226,7 @@ export class XGM {
 }
 
 /**
- * Append all elements of `src` to `dst` in order — mirrors Java's List.addAll.
+ * Append all elements of `src` to `dst` in order - mirrors Java's List.addAll.
  * @template T
  * @param {T[]} dst
  * @param {Iterable<T>} src

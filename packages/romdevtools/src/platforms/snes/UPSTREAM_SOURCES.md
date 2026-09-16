@@ -1,14 +1,14 @@
-# SNES — source you can read
+# SNES - source you can read
 
 Trust hierarchy:
 
 1. **Bundled examples** (`examples/snes/templates/*.c`).
-2. **Bundled runtime source** — `src/platforms/snes/lib/c/snes_sfx.c`,
+2. **Bundled runtime source** - `src/platforms/snes/lib/c/snes_sfx.c`,
    the SPC driver in `lib/audio/spc_driver.asm`, the `apu_blob.asm`
    uploader.
-3. **Bundled library source** (R58) — PVSnesLib at
+3. **Bundled library source** (R58) - PVSnesLib at
    `src/platforms/snes/lib/pvsneslib/source/`. The complete PVSnesLib
-   source tree — every API (`consoleDrawText`, `setMode`,
+   source tree - every API (`consoleDrawText`, `setMode`,
    `WaitForVBlank`, `padsCurrent`, OAM helpers, palette helpers) has
    readable C/asm here.
 4. **Upstream GitHub** (NOT bundled):
@@ -36,7 +36,7 @@ $2140-$2143. Our `snes_sfx.c` + `spc_driver.asm` handle the upload
 + command protocol; for music driver internals see:
 
 - Our bundled SPC driver: `src/platforms/snes/lib/audio/spc_driver.asm`
-  (152 bytes — tiny, fully readable)
+  (152 bytes - tiny, fully readable)
 - SPC700 reference: https://wiki.superfamicom.org/spc700-reference
 - BRR sample format: https://wiki.superfamicom.org/bit-rate-reduction-(brr)
 

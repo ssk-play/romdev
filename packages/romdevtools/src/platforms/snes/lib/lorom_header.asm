@@ -1,4 +1,4 @@
-; SNES — LoROM header + vectors.
+; SNES - LoROM header + vectors.
 ;
 ; Every LoROM cartridge needs this exact layout in bank $00, mapped from
 ; CPU $00:FFC0 onward. The 21-byte title is space-padded to fill exactly
@@ -13,7 +13,7 @@
 ; error. Verified by bisection on this MCP server's own dev sessions.)
 ;
 ; Emulation-mode vectors at $FFF4-$FFFF. RESET at $FFFC is the one that
-; actually matters — it's where the CPU starts after power-on. Everything
+; actually matters - it's where the CPU starts after power-on. Everything
 ; else can be zero.
 
 org $00FFC0

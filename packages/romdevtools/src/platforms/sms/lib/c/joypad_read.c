@@ -1,4 +1,4 @@
-/* SMS joypad read — port $DC + $DD, inverted so pressed=1.
+/* SMS joypad read - port $DC + $DD, inverted so pressed=1.
  *
  *     uint8_t p1 = sms_joypad_read();
  *     if (p1 & JOY_RIGHT) { ... }
@@ -12,7 +12,7 @@ uint8_t sms_joypad_read(void) {
 }
 
 /*
- * Player 2's hardware layout is awkward — SMS splits P2 across two ports:
+ * Player 2's hardware layout is awkward - SMS splits P2 across two ports:
  *   PORT_JOY_A bits 6-7  = P2 UP, P2 DOWN
  *   PORT_JOY_B bits 0-3  = P2 LEFT, P2 RIGHT, P2 B1, P2 B2
  * We reassemble into the same bit layout the agent already knows for P1:

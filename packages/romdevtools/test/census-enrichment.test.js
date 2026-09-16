@@ -1,5 +1,5 @@
 // Census enrichment (0.101.0): phantom-read flagging + routine grouping on
-// watch({on:'range'}) results. Pure JS — fake host, synthetic cart bytes.
+// watch({on:'range'}) results. Pure JS - fake host, synthetic cart bytes.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -43,8 +43,8 @@ function makeCart(bytesAt) {
 
 test("read census flags a dummy-read indexed store as phantomRead", async () => {
   const cart = makeCart({
-    0xC100: [0x9D, 0xF8, 0x05], // sta $05F8,x — base OUTSIDE 04B0..0527 → phantom
-    0xC200: [0xAD, 0xB4, 0x04], // lda $04B4  — legit reader
+    0xC100: [0x9D, 0xF8, 0x05], // sta $05F8,x - base OUTSIDE 04B0..0527 → phantom
+    0xC200: [0xAD, 0xB4, 0x04], // lda $04B4  - legit reader
   });
   _setHostForTest("census-test", makeRangeHost({
     cartRaw: cart,
@@ -66,7 +66,7 @@ test("read census flags a dummy-read indexed store as phantomRead", async () => 
 });
 
 test("write census never flags phantoms; RMW abs,X flagged only on read", async () => {
-  const cart = makeCart({ 0xC100: [0xFE, 0x00, 0x06] }); // inc $0600,x — base outside range
+  const cart = makeCart({ 0xC100: [0xFE, 0x00, 0x06] }); // inc $0600,x - base outside range
   const events = [{ pc: 0xC100, address: 0x04F0, value: 1 }];
   _setHostForTest("census-test", makeRangeHost({ cartRaw: cart, events }));
   const handler = getWatchHandler();

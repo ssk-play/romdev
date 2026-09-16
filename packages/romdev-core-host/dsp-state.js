@@ -140,14 +140,14 @@ export function decodeSnes9xDSP(state) {
       bufLastSamples,
       bufPos,
     });
-    // Discard interpPos, brrAddr — agent rarely needs them; available
+    // Discard interpPos, brrAddr - agent rarely needs them; available
     // via savestate if they do.
   }
 
   // CAREFUL: the DSP register file (m.regs) holds the LAST VALUE WRITTEN
   // to each address, not necessarily a useful runtime state. Reading
   // regs[KON] tells you "what KON byte the driver wrote most recently",
-  // not "which voices are currently keying on" — the DSP consumes KON
+  // not "which voices are currently keying on" - the DSP consumes KON
   // every sample and clears its internal new_kon shadow. Same for KOFF.
   // ENDX is special: the DSP auto-clears regs[ENDX] on every write
   // regardless of the data byte.
@@ -170,10 +170,10 @@ export function decodeSnes9xDSP(state) {
       l: regs[0x2C] > 0x7F ? regs[0x2C] - 256 : regs[0x2C],
       r: regs[0x3C] > 0x7F ? regs[0x3C] - 256 : regs[0x3C],
     },
-    flg: regs[0x6C], // bit 6 = mute, bit 7 = reset — direct register, no shadow
-    regs4C: regs[0x4C], // last KON write (not "currently keying on" — DSP consumes per sample)
+    flg: regs[0x6C], // bit 6 = mute, bit 7 = reset - direct register, no shadow
+    regs4C: regs[0x4C], // last KON write (not "currently keying on" - DSP consumes per sample)
     regs5C: regs[0x5C], // last KOFF write
-    regs7C: regs[0x7C], // ENDX register — auto-cleared by DSP on every write
+    regs7C: regs[0x7C], // ENDX register - auto-cleared by DSP on every write
     voices,
   };
 }

@@ -101,7 +101,7 @@ for (const { platform, family, entry, stop } of CASES) {
     // A core without the register-write surface can't do cpu({op:'call'}) at
     // all; that's a capability gap, not a stack bug, and must not read as a pass.
     if (r._error || r.notSupported) {
-      assert.fail(`${platform}: cpu call unavailable — ${r._error ?? "notSupported"}`);
+      assert.fail(`${platform}: cpu call unavailable - ${r._error ?? "notSupported"}`);
     }
 
     const after = readSP(await call("cpu", { op: "read", platform }), platform);
@@ -114,6 +114,6 @@ for (const { platform, family, entry, stop } of CASES) {
         `${platform}: cut-short call did not restore the CPU context: ${JSON.stringify(r).slice(0, 300)}`);
     }
     assert.equal(after, before,
-      `${platform}: stack pointer left unbalanced (${before} -> ${after}) — resuming would pop garbage`);
+      `${platform}: stack pointer left unbalanced (${before} -> ${after}) - resuming would pop garbage`);
   });
 }

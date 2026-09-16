@@ -1,10 +1,10 @@
-/* ── puzzle.c — Atari Lynx falling-trio match-3 (complete example game) ───────
+/* ── puzzle.c - Atari Lynx falling-trio match-3 (complete example game) ───────
  *
- * A COMPLETE, working game — title screen, score + level, in-session
+ * A COMPLETE, working game - title screen, score + level, in-session
  * hi-score, MIKEY music + SFX, a 1P marathon falling-trio match-3 with
  * cascade chains and ramping levels, AND the Lynx's signature party trick:
  * HARDWARE SPRITE SCALING. When a run of gems clears, the whole well does a
- * SCALE POP — Suzy redraws every surviving gem at >1.0x then eases back — a
+ * SCALE POP - Suzy redraws every surviving gem at >1.0x then eases back - a
  * pure-hardware "juice" flash that costs zero CPU pixel work.
  *
  * The game: a trio of three coloured gems falls into a 6x12 well. LEFT/RIGHT
@@ -14,36 +14,36 @@
  * gems raises the level, which speeds the fall. Stack to the rim and it's
  * game over.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented Lynx footgun;
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented Lynx footgun;
  *     reshape your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — match rules, scoring, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - match rules, scoring, tuning, art: reshape freely.
  *
  * What depends on what:
- *   lynx_sfx.{h,c} — MIKEY 4-voice audio (voice 0 = move/clear SFX, voice 1 =
+ *   lynx_sfx.{h,c} - MIKEY 4-voice audio (voice 0 = move/clear SFX, voice 1 =
  *     background melody, voice 2 = lock SFX, voice 3 = noise/game-over).
- *   vendor/cc65/libsrc/lynx/ — the FULL cc65 Lynx driver source shipped into
+ *   vendor/cc65/libsrc/lynx/ - the FULL cc65 Lynx driver source shipped into
  *     your project. The TGI driver (tgi/lynx-160-102-16.s) is REQUIRED
  *     reading when graphics misbehave: every TGI call is itself a Suzy
  *     sprite, and our scaled gem pop rides the same engine via tgi_ioctl(0).
  *
- * NO HARDWARE TILEMAP (read this — it is the platform's biggest "where's the
+ * NO HARDWARE TILEMAP (read this - it is the platform's biggest "where's the
  *   board renderer?" surprise): the Lynx has NO background tilemap. Suzy is a
  *   SPRITE BLITTER, not a tile engine. So the well is drawn the honest way:
  *   the full-redraw TGI loop repaints the 6x12 grid every frame as a stack of
- *   tgi_bar fills (one filled rect per occupied cell) — cheap because the well
+ *   tgi_bar fills (one filled rect per occupied cell) - cheap because the well
  *   is only 48x96 px. The falling trio + the clear-pop gems are Suzy SCALABLE
  *   sprites layered on top. See draw_well().
  *
- * PLAYERS: 1. This is a handheld — head-to-head on real hardware is ComLynx,
+ * PLAYERS: 1. This is a handheld - head-to-head on real hardware is ComLynx,
  *   a cable between TWO physical Lynx units. A single emulator instance has
  *   nobody on the other end of the cable, so this example is honestly a
- *   single-player MARATHON (no fake "P2 VERSUS" that could never work here —
+ *   single-player MARATHON (no fake "P2 VERSUS" that could never work here -
  *   contrast the NES puzzle donor, which has a real split-board 2P mode).
  *
  * SCREEN: 160x102. The system font is 8x8, so a full row of text is 20
- *   characters — the well + HUD are kept compact to fit: a 48x96 well on the
+ *   characters - the well + HUD are kept compact to fit: a 48x96 well on the
  *   right, a slim HUD column down the left edge.
  */
 
@@ -53,11 +53,11 @@
 #include <stdint.h>
 #include "lynx_sfx.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it <=16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "QUARRY QUELL"
 
-/* ── GAME LOGIC (clay — reshape freely) — well geometry (fits 160x102) ──────
+/* ── GAME LOGIC (clay - reshape freely) - well geometry (fits 160x102) ──────
  * A 6x12 well of 8x8 cells = 48x96 px. We park it on the right so a slim HUD
  * column lives down the left edge. WELL_PX_Y leaves a margin under the top. */
 #define GRID_W    6
@@ -70,7 +70,7 @@
 
 #define EMPTY 0                       /* cell colours 1..3 = white/green/red   */
 
-/* ── GAME LOGIC (clay) — gem colour → TGI pen. Three distinct, readable pens
+/* ── GAME LOGIC (clay) - gem colour → TGI pen. Three distinct, readable pens
  * (cc65 lynx.h COLOR_* indices); EMPTY cells paint as a dim recessed speck so
  * the well reads as a playfield, not raw black. */
 static const uint8_t gem_pen[4] = {
@@ -80,7 +80,7 @@ static const uint8_t gem_pen[4] = {
   COLOR_RED            /* 3 = red gem                         */
 };
 
-/* ── GAME LOGIC (clay) — board + small state ── */
+/* ── GAME LOGIC (clay) - board + small state ── */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
@@ -93,8 +93,8 @@ static int8_t   piece_y;                   /* row of its TOP cell (<0 above rim)
 static uint8_t  piece_col[3];              /* trio colours, top to bottom       */
 static uint8_t  fall_t;                     /* frames until the next gravity step*/
 static unsigned score;
-static unsigned hiscore;                    /* in-session only — see EEPROM note */
-static unsigned cleared_total;             /* gems cleared — drives the level   */
+static unsigned hiscore;                    /* in-session only - see EEPROM note */
+static unsigned cleared_total;             /* gems cleared - drives the level   */
 static uint8_t  level;                      /* 1..9, speeds up the fall          */
 static uint8_t  prev_joy;
 static uint8_t  over_new_hi;
@@ -104,7 +104,7 @@ static uint8_t  over_new_hi;
 static uint8_t  pop_timer;
 #define POP_FRAMES 7
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call) ── */
 static uint16_t rng = 0xACE1;
 static uint8_t rand8(void) {
   uint16_t r = rng;
@@ -116,42 +116,42 @@ static uint8_t rand8(void) {
 }
 static uint8_t rand_gem(void) { return (uint8_t)(1 + rand8() % 3); }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * SUZY HARDWARE SPRITE SCALING — the Lynx signature. Suzy renders every
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * SUZY HARDWARE SPRITE SCALING - the Lynx signature. Suzy renders every
  * sprite through a Sprite Control Block (SCB) it walks in cart/work RAM.
  * Two SCB fields, HSIZE and VSIZE, are 8.8 fixed-point scale factors
  * ($0100 = 1.0): the SAME 8x8 source pixels render at any size, every frame,
  * for free. This game uses it two ways:
  *   - the FALLING TRIO gems are Suzy sprites drawn through this SCB at a
  *     fixed 1.0x (so forking in a depth/power-up scale is a one-line change);
- *   - the CLEAR POP — for POP_FRAMES after any match, every gem in the well
+ *   - the CLEAR POP - for POP_FRAMES after any match, every gem in the well
  *     is redrawn at >1.0x then eased back to 1.0x, a pure-hardware "juice"
  *     flash with zero CPU pixel cost (Suzy scales while it blits).
  *
  * The SCB, field by field (this is cc65's SCB_REHV_PAL from <_suzy.h>):
  *   sprctl0  bits 7-6 = bits per pixel (11 = 4bpp), bits 2-0 = sprite TYPE.
  *            TYPE_NORMAL (4) draws pens 1-15 and treats pen 0 as
- *            TRANSPARENT — that's how a round gem sits over the cell.
+ *            TRANSPARENT - that's how a round gem sits over the cell.
  *   sprctl1  bit 7 LITERAL (raw nybbles, no RLE) + bits 5-4 reload depth:
  *            REHV means "this SCB carries HPOS, VPOS, HSIZE, VSIZE". The
- *            reload bits ARE the struct layout — mismatch them and Suzy reads
+ *            reload bits ARE the struct layout - mismatch them and Suzy reads
  *            palette bytes as size words.
  *   sprcoll  $20 = NO_COLLIDE. Match/lock collision is done in C on the grid
  *            (the collision buffer knows nothing about board cells).
  *   next     pointer to the next SCB, 0 = end of chain (one blit per call).
  *   data     sprite pixel data (LITERAL 4bpp format below).
  *   hpos/vpos signed SCREEN position of the sprite's top-left corner.
- *   hsize/vsize 8.8 scale — THE party trick, rewritten per draw.
+ *   hsize/vsize 8.8 scale - THE party trick, rewritten per draw.
  *   penpal[8] 16 nybbles mapping pixel values 0-15 → palette pens. We RECOLOUR
  *            the gem per draw here (one 8x8 art block, three gem colours) by
- *            pointing the art's pixel value 1 at the wanted pen — no extra art.
+ *            pointing the art's pixel value 1 at the wanted pen - no extra art.
  *
  * LITERAL 4bpp data format (hand-encodable): each sprite LINE is
  *   [offset byte][width/2 bytes of raw nybble pixels]
  * where offset = 1 + bytes of pixel data; a final offset of 0 ends the sprite.
  * 8 px @ 4bpp = 4 data bytes, so every line starts with 5.
  *
- * Drawing: tgi_sprite(&scb) → tgi_ioctl(0, &scb) — the TGI driver's
+ * Drawing: tgi_sprite(&scb) → tgi_ioctl(0, &scb) - the TGI driver's
  * documented escape hatch (see CONTROL in vendor/cc65/libsrc/lynx/tgi/
  * lynx-160-102-16.s). It points Suzy's SCBNEXT at your SCB, aims VIDBAS at
  * TGI's current DRAW page (so scaled gems land in the same double-buffered
@@ -159,7 +159,7 @@ static uint8_t rand_gem(void) { return (uint8_t)(1 + rand8() % 3); }
  * SPRSYS reports the blit done.
  *
  * Requires: the cc65 crt0 Suzy init (already done before main()), and calls
- *   only between the tgi_busy() wait and tgi_updatedisplay() — i.e. while
+ *   only between the tgi_busy() wait and tgi_updatedisplay() - i.e. while
  *   TGI's draw buffer is the blit target. Draw order = paint order: well
  *   fills first, scaled gems after, HUD text last.
  */
@@ -174,7 +174,7 @@ static SCB_REHV_PAL scb = {
   { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF }   /* identity pens */
 };
 
-/* ── GAME LOGIC (clay) — 8x8 4bpp literal gem art ───────────────────────────
+/* ── GAME LOGIC (clay) - 8x8 4bpp literal gem art ───────────────────────────
  * A single round gem shape in pixel value 1 (plus value $F = white glint).
  * draw_gem() recolours value 1 → the wanted gem pen via the SCB penpal, so one
  * art block paints all three gem colours. Each line: 5, then 4 nybble bytes;
@@ -217,7 +217,7 @@ static unsigned pop_scale(void) {
   return 0x0100u + ((unsigned)pop_timer * (POP_SCALE_PEAK - 0x0100u)) / POP_FRAMES;
 }
 
-/* ── GAME LOGIC (clay) — score text (no sprintf: it drags in ~6KB) ── */
+/* ── GAME LOGIC (clay) - score text (no sprintf: it drags in ~6KB) ── */
 static char numbuf[6];
 static char *fmt5(unsigned v) {
   uint8_t i;
@@ -226,8 +226,8 @@ static char *fmt5(unsigned v) {
   return numbuf;
 }
 
-/* ── GAME LOGIC (clay) — match scan: mark every straight run of 3+ same-
- * coloured gems in all 4 directions (a cell can belong to several runs — the
+/* ── GAME LOGIC (clay) - match scan: mark every straight run of 3+ same-
+ * coloured gems in all 4 directions (a cell can belong to several runs - the
  * mask de-dupes), and return how many cells matched. ── */
 static const int8_t DIRS4[4][2] = { {0,1}, {1,0}, {1,1}, {1,-1} };
 
@@ -279,11 +279,11 @@ static void apply_gravity(void) {
 static void game_over(void) {
   over_new_hi = 0;
   if (score > hiscore) {
-    /* ── In-session hi-score ONLY — and here's the honest why. Real Lynx
+    /* ── In-session hi-score ONLY - and here's the honest why. Real Lynx
      * carts persist via a 93Cxx serial EEPROM on the cart PCB (cc65 even
      * ships lynx_eeprom_read/write for it; see vendor/cc65/libsrc/lynx/
      * eeprom.s). PROBED: the bundled handy core emulates CEEPROM internally
-     * but its libretro build exposes NO save path — retro_get_memory(
+     * but its libretro build exposes NO save path - retro_get_memory(
      * SAVE_RAM) returns NULL/size 0, so nothing survives host.hardReset()
      * and a bit-banged round-trip reads back garbage under the WASM build.
      * Wiring the EEPROM to SAVE_RAM is a future core round; until then a fake
@@ -297,7 +297,7 @@ static void game_over(void) {
   state = ST_OVER;
 }
 
-/* ── GAME LOGIC (clay) — clear matches, drop survivors, chain cascades.
+/* ── GAME LOGIC (clay) - clear matches, drop survivors, chain cascades.
  * Returns the chain depth (0 = the lock matched nothing). Score, level, and
  * the clear-pop fire here. ── */
 static uint8_t resolve_board(void) {
@@ -349,7 +349,7 @@ static void spawn_piece(void) {
   if (!can_place((int8_t)piece_x, piece_y)) game_over();
 }
 
-/* ── GAME LOGIC (clay) — land the trio, resolve, respawn. ── */
+/* ── GAME LOGIC (clay) - land the trio, resolve, respawn. ── */
 static void lock_piece(void) {
   int8_t i, y;
   for (i = 0; i < 3; i++) {
@@ -363,7 +363,7 @@ static void lock_piece(void) {
   spawn_piece();
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_game(void) {
   uint8_t r, c;
   for (r = 0; r < GRID_H; r++)
@@ -380,7 +380,7 @@ static void start_game(void) {
   spawn_piece();
 }
 
-/* ── GAME LOGIC (clay) — per-state frames. Each runs INSIDE the canonical
+/* ── GAME LOGIC (clay) - per-state frames. Each runs INSIDE the canonical
  * loop below: scene already painted, tgi_updatedisplay not yet called. ── */
 
 /* draw the locked well: frame + recessed backdrop, every occupied cell as a
@@ -423,7 +423,7 @@ static unsigned attract_phase;
 
 static void frame_title(uint8_t joy) {
   /* attract: a lone gem in the title's clear zone pulses via the SCALING
-   * idiom — the same swell the clear-pop uses, shown off on the menu. */
+   * idiom - the same swell the clear-pop uses, shown off on the menu. */
   unsigned t = attract_phase < 64 ? attract_phase : (127 - attract_phase);
   unsigned s = 0x00C0u + (t * (0x0200u - 0x00C0u)) / 63u;  /* 0.75x..2.0x */
   attract_phase = (attract_phase + 2) & 127;
@@ -535,23 +535,23 @@ void main(void) {
   hiscore = 0;
 
   for (;;) {
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-     * CANONICAL LYNX GAME LOOP — full-redraw every frame, in this order:
-     *   1. while (tgi_busy()) { }  — WAIT for the previous frame's page flip.
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+     * CANONICAL LYNX GAME LOOP - full-redraw every frame, in this order:
+     *   1. while (tgi_busy()) { }  - WAIT for the previous frame's page flip.
      *      Skipping this is the #1 "Lynx screen stays blank" trap: drawing
      *      while the swap is pending loses the frame.
-     *   2. Repaint the WHOLE scene with tgi_bar fills — NOT tgi_clear()
+     *   2. Repaint the WHOLE scene with tgi_bar fills - NOT tgi_clear()
      *      (which can leave the framebuffer stale on this toolchain+emulator
      *      path). TGI double-buffers; the back buffer holds the frame from
      *      two flips ago, so partial redraws ghost. With no hardware tilemap
      *      (header), the WELL is repainted cell-by-cell every frame.
      *   3. Draw every object (every TGI call and every tgi_sprite() is a
      *      synchronous Suzy blit into the SAME draw page).
-     *   4. tgi_updatedisplay() — request the page flip at next VBL.
-     *   5. sfx_update() IMMEDIATELY after — MIKEY voice writes must land in
+     *   4. tgi_updatedisplay() - request the page flip at next VBL.
+     *   5. sfx_update() IMMEDIATELY after - MIKEY voice writes must land in
      *      vblank: handy reschedules its timer sweep on the spot when a voice
      *      CTL bit-3 write lands, and mid-frame that sweep can preempt an
-     *      in-flight Suzy blit and eat sprites (the R57 bug — history in
+     *      in-flight Suzy blit and eat sprites (the R57 bug - history in
      *      lynx_sfx.c). sfx_tone()/sfx_noise() only STAGE; sfx_update() is
      *      the hardware flush. */
     while (tgi_busy()) { }

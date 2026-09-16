@@ -1,7 +1,7 @@
 /*
- * shmup/main.c — STARFALL 64: a 3D Nintendo 64 vertical shooter.
+ * shmup/main.c - STARFALL 64: a 3D Nintendo 64 vertical shooter.
  *
- * The N64 twin of the PS1 STARFALL — same software 3D engine, N64 backend. The
+ * The N64 twin of the PS1 STARFALL - same software 3D engine, N64 backend. The
  * playfield recedes into the screen; enemy cubes fly in from the far distance and
  * grow under perspective. Shoot them with bullets that fly into Z. Title -> play ->
  * game-over, score + lives, AABB collision, xorshift wave spawner, starfield.

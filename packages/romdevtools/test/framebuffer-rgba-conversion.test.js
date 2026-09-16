@@ -1,4 +1,4 @@
-// framebufferToRgba fast paths (romdev-core-runner present.js) — the per-tick
+// framebufferToRgba fast paths (romdev-core-runner present.js) - the per-tick
 // window conversion. The 32bpp formats take a word-at-a-time swizzle and the
 // caller can reuse the output buffer across ticks (a fresh 3.7MB Buffer.alloc
 // per tick on a 1280x720 wasmcart cart was ~220MB/s of zeroing + GC churn).
@@ -49,7 +49,7 @@ test("output buffer reuse: same instance back when the size matches, fresh when 
 
 test("unaligned source falls back to the byte path (no Uint32Array throw)", () => {
   const backing = new Uint8Array(4 + 1);
-  const pixels = backing.subarray(1); // byteOffset 1 — not 4-byte aligned
+  const pixels = backing.subarray(1); // byteOffset 1 - not 4-byte aligned
   pixels.set([0x33, 0x22, 0x11, 0x00]);
   const out = framebufferToRgba({ width: 1, height: 1, pitch: 4, format: XRGB8888, pixels });
   assert.deepEqual([...out], [0x11, 0x22, 0x33, 0xff]);

@@ -1,10 +1,10 @@
-// Compiler diagnostics must reach the agent as STRUCTURED issues[] — not be
+// Compiler diagnostics must reach the agent as STRUCTURED issues[] - not be
 // swallowed in the raw log. Agents can only fix what the toolchain tells them,
 // where it tells them. This locks in the formats the audit found were dropped:
-//   - SDCC's keyword-less `file:line: syntax error: …` and `warning NNN:`
-//   - sdld/ASlink `?ASlink-Warning-Undefined Global '_x' referenced by …`
-//   - cc65/ca65/ld65 `file:line: Error: …`
-//   - gcc/cc1 `file:line:col: error|warning: …`
+//   - SDCC's keyword-less `file:line: syntax error: ...` and `warning NNN:`
+//   - sdld/ASlink `?ASlink-Warning-Undefined Global '_x' referenced by ...`
+//   - cc65/ca65/ld65 `file:line: Error: ...`
+//   - gcc/cc1 `file:line:col: error|warning: ...`
 // (Live end-to-end coverage across all 14 platforms is exercised by the build
 //  tests; this is the fast, format-level regression guard for the PARSER.)
 
@@ -65,14 +65,14 @@ test("gcc/cc1 unused-variable warning (needs -Wall) → structured", () => {
 
 test("vasm error → structured, even with NO `--- stage ---` marker (genesis-asm path)", () => {
   // vasm output has no stage marker, so the whole log hits the unknown-stage
-  // fallback — which used to skip parseVasm and swallow the error.
+  // fallback - which used to skip parseVasm and swallow the error.
   const log = 'error 2 in line 1 of "/work/main.s": unknown mnemonic <bogus>\n>  bogus d0,d1';
   const iss = parseBuildLog(log);
   const e = find(iss, (i) => i.severity === "error" && i.stage === "vasm");
   assert.ok(e && e.line === 1 && /unknown mnemonic/.test(e.message), JSON.stringify(iss));
 });
 
-test("vasm `fatal error … could not open <x.bin>` (missing incbin asset) → structured", () => {
+test("vasm `fatal error ... could not open <x.bin>` (missing incbin asset) → structured", () => {
   const log = 'fatal error 13 in line 1 of "/work/main.s": could not open <art.bin> for input\naborting...';
   const iss = parseBuildLog(log);
   const e = find(iss, (i) => i.severity === "error" && /could not open <art\.bin>/.test(i.message));

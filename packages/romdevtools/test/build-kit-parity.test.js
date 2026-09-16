@@ -1,8 +1,8 @@
-// build-kit-parity — the GBA + Genesis build drivers live in their binary
+// build-kit-parity - the GBA + Genesis build drivers live in their binary
 // packages (romdev-platform-gba/build, romdev-toolchain-m68k-gcc/build) so a
 // standalone SDK consumer deps ONE package. The tool-running kit they vendor
 // (common/, _worker/, parse-errors.js, the arch gcc.js wrappers) is CANONICAL
-// in romdevtools' src/toolchains — 12 other toolchains use it — and the
+// in romdevtools' src/toolchains - 12 other toolchains use it - and the
 // package copies must stay byte-identical or the two pipelines drift apart.
 //
 // When this test fails: you edited a kit file. Run
@@ -46,7 +46,7 @@ for (const [pkg, files] of Object.entries(VENDORED)) {
       assert.equal(
         vendored,
         canonical,
-        `${pkg}/build/${rel} drifted from src/toolchains/${rel} — run scripts/sync-build-kit.sh`,
+        `${pkg}/build/${rel} drifted from src/toolchains/${rel} - run scripts/sync-build-kit.sh`,
       );
     }
   });

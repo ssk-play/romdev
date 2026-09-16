@@ -1,4 +1,4 @@
-// GB/GBC song compiler — note-song → hUGEDriver huge_song_t C data.
+// GB/GBC song compiler - note-song → hUGEDriver huge_song_t C data.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { compileSong, noteToHugeIndex } from "../src/platforms/gb/song.js";

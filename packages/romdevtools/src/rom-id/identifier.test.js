@@ -1,4 +1,4 @@
-// Tests for the ROM identifier — exercise each format with built ROMs from
+// Tests for the ROM identifier - exercise each format with built ROMs from
 // our own toolchains (so we don't need to vendor third-party test ROMs).
 
 import { test } from "node:test";
@@ -50,11 +50,11 @@ test("identifyBytes: SNES asar output identified", async () => {
   // Asar produces a 32KB ROM. The header at $7FC0 should be present with
   // valid printable title characters (asar fills with 0x00 / spaces). It's
   // possible our minimal program doesn't fill enough printable bytes for
-  // the heuristic — accept either snes or unknown but with high confidence
+  // the heuristic - accept either snes or unknown but with high confidence
   // if it's snes.
   const id = identifyBytes(r.binary, ".sfc");
   // Either we matched the SNES heuristic OR we got the .sfc-by-extension hit.
-  // We don't fall back to .sfc by extension in our identifier — verify what
+  // We don't fall back to .sfc by extension in our identifier - verify what
   // we actually got.
   assert.ok(
     id.platform === "snes" || id.platform === "unknown",

@@ -8,7 +8,7 @@
 //   1. unloadMedia() freed the ROM but never dropped the Emscripten module,
 //      so a discarded host kept its entire WASM linear memory forever.
 //   2. Every gate script is its own MCP session, and the only eviction was a
-//      30-minute TRANSPORT-idle reaper — which never fires during a 12-minute
+//      30-minute TRANSPORT-idle reaper - which never fires during a 12-minute
 //      suite, and never fires at all for a script that exits without closing.
 //
 // These tests pin the fix: dispose() actually releases, and hosts are evicted
@@ -62,7 +62,7 @@ test("dispose() drops the core module, not just the ROM", async () => {
   host.dispose();
 
   // The whole point: the module reference is gone, so the WASM memory can
-  // actually be collected. unloadMedia() alone leaves `mod` in place — that
+  // actually be collected. unloadMedia() alone leaves `mod` in place - that
   // is precisely the leak this test guards.
   assert.equal(host.mod, null, "dispose() must drop the Emscripten module");
   assert.equal(host.status.loaded, false);
@@ -84,7 +84,7 @@ test("unloadMedia() alone does NOT release the core (documents the old behaviour
   await host.loadMedia({ platform: "nes", path: ROM_PATH });
 
   host.unloadMedia();
-  // This is not a bug in unloadMedia — a host is normally REUSED for the next
+  // This is not a bug in unloadMedia - a host is normally REUSED for the next
   // load, so keeping the core is correct there. It is only a leak when the
   // host is being thrown away, which is why teardown calls dispose().
   assert.ok(host.mod, "unloadMedia keeps the core for reuse; dispose is what frees it");

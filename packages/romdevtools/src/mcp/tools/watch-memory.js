@@ -1,14 +1,14 @@
-// `watchMemory` — run the emulator forward and report every frame that changed
+// `watchMemory` - run the emulator forward and report every frame that changed
 // a watched byte range. Cross-platform (no core patches): polls the region
 // before/after each frame, diffs the result, records (frame, offset, before,
 // after, PC).
 //
-// `runUntilWrite` — narrower: step until target address is written, then stop.
+// `runUntilWrite` - narrower: step until target address is written, then stop.
 // Returns the same shape minus the full timeline.
 //
 // Granularity: this is frame-level, not instruction-level. If a single frame
 // writes to the same address ten times, we only see the LAST value. For most
-// ROM-hacking workflows this is enough — you usually just want "what code is
+// ROM-hacking workflows this is enough - you usually just want "what code is
 // touching this byte and what does the screen look like after," not a complete
 // CPU trace. Instruction-level tracing would need core-side breakpoint hooks.
 
@@ -32,7 +32,7 @@ import { MemoryRegionToRetro } from "romdev-core-host/types.js";
 /**
  * Build the decoded call stack for a breakpoint hit: who called the routine the
  * PC is in. Uses the captured register snapshot's stack pointer + the stack RAM.
- * Returns null when unavailable (unsupported ISA / no regs) — never throws.
+ * Returns null when unavailable (unsupported ISA / no regs) - never throws.
  * @param {import("romdev-core-host/index.js").LibretroHost} host
  * @param {Object|null} regs   the `named` register snapshot (has the stack ptr)
  */
@@ -68,7 +68,7 @@ function backtraceForHit(host, regs) {
           return bytes && bytes.length ? bytes[0] : null;
         } catch { return null; }
       };
-    } catch { /* no cart / mapping — frames stay best-effort */ }
+    } catch { /* no cart / mapping - frames stay best-effort */ }
   }
 
   // Z80/SM83 + m68k stacks live in WORK RAM at the SP (not a fixed page). Read the
@@ -115,7 +115,7 @@ function backtraceForHit(host, regs) {
       returnAddr: "$" + f.returnAddr.toString(16).toUpperCase().padStart(pad, "0"),
       confident: f.confident,
     })),
-    note: `callStack[0] is the immediate caller (the call that reached this routine), decoded from the stack at the break instant. ${isaNote} Generated server-side — no hand stack-walking.`,
+    note: `callStack[0] is the immediate caller (the call that reached this routine), decoded from the stack at the break instant. ${isaNote} Generated server-side - no hand stack-walking.`,
   };
 }
 
@@ -143,12 +143,12 @@ async function maybeRestoreState(host, fromState, fromStatePath) {
 }
 
 // Let a human watching /livestream (or a playtest window) SEE what a
-// breakpoint/watch tool just did — the frozen breakpoint frame, the state when a
-// write was caught — even though the AGENT gets only a small JSON result.
+// breakpoint/watch tool just did - the frozen breakpoint frame, the state when a
+// write was caught - even though the AGENT gets only a small JSON result.
 //
 // CRITICAL: this must NOT slow the agent down. The PNG encode is the expensive
 // part, so we do NOT encode here on the tool's critical path. Instead we attach a
-// `_observerFrameProvider` thunk (just captures the host ref — free) and the
+// `_observerFrameProvider` thunk (just captures the host ref - free) and the
 // observer wrapper encodes it ASYNCHRONOUSLY, after the agent's response has
 // already gone out. The provider is stripped from the agent-visible result. The
 // frame is captured by reference now (correct frozen state) but rasterized later.
@@ -178,7 +178,7 @@ export function attachObserverFrame(json, host, caption) {
   json._observerFrameProvider = () => {
     try {
       // With an Active Bezel attached, the COMPOSITE is what the human is
-      // looking at — the playtest window shows it and every capture returns
+      // looking at - the playtest window shows it and every capture returns
       // it. Sending the bare core frame to /livestream made the observer
       // disagree with both, which is worse than showing nothing: the whole
       // point of the observer is to be the human's view of what the agent is
@@ -186,7 +186,7 @@ export function attachObserverFrame(json, host, caption) {
       //
       // The session is resolved from the HOST rather than threaded through all
       // ~38 call sites, because one missed site would silently fall back to
-      // the core picture — an invisible regression of this exact bug.
+      // the core picture - an invisible regression of this exact bug.
       const sessionKey = sessionKeyForHost(host);
       if (sessionKey) {
         const c = compositeFrame(sessionKey, host, { source: "composite" });
@@ -210,19 +210,19 @@ export function attachObserverFrame(json, host, caption) {
 }
 
 // Drive scheduled `pressDuring` input through the host's ONLY input API
-// (setInput) — the watch loop owns stepFrames, so this must never advance the
+// (setInput) - the watch loop owns stepFrames, so this must never advance the
 // emulator itself. Returns a stateful driver: call applyForFrame(i) at the top
 // of each watched frame (before stepFrames) to set the held-button state, and
 // finish() once at the end to release everything. `presses` is the sorted
 // schedule; each press holds from its `frame` for `holdFrames` frames.
-// frame({op:'stepInstruction'}) — execute exactly ONE CPU instruction and stop.
+// frame({op:'stepInstruction'}) - execute exactly ONE CPU instruction and stop.
 // Exported so the `frame` router (frame.js) can call it; takes sessionKey.
 export async function stepInstructionCore(sessionKey) {
   const host = getHost(sessionKey);
   if (!host.pcBreakSupported || !host.pcBreakSupported()) {
     return jsonContent({
       stepped: false, notSupported: true,
-      note: "This core build has no single-step (shipped on all 14 platforms as of 0.5.0 — update the core package if you see this).",
+      note: "This core build has no single-step (shipped on all 14 platforms as of 0.5.0 - update the core package if you see this).",
     });
   }
   const r = host.stepInstruction();
@@ -235,7 +235,7 @@ export async function stepInstructionCore(sessionKey) {
 }
 
 /**
- * Step N CPU instructions and return an ORDERED trace in ONE call — the bulk
+ * Step N CPU instructions and return an ORDERED trace in ONE call - the bulk
  * form of stepInstruction, for confirming routine boundaries + immediate widths
  * without a round trip per instruction (the 65816 `.a8` vs `.i16` case, where the
  * width shows up only as the PC delta). Each trace entry carries the PC and the
@@ -250,7 +250,7 @@ export async function stepInstructionsCore(sessionKey, { count = 16, withRegiste
   if (!host.pcBreakSupported || !host.pcBreakSupported()) {
     return jsonContent({
       stepped: false, notSupported: true,
-      note: "This core build has no single-step (shipped on all classic platforms as of 0.5.0 — update the core package if you see this).",
+      note: "This core build has no single-step (shipped on all classic platforms as of 0.5.0 - update the core package if you see this).",
     });
   }
   const n = Math.max(1, Math.min(count, 4096));
@@ -268,7 +268,7 @@ export async function stepInstructionsCore(sessionKey, { count = 16, withRegiste
   // Classify each step's control FLOW from its opcode. This is the fix for the
   // width paper cut (field report): `width` was reported as the raw PC delta, so
   // a TAKEN forward branch (2-byte `beq` to +3) looked exactly like a 3-byte
-  // instruction — silently mis-validating a decode. The delta is the true
+  // instruction - silently mis-validating a decode. The delta is the true
   // instruction size ONLY on a sequential step; on any branch/jsr/jmp it's the
   // jump distance. We read the opcode byte at each PC (6502/65816 have a small,
   // fixed control-transfer opcode set) and emit `flow` always + `width` ONLY for
@@ -297,7 +297,7 @@ export async function stepInstructionsCore(sessionKey, { count = 16, withRegiste
   // Client report 2026-09-16: "$8000 in bank 3 and $8000 in bank 7 are
   // different code. My whole block identity is (bank, addr)." Without this a
   // caller has to read $FFFC-$FFFF in a SEPARATE call that is not synchronized
-  // to the traced instruction — so the bank they read may not be the bank that
+  // to the traced instruction - so the bank they read may not be the bank that
   // executed.
   //
   // The Sega mapper's slot registers are RAM-mapped at $FFFC-$FFFF, so they are
@@ -387,16 +387,16 @@ export async function stepInstructionsCore(sessionKey, { count = 16, withRegiste
   }
   const finalPcHex = finalPc != null ? "$" + finalPc.toString(16).toUpperCase() : null;
 
-  // format:'compact' — one string per step instead of a per-step object. A
+  // format:'compact' - one string per step instead of a per-step object. A
   // triage trace's signal is "which loop is the CPU in", and 48 steps of JSON
   // objects (~250 lines) is ~90% padding for that. Each string is
-  // `"$PC seq"` / `"$PC branch->$TGT"` — same info, a fraction of the tokens.
+  // `"$PC seq"` / `"$PC branch->$TGT"` - same info, a fraction of the tokens.
   if (format === "compact") {
     const steps = trace.map((e) => {
       const f = e.flow || (e.width != null ? "seq" : "?");
       return e.nextPc ? `${e.pc} ${f}->${e.nextPc}` : `${e.pc} ${f}`;
     });
-    // Also fold the visited PCs into ranges with visit counts — the loop map.
+    // Also fold the visited PCs into ranges with visit counts - the loop map.
     const counts = new Map();
     for (const e of trace) counts.set(e.pcRaw, (counts.get(e.pcRaw) || 0) + 1);
     const visited = [...counts.keys()].sort((a, b) => a - b);
@@ -420,13 +420,13 @@ export async function stepInstructionsCore(sessionKey, { count = 16, withRegiste
     finalPc: finalPcHex,
     trace,
     note: (opAt
-      ? "CPU is frozen at finalPc. `flow` classifies each step from its opcode (seq/branch/call/jump/ret); `width` = the instruction's true byte size and is present ONLY on `flow:'seq'` steps, so a 65816 immediate width (2-byte lda #imm8 vs 3-byte ldx #imm16) is trustworthy — a taken forward branch no longer masquerades as a width (it carries `flow` + `nextPc` instead). "
+      ? "CPU is frozen at finalPc. `flow` classifies each step from its opcode (seq/branch/call/jump/ret); `width` = the instruction's true byte size and is present ONLY on `flow:'seq'` steps, so a 65816 immediate width (2-byte lda #imm8 vs 3-byte ldx #imm16) is trustworthy - a taken forward branch no longer masquerades as a width (it carries `flow` + `nextPc` instead). "
       : "CPU is frozen at finalPc. `width` = PC[k+1]-PC[k]; on this core no opcode classifier ran, so `flow:'seq'` means the step was linear (delta = size) and a branch omits `width`. ") +
       "Step more with frame({op:'stepInstructions', count}). For a compact loop-map trace pass format:'compact'.",
   }), host);
 }
 
-// CPU family for the opcode-flow classifier (subset — only where classify runs).
+// CPU family for the opcode-flow classifier (subset - only where classify runs).
 const CPU_FAMILY_FOR = { nes: "6502", c64: "6502", atari2600: "6502", atari7800: "6502", lynx: "6502", pce: "6502", gametank: "6502", snes: "65816" };
 
 /**
@@ -461,10 +461,10 @@ export function makePressDriver(host, presses) {
   let lastSet = null;       // last setInput payload we pushed (to avoid churn)
   const platform = host.status?.platform;
   // When NO pressDuring schedule is given, the driver must NOT touch input at
-  // all — it leaves whatever persistent state input({op:'set'}) established in
+  // all - it leaves whatever persistent state input({op:'set'}) established in
   // place, so a watch/breakpoint inherits the held pad exactly like
   // frame({op:'step'}) does. (Previously applyForFrame(0) pushed an empty
-  // [{},{}] payload on the first frame, silently neutralizing a held Right+A —
+  // [{},{}] payload on the first frame, silently neutralizing a held Right+A -
   // the v0.16.0 movement-analysis bug.) A non-empty schedule still OWNS the
   // pad (deterministic capture): it drives the buttons and releases on finish.
   const driven = presses.length > 0;
@@ -495,7 +495,7 @@ export function makePressDriver(host, presses) {
 /**
  * Flush any held-input shadow before a driven run. Back-to-back `pressDuring`
  * runs on the SAME live host can leak the PRIOR run's held button into the next
- * run's frame 0 — the game latches the pad into its own RAM each frame, and the
+ * run's frame 0 - the game latches the pad into its own RAM each frame, and the
  * new run's frame-0 logic reads that stale chord before the new input propagates.
  * That makes a negative control (hold A to prove A does NOT reach a B-only branch)
  * FALSE-POSITIVE on frame 1. (v0.41.0 feedback 213831 #1.) Calling this first sets
@@ -524,7 +524,7 @@ const MEMORY_REGIONS = /** @type {[string, ...string[]]} */ (Object.keys(MemoryR
 // secondary region sub-param across this file was the dominant tool-schema
 // bloat (0.28.0 feedback #5). Used on SECONDARY/sub params; the PRIMARY region
 // inputs keep z.enum so the full list stays discoverable where the region IS
-// the choice. A plain string — validated at RUNTIME by the handler (the
+// the choice. A plain string - validated at RUNTIME by the handler (the
 // host.readMemory / MemoryRegionToRetro lookup throws on an unknown region with
 // a clear message), so dropping the schema enum here costs no safety.
 // NOTE: `z` is passed into registerWatchMemoryTools (not a module import), so
@@ -574,13 +574,13 @@ function noHitNote(sessionKey) {
   const short = "No per-byte CPU write to that address within maxFrames. Either the event didn't fire " +
     "(raise maxFrames / drive it with pressDuring; add abortIf to stop early if the scenario derails), " +
     "OR the region is rebuilt as a BLOCK (OAM/display-list/VRAM bulk-copy or DMA) so no single instruction " +
-    "writes it — watch the SOURCE struct the copy reads from instead.";
+    "writes it - watch the SOURCE struct the copy reads from instead.";
   if (_bpNoHitSeen.has(sessionKey)) return short;
   _bpNoHitSeen.add(sessionKey);
   return "No per-byte CPU write to that address within maxFrames. Two common reasons: " +
-    "(1) the event didn't fire — increase maxFrames or drive the game with pressDuring to trigger it " +
+    "(1) the event didn't fire - increase maxFrames or drive the game with pressDuring to trigger it " +
     "(and pass `abortIf` to abort early + say why if a driven run derails, e.g. the player dies). " +
-    "(2) this region is rebuilt as a BLOCK rather than written field-by-field — sprite/OAM shadow tables, " +
+    "(2) this region is rebuilt as a BLOCK rather than written field-by-field - sprite/OAM shadow tables, " +
     "display lists, and VRAM are typically bulk-copied (memcpy/loop) or DMA'd from a SOURCE struct elsewhere, " +
     "so no single instruction writes this exact byte. In that case the address you want is the SOURCE: watch " +
     "the struct the copy reads from (find it with memory({op:'search'}) on the live value), or for graphics trace the " +
@@ -601,12 +601,12 @@ function tryGetPC(host) {
 
 /**
  * Where is the MAIN THREAD, not the frame-boundary snapshot? A single
- * `tryGetPC` after `stepFrames` lands on whatever ran last at the boundary —
+ * `tryGetPC` after `stepFrames` lands on whatever ran last at the boundary -
  * almost always the NMI/idle handler (`$8520` etc.), which is useless for "where
  * was the code I'm hunting." Instead single-step across ~a frame and histogram
  * the PCs: the main loop dominates the sample count while the interrupt handler
  * is a brief once-per-frame blip. Report the modal PC (the busiest instruction)
- * plus a couple of runners-up as `pcHistogram`. Best-effort — null if the core
+ * plus a couple of runners-up as `pcHistogram`. Best-effort - null if the core
  * has no single-step, so callers keep the frame-boundary `pcNow` as a fallback.
  *
  * @param {*} host
@@ -617,7 +617,7 @@ function sampleMainThreadPc(host, samples = 400) {
   try {
     if (!host.pcBreakSupported || !host.pcBreakSupported()) return null;
     if (typeof host.stepInstruction !== "function") return null;
-    // Snapshot the FULL emulator state so the sampling has ZERO side effects —
+    // Snapshot the FULL emulator state so the sampling has ZERO side effects -
     // single-stepping ~a frame advances the CPU and the frame counter, which
     // would otherwise surprise a caller who wants to retry the miss with
     // different input. Restore it after. (serializeState is cross-platform; if
@@ -627,7 +627,7 @@ function sampleMainThreadPc(host, samples = 400) {
     catch { snapshot = null; }
     if (!snapshot) return null; // no restore path → don't perturb state for a diagnostic
     // `frameCount` is a JS-side counter, NOT part of the core's serialized blob,
-    // so unserializeState won't roll it back — save/restore it explicitly.
+    // so unserializeState won't roll it back - save/restore it explicitly.
     const prevFrameCount = host.status?.frameCount;
     try {
       const counts = new Map();
@@ -685,7 +685,7 @@ function combineBytes(bytes, base, as) {
 }
 
 /**
- * Per-byte diff — the default, and the reason `as` exists.
+ * Per-byte diff - the default, and the reason `as` exists.
  *
  * Emitting one event per CHANGED byte is right for a byte array and wrong for a
  * multi-byte number: the high byte of a 16-bit variable often holds steady, so
@@ -699,7 +699,7 @@ function diffSnapshots(before, after, baseOffset, label, opts = {}) {
   const changes = [];
   for (let i = 0; i < before.length; i++) {
     if (before[i] !== after[i]) {
-      // Only annotate when the range spans several bytes — a 1-byte range has
+      // Only annotate when the range spans several bytes - a 1-byte range has
       // no ambiguity to resolve and the extra fields would just be noise.
       const split = annotateBytes && rangeLength > 1;
       changes.push({
@@ -716,7 +716,7 @@ function diffSnapshots(before, after, baseOffset, label, opts = {}) {
 }
 
 /**
- * Whole-range diff for `as` — one event when the COMBINED value moves.
+ * Whole-range diff for `as` - one event when the COMBINED value moves.
  *
  * A change in any constituent byte is a single event carrying the combined
  * before/after, so a 16-bit counter rolling 0x00FF -> 0x0100 reports once as
@@ -743,7 +743,7 @@ function diffCombined(before, after, baseOffset, label, as) {
   return changes;
 }
 
-// Edge classifier — a single byte's transition relative to its previous value.
+// Edge classifier - a single byte's transition relative to its previous value.
 // "reset" is the canonical music-driver signal: a countdown counter that
 // reloads (jumps UP) marks a note onset. Filtering to resets turns a 7000-event
 // decrement stream into the ~few-hundred-event note list directly.
@@ -785,7 +785,7 @@ function downsample(arr, n) {
 // cycle-accurate core those bus reads land in a READ census and look exactly
 // like consumers of the watched range. The static tell: the instruction at
 // the reporting PC is a WRITE-class indexed op whose operand base is OUTSIDE
-// the range. That is decidable from the cart bytes alone — so decide it here
+// the range. That is decidable from the cart bytes alone - so decide it here
 // and flag the row instead of letting it be written up as a consumer.
 const PHANTOM_DUMMY_READ_OPCODES = new Set([
   0x9D, 0x99,                         // sta abs,X / sta abs,Y
@@ -815,7 +815,7 @@ function makeRomByteReader(host, platform) {
 /**
  * v0.98.0 feedback #3: a watch armed while the CPU sits at an UN-CLEARED
  * breakpoint hit silently misses everything that already executed inside the
- * broken frame — and an empty result then reads as a clean negative, which is
+ * broken frame - and an empty result then reads as a clean negative, which is
  * load-bearing evidence in RE work. Detectable at arm time; say so.
  */
 function armedWhileHaltedInfo(host) {
@@ -828,12 +828,12 @@ function armedWhileHaltedInfo(host) {
         armedWhileHaltedNote:
           "This watch was armed while the CPU was HALTED at an un-cleared breakpoint hit ($" +
           b.address.toString(16).toUpperCase() +
-          "). Accesses that already executed earlier in the broken frame were NOT captured — an empty/quiet " +
+          "). Accesses that already executed earlier in the broken frame were NOT captured - an empty/quiet " +
           "result here is NOT a clean negative. For a complete window, restore a savestate and arm the watch " +
           "BEFORE driving to the moment (fromState/fromStatePath does both in one call).",
       };
     }
-  } catch { /* no pc-break surface on this core — nothing to flag */ }
+  } catch { /* no pc-break surface on this core - nothing to flag */ }
   return {};
 }
 
@@ -867,9 +867,9 @@ async function enrichCensus(byPCList, { host, kind, start, end, dbg, map }) {
       if (flagged) {
         noteLines.push(
           `${flagged} PC(s) flagged phantomRead: the instruction there is an indexed WRITE/RMW whose operand base ` +
-          "(storeBase) is outside this range — its 6502 dummy-read cycle landed in the range, but the PROGRAM never " +
+          "(storeBase) is outside this range - its 6502 dummy-read cycle landed in the range, but the PROGRAM never " +
           "reads these bytes there. Don't write them up as consumers. (Fixed-bank decode; a PC in a switched bank may " +
-          "escape the check — the write-census diff still catches it.)");
+          "escape the check - the write-census diff still catches it.)");
       }
     }
   }
@@ -896,7 +896,7 @@ async function enrichCensus(byPCList, { host, kind, start, end, dbg, map }) {
       if (roll.size) {
         extra.byRoutine = [...roll.values()].sort((a, b) => b.count - a.count);
         noteLines.push(
-          "byRoutine groups the PCs by containing symbol — compare censuses in ROUTINE units, not PC units " +
+          "byRoutine groups the PCs by containing symbol - compare censuses in ROUTINE units, not PC units " +
           "(a read-modify-write logs two PCs in one routine; PC counts look like disagreements across runs when they aren't).");
       }
     } catch (e) {
@@ -913,14 +913,14 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
     region: regionStr("memory region for THIS range (same canonical set `memory` uses)"),
     offset: z.number().int().min(0),
     length: z.number().int().min(1).max(4096).default(1),
-    label: z.string().optional().describe("Name echoed on every event from this range — tells disjoint ranges apart in one stream."),
+    label: z.string().optional().describe("Name echoed on every event from this range - tells disjoint ranges apart in one stream."),
     // Multi-byte variables are the common case in RE (map distance, score,
     // pointers, timers), and watching them BYTE-WISE lies quietly: a 16-bit
     // value whose high byte holds steady reports only its low byte, under the
     // range's label, with nothing saying it is a fragment. `as` reads the range
     // as ONE number instead.
     as: z.enum(["u8", "u16le", "u16be", "u24le", "u24be", "u32le", "u32be"]).optional()
-      .describe("Read this range as a SINGLE multi-byte value instead of independent bytes — the fix for 16/32-bit variables (map distance, score, pointers). One series/event stream under the range's `label`, values combined with the given endianness, and a change in ANY constituent byte is one event. `length` must match the width (u16=2, u24=3, u32=4). Without this, a 2-byte range emits per-BYTE series that share the label, and a byte that never changed emits nothing at all."),
+      .describe("Read this range as a SINGLE multi-byte value instead of independent bytes - the fix for 16/32-bit variables (map distance, score, pointers). One series/event stream under the range's `label`, values combined with the given endianness, and a change in ANY constituent byte is one event. `length` must match the width (u16=2, u24=3, u32=4). Without this, a 2-byte range emits per-BYTE series that share the label, and a byte that never changed emits nothing at all."),
     // Per-range overrides of the call-wide filters. The whole point: in a
     // multi-range watch, keep EVERY transition of a slow state byte while
     // sampling/suppressing a fast free-running counter in the SAME pass.
@@ -961,7 +961,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       // address→desc map from the matched game's RAM cheats and fills in `label`
       // for any range whose CPU address lines up (system_ram offset == address)
       // and that the caller didn't already label. Free semantic names; PROBABLE
-      // match (see gameCheats) — labels are strong hints, not gospel.
+      // match (see gameCheats) - labels are strong hints, not gospel.
       let cheatLabelInfo;
       if (cheatLabels) {
         try {
@@ -1011,8 +1011,8 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       let stoppedEarly = false;
       const fileLines = [];        // NDJSON lines when outputPath set
       // groupByPC accumulator: pc -> {hits, firstFrame, lastFrame, offsets:Set}.
-      // Collapses "which instructions touched this byte" — the canonical
-      // "find the hot-path writer" question — into one row per PC regardless of
+      // Collapses "which instructions touched this byte" - the canonical
+      // "find the hot-path writer" question - into one row per PC regardless of
       // how many thousands of times each fired.
       const byPc = groupByPC ? new Map() : null;
       // format:"series" accumulator: offsetHex -> {offset, offsetHex, label,
@@ -1056,7 +1056,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
           g.offsets.add(ev.offsetHex ?? ev.offset);
         }
         if (outputPath) fileLines.push(JSON.stringify(ev));
-        // When grouping, the per-event preview is redundant with the summary —
+        // When grouping, the per-event preview is redundant with the summary -
         // keep only a tiny sample for context (the byPC[] rows are the answer;
         // a 30-event watch shouldn't dump ~360 lines of raw events too).
         const cap = byPc ? Math.min(maxEvents, 8) : maxEvents;
@@ -1105,7 +1105,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
             });
             if (stopOnFirst) { stoppedEarly = true; break outer; }
             // Without a file, once the inline preview is full there's no point
-            // continuing — EXCEPT when grouping (byPC[] needs every event) or in
+            // continuing - EXCEPT when grouping (byPC[] needs every event) or in
             // series mode (the curve needs every point before its own downsample).
             if (!outputPath && !byPc && !seriesMap && truncated) break outer;
           }
@@ -1127,7 +1127,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         valueFilter: valueFilter ?? null,
         eventCount: totalMatched,
         ...(byPCSummary ? { byPC: byPCSummary, distinctPCs: byPCSummary.length } : {}),
-        // When the caller scheduled input, ALWAYS report what landed — so a
+        // When the caller scheduled input, ALWAYS report what landed - so a
         // press that never registered is visible, not a silent eventCount:0.
         ...(presses.length ? { pressesScheduled: presses.length, pressesApplied: pressDriver.applied() } : {}),
         ...(cheatLabelInfo ? { cheatLabels: cheatLabelInfo } : {}),
@@ -1139,22 +1139,22 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         ...haltInfo,
         note: (armedWhileHalted
           ? (totalMatched === 0
-              ? "An empty result here does NOT establish that nothing writes this address — see armedWhileHaltedNote. "
-              : "This count is a LOWER BOUND — see armedWhileHaltedNote. ")
+              ? "An empty result here does NOT establish that nothing writes this address - see armedWhileHaltedNote. "
+              : "This count is a LOWER BOUND - see armedWhileHaltedNote. ")
           : "") +
           (totalMatched === 0
           ? "No matching changes in the watched window. "
-            // A scheduled press defaults to holdFrames:2 — a TAP. That is far
+            // A scheduled press defaults to holdFrames:2 - a TAP. That is far
             // too short for anything with movement or animation (walking one
             // screen-to-screen walk needs ~60+ frames held), so the run looks like "the
             // byte never changes" when really the input never did anything.
             // pressesApplied:N says the press landed; it does NOT say it was
             // held long enough, so name the lever explicitly here.
             + (presses.length
-              ? `Your \`pressDuring\` schedule held for ${Math.max(...presses.map((p) => p.holdFrames ?? 2))} frame(s) — `
+              ? `Your \`pressDuring\` schedule held for ${Math.max(...presses.map((p) => p.holdFrames ?? 2))} frame(s) - `
                 + "note holdFrames DEFAULTS TO 2 (a tap). If the effect needs sustained input (walking to the next screen, a charged move), raise `holdFrames` to cover it, or hold the button with input({op:'set'}) and OMIT pressDuring. "
               : "")
-            + "Try (a) onChange:'any' to confirm the byte moves at all, (b) longer `frames`, (c) `pressDuring` to drive the game past the event, (d) a different region/offset. If the byte never moves even with onChange:'any', this region may be REBUILT as a block (sprite/OAM shadow, display list, VRAM) rather than written in place — watch the SOURCE struct the copy/DMA reads from instead (find it with memory({op:'search'}))."
+            + "Try (a) onChange:'any' to confirm the byte moves at all, (b) longer `frames`, (c) `pressDuring` to drive the game past the event, (d) a different region/offset. If the byte never moves even with onChange:'any', this region may be REBUILT as a block (sprite/OAM shadow, display list, VRAM) rather than written in place - watch the SOURCE struct the copy/DMA reads from instead (find it with memory({op:'search'}))."
           : (tryGetPC(host) == null ? "PC not available for this platform (getCPUState returned no pc field)." : "")) || undefined,
       };
 
@@ -1173,7 +1173,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         });
       }
 
-      // format:"series" — compact columnar value-vs-frame curve per offset.
+      // format:"series" - compact columnar value-vs-frame curve per offset.
       // maxEvents caps SAMPLES PER OFFSET by DOWNSAMPLING (evenly-spaced subset
       // that always keeps the first and last point) rather than truncating, so
       // the curve spans the whole window in one call.
@@ -1202,7 +1202,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         });
 
         // A byte that never changed emits NO events, so it is absent from the
-        // series entirely — and a constant high byte is exactly the information
+        // series entirely - and a constant high byte is exactly the information
         // needed to read the low one. Its absence is silent and has been read as
         // "1520 is 240". Report the bytes that held still, with the value they
         // held, so a multi-byte range is never quietly under-reported.
@@ -1229,7 +1229,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
           series,
           ...(constants.length ? { constantBytes: constants } : {}),
           ...(constants.length
-            ? { constantBytesNote: `${constants.length} byte(s) in multi-byte range(s) never changed, so they have no series — listed in constantBytes with the value they held. If a range is one NUMBER rather than independent bytes, pass as:'u16le' (etc.) on it to get ONE combined series instead: a 16-bit value whose high byte holds steady otherwise reports only its low byte under the range's label (0x05F0 reads as 240, not 1520).` }
+            ? { constantBytesNote: `${constants.length} byte(s) in multi-byte range(s) never changed, so they have no series - listed in constantBytes with the value they held. If a range is one NUMBER rather than independent bytes, pass as:'u16le' (etc.) on it to get ONE combined series instead: a 16-bit value whose high byte holds steady otherwise reports only its low byte under the range's label (0x05F0 reads as 240, not 1520).` }
             : {}),
           ...(anyDownsampled
             ? { seriesNote: `One or more offsets had >maxEvents (${maxEvents}) changes and were DOWNSAMPLED to an evenly-spaced subset spanning the full window (first+last kept). Raise maxEvents or lower sampleEvery for more resolution; use outputPath for every raw delta.` }
@@ -1247,8 +1247,8 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       if (!host.watchpointSupported || !host.watchpointSupported()) {
         return jsonContent({
           found: false, notSupported: true, address: "$" + address.toString(16).toUpperCase(),
-          note: "This core build has no instruction-level write watchpoint (shipped on all 14 platforms — update the core package if you see this; only PC Engine lacked it before 0.6.0). " +
-            "Use watchMemory/runUntilWrite here — their pc is frame-sampled, so cross-check the value trace.",
+          note: "This core build has no instruction-level write watchpoint (shipped on all 14 platforms - update the core package if you see this; only PC Engine lacked it before 0.6.0). " +
+            "Use watchMemory/runUntilWrite here - their pc is frame-sampled, so cross-check the value trace.",
         });
       }
       if (condition === "equals" && conditionValue == null) {
@@ -1267,7 +1267,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       // Best-effort CPU-address → work-RAM byte read for the host-side word
       // checks (same platform mapping backtraceForHit uses; SNES adds the
       // bank-$7E direct window; GBA maps EWRAM/IWRAM by address range).
-      // Returns null when unmappable — the 16-bit paths then degrade
+      // Returns null when unmappable - the 16-bit paths then degrade
       // gracefully (documented in the result note).
       const platform0 = host.status?.platform;
       const readRamByteAt = (cpuAddr) => {
@@ -1292,7 +1292,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         } catch { return null; }
       };
       // Word ORDER follows the platform CPU: 68k (Genesis) words are
-      // BIG-endian — the HIGH byte lives at `address`, not address+1. The
+      // BIG-endian - the HIGH byte lives at `address`, not address+1. The
       // 6502/65816/Z80/SM83/ARM families are little-endian.
       const bigEndian0 = platform0 === "genesis";
       const readRamWordAt = (cpuAddr) => {
@@ -1302,7 +1302,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       };
       // Pass the condition to the core's watchpoint so its hook only COUNTS +
       // records writes that satisfy it (qualifying writes), ignoring restoring/
-      // churn writes — and so the reported PC is a meaningful write, not just the
+      // churn writes - and so the reported PC is a meaningful write, not just the
       // last write of the frame. Core support is feature-detected; if the loaded
       // core build predates condition support, we fall back to a host-side
       // 'equals' filter on the reported value (inc/dec need the core's old byte).
@@ -1312,7 +1312,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       settleHeldInput(host, settleFrames, presses0.length > 0);
       const wantCond = condition != null;
       // width 16, equals: the core hook compares ONE byte, so arm it on the HIGH
-      // byte (address+1) with the value's high byte — a 16-bit store writes low
+      // byte (address+1) with the value's high byte - a 16-bit store writes low
       // then high, and watching the LOW byte of a constant like $2000 is useless
       // ($00 matches everything). The low byte is then verified host-side.
       // width 16, increase/decrease: a byte-level delta lies about a word counter
@@ -1341,7 +1341,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       const pressDriver = makePressDriver(host, presses);
       // Abort-guard: sample caller-named "still valid?" bytes each frame; if any
       // changes, a driven run that DERAILED (player died → title screen, scene
-      // flipped, …) stops immediately instead of burning all maxFrames and
+      // flipped, ...) stops immediately instead of burning all maxFrames and
       // returning a meaningless found:false. (v0.15.0 feedback #2.)
       const guard = makeAbortGuard(host, abortIf);
       let result = null;
@@ -1374,14 +1374,14 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
           // Host-side fallback for condition:'equals' on a core that didn't
           // apply the condition itself: only accept when the reported (last)
           // written value equals the target; otherwise keep waiting. (inc/dec
-          // can't be faked host-side — they need the core's pre-write byte, so
+          // can't be faked host-side - they need the core's pre-write byte, so
           // we only reach here for them when the core DID handle the condition.)
           const eqTarget = wideEquals ? (conditionValue >> 8) & 0xFF : (conditionValue ?? 0) & 0xFF;
           if (wantCond && !coreHandledCond && condition === "equals" && (w.lastValue & 0xFF) !== eqTarget) {
             continue;
           }
           if (wideEquals) {
-            // High byte matched in the core — verify the LOW byte host-side so
+            // High byte matched in the core - verify the LOW byte host-side so
             // the WORD really equals the target (a $20xx write with the wrong
             // low byte keeps waiting). Unmappable low byte → accept + flag.
             const lo = readRamByteAt(loByteAddr);
@@ -1405,24 +1405,24 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
           note: `Run aborted early: the watched abort byte ${aborted.label} (${aborted.addr}) changed ` +
             `${aborted.before}→${aborted.after} at frame ${aborted.framesStepped}, so the driven scenario left the ` +
             `expected state (e.g. player died / scene changed) before the write fired. The found:false is NOT a real ` +
-            `miss — fix the input plan or pick a different start state, then re-run.`,
+            `miss - fix the input plan or pick a different start state, then re-run.`,
         });
       }
       if (!result) {
         return jsonContent({
           found: false, address: "$" + address.toString(16).toUpperCase(),
-          ...(canonAddr !== watchAddr ? { armedAddress: "$" + canonAddr.toString(16).toUpperCase() + " (WRAM low mirror canonicalized — a $7Exxxx-form writer would have been caught too)" } : {}),
+          ...(canonAddr !== watchAddr ? { armedAddress: "$" + canonAddr.toString(16).toUpperCase() + " (WRAM low mirror canonicalized - a $7Exxxx-form writer would have been caught too)" } : {}),
           framesStepped: maxFrames,
           ...(presses.length ? { pressesScheduled: presses.length, pressesApplied: pressDriver.applied() } : {}),
           ...(abortIf && abortIf.length ? { abortIfArmed: guard.count } : {}),
           // One-line hint by default; the full "two reasons" explainer is verbose
-          // boilerplate as a repeated payload (v0.15.0 feedback #2b) — gated to the
+          // boilerplate as a repeated payload (v0.15.0 feedback #2b) - gated to the
           // FIRST miss per session.
           note: noHitNote(sessionKey),
         });
       }
       // When the core reports a PRG-ROM offset for the PC (fceumm/NES), it
-      // disambiguates the BANK — turn it into the iNES bank index + the prg.bin
+      // disambiguates the BANK - turn it into the iNES bank index + the prg.bin
       // offset so disassembleRom can target the exact bank, no $FF-padding from
       // the wrong (fixed) bank on a banked mapper.
       const prgOffset = result.prgOffset;
@@ -1430,18 +1430,18 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         ? { prgOffset: "0x" + prgOffset.toString(16).toUpperCase(), bank: Math.floor(prgOffset / 0x4000) }
         : null;
       // The core snapshots the FULL register file inside the write hook (kind 3,
-      // all 14 platforms) — the break-instant truth; the live regs keep moving
+      // all 14 platforms) - the break-instant truth; the live regs keep moving
       // after the hit.
       const wpSnap = host.getRegSnapshot ? host.getRegSnapshot(true) : null;
       const wpRegs = (wpSnap && wpSnap.kind === 3) ? wpSnap.named : null;
       return attachObserverFrame(jsonContent({
         found: true,
         address: "$" + address.toString(16).toUpperCase(),
-        ...(canonAddr !== watchAddr ? { armedAddress: "$" + canonAddr.toString(16).toUpperCase() + " (WRAM low mirror canonicalized — all addressing forms of this byte are caught)" } : {}),
+        ...(canonAddr !== watchAddr ? { armedAddress: "$" + canonAddr.toString(16).toUpperCase() + " (WRAM low mirror canonicalized - all addressing forms of this byte are caught)" } : {}),
         pc: result.lastPC != null ? "$" + result.lastPC.toString(16).toUpperCase() : null,
         pcRaw: result.lastPC,
         // valueByte, not value: this is the ONE BYTE that landed on the watched
-        // address — a word/long store shows only its byte here, not the operand
+        // address - a word/long store shows only its byte here, not the operand
         // (a real session read 0x00 as "the move.l wrote zero").
         valueByte: "0x" + result.lastValue.toString(16).toUpperCase().padStart(2, "0"),
         ...(result.lastOldValue != null ? { oldValueByte: "0x" + (result.lastOldValue & 0xFF).toString(16).toUpperCase().padStart(2, "0") } : {}),
@@ -1458,17 +1458,17 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         ...(bankInfo ? bankInfo : {}),
         ...(presses.length ? { pressesScheduled: presses.length, pressesApplied: pressDriver.applied() } : {}),
         note: "pc is the EXACT writing instruction (captured in the CPU write path), not a frame sample. " +
-          (wideEquals ? `conditionWidth:16 — the core watch sat on the word's HIGH byte ($${watchAddr.toString(16).toUpperCase()}, ${bigEndian0 ? "big" : "little"}-endian layout) for 0x${((conditionValue >> 8) & 0xFF).toString(16).padStart(2, "0")}, and the low byte was ${lowByteVerified === false ? "NOT host-verifiable at this address (accepted on the high byte alone)" : "verified host-side"} — so the hit means the WORD became 0x${conditionValue.toString(16).toUpperCase().padStart(4, "0")}. ` : "") +
-          (wideDelta ? `conditionWidth:16 — the word at $${address.toString(16).toUpperCase()}/+1 (${bigEndian0 ? "big" : "little"}-endian) ${condition}d ${wordBeforeHit != null ? "0x" + wordBeforeHit.toString(16).toUpperCase().padStart(4, "0") + "→0x" + wordAtHit.toString(16).toUpperCase().padStart(4, "0") : ""} (host-side word compare; the pc is the frame's writer of the watched first byte). A write that only touches the OTHER byte won't trip the watch — rare for real 16-bit stores, which write both. ` : "") +
+          (wideEquals ? `conditionWidth:16 - the core watch sat on the word's HIGH byte ($${watchAddr.toString(16).toUpperCase()}, ${bigEndian0 ? "big" : "little"}-endian layout) for 0x${((conditionValue >> 8) & 0xFF).toString(16).padStart(2, "0")}, and the low byte was ${lowByteVerified === false ? "NOT host-verifiable at this address (accepted on the high byte alone)" : "verified host-side"} - so the hit means the WORD became 0x${conditionValue.toString(16).toUpperCase().padStart(4, "0")}. ` : "") +
+          (wideDelta ? `conditionWidth:16 - the word at $${address.toString(16).toUpperCase()}/+1 (${bigEndian0 ? "big" : "little"}-endian) ${condition}d ${wordBeforeHit != null ? "0x" + wordBeforeHit.toString(16).toUpperCase().padStart(4, "0") + "→0x" + wordAtHit.toString(16).toUpperCase().padStart(4, "0") : ""} (host-side word compare; the pc is the frame's writer of the watched first byte). A write that only touches the OTHER byte won't trip the watch - rare for real 16-bit stores, which write both. ` : "") +
           (condition
-            ? `condition:'${condition}' filtered to the MEANINGFUL write — pc/valueByte/hits reflect only qualifying writes${result.lastOldValue != null ? ` (oldValueByte→valueByte = ${"0x" + (result.lastOldValue & 0xFF).toString(16)}→${"0x" + result.lastValue.toString(16)})` : ""}. `
-            : "Without a `condition`, on:'write' runs to END OF FRAME and reports the LAST matching write of the frame (NOT the first) — `hits` is the count of all matching writes that frame. If a restoring/churn write hides the change you want, pass condition:'increase'|'decrease'|'equals'. ") +
+            ? `condition:'${condition}' filtered to the MEANINGFUL write - pc/valueByte/hits reflect only qualifying writes${result.lastOldValue != null ? ` (oldValueByte→valueByte = ${"0x" + (result.lastOldValue & 0xFF).toString(16)}→${"0x" + result.lastValue.toString(16)})` : ""}. `
+            : "Without a `condition`, on:'write' runs to END OF FRAME and reports the LAST matching write of the frame (NOT the first) - `hits` is the count of all matching writes that frame. If a restoring/churn write hides the change you want, pass condition:'increase'|'decrease'|'equals'. ") +
           "valueByte is the single byte written to the watched address (a 16/32-bit store shows only its byte here). " +
-          "hits counts watched-byte writes during the hit frame — the same instruction looping twice in one frame is hits:2, one event. " +
-          (wpRegs ? "registersAtHit is the register file frozen AT the write (the live regs drift for the rest of the frame — don't cpu({op:'read'}) instead). " : "") +
+          "hits counts watched-byte writes during the hit frame - the same instruction looping twice in one frame is hits:2, one event. " +
+          (wpRegs ? "registersAtHit is the register file frozen AT the write (the live regs drift for the rest of the frame - don't cpu({op:'read'}) instead). " : "") +
           (bankInfo
-            ? `pc is in PRG bank ${bankInfo.bank} (prg offset ${bankInfo.prgOffset}) — disassembleRom({ startAddress: ${result.lastPC != null ? "0x" + result.lastPC.toString(16) : "pc"}, bank: ${bankInfo.bank} }) targets the exact bank (no fixed-bank $FF padding).`
-            : `disassembleRom({ startAddress: ${result.lastPC != null ? "0x" + result.lastPC.toString(16) : "pc"} }) to see it. On a banked mapper a $8000-$BFFF pc may be in a switchable bank — pass the right \`bank\`.`),
+            ? `pc is in PRG bank ${bankInfo.bank} (prg offset ${bankInfo.prgOffset}) - disassembleRom({ startAddress: ${result.lastPC != null ? "0x" + result.lastPC.toString(16) : "pc"}, bank: ${bankInfo.bank} }) targets the exact bank (no fixed-bank $FF padding).`
+            : `disassembleRom({ startAddress: ${result.lastPC != null ? "0x" + result.lastPC.toString(16) : "pc"} }) to see it. On a banked mapper a $8000-$BFFF pc may be in a switchable bank - pass the right \`bank\`.`),
       }), host);
   }
 
@@ -1504,8 +1504,8 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
             // lead, and confirm against the value trace / a manual disasm.
             pcCaveat: "pc is a frame-boundary sample, not the writing instruction; for ISR-driven writes it is typically the interrupted main-thread PC (e.g. an idle loop), not the code that wrote the byte.",
             hint: pc != null
-              ? `disassembleRom near ${hexPC(pc)} is a STARTING point — but if this ROM writes from an NMI/IRQ handler, ${hexPC(pc)} is likely the interrupted idle loop, not the writer. Cross-check with the value trace.`
-              : "PC was not available — check that getCPUState is wired for this platform.",
+              ? `disassembleRom near ${hexPC(pc)} is a STARTING point - but if this ROM writes from an NMI/IRQ handler, ${hexPC(pc)} is likely the interrupted idle loop, not the writer. Cross-check with the value trace.`
+              : "PC was not available - check that getCPUState is wired for this platform.",
           }), host);
         }
         prev = cur;
@@ -1524,13 +1524,13 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       if (!host.pcBreakSupported || !host.pcBreakSupported()) {
         return jsonContent({
           hit: false, notSupported: true, address: "$" + address.toString(16).toUpperCase(),
-          note: "This core build has no PC breakpoint (shipped on all 14 platforms as of 0.5.0 — update the core package if you see this). " +
+          note: "This core build has no PC breakpoint (shipped on all 14 platforms as of 0.5.0 - update the core package if you see this). " +
             "Interim: use runUntilWrite/findWriter to anchor on a write, or stepFrames + getCPUState sampling.",
         });
       }
       const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       // Flush a prior run's held-button shadow BEFORE arming (so the settle frames
-      // don't trip the breakpoint) — prevents a back-to-back negative control from
+      // don't trip the breakpoint) - prevents a back-to-back negative control from
       // false-positiving on frame 0. See settleHeldInput.
       settleHeldInput(host, settleFrames, presses.length > 0);
       const pressDriver = makePressDriver(host, presses);
@@ -1556,7 +1556,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         const drove = presses.length > 0;
         // The frame-boundary pcNow almost always lands on the NMI/idle handler,
         // which says nothing about where the main thread was. Single-step across
-        // ~a frame and report the modal (busiest) PC as mainThreadPc — the main
+        // ~a frame and report the modal (busiest) PC as mainThreadPc - the main
         // loop dominates the histogram while the interrupt handler is a blip.
         // Save-state-wrapped, so it has ZERO side effects (state is restored).
         const mt = sampleMainThreadPc(host);
@@ -1572,7 +1572,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
             ? "PC never reached that address within maxFrames EVEN WITH the scheduled input. Either (a) this is " +
               "the WRONG ADDRESS for the path that actually ran (a different routine handles it), (b) the address " +
               "isn't an instruction boundary (mid-instruction never matches REG_PC), OR (c) the condition " +
-              "LEGITIMATELY did not occur — i.e. this hit:false is the DESIRED result of a negative control " +
+              "LEGITIMATELY did not occur - i.e. this hit:false is the DESIRED result of a negative control " +
               "(you're proving input X does NOT reach this branch; e.g. an A-vs-B discriminator where only the " +
               "other button should hit). If you confirmed the address is reachable on the positive run, (c) is " +
               "the expected outcome, not a failure. "
@@ -1581,7 +1581,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
               "boundary (mid-instruction never matches REG_PC). ") +
             (mt ? "mainThreadPc is the BUSIEST PC over ~a frame of single-stepping (the main loop), not the " +
                   "frame-boundary idle/NMI snapshot in pcNow; pcHistogram shows the top PCs by hit count. " +
-                  "(Sampling is save-state-wrapped — no side effects; the emulator is back where it was.) "
+                  "(Sampling is save-state-wrapped - no side effects; the emulator is back where it was.) "
                 : (pcNow != null ? "pcNow is the frame-boundary PC (usually the idle loop). " : "")) +
             "To find which code DID run, coverage-trace the suspect range: watch({on:'pc', start, end, frames}) " +
             "returns every distinct PC executed there; or anchor on a RAM effect with breakpoint({on:'write'}).",
@@ -1590,7 +1590,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       // Snapshot the registers AT the hit BEFORE clearing (last already holds the
       // hit state; read it without clearing so registersAtHit survives). Two
       // snapshot transports: the fceumm-style inline pcbreak slots (A/X/Y/P/S)
-      // and the gpgx regsnap export (full m68k/z80 file — kind 1=pc-break,
+      // and the gpgx regsnap export (full m68k/z80 file - kind 1=pc-break,
       // 2=watchdog).
       const snapAtHit = host.getRegSnapshot ? host.getRegSnapshot(false) : null;
       const atHit = last.registersAtHit
@@ -1598,8 +1598,8 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         ?? ((snapAtHit && (snapAtHit.kind === 1 || snapAtHit.kind === 2)) ? snapAtHit.named : null);
       // captureMemory: read the requested regions AT the hit (before we clear/step),
       // returned inline so break→read RAM collapses into ONE call. NOTE: registers
-      // are the true break instant (core snapshot); these RAM reads are taken now —
-      // i.e. after the hit frame finished — so on run-to-frame-end cores (fceumm)
+      // are the true break instant (core snapshot); these RAM reads are taken now -
+      // i.e. after the hit frame finished - so on run-to-frame-end cores (fceumm)
       // they reflect the routine's RAM SIDE EFFECTS for that frame (which is what
       // RE wants: "what did this routine touch"), not necessarily the exact byte
       // mid-instruction. Stable + reliable; that's the property the report leaned on.
@@ -1634,11 +1634,11 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       // budget on hit but retro_run still finishes the frame, so the live regs are
       // end-of-frame state. Prefer registersAtHit; only fall back to a live read on
       // cores that don't snapshot.
-      // Terse per-hit note — the full explanation lives in the breakpoint tool
+      // Terse per-hit note - the full explanation lives in the breakpoint tool
       // description (loaded once), so a hit doesn't re-charge ~600 chars of
       // boilerplate every time (field report: this repeated on all 3 pc-breaks).
       const frozenNote = atHit
-        ? "Use registersAtHit (not a follow-up cpu read — that's end-of-frame). captureMemory:[…] reads RAM at the hit inline."
+        ? "Use registersAtHit (not a follow-up cpu read - that's end-of-frame). captureMemory:[...] reads RAM at the hit inline."
         : "No hit-snapshot on this core: prefer memory({op:'read'}) side effects; a live cpu read is end-of-frame on run-to-end cores (fceumm).";
       if (host.getRegSnapshot) host.getRegSnapshot(true); // consume the snapshot so a later bp can't read a stale one
       return attachObserverFrame(jsonContent({
@@ -1651,7 +1651,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         ...(capturedMemory ? { capturedMemory } : {}),
         frame: host.status.frameCount,
         framesRun,
-        // The core's hits counter doesn't tick on a watchdog stop — normalize so
+        // The core's hits counter doesn't tick on a watchdog stop - normalize so
         // hit:true never reports hits:0 (a real session read that as contradictory).
         hits: fin.hits || 1,
         ...(presses.length ? { pressesScheduled: presses.length, pressesApplied: pressDriver.applied() } : {}),
@@ -1661,11 +1661,11 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
 
   // A4: Computed-jumptable recovery via the LIVE emulator. Static analysis follows
   // direct addressing only, so a `JMP (table,X)` / RTS-trick dispatcher collapses
-  // to "Could not recover jumptable" — and those dispatchers (game-state machines,
+  // to "Could not recover jumptable" - and those dispatchers (game-state machines,
   // script/event VMs, battle engines) are the routines you most want to read. We
   // resolve them dynamically: break at the dispatcher, single-step THROUGH the
   // indirect transfer, and record the PC it actually lands on. Run across many
-  // frames/inputs to accumulate the distinct target set — the real switch arms.
+  // frames/inputs to accumulate the distinct target set - the real switch arms.
   //
   // No standalone tool (IDA/Ghidra/Binary Ninja) can do this: they have no live
   // emulator to observe the computed target. The observed set can be fed back as
@@ -1675,7 +1675,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       if (!host.pcBreakSupported || !host.pcBreakSupported()) {
         return jsonContent({
           ok: false, notSupported: true, address: "$" + address.toString(16).toUpperCase(),
-          note: "This core build has no PC breakpoint / single-step (shipped on all 14 platforms as of 0.5.0 — update the core package if you see this).",
+          note: "This core build has no PC breakpoint / single-step (shipped on all 14 platforms as of 0.5.0 - update the core package if you see this).",
         });
       }
       const restored = await maybeRestoreState(host, fromState, fromStatePath);
@@ -1686,7 +1686,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       // single-step out of the dispatcher, normal flow is sequential (next PC =
       // prev + 1..4 on a 6502, wider on ARM); a computed JMP (table,X) / RTS-trick
       // makes the PC LEAP (delta > jumpThreshold or backward). But a real dispatch
-      // path contains FIXED leaps too — cc65 lowers an indirect call to
+      // path contains FIXED leaps too - cc65 lowers an indirect call to
       // JSR<callax>; JMP(ptr), so the trampoline addresses leap identically on
       // every hit. The handler ARM is the leap destination that DIFFERS hit-to-
       // hit. So: per hit, collect the set of leap destinations; across all hits,
@@ -1737,7 +1737,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       }
 
       const hx = (v) => "$" + (v >>> 0).toString(16).toUpperCase();
-      // Classify each leap destination. A COMPUTED arm VARIES across hits — it was
+      // Classify each leap destination. A COMPUTED arm VARIES across hits - it was
       // reached on some hits but not all (leapSeen < dispatcherHits). A FIXED
       // trampoline (cc65 callax, the post-handler return path) leaps identically
       // EVERY hit (leapSeen == dispatcherHits). Keep the variers as targets.
@@ -1746,7 +1746,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       }));
       let arms = allLeaps.filter((l) => l.hits < dispatcherHits);
       // Fallback: if NOTHING varied (the dispatcher only ever took one path under
-      // this input — a single observed arm), report the non-trampoline leaps as
+      // this input - a single observed arm), report the non-trampoline leaps as
       // candidate targets rather than nothing. With only one hit, everything has
       // hits==1==dispatcherHits, so report all leaps as candidates.
       let singleArm = false;
@@ -1766,9 +1766,9 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
           ...(presses.length ? { pressesScheduled: presses.length, pressesApplied: pressDriver.applied() } : {}),
           note: dispatcherHits === 0
             ? (drove
-              ? "The dispatcher at this address never executed within maxFrames EVEN WITH the scheduled input — likely the WRONG address (a different routine dispatches), or not an instruction boundary. Confirm with breakpoint({on:'pc'}) that the PC reaches it at all."
-              : "The dispatcher never executed — drive the game to the state that runs it (pressDuring / fromState), or increase maxFrames. Confirm reachability with breakpoint({on:'pc'}).")
-            : "The dispatcher executed but no control-flow LEAP was observed in the next " + stepLimit + " instructions — so this address isn't (or isn't reaching) a computed jump. Confirm it's the indirect-jump instruction, or raise stepLimit if the dispatch does heavy setup first.",
+              ? "The dispatcher at this address never executed within maxFrames EVEN WITH the scheduled input - likely the WRONG address (a different routine dispatches), or not an instruction boundary. Confirm with breakpoint({on:'pc'}) that the PC reaches it at all."
+              : "The dispatcher never executed - drive the game to the state that runs it (pressDuring / fromState), or increase maxFrames. Confirm reachability with breakpoint({on:'pc'}).")
+            : "The dispatcher executed but no control-flow LEAP was observed in the next " + stepLimit + " instructions - so this address isn't (or isn't reaching) a computed jump. Confirm it's the indirect-jump instruction, or raise stepLimit if the dispatch does heavy setup first.",
         }), host);
       }
 
@@ -1783,8 +1783,8 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         ...(restored ? { restoredFrom: restored } : {}),
         ...(presses.length ? { pressesScheduled: presses.length, pressesApplied: pressDriver.applied() } : {}),
         note: (singleArm
-            ? "Only ONE dispatch path ran under this input, so targets are the candidate leap destinations (couldn't separate the computed arm from fixed trampolines without a second arm to compare). Drive MORE game states (pressDuring / fromState) so the dispatcher takes different arms — then the varying one is isolated as the real target. "
-            : "targets are the COMPUTED jump destinations that VARIED across dispatches — the real switch arms a static decompiler can't see (fixed trampolines were filtered out). ") +
+            ? "Only ONE dispatch path ran under this input, so targets are the candidate leap destinations (couldn't separate the computed arm from fixed trampolines without a second arm to compare). Drive MORE game states (pressDuring / fromState) so the dispatcher takes different arms - then the varying one is isolated as the real target. "
+            : "targets are the COMPUTED jump destinations that VARIED across dispatches - the real switch arms a static decompiler can't see (fixed trampolines were filtered out). ") +
           "Each is a routine the dispatcher branches to; decompile({address: target}) / disasm({target:'rom', startAddress: target}) to read them. " +
           "hits = how many dispatches took that arm under this input; drive more states to surface rarer arms. " +
           "This is the live-emulator advantage: no static-only tool can recover these.",
@@ -1796,7 +1796,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       if (!host.readWatchSupported || !host.readWatchSupported()) {
         return jsonContent({
           hit: false, notSupported: true, address: "$" + address.toString(16).toUpperCase(),
-          note: "This core build has no read watchpoint (shipped on all 14 platforms as of 0.5.0 — update the core package if you see this).",
+          note: "This core build has no read watchpoint (shipped on all 14 platforms as of 0.5.0 - update the core package if you see this).",
         });
       }
       const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
@@ -1819,7 +1819,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         return jsonContent({
           hit: false, address: "$" + address.toString(16).toUpperCase(), framesRun,
           ...(presses.length ? { pressesScheduled: presses.length, pressesApplied: pressDriver.applied() } : {}),
-          note: "Address was not read within maxFrames. Drive the game to the state that reads it (pressDuring), or increase maxFrames. If you're hunting the CONSUMER of a table/struct (any field of any record might be the one that's read), don't guess per-byte — watch({on:'range', kind:'read', start, end}) logs EVERY reading PC over the whole range in one call (distinctPCsOnly:true for just the digest).",
+          note: "Address was not read within maxFrames. Drive the game to the state that reads it (pressDuring), or increase maxFrames. If you're hunting the CONSUMER of a table/struct (any field of any record might be the one that's read), don't guess per-byte - watch({on:'range', kind:'read', start, end}) logs EVERY reading PC over the whole range in one call (distinctPCsOnly:true for just the digest).",
         });
       }
       const fin = host.getReadWatch(true);
@@ -1843,38 +1843,38 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
 
   server.tool(
     "breakpoint",
-    "STOP-on-first dynamic breakpoints — run until a condition hits, then stop. One tool keyed by `on`. (For LOG-ALL " +
+    "STOP-on-first dynamic breakpoints - run until a condition hits, then stop. One tool keyed by `on`. (For LOG-ALL " +
     "coverage over many frames use `watch`; for a value-predicate closure use `runUntil`.)\n" +
-    "• on:'write' — break when a CPU `address` is written. **`precision` is the key axis here:**\n" +
-    "    – precision:'exact' (default) — arms a core-level WRITE WATCHPOINT and returns the writing instruction's PC " +
-    "captured INSIDE the CPU write path — **correct even for NMI/IRQ-driven writes** (where a frame sample is just the idle loop). " +
+    "• on:'write' - break when a CPU `address` is written. **`precision` is the key axis here:**\n" +
+    "    - precision:'exact' (default) - arms a core-level WRITE WATCHPOINT and returns the writing instruction's PC " +
+    "captured INSIDE the CPU write path - **correct even for NMI/IRQ-driven writes** (where a frame sample is just the idle loop). " +
     "The precise answer to 'which code wrote $XX?'. On banked NES mappers it also reports the prg bank.\n" +
-    "    – precision:'sampled' — the cheap wrapper: steps until a memory `region`/`offset` byte changes and returns the PC " +
-    "**sampled at the frame boundary**. **CAVEAT: that PC is NOT the writing instruction — under interrupts it's usually the " +
+    "    - precision:'sampled' - the cheap wrapper: steps until a memory `region`/`offset` byte changes and returns the PC " +
+    "**sampled at the frame boundary**. **CAVEAT: that PC is NOT the writing instruction - under interrupts it's usually the " +
     "interrupted main-thread PC (an idle loop), a LIE. Use 'exact' when you need the real writer.**\n" +
-    "• on:'read' — break when the CPU READS `address` (the read-side mirror of on:'write' exact): the EXACT instruction PC that " +
-    "read the byte. Finds who CONSUMES a value. Does NOT freeze mid-frame — records the PC and finishes the frame.\n" +
-    "• on:'pc' — break when the PC reaches `address` (a real execution breakpoint). " +
+    "• on:'read' - break when the CPU READS `address` (the read-side mirror of on:'write' exact): the EXACT instruction PC that " +
+    "read the byte. Finds who CONSUMES a value. Does NOT freeze mid-frame - records the PC and finishes the frame.\n" +
+    "• on:'pc' - break when the PC reaches `address` (a real execution breakpoint). " +
     "**The RE primitive for 'read the register at this instruction': break, then use the `registersAtHit` SNAPSHOT in the hit response** " +
-    "(e.g. break at a decoder's load and read the index reg = the source offset). IMPORTANT: `registersAtHit` is the register file captured AT the break instant — " +
+    "(e.g. break at a decoder's load and read the index reg = the source offset). IMPORTANT: `registersAtHit` is the register file captured AT the break instant - " +
     "use it, NOT a follow-up cpu({op:'read'}). On some cores (notably NES/fceumm) the core drains the cycle budget on hit but the frame still finishes, " +
     "so a live cpu read afterward returns END-OF-FRAME registers, not the break instant. `registersAtHit` sidesteps that. The break PC is reported as `pc`/`pcRaw`; " +
     "the RAM side effects are also reliable via memory({op:'read'}). frame({op:'stepInstruction'}) to single-step from the break. (on:'read'/'write' finish the frame.)\n" +
-    "• on:'jumptable' — **RESOLVE a computed-jump dispatcher the static decompiler can't follow.** Game-state machines, script/event VMs, and battle engines dispatch through `JMP (table,X)` / RTS-trick tables; `decompile`/`cfg` collapse them to `(*_IRQ)()` + 'Could not recover jumptable'. Break at the dispatcher `address`, single-step THROUGH the indirect transfer, and record the PC it lands on — repeated across frames/inputs to accumulate the DISTINCT target set (the real switch arms), ranked by hit count. Drive more game states (pressDuring / fromState) to surface rarer arms. Returns `{targets:[{target,hits,fromPC}], distinctTargets}`. **No static-only tool (IDA/Ghidra/Binary Ninja) can do this — it needs a live emulator in the loop, which is romdev's edge.** Feed the targets to decompile({address:target}) to read each arm.\n" +
-    "All supported on every CPU core. **Every hit carries `registersAtHit` — the FULL register file frozen by the core AT the hit instant, on ALL 14 platforms and all three `on` kinds.** Use it instead of a follow-up cpu({op:'read'}): the live registers keep moving after a hit (per-scanline CPU scheduling / frame completion), so a post-hit read drifts — chasing pointer registers read that way burned a real session for hours. The hit `pc` is the EXECUTING instruction's first byte (mid-instruction hooks no longer report the operand-advanced PC). Out-of-date core packages return notSupported.\n" +
-    "MENU-SCREEN INPUT TRICK: if a pressDuring schedule never registers (some menu screens poll input in a way scheduled taps miss), HOLD the button instead: input({op:'set', buttons:{...}}) BEFORE this call and OMIT pressDuring — the run inherits the held state, the menu sees the edge, and the breakpoint catches the event.",
+    "• on:'jumptable' - **RESOLVE a computed-jump dispatcher the static decompiler can't follow.** Game-state machines, script/event VMs, and battle engines dispatch through `JMP (table,X)` / RTS-trick tables; `decompile`/`cfg` collapse them to `(*_IRQ)()` + 'Could not recover jumptable'. Break at the dispatcher `address`, single-step THROUGH the indirect transfer, and record the PC it lands on - repeated across frames/inputs to accumulate the DISTINCT target set (the real switch arms), ranked by hit count. Drive more game states (pressDuring / fromState) to surface rarer arms. Returns `{targets:[{target,hits,fromPC}], distinctTargets}`. **No static-only tool (IDA/Ghidra/Binary Ninja) can do this - it needs a live emulator in the loop, which is romdev's edge.** Feed the targets to decompile({address:target}) to read each arm.\n" +
+    "All supported on every CPU core. **Every hit carries `registersAtHit` - the FULL register file frozen by the core AT the hit instant, on ALL 14 platforms and all three `on` kinds.** Use it instead of a follow-up cpu({op:'read'}): the live registers keep moving after a hit (per-scanline CPU scheduling / frame completion), so a post-hit read drifts - chasing pointer registers read that way burned a real session for hours. The hit `pc` is the EXECUTING instruction's first byte (mid-instruction hooks no longer report the operand-advanced PC). Out-of-date core packages return notSupported.\n" +
+    "MENU-SCREEN INPUT TRICK: if a pressDuring schedule never registers (some menu screens poll input in a way scheduled taps miss), HOLD the button instead: input({op:'set', buttons:{...}}) BEFORE this call and OMIT pressDuring - the run inherits the held state, the menu sees the edge, and the breakpoint catches the event.",
     {
       on: z.enum(["write", "read", "pc", "jumptable"])
-        .describe("write=break on a write to address (precision:exact=true writer PC / sampled=frame PC, a lie under IRQ); read=break on a read (exact PC, who consumes it); pc=break when PC reaches address — the hit returns `registersAtHit` (the break-instant register file, all 14 platforms) + the break PC; jumptable=RESOLVE a computed-jump dispatcher (JMP (tbl,X) / RTS-trick) by breaking at `address`, single-stepping THROUGH the indirect transfer, and recording every COMPUTED target PC live across frames/inputs — the switch arms a static decompiler reports as 'Could not recover jumptable'. (use registersAtHit, not a follow-up cpu read.)"),
+        .describe("write=break on a write to address (precision:exact=true writer PC / sampled=frame PC, a lie under IRQ); read=break on a read (exact PC, who consumes it); pc=break when PC reaches address - the hit returns `registersAtHit` (the break-instant register file, all 14 platforms) + the break PC; jumptable=RESOLVE a computed-jump dispatcher (JMP (tbl,X) / RTS-trick) by breaking at `address`, single-stepping THROUGH the indirect transfer, and recording every COMPUTED target PC live across frames/inputs - the switch arms a static decompiler reports as 'Could not recover jumptable'. (use registersAtHit, not a follow-up cpu read.)"),
       precision: z.enum(["exact", "sampled"]).default("exact")
-        .describe("on:'write' ONLY. exact=core watchpoint, the real writing instruction PC even under interrupts (uses `address`). sampled=cheap frame-boundary PC (uses region/offset/length) — NOT the writer under IRQ. Ignored for on:read/pc (always exact)."),
-      address: z.number().int().min(0).optional().describe("on:'write' exact / on:'read' / on:'pc' — CPU address to break on (write target, read target, or instruction boundary). Required for those."),
-      region: regionStr("on:'write' precision:'sampled' — region whose byte to watch for change.").optional(),
-      offset: z.number().int().min(0).optional().describe("on:'write' precision:'sampled' — offset within the region."),
-      length: z.number().int().min(1).max(4096).default(1).describe("on:'write' precision:'sampled' — bytes to watch from offset."),
-      condition: z.enum(["increase", "decrease", "equals"]).optional().describe("on:'write' precision:'exact' ONLY — stop only on the MEANINGFUL write, ignoring restoring/churn writes. 'decrease'/'increase' = the stored byte actually went down/up (e.g. a real lives−1, not a per-frame pointer-arithmetic restore); 'equals' = the byte became `value` (e.g. $00→$01 respawn re-arm). Without it, on:'write' reports the LAST matching write of the frame, which may be the churn, not the change you want."),
-      conditionValue: z.number().int().min(0).max(65535).optional().describe("on:'write' condition:'equals' — the value to stop on (the NEW value written). > 255 implies conditionWidth:16."),
-      conditionWidth: z.union([z.literal(8), z.literal(16)]).optional().describe("on:'write' precision:'exact' — condition width, default 8. 16 treats address/address+1 as one WORD in the platform CPU's byte order (little-endian on 6502/65816/Z80/SM83/ARM; BIG-endian on Genesis 68k): 'equals' arms the core watch on the word's HIGH byte (no useless $00-low-byte matches) + verifies the other byte host-side; 'increase'/'decrease' compare the word host-side so a 16-bit counter's carry can't lie. Inferred automatically when conditionValue > 255."),
+        .describe("on:'write' ONLY. exact=core watchpoint, the real writing instruction PC even under interrupts (uses `address`). sampled=cheap frame-boundary PC (uses region/offset/length) - NOT the writer under IRQ. Ignored for on:read/pc (always exact)."),
+      address: z.number().int().min(0).optional().describe("on:'write' exact / on:'read' / on:'pc' - CPU address to break on (write target, read target, or instruction boundary). Required for those."),
+      region: regionStr("on:'write' precision:'sampled' - region whose byte to watch for change.").optional(),
+      offset: z.number().int().min(0).optional().describe("on:'write' precision:'sampled' - offset within the region."),
+      length: z.number().int().min(1).max(4096).default(1).describe("on:'write' precision:'sampled' - bytes to watch from offset."),
+      condition: z.enum(["increase", "decrease", "equals"]).optional().describe("on:'write' precision:'exact' ONLY - stop only on the MEANINGFUL write, ignoring restoring/churn writes. 'decrease'/'increase' = the stored byte actually went down/up (e.g. a real lives−1, not a per-frame pointer-arithmetic restore); 'equals' = the byte became `value` (e.g. $00→$01 respawn re-arm). Without it, on:'write' reports the LAST matching write of the frame, which may be the churn, not the change you want."),
+      conditionValue: z.number().int().min(0).max(65535).optional().describe("on:'write' condition:'equals' - the value to stop on (the NEW value written). > 255 implies conditionWidth:16."),
+      conditionWidth: z.union([z.literal(8), z.literal(16)]).optional().describe("on:'write' precision:'exact' - condition width, default 8. 16 treats address/address+1 as one WORD in the platform CPU's byte order (little-endian on 6502/65816/Z80/SM83/ARM; BIG-endian on Genesis 68k): 'equals' arms the core watch on the word's HIGH byte (no useless $00-low-byte matches) + verifies the other byte host-side; 'increase'/'decrease' compare the word host-side so a 16-bit counter's carry can't lie. Inferred automatically when conditionValue > 255."),
       maxFrames: z.number().int().min(1).max(1_000_000).default(600).describe("Max frames to run while waiting for the condition."),
       pressDuring: z.array(z.union([
         /* The SAME bare-string spelling input({op:'press'}) takes. It used to
@@ -1891,13 +1891,13 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
             + "walking one screen typically needs 60+. A too-short hold returns a clean "
             + "eventCount:0 that reads as 'the byte never changes'."),
         }),
-      ])).optional().describe("Schedule input while waiting (drive the game to the state that triggers the condition). If OMITTED, this run inherits whatever input({op:'set'}) last held — same as frame({op:'step'}). If GIVEN, the schedule OWNS the pad for the whole run (a prior input({op:'set'}) is ignored); use it to drive the watched window itself. Entries with OVERLAPPING windows on the same port are OR'd into a chord (e.g. b+right held while a fires mid-window), not overwritten."),
-      settleFrames: z.number().int().min(0).max(120).default(0).describe("on:'pc'/'write' with pressDuring — release the pad to NEUTRAL and step this many frames BEFORE the run, so the PRIOR run's held-button shadow (the game latches the pad into its own RAM each frame) doesn't bleed into this run's frame 0. Set ~10-30 for back-to-back A/B-discriminator / negative-control runs on the same live host (hold A to prove A does NOT reach a B-only branch) — without it the stale chord can false-positive on frame 1. No-op without pressDuring."),
+      ])).optional().describe("Schedule input while waiting (drive the game to the state that triggers the condition). If OMITTED, this run inherits whatever input({op:'set'}) last held - same as frame({op:'step'}). If GIVEN, the schedule OWNS the pad for the whole run (a prior input({op:'set'}) is ignored); use it to drive the watched window itself. Entries with OVERLAPPING windows on the same port are OR'd into a chord (e.g. b+right held while a fires mid-window), not overwritten."),
+      settleFrames: z.number().int().min(0).max(120).default(0).describe("on:'pc'/'write' with pressDuring - release the pad to NEUTRAL and step this many frames BEFORE the run, so the PRIOR run's held-button shadow (the game latches the pad into its own RAM each frame) doesn't bleed into this run's frame 0. Set ~10-30 for back-to-back A/B-discriminator / negative-control runs on the same live host (hold A to prove A does NOT reach a B-only branch) - without it the stale chord can false-positive on frame 1. No-op without pressDuring."),
       abortIf: z.array(z.object({
         region: regionStr("memory region (default system_ram)").optional(),
         offset: z.number().int().min(0).describe("byte offset within the region"),
         label: z.string().optional().describe("human name for this guard byte"),
-      })).optional().describe("on:'write' exact — ABORT GUARD for a pressDuring run: caller-named 'is this scenario still valid?' bytes (e.g. the area/scene id, the player object-active flag). If ANY changes mid-run the watchpoint stops IMMEDIATELY and returns {aborted:true, abortedBy, before, after} — so a driven scenario that derailed (player died → title screen) doesn't burn all maxFrames and return a meaningless found:false. Each is sampled once per frame (cheap)."),
+      })).optional().describe("on:'write' exact - ABORT GUARD for a pressDuring run: caller-named 'is this scenario still valid?' bytes (e.g. the area/scene id, the player object-active flag). If ANY changes mid-run the watchpoint stops IMMEDIATELY and returns {aborted:true, abortedBy, before, after} - so a driven scenario that derailed (player died → title screen) doesn't burn all maxFrames and return a meaningless found:false. Each is sampled once per frame (cheap)."),
       captureMemory: z.array(z.union([
         z.number().int().min(0),
         z.string(),
@@ -1907,12 +1907,12 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
           length: z.number().int().min(1).max(256).default(1).describe("bytes to read"),
           label: z.string().optional().describe("human name for this read (else 'region+offset')"),
         }),
-      ])).optional().describe("on:'pc' — accepts a BARE ADDRESS (0x74, or \"$74\") as well as a full {region,offset,length,label} record; a bare address reads 1 byte of system_ram. read these memory regions AT the hit and return them inline as `capturedMemory` (collapses break→read-RAM into ONE call, the token win). Pair with `registersAtHit` to get the routine's register + RAM state in a single round trip (e.g. capture the ZP pointer bytes a decoder just wrote). NOTE: registersAtHit is the true break instant (core snapshot); these RAM reads are taken after the hit frame finishes, so on run-to-frame-end cores (fceumm) they're the routine's RAM side effects for that frame — stable + reliable, which is exactly what RE needs."),
-      maxTargets: z.number().int().min(1).max(1024).default(64).describe("on:'jumptable' — stop once this many DISTINCT computed targets have been observed (the run also ends at maxFrames). Sets `truncated:true` if reached."),
-      stepLimit: z.number().int().min(1).max(256).default(48).describe("on:'jumptable' — instructions to single-step after each dispatcher hit while collecting control-flow leaps. Must be deep enough to REACH the handler: a compiler-lowered indirect call (cc65 JSR<callax>; JMP(ptr)) runs the table load + trampoline + the indirect jump before the handler is entered — ~30 instructions here, so the default is 48. Too low and you only capture the fixed trampolines (the real arms never appear); raise it if a dispatch does heavy setup before the indirect jump."),
-      jumpThreshold: z.number().int().min(1).max(64).default(5).describe("on:'jumptable' — a single-step whose PC delta exceeds this many bytes (or goes backward) counts as a control-flow LEAP (a taken jump/branch/call), vs sequential instruction flow. 5 suits 6502/Z80/SM83 (max ~3-byte instructions); raise for wider ISAs (ARM/m68k) so multi-byte sequential instructions aren't misread as leaps."),
-      fromState: z.number().int().min(0).optional().describe("on:'jumptable'/'pc' (via the trace path) — restore this in-memory savestate SLOT before running, so the dispatcher is resolved from a known, repeatable moment (e.g. inside the battle/menu the dispatcher drives). Mutually exclusive with fromStatePath."),
-      fromStatePath: z.string().optional().describe("on:'jumptable' — restore this savestate FILE before running (the disk equivalent of fromState). Mutually exclusive with fromState."),
+      ])).optional().describe("on:'pc' - accepts a BARE ADDRESS (0x74, or \"$74\") as well as a full {region,offset,length,label} record; a bare address reads 1 byte of system_ram. read these memory regions AT the hit and return them inline as `capturedMemory` (collapses break→read-RAM into ONE call, the token win). Pair with `registersAtHit` to get the routine's register + RAM state in a single round trip (e.g. capture the ZP pointer bytes a decoder just wrote). NOTE: registersAtHit is the true break instant (core snapshot); these RAM reads are taken after the hit frame finishes, so on run-to-frame-end cores (fceumm) they're the routine's RAM side effects for that frame - stable + reliable, which is exactly what RE needs."),
+      maxTargets: z.number().int().min(1).max(1024).default(64).describe("on:'jumptable' - stop once this many DISTINCT computed targets have been observed (the run also ends at maxFrames). Sets `truncated:true` if reached."),
+      stepLimit: z.number().int().min(1).max(256).default(48).describe("on:'jumptable' - instructions to single-step after each dispatcher hit while collecting control-flow leaps. Must be deep enough to REACH the handler: a compiler-lowered indirect call (cc65 JSR<callax>; JMP(ptr)) runs the table load + trampoline + the indirect jump before the handler is entered - ~30 instructions here, so the default is 48. Too low and you only capture the fixed trampolines (the real arms never appear); raise it if a dispatch does heavy setup before the indirect jump."),
+      jumpThreshold: z.number().int().min(1).max(64).default(5).describe("on:'jumptable' - a single-step whose PC delta exceeds this many bytes (or goes backward) counts as a control-flow LEAP (a taken jump/branch/call), vs sequential instruction flow. 5 suits 6502/Z80/SM83 (max ~3-byte instructions); raise for wider ISAs (ARM/m68k) so multi-byte sequential instructions aren't misread as leaps."),
+      fromState: z.number().int().min(0).optional().describe("on:'jumptable'/'pc' (via the trace path) - restore this in-memory savestate SLOT before running, so the dispatcher is resolved from a known, repeatable moment (e.g. inside the battle/menu the dispatcher drives). Mutually exclusive with fromStatePath."),
+      fromStatePath: z.string().optional().describe("on:'jumptable' - restore this savestate FILE before running (the disk equivalent of fromState). Mutually exclusive with fromState."),
     },
     safeTool(async (args) => {
       switch (args.on) {
@@ -1951,7 +1951,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
   // (platform-tools.js). The other 3 are closure impls below (they need the
   // per-session host). regSchema is shared by the call op.
   const regSchema = z.record(z.string(), z.number().int()).optional().describe(
-    "op:call — registers to set before the call, keyed by register NAME (preferred) or raw reg-id. " +
+    "op:call - registers to set before the call, keyed by register NAME (preferred) or raw reg-id. " +
     "Names are per-CPU: 6502/65C02 = a,x,y,p,sp; 65816 (SNES) = a,x,y,p,s,db,d(=dp); m68k (Genesis) = raw ids. " +
     "e.g. {\"a\":848} presets the 65816 accumulator. Raw ids still work (m68k: 0-7=D0-D7, 8-15=A0-A7, 16=PC, 17=SR, 18=SP). " +
     "An unknown name errors with the valid list. PC is set from the `pc` arg, not here.");
@@ -1959,7 +1959,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
   async function cpuSetReg({ regId, value }) {
       const host = getHost(sessionKey);
       if (!host.setRegSupported || !host.setRegSupported()) {
-        return jsonContent({ notSupported: true, note: "This core build has no register-write (shipped on all 14 platforms as of 0.6.0 — update the core package if you see this)." });
+        return jsonContent({ notSupported: true, note: "This core build has no register-write (shipped on all 14 platforms as of 0.6.0 - update the core package if you see this)." });
       }
       host.setReg(regId, value >>> 0);
       const now = host.getReg(regId);
@@ -1970,9 +1970,9 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       const host = getHost(sessionKey);
       if (!host.setRegSupported || !host.setRegSupported()) {
         return jsonContent({ returned: false, notSupported: true,
-          note: "This core build has no register-write (shipped on all 14 platforms as of 0.6.0 — update the core package). cpu({op:'call'}) needs it." });
+          note: "This core build has no register-write (shipped on all 14 platforms as of 0.6.0 - update the core package). cpu({op:'call'}) needs it." });
       }
-      // Pass regs THROUGH (names or numeric ids) — the host resolves names via the
+      // Pass regs THROUGH (names or numeric ids) - the host resolves names via the
       // platform's regNames map. (Was pre-numified here, which silently dropped
       // names; a 65816 caller couldn't preset A without a reg-id table.)
       const passRegs = {};
@@ -1988,17 +1988,17 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       // handlers via RAM vectors, music drivers) ran CONCURRENTLY and may have
       // written over the routine's output buffer. Loud, up front, with the fix.
       const frameLogicCaveat = (!pure && r.framesRun > 0 && (host.pureCallSupported ? host.pureCallSupported() : false))
-        ? ` ⚠ framesRun:${r.framesRun} — the game's own frame logic (VBlank handler, music driver) ran DURING this call and may have modified RAM the routine wrote; treat the output buffer as suspect. Re-run with pure:true to step ONLY the CPU (no frame machinery).`
+        ? ` ⚠ framesRun:${r.framesRun} - the game's own frame logic (VBlank handler, music driver) ran DURING this call and may have modified RAM the routine wrote; treat the output buffer as suspect. Re-run with pure:true to step ONLY the CPU (no frame machinery).`
         : (!pure && r.framesRun > 0)
-          ? ` ⚠ framesRun:${r.framesRun} — the game's own frame logic ran DURING this call and may have modified RAM the routine wrote; treat the output buffer as suspect (verify visually or against a known-good slice).`
+          ? ` ⚠ framesRun:${r.framesRun} - the game's own frame logic ran DURING this call and may have modified RAM the routine wrote; treat the output buffer as suspect (verify visually or against a known-good slice).`
           : "";
       const note = (r.returned
-        ? "Routine RETURNED. readMemory the buffer it wrote (e.g. the decompressor's A1 dest) now — sandbox:false leaves it live. (regs by reg-id: m68k 8=A0,9=A1,0=D0.)"
+        ? "Routine RETURNED. readMemory the buffer it wrote (e.g. the decompressor's A1 dest) now - sandbox:false leaves it live. (regs by reg-id: m68k 8=A0,9=A1,0=D0.)"
         : r.watchdog
-          ? "WATCHDOG tripped (ran the instruction budget without returning) — almost always a wrong entry setup, not a long routine. Check finalPC (where it's spinning) + finalRegs (is A0 where you set it, or did it walk off?). Common fixes: correct A0 to the real block start (with its length header), add a presetMemory the codec reads, or pass a WRAPPER entryPC that sets up dest. Raise maxInstructions only if you're sure it's legitimately huge."
+          ? "WATCHDOG tripped (ran the instruction budget without returning) - almost always a wrong entry setup, not a long routine. Check finalPC (where it's spinning) + finalRegs (is A0 where you set it, or did it walk off?). Common fixes: correct A0 to the real block start (with its length header), add a presetMemory the codec reads, or pass a WRAPPER entryPC that sets up dest. Raise maxInstructions only if you're sure it's legitimately huge."
           : r.stoppedAtPC
-            ? `Stopped at ${r.stoppedAtPC} (your stopAtPC) with PARTIAL output — readMemory the dst to see what's been written so far.`
-            : "Did not return within maxFrames AND the watchdog didn't trip — this usually means the entry FELL BACK INTO THE GAME (a wrapper PC with a wrong source, so it never reaches the sentinel) and the game is just free-running. finalPC is inside the main loop, not your routine. Re-check the entry PC (use the routine body, not a wrapper) and the source regs; or lower maxInstructions to fail fast while probing. Bump maxFrames/maxInstructions only if you're sure it's a legitimately huge decompress.")
+            ? `Stopped at ${r.stoppedAtPC} (your stopAtPC) with PARTIAL output - readMemory the dst to see what's been written so far.`
+            : "Did not return within maxFrames AND the watchdog didn't trip - this usually means the entry FELL BACK INTO THE GAME (a wrapper PC with a wrong source, so it never reaches the sentinel) and the game is just free-running. finalPC is inside the main loop, not your routine. Re-check the entry PC (use the routine body, not a wrapper) and the source regs; or lower maxInstructions to fail fast while probing. Bump maxFrames/maxInstructions only if you're sure it's a legitimately huge decompress.")
         + frameLogicCaveat;
       return attachObserverFrame(jsonContent({
         returned: r.returned, framesRun: r.framesRun, sandbox,
@@ -2016,7 +2016,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       const host = getHost(sessionKey);
       if (!host.setRegSupported || !host.setRegSupported()) {
         return jsonContent({ returned: false, notSupported: true,
-          note: "This core build has no register-write (shipped on all 14 platforms as of 0.6.0 — update the core package). decompressWith needs it." });
+          note: "This core build has no register-write (shipped on all 14 platforms as of 0.6.0 - update the core package). decompressWith needs it." });
       }
       const regs = { 8: sourceAddress >>> 0 };
       if (destAddress !== undefined) regs[9] = destAddress >>> 0;
@@ -2025,8 +2025,8 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         returned: r.returned, framesRun: r.framesRun,
         ...(destAddress !== undefined ? { destAddress: "$" + (destAddress >>> 0).toString(16).toUpperCase() } : {}),
         note: r.returned
-          ? `Decompressor returned. readMemory at ${destAddress !== undefined ? "$" + (destAddress >>> 0).toString(16).toUpperCase() : "the routine's dest"} to get the decompressed bytes (the live core ran the game's own codec — no codec reimplementation needed).`
-          : "Decompressor did NOT return within maxFrames. Confirm entryPC is the routine start, A0=source is right, and bump maxFrames. (Some codecs expect more setup regs — use cpu({op:'call'}) with the full regs map.)",
+          ? `Decompressor returned. readMemory at ${destAddress !== undefined ? "$" + (destAddress >>> 0).toString(16).toUpperCase() : "the routine's dest"} to get the decompressed bytes (the live core ran the game's own codec - no codec reimplementation needed).`
+          : "Decompressor did NOT return within maxFrames. Confirm entryPC is the routine start, A0=source is right, and bump maxFrames. (Some codecs expect more setup regs - use cpu({op:'call'}) with the full regs map.)",
       });
   }
 
@@ -2038,54 +2038,54 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
     "setReg → {regId, value}; " +
     "call → {pc, regs?, pure?, sandbox?, maxInstructions?, sentinelPC?, stopAtPC?, presetMemory?, maxFrames?}; " +
     "decompress → {entryPC, sourceAddress, destAddress?, maxFrames?}.\n" +
-    "• op:'read' — read a CPU's {pc, registers, flags, sp}. Main CPU wired for all 14 tier-1 systems (nes, snes, " +
+    "• op:'read' - read a CPU's {pc, registers, flags, sp}. Main CPU wired for all 14 tier-1 systems (nes, snes, " +
     "genesis, sms, gg, gb, gbc, atari2600, atari7800, c64, lynx, gba (ARM7TDMI: 16 gprs + cpsr/spsr + execPc for " +
-    "pipeline prefetch), pce, msx). Secondary CPUs via `cpu`: 'spc700' (SNES audio — 'stuck in IPL' vs 'running' vs " +
-    "'crashed'), 'z80' (Genesis sound — held in reset until the 68k releases it via $A11100, so a fresh boot reads all-zero).\n" +
-    "• op:'setReg' — write a single register by romdev reg-id (the inverse of op:'read'). **m68k reg-ids: 0-7=D0-D7, " +
+    "pipeline prefetch), pce, msx). Secondary CPUs via `cpu`: 'spc700' (SNES audio - 'stuck in IPL' vs 'running' vs " +
+    "'crashed'), 'z80' (Genesis sound - held in reset until the 68k releases it via $A11100, so a fresh boot reads all-zero).\n" +
+    "• op:'setReg' - write a single register by romdev reg-id (the inverse of op:'read'). **m68k reg-ids: 0-7=D0-D7, " +
     "8-15=A0-A7, 16=PC, 17=SR, 18=SP.** Returns the value read back. notSupported where the core lacks register-write.\n" +
-    "• op:'call' — drive the ROM's OWN subroutine and run until it returns — the RE primitive for compressed assets. Set " +
+    "• op:'call' - drive the ROM's OWN subroutine and run until it returns - the RE primitive for compressed assets. Set " +
     "up the CPU (`regs` by reg-id, PC=`pc`), push a sentinel return, run until RTS. **SANDBOXED off by default so the dst " +
     "buffer it wrote stays live for memory({op:'read'}).** Classic use: drive a decompressor (A0=source, A1=dest) then read " +
-    "the dst. **NEVER HANGS: an instruction WATCHDOG (`maxInstructions`) force-stops a runaway and returns PROGRESS — " +
-    "finalPC + finalRegs + watchdog:true — so you can tell 'wrong A0' from 'needs a preset' from 'legitimately long'.** " +
+    "the dst. **NEVER HANGS: an instruction WATCHDOG (`maxInstructions`) force-stops a runaway and returns PROGRESS - " +
+    "finalPC + finalRegs + watchdog:true - so you can tell 'wrong A0' from 'needs a preset' from 'legitimately long'.** " +
     "`stopAtPC` halts mid-routine for partial output; `presetMemory` for codecs that read a global from RAM first. " +
     "**`pure:true` (ALL 14 platforms): the game's own VBlank/IRQ logic CANNOT run during the call and stomp the routine's " +
     "output buffer.** Mechanism per platform (reported as `pureMode`): Genesis/SMS/GG step ONLY the CPU ('cpu-only'); every " +
-    "other core suppresses interrupt DELIVERY for the duration ('irq-blocked' — video/timers advance harmlessly, no game " +
+    "other core suppresses interrupt DELIVERY for the duration ('irq-blocked' - video/timers advance harmlessly, no game " +
     "handler executes); the 2600 has no interrupts at all ('no-interrupts'). Without pure, a call that spans frames runs " +
-    "the game's frame logic alongside your routine (the result carries a ⚠ caveat) — a real session spent " +
+    "the game's frame logic alongside your routine (the result carries a ⚠ caveat) - a real session spent " +
     "hours diffing a CORRECT codec against that poisoned output. Prefer pure for every decompressor/codec call.\n" +
-    "• op:'decompress' — convenience wrapper over op:'call' for the common decompressor shape: call `entryPC` with " +
+    "• op:'decompress' - convenience wrapper over op:'call' for the common decompressor shape: call `entryPC` with " +
     "A0=`sourceAddress` (and optionally A1=`destAddress`), run until it returns, then read `destAddress`. For the " +
     "the 'pre-rendered name + portrait are LZ-compressed' wall: point it at the game's own decompressor.",
     {
       op: z.enum(["read", "setReg", "call", "decompress"])
         .describe("read=CPU registers/flags; setReg=write one register; call=drive a subroutine until it returns; decompress=call shortcut (A0=source, A1=dest)."),
       // read
-      platform: z.string().optional().describe("op:read — override platform; defaults to the loaded ROM."),
-      cpu: z.enum(["main", "spc700", "z80"]).default("main").describe("op:read — which CPU: main (primary), spc700 (SNES audio), z80 (Genesis sound)."),
+      platform: z.string().optional().describe("op:read - override platform; defaults to the loaded ROM."),
+      cpu: z.enum(["main", "spc700", "z80"]).default("main").describe("op:read - which CPU: main (primary), spc700 (SNES audio), z80 (Genesis sound)."),
       // setReg
-      regId: z.number().int().min(0).max(31).optional().describe("op:setReg — romdev reg-id (m68k: 0-7=D, 8-15=A, 16=PC, 17=SR, 18=SP)."),
-      value: z.number().int().optional().describe("op:setReg — 32-bit value to write."),
+      regId: z.number().int().min(0).max(31).optional().describe("op:setReg - romdev reg-id (m68k: 0-7=D, 8-15=A, 16=PC, 17=SR, 18=SP)."),
+      value: z.number().int().optional().describe("op:setReg - 32-bit value to write."),
       // call
-      pc: z.number().int().min(0).optional().describe("op:call — entry PC of the subroutine (may be a WRAPPER that sets up regs then tail-calls; sentinel-return is detected from the final RTS regardless)."),
+      pc: z.number().int().min(0).optional().describe("op:call - entry PC of the subroutine (may be a WRAPPER that sets up regs then tail-calls; sentinel-return is detected from the final RTS regardless)."),
       regs: regSchema,
-      sentinelPC: z.number().int().min(0).default(0).describe("op:call — return address pushed on the stack; run stops when PC reaches it. Default 0 (vector area); override if it collides with real code."),
-      stopAtPC: z.number().int().min(0).optional().describe("op:call — STOP when PC reaches this address and return the partial output instead of waiting for the sentinel return."),
+      sentinelPC: z.number().int().min(0).default(0).describe("op:call - return address pushed on the stack; run stops when PC reaches it. Default 0 (vector area); override if it collides with real code."),
+      stopAtPC: z.number().int().min(0).optional().describe("op:call - STOP when PC reaches this address and return the partial output instead of waiting for the sentinel return."),
       presetMemory: z.array(z.object({
         addr: z.number().int().min(0).describe("CPU address to write before the call."),
         hex: z.string().describe("Bytes as hex (e.g. '00FF')."),
-      })).optional().describe("op:call — memory writes applied before the call (codecs that read a global from RAM, not just registers)."),
-      maxFrames: z.number().int().min(1).max(100000).default(600).describe("op:call/decompress — frame cap (the outer bound)."),
-      maxInstructions: z.number().int().min(1000).optional().describe("op:call — instruction watchdog budget (the REAL cap; default ~maxFrames*500k). Raise for a huge decompress; lower to fail fast while probing the right A0."),
-      sandbox: z.boolean().default(false).describe("op:call — snapshot+restore core state around the call (default FALSE — you want the dst buffer left live to read). True leaves the live game untouched. With sandbox:false, a call that does NOT return (stopAtPC, or a watchdog stop mid-routine) leaves the sentinel push and the callee's own pushes stranded on the game's stack; the CPU register file is now restored automatically in that case (`cpuContextRestored:true`) so the interrupted code can still resume, while the RAM the routine wrote is deliberately left live."),
-      pure: z.boolean().default(false).describe("op:call — guarantee the game's own frame logic CANNOT run during the call and stomp the routine's output (ALL 14 platforms; `pureMode` in the result says how: 'cpu-only' on Genesis/SMS/GG, 'irq-blocked' elsewhere, 'no-interrupts' on 2600). Prefer this for any decompressor/codec call."),
-      callMode: z.enum(["jsr", "jsl"]).optional().describe("op:call (65816/SNES) — the callee's return type: 'jsr' = a near routine ending in RTS (2-byte return), 'jsl' = a long routine ending in RTL (3-byte return, the default). Set 'jsr' when driving a plain jsr-called helper — otherwise the sentinel is sized for a 3-byte return and the routine 'returns' one byte off into vector-stub land."),
+      })).optional().describe("op:call - memory writes applied before the call (codecs that read a global from RAM, not just registers)."),
+      maxFrames: z.number().int().min(1).max(100000).default(600).describe("op:call/decompress - frame cap (the outer bound)."),
+      maxInstructions: z.number().int().min(1000).optional().describe("op:call - instruction watchdog budget (the REAL cap; default ~maxFrames*500k). Raise for a huge decompress; lower to fail fast while probing the right A0."),
+      sandbox: z.boolean().default(false).describe("op:call - snapshot+restore core state around the call (default FALSE - you want the dst buffer left live to read). True leaves the live game untouched. With sandbox:false, a call that does NOT return (stopAtPC, or a watchdog stop mid-routine) leaves the sentinel push and the callee's own pushes stranded on the game's stack; the CPU register file is now restored automatically in that case (`cpuContextRestored:true`) so the interrupted code can still resume, while the RAM the routine wrote is deliberately left live."),
+      pure: z.boolean().default(false).describe("op:call - guarantee the game's own frame logic CANNOT run during the call and stomp the routine's output (ALL 14 platforms; `pureMode` in the result says how: 'cpu-only' on Genesis/SMS/GG, 'irq-blocked' elsewhere, 'no-interrupts' on 2600). Prefer this for any decompressor/codec call."),
+      callMode: z.enum(["jsr", "jsl"]).optional().describe("op:call (65816/SNES) - the callee's return type: 'jsr' = a near routine ending in RTS (2-byte return), 'jsl' = a long routine ending in RTL (3-byte return, the default). Set 'jsr' when driving a plain jsr-called helper - otherwise the sentinel is sized for a 3-byte return and the routine 'returns' one byte off into vector-stub land."),
       // decompress
-      entryPC: z.number().int().min(0).optional().describe("op:decompress — decompressor entry PC."),
-      sourceAddress: z.number().int().min(0).optional().describe("op:decompress — compressed-source address → A0 (reg-id 8 on m68k)."),
-      destAddress: z.number().int().min(0).optional().describe("op:decompress — destination buffer address → A1 (reg-id 9). Omit if the routine picks its own dest."),
+      entryPC: z.number().int().min(0).optional().describe("op:decompress - decompressor entry PC."),
+      sourceAddress: z.number().int().min(0).optional().describe("op:decompress - compressed-source address → A0 (reg-id 8 on m68k)."),
+      destAddress: z.number().int().min(0).optional().describe("op:decompress - destination buffer address → A1 (reg-id 9). Omit if the routine picks its own dest."),
     },
     safeTool(async (args) => {
       switch (args.op) {
@@ -2113,7 +2113,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       const host = getHost(sessionKey);
       if (!host.rangeWatchSupported || !host.rangeWatchSupported()) {
         return jsonContent({ notSupported: true, events: [],
-          note: "This core build has no range watch (shipped on all 14 platforms as of 0.6.0 — update the core package). Use breakpoint({on:'write'/'read'}) for a single address." });
+          note: "This core build has no range watch (shipped on all 14 platforms as of 0.6.0 - update the core package). Use breakpoint({on:'write'/'read'}) for a single address." });
       }
       if (end < start) throw new Error("watch({on:'range'}): end must be >= start.");
       // Optionally restore a savestate FIRST, so the trace runs from a known
@@ -2124,14 +2124,14 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       // stepping, so for now apply presses up front if any (simple: hold for the run).
       const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
       // autoNarrow (0.102.0): a truncated census can support a positive but never
-      // a NEGATIVE — the dropped rows are exactly what could overturn "no PC
+      // a NEGATIVE - the dropped rows are exactly what could overturn "no PC
       // outside this cluster appeared". When the run overflows and a savestate
       // anchors it (deterministic re-runs), halve the window until it fits and
       // report the frames actually used. Without fromState the game would drift
       // between attempts, so we refuse to pretend and leave truncated:true.
       // ARM-time check, before any frames run. A fromState restore re-anchors
       // execution, so the missed-partial-frame concern is void there (and the
-      // core's hit latch may survive a restore — it would false-positive).
+      // core's hit latch may survive a restore - it would false-positive).
       const haltInfo = (fromState || fromStatePath) ? {} : armedWhileHaltedInfo(host);
       const canNarrow = autoNarrow && (fromState || fromStatePath);
       let framesUsed = frames;
@@ -2150,12 +2150,12 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       const narrowInfo = narrowAttempts > 0
         ? { autoNarrowed: { attempts: narrowAttempts, framesRequested: frames, framesUsed, complete: !r.truncated } }
         : (autoNarrow && !canNarrow && r?.truncated
-          ? { autoNarrowNote: "autoNarrow needs fromState/fromStatePath (deterministic re-runs) — without an anchor the game drifts between attempts. Result left truncated." }
+          ? { autoNarrowNote: "autoNarrow needs fromState/fromStatePath (deterministic re-runs) - without an anchor the game drifts between attempts. Result left truncated." }
           : {});
       const hx = (n, w = 0) => "$" + n.toString(16).toUpperCase().padStart(w, "0");
       const hxv = (n) => "0x" + n.toString(16).toUpperCase().padStart(2, "0");
 
-      // Per-PC digest — the actionable "which routines touch this range" answer.
+      // Per-PC digest - the actionable "which routines touch this range" answer.
       // Each writer's hit count + a sample address/value, sorted by frequency. This
       // is what a "who writes here?" query actually needs; the per-event flood (a
       // per-frame counter inc'd at one PC → hundreds of near-identical rows) is
@@ -2181,7 +2181,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
           ...(stateInfo ? { restoredFrom: stateInfo } : {}),
           distinctPCs, byPC: byPCList, ...censusExtra,
           note: "distinctPCsOnly: per-PC digest only (raw events suppressed). Each PC is a routine that touches the range; `count` is how often it fired, `sampleAddress`/`sampleValue` a representative hit. disasm({target:'rom'}) a PC to identify it. Drop distinctPCsOnly (or set dedupe:true) for the events." +
-            (r.truncated ? " TRUNCATED: more events than the buffer held — narrow start..end/frames." : "") + censusNoteSuffix,
+            (r.truncated ? " TRUNCATED: more events than the buffer held - narrow start..end/frames." : "") + censusNoteSuffix,
         }), host);
       }
 
@@ -2207,8 +2207,8 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         ...(dedupe ? { deduped: true, uniqueEvents: events.length } : {}),
         ...(stateInfo ? { restoredFrom: stateInfo } : {}),
         distinctPCs, byPC: byPCList, ...censusExtra, events,
-        note: "distinctPCs/byPC is the actionable summary — each PC is a routine that touches this range; disasm({target:'rom'}) one to identify the renderer/reader. For a 'who writes here?' query, distinctPCsOnly:true returns JUST the digest (no per-event flood); dedupe:true collapses per-frame churn to unique (pc,address,value) rows with `occurrences`. " +
-          (r.truncated ? "TRUNCATED: more events than the buffer held — narrow `start..end` or `frames` for the full set." : "") + censusNoteSuffix,
+        note: "distinctPCs/byPC is the actionable summary - each PC is a routine that touches this range; disasm({target:'rom'}) one to identify the renderer/reader. For a 'who writes here?' query, distinctPCsOnly:true returns JUST the digest (no per-event flood); dedupe:true collapses per-frame churn to unique (pc,address,value) rows with `occurrences`. " +
+          (r.truncated ? "TRUNCATED: more events than the buffer held - narrow `start..end` or `frames` for the full set." : "") + censusNoteSuffix,
       }), host);
   }
 
@@ -2216,7 +2216,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       const host = getHost(sessionKey);
       if (!(host.pcBitmapSupported && host.pcBitmapSupported())) {
         return jsonContent({ notSupported: true, pcs: [],
-          note: "This core build has no PC coverage bitmap (romdev_covbits_set/get); every romdev core package ships it — update the core package." });
+          note: "This core build has no PC coverage bitmap (romdev_covbits_set/get); every romdev core package ships it - update the core package." });
       }
       if (end < start) throw new Error("watch({on:'pc'}): end must be >= start.");
       const stateInfo = await maybeRestoreState(host, fromState, fromStatePath);
@@ -2235,62 +2235,62 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         ...(stateInfo ? { restoredFrom: stateInfo } : {}),
         pcs,
         note: "Each PC is code that EXECUTED in this window. disasm({target:'rom'}) them to find the routine you're hunting." +
-          (r.distinct > pcs.length ? ` ${r.distinct - pcs.length} more distinct PCs not returned — raise \`limit\` (max 4000).` : ""),
+          (r.distinct > pcs.length ? ` ${r.distinct - pcs.length} more distinct PCs not returned - raise \`limit\` (max 4000).` : ""),
       }), host);
   }
 
   server.tool(
     "watch",
-    "LOG-ALL dynamic tracing — run N frames and log EVERY hit (not stop-on-first; for stop-on-first use `breakpoint`). One tool keyed by `on`.\n" +
-    "• on:'mem' — the power tool: answer 'what code is touching this RAM byte?' OR extract a frame-accurate event timeline (music-driver note onsets, physics arcs). Reports every frame that changed a watched byte as {frame,offset,before,after,pc}. " +
-    "Extras: `ranges:[{region,offset,length,label}]` watches MANY disjoint regions in ONE pass (identical frames); `as:'u16le'|'u16be'|'u24le'|'u32le'|…` on a range reads it as ONE multi-byte number (REQUIRED for 16/32-bit variables — map distance, score, pointers, timers; without it the range is diffed per byte and a value whose high byte holds steady reports as its low byte alone under the range's label); `onChange:'reset'|'increase'|'decrease'|'any'` edge filter (reset = counter-reload = the note-onset signal); `valueFilter:{min,max}`; `format:'series'` = compact columnar value-vs-frame curve (~10× smaller for a ramp); `sampleEvery`; `groupByPC` (collapse by sampled PC); `cheatLabels` (auto-name addresses from the cheat DB); `outputPath` streams all events as NDJSON; `stopOnFirst` exits on the first match. ARMING WHILE HALTED: a watch armed after a breakpoint hit starts PART-WAY through that frame, so accesses the frame already made are invisible and an empty result looks exactly like a genuine 'nothing writes this' — the result carries `armedWhileHalted` when this applies; re-run from a save state with the watch armed from the start before treating a negative as evidence. " +
-    "**CAVEAT: frame-level, not instruction-level (last value per frame); the sampled `pc` is a frame-boundary sample — for ISR-driven writes use breakpoint({on:'write', precision:'exact'}) for the real writer.**\n" +
-    "• on:'range' — DISCOVERY: log EVERY instruction that reads or writes ANYWHERE in [start,end]. The fix for 'I don't know which PC touches this'. Returns {pc,address,value}[] + the actionable distinctPCs + a per-PC digest (byPC). For a pure 'who writes here?' query, `distinctPCsOnly:true` returns JUST the digest (no per-event flood — a per-frame counter inc'd at one PC otherwise floods hundreds of near-identical rows); `dedupe:true` collapses identical (pc,address,value) events to one row with `occurrences`. (Ring-buffered: `truncated:true` if it overflows — and a truncated run can support a positive but NEVER a negative claim; with a fromState anchor, `autoNarrow:true` halves `frames` deterministically until the log is complete and reports framesUsed.) `fromState`/`fromStatePath` restores a savestate FIRST so the trace runs from a known moment (jump to the boss, then see what writes HP) — deterministic + repeatable. ARMING WHILE HALTED at an un-cleared breakpoint hit misses everything already executed in the broken frame — the result then carries `armedWhileHalted:true` so an empty window isn't mistaken for a clean negative; clear the hit or arm from a savestate restore instead.\n" +
-    "• on:'pc' — DISCOVERY (coverage trace): record every DISTINCT PC executed within [start,end] — 'what code runs here?'. EXACT and uncapped on every core (a one-bit-per-PC bitmap at the CPU's instruction granularity: byte on the 8-bit machines/65816/HuC6280, halfword on 68000/Thumb, word on MIPS; the result carries `granularityBytes` and `exact:true`). `limit` (max 4000) caps the PCs RETURNED, never the count. Log execution in the bank where you suspect the renderer lives during the moment it draws, then disassemble the PCs. Also takes `fromState`/`fromStatePath` to trace from a restored moment.\n" +
-    "• on:'dma' — GENESIS ONLY: trace mem→VDP DMAs (the answer to 'this name/portrait/logo is a pre-rendered bitmap DMA'd into VRAM — WHERE in ROM?', which on:'write' can't catch). `precision:'exact'` (default) logs every mem→VDP DMA with its VRAM DESTINATION + ROM SOURCE + length (filter by `vramDest`±`destWindow`; `dedupe` collapses the per-frame refresh; `sourceFilter:'rom-only'` drops RAM→VRAM noise; catches a same-frame second DMA). `precision:'sampled'` is the cheap frame-sampled source-register read (may miss two DMAs in one frame, dest-agnostic). `perFrame:true` switches to FEEL/PERF MODE: a per-frame timeline of VDP-DMA WORK ({frame,dmas,bytes,romBytes,ramBytes} + peakFrame + `spikes`) — the cheap 'why does horizontal movement feel choppy?' diagnostic (a per-frame byte spike = too much VDP work in the loop, e.g. a tilemap rewrite). On non-Genesis cores returns `notSupported`.\n" +
-    "• on:'copy' — ALL 14 PLATFORMS: log every write landing in a VRAM/dest address window [start,end] with the EXECUTING instruction's PC — the generic answer to 'this tile/nametable/portrait on screen: which routine uploads it?'. Port-based video memory (NES $2007, SNES $2118/19 — incl. the DMA path, PCE VWR, MSX/SMS/GG VDP data port, Genesis data port) is hooked INSIDE the core, so `start`/`end` are VRAM addresses (NES PPU $0000-$3FFF; SNES VRAM byte addr; PCE VRAM word addr; MSX/SMS/GG VRAM addr). Direct-mapped platforms (GB/GBC $8000-$9FFF, GBA 0x06000000+, C64/Lynx/7800 RAM framebuffers) route through the CPU-address range log automatically — pass CPU addresses there. Follow up with breakpoint({on:'pc', address: pc}) to get registersAtHit at the uploader.",
+    "LOG-ALL dynamic tracing - run N frames and log EVERY hit (not stop-on-first; for stop-on-first use `breakpoint`). One tool keyed by `on`.\n" +
+    "• on:'mem' - the power tool: answer 'what code is touching this RAM byte?' OR extract a frame-accurate event timeline (music-driver note onsets, physics arcs). Reports every frame that changed a watched byte as {frame,offset,before,after,pc}. " +
+    "Extras: `ranges:[{region,offset,length,label}]` watches MANY disjoint regions in ONE pass (identical frames); `as:'u16le'|'u16be'|'u24le'|'u32le'|...` on a range reads it as ONE multi-byte number (REQUIRED for 16/32-bit variables - map distance, score, pointers, timers; without it the range is diffed per byte and a value whose high byte holds steady reports as its low byte alone under the range's label); `onChange:'reset'|'increase'|'decrease'|'any'` edge filter (reset = counter-reload = the note-onset signal); `valueFilter:{min,max}`; `format:'series'` = compact columnar value-vs-frame curve (~10× smaller for a ramp); `sampleEvery`; `groupByPC` (collapse by sampled PC); `cheatLabels` (auto-name addresses from the cheat DB); `outputPath` streams all events as NDJSON; `stopOnFirst` exits on the first match. ARMING WHILE HALTED: a watch armed after a breakpoint hit starts PART-WAY through that frame, so accesses the frame already made are invisible and an empty result looks exactly like a genuine 'nothing writes this' - the result carries `armedWhileHalted` when this applies; re-run from a save state with the watch armed from the start before treating a negative as evidence. " +
+    "**CAVEAT: frame-level, not instruction-level (last value per frame); the sampled `pc` is a frame-boundary sample - for ISR-driven writes use breakpoint({on:'write', precision:'exact'}) for the real writer.**\n" +
+    "• on:'range' - DISCOVERY: log EVERY instruction that reads or writes ANYWHERE in [start,end]. The fix for 'I don't know which PC touches this'. Returns {pc,address,value}[] + the actionable distinctPCs + a per-PC digest (byPC). For a pure 'who writes here?' query, `distinctPCsOnly:true` returns JUST the digest (no per-event flood - a per-frame counter inc'd at one PC otherwise floods hundreds of near-identical rows); `dedupe:true` collapses identical (pc,address,value) events to one row with `occurrences`. (Ring-buffered: `truncated:true` if it overflows - and a truncated run can support a positive but NEVER a negative claim; with a fromState anchor, `autoNarrow:true` halves `frames` deterministically until the log is complete and reports framesUsed.) `fromState`/`fromStatePath` restores a savestate FIRST so the trace runs from a known moment (jump to the boss, then see what writes HP) - deterministic + repeatable. ARMING WHILE HALTED at an un-cleared breakpoint hit misses everything already executed in the broken frame - the result then carries `armedWhileHalted:true` so an empty window isn't mistaken for a clean negative; clear the hit or arm from a savestate restore instead.\n" +
+    "• on:'pc' - DISCOVERY (coverage trace): record every DISTINCT PC executed within [start,end] - 'what code runs here?'. EXACT and uncapped on every core (a one-bit-per-PC bitmap at the CPU's instruction granularity: byte on the 8-bit machines/65816/HuC6280, halfword on 68000/Thumb, word on MIPS; the result carries `granularityBytes` and `exact:true`). `limit` (max 4000) caps the PCs RETURNED, never the count. Log execution in the bank where you suspect the renderer lives during the moment it draws, then disassemble the PCs. Also takes `fromState`/`fromStatePath` to trace from a restored moment.\n" +
+    "• on:'dma' - GENESIS ONLY: trace mem→VDP DMAs (the answer to 'this name/portrait/logo is a pre-rendered bitmap DMA'd into VRAM - WHERE in ROM?', which on:'write' can't catch). `precision:'exact'` (default) logs every mem→VDP DMA with its VRAM DESTINATION + ROM SOURCE + length (filter by `vramDest`±`destWindow`; `dedupe` collapses the per-frame refresh; `sourceFilter:'rom-only'` drops RAM→VRAM noise; catches a same-frame second DMA). `precision:'sampled'` is the cheap frame-sampled source-register read (may miss two DMAs in one frame, dest-agnostic). `perFrame:true` switches to FEEL/PERF MODE: a per-frame timeline of VDP-DMA WORK ({frame,dmas,bytes,romBytes,ramBytes} + peakFrame + `spikes`) - the cheap 'why does horizontal movement feel choppy?' diagnostic (a per-frame byte spike = too much VDP work in the loop, e.g. a tilemap rewrite). On non-Genesis cores returns `notSupported`.\n" +
+    "• on:'copy' - ALL 14 PLATFORMS: log every write landing in a VRAM/dest address window [start,end] with the EXECUTING instruction's PC - the generic answer to 'this tile/nametable/portrait on screen: which routine uploads it?'. Port-based video memory (NES $2007, SNES $2118/19 - incl. the DMA path, PCE VWR, MSX/SMS/GG VDP data port, Genesis data port) is hooked INSIDE the core, so `start`/`end` are VRAM addresses (NES PPU $0000-$3FFF; SNES VRAM byte addr; PCE VRAM word addr; MSX/SMS/GG VRAM addr). Direct-mapped platforms (GB/GBC $8000-$9FFF, GBA 0x06000000+, C64/Lynx/7800 RAM framebuffers) route through the CPU-address range log automatically - pass CPU addresses there. Follow up with breakpoint({on:'pc', address: pc}) to get registersAtHit at the uploader.",
     {
       on: z.enum(["mem", "range", "pc", "dma", "copy"])
-        .describe("mem=watch a RAM byte/ranges for value changes over frames (the power tool); range=log every read/write PC in [start,end]; pc=coverage trace of distinct PCs executed in [start,end]; dma=Genesis-only mem→VDP DMA source/dest trace; copy=log every write landing in a VRAM address window with the EXECUTING instruction's PC (all 14 platforms — the generic 'where does this graphic come from?')."),
-      // on:'mem' — the ONE primary region enum kept on purpose (0.30.0 design):
+        .describe("mem=watch a RAM byte/ranges for value changes over frames (the power tool); range=log every read/write PC in [start,end]; pc=coverage trace of distinct PCs executed in [start,end]; dma=Genesis-only mem→VDP DMA source/dest trace; copy=log every write landing in a VRAM address window with the EXECUTING instruction's PC (all 14 platforms - the generic 'where does this graphic come from?')."),
+      // on:'mem' - the ONE primary region enum kept on purpose (0.30.0 design):
       // where region IS the choice, the discoverable canonical list stays in the
       // schema. The secondary region sub-params use the lean regionStr instead.
-      region: z.enum(MEMORY_REGIONS).optional().describe("on:'mem' single-range — the region to watch (same canonical set memory uses, incl. nes_apu_regs, genesis_ym2612, c64_sid_regs). Omit when using `ranges`."),
-      offset: z.number().int().min(0).default(0).describe("on:'mem' single-range — first byte of the watched range."),
-      length: z.number().int().min(1).max(4096).default(1).describe("on:'mem' single-range — bytes to watch (default 1)."),
-      ranges: z.array(rangeShape).min(1).max(16).optional().describe("on:'mem' — watch several disjoint ranges in one pass (region/offset/length ignored). Each event carries its range's `label`; each range may OVERRIDE call-wide `onChange`/`sampleEvery`/`valueFilter` (keep a slow state byte while suppressing a noisy counter in the same pass). For a MULTI-BYTE variable (16/32-bit distance, score, pointer, timer) set `as:'u16le'` (or u16be/u24/u32) on the range — without it the range is diffed per BYTE, so a 16-bit value reports only the bytes that moved, each under the range's full label."),
-      onChange: z.enum(["any", "increase", "decrease", "reset"]).default("any").describe("on:'mem' edge filter. 'any' (default); 'increase'/'decrease' directional; 'reset' = value jumped UP (counter reload — the note-onset signal)."),
-      valueFilter: z.object({ min: z.number().int().min(0).max(255).optional(), max: z.number().int().min(0).max(255).optional() }).optional().describe("on:'mem' — keep only changes whose NEW value is within [min,max]."),
-      maxEvents: z.number().int().min(1).max(100_000).default(256).describe("on:'mem' — cap RETURNED events (outputPath gets ALL). With format:'series' caps SAMPLES PER OFFSET and downsamples to span the full window."),
-      format: z.enum(["events", "series"]).default("events").describe("on:'mem' — 'events' (verbose per change) or 'series' (compact columnar frames[]/values[] curve, ~10× smaller for a ramp; drops pc)."),
-      sampleEvery: z.number().int().min(1).default(1).describe("on:'mem' — keep only every Nth filter-passing change (trend, not every delta)."),
-      groupByPC: z.boolean().default(false).describe("on:'mem' — collapse events by sampled PC into byPC[]. CAVEAT: that PC is frame-boundary-sampled, NOT the writer under interrupts — use breakpoint({on:'write', precision:'exact'}) for the EXACT writer."),
-      cheatLabels: z.string().optional().describe("on:'mem' — absolute path to the loaded ROM; auto-annotate watched RAM-region addresses (system_ram/*_ram/*_wram/gb_hram) from the bundled cheat DB (a PROBABLE match — strong hints, not gospel)."),
-      stopOnFirst: z.boolean().default(false).describe("on:'mem' — stop on the first filter-passing change instead of running the full duration. (For a true stop-on-first breakpoint, prefer the `breakpoint` tool.)"),
+      region: z.enum(MEMORY_REGIONS).optional().describe("on:'mem' single-range - the region to watch (same canonical set memory uses, incl. nes_apu_regs, genesis_ym2612, c64_sid_regs). Omit when using `ranges`."),
+      offset: z.number().int().min(0).default(0).describe("on:'mem' single-range - first byte of the watched range."),
+      length: z.number().int().min(1).max(4096).default(1).describe("on:'mem' single-range - bytes to watch (default 1)."),
+      ranges: z.array(rangeShape).min(1).max(16).optional().describe("on:'mem' - watch several disjoint ranges in one pass (region/offset/length ignored). Each event carries its range's `label`; each range may OVERRIDE call-wide `onChange`/`sampleEvery`/`valueFilter` (keep a slow state byte while suppressing a noisy counter in the same pass). For a MULTI-BYTE variable (16/32-bit distance, score, pointer, timer) set `as:'u16le'` (or u16be/u24/u32) on the range - without it the range is diffed per BYTE, so a 16-bit value reports only the bytes that moved, each under the range's full label."),
+      onChange: z.enum(["any", "increase", "decrease", "reset"]).default("any").describe("on:'mem' edge filter. 'any' (default); 'increase'/'decrease' directional; 'reset' = value jumped UP (counter reload - the note-onset signal)."),
+      valueFilter: z.object({ min: z.number().int().min(0).max(255).optional(), max: z.number().int().min(0).max(255).optional() }).optional().describe("on:'mem' - keep only changes whose NEW value is within [min,max]."),
+      maxEvents: z.number().int().min(1).max(100_000).default(256).describe("on:'mem' - cap RETURNED events (outputPath gets ALL). With format:'series' caps SAMPLES PER OFFSET and downsamples to span the full window."),
+      format: z.enum(["events", "series"]).default("events").describe("on:'mem' - 'events' (verbose per change) or 'series' (compact columnar frames[]/values[] curve, ~10× smaller for a ramp; drops pc)."),
+      sampleEvery: z.number().int().min(1).default(1).describe("on:'mem' - keep only every Nth filter-passing change (trend, not every delta)."),
+      groupByPC: z.boolean().default(false).describe("on:'mem' - collapse events by sampled PC into byPC[]. CAVEAT: that PC is frame-boundary-sampled, NOT the writer under interrupts - use breakpoint({on:'write', precision:'exact'}) for the EXACT writer."),
+      cheatLabels: z.string().optional().describe("on:'mem' - absolute path to the loaded ROM; auto-annotate watched RAM-region addresses (system_ram/*_ram/*_wram/gb_hram) from the bundled cheat DB (a PROBABLE match - strong hints, not gospel)."),
+      stopOnFirst: z.boolean().default(false).describe("on:'mem' - stop on the first filter-passing change instead of running the full duration. (For a true stop-on-first breakpoint, prefer the `breakpoint` tool.)"),
       // on:'range'
-      kind: z.enum(["read", "write", "both"]).default("both").describe("on:'range' — watch reads, writes, or both."),
-      distinctPCsOnly: z.boolean().default(false).describe("on:'range' — return JUST the per-PC digest (distinctPCs + byPC[{pc,count,sampleAddress,sampleValue}]) and SUPPRESS the raw event list. The token-cheap form of the common 'which routines touch this range?' query — a per-frame counter inc'd at one PC floods hundreds of near-identical events otherwise."),
-      dbg: z.string().optional().describe("on:'range' — cc65 .dbg TEXT: adds `routine` (nearest preceding symbol) to each byPC row + a byRoutine rollup, so censuses compare in ROUTINE units across sessions (an RMW logs 2 PCs in one routine; raw PC counts look like disagreements when they aren't). Prefer dbgPath — the map never enters your context."),
-      map: z.string().optional().describe("on:'range' — sdld/GNU-ld .map TEXT: same routine grouping for Z80/SM83/Genesis symbol maps. Prefer mapPath."),
-      dbgPath: z.string().optional().describe("on:'range' — path to the .dbg on disk (build({output:'romWithDebug'}) wrote it); read server-side."),
-      mapPath: z.string().optional().describe("on:'range' — path to the .map on disk; read server-side."),
-      autoNarrow: z.boolean().default(false).describe("on:'range' — when the event ring buffer overflows (truncated:true, which can support a positive but NEVER a negative claim), automatically halve `frames` and re-run from the fromState/fromStatePath anchor until the run fits (max 5 halvings, floor 8 frames). Requires the savestate anchor — deterministic re-runs; the result reports framesUsed + attempts so the annotation can say the census was complete."),
+      kind: z.enum(["read", "write", "both"]).default("both").describe("on:'range' - watch reads, writes, or both."),
+      distinctPCsOnly: z.boolean().default(false).describe("on:'range' - return JUST the per-PC digest (distinctPCs + byPC[{pc,count,sampleAddress,sampleValue}]) and SUPPRESS the raw event list. The token-cheap form of the common 'which routines touch this range?' query - a per-frame counter inc'd at one PC floods hundreds of near-identical events otherwise."),
+      dbg: z.string().optional().describe("on:'range' - cc65 .dbg TEXT: adds `routine` (nearest preceding symbol) to each byPC row + a byRoutine rollup, so censuses compare in ROUTINE units across sessions (an RMW logs 2 PCs in one routine; raw PC counts look like disagreements when they aren't). Prefer dbgPath - the map never enters your context."),
+      map: z.string().optional().describe("on:'range' - sdld/GNU-ld .map TEXT: same routine grouping for Z80/SM83/Genesis symbol maps. Prefer mapPath."),
+      dbgPath: z.string().optional().describe("on:'range' - path to the .dbg on disk (build({output:'romWithDebug'}) wrote it); read server-side."),
+      mapPath: z.string().optional().describe("on:'range' - path to the .map on disk; read server-side."),
+      autoNarrow: z.boolean().default(false).describe("on:'range' - when the event ring buffer overflows (truncated:true, which can support a positive but NEVER a negative claim), automatically halve `frames` and re-run from the fromState/fromStatePath anchor until the run fits (max 5 halvings, floor 8 frames). Requires the savestate anchor - deterministic re-runs; the result reports framesUsed + attempts so the annotation can say the census was complete."),
       // on:'range' / on:'pc' window
-      start: z.number().int().min(0).optional().describe("on:'range'/'pc' — low CPU address of the window."),
-      end: z.number().int().min(0).optional().describe("on:'range'/'pc' — high CPU address (inclusive)."),
+      start: z.number().int().min(0).optional().describe("on:'range'/'pc' - low CPU address of the window."),
+      end: z.number().int().min(0).optional().describe("on:'range'/'pc' - high CPU address (inclusive)."),
       // shared
-      frames: z.number().int().min(1).max(1_000_000).default(600).describe("Frames to run while logging (default 600). on:'range'/'pc' windows are usually short (~120) — pass a smaller value to keep the ring buffer from overflowing."),
-      limit: z.number().int().min(1).max(4000).default(200).describe("on:'range'/'pc' — max events/PCs returned (default 200; full count is in `total`)."),
-      outputPath: z.string().optional().describe("on:'mem' — stream every filter-passing event to this path as NDJSON + return a compact summary. Use for long watches so the full log never enters your context."),
+      frames: z.number().int().min(1).max(1_000_000).default(600).describe("Frames to run while logging (default 600). on:'range'/'pc' windows are usually short (~120) - pass a smaller value to keep the ring buffer from overflowing."),
+      limit: z.number().int().min(1).max(4000).default(200).describe("on:'range'/'pc' - max events/PCs returned (default 200; full count is in `total`)."),
+      outputPath: z.string().optional().describe("on:'mem' - stream every filter-passing event to this path as NDJSON + return a compact summary. Use for long watches so the full log never enters your context."),
       // on:'dma' (Genesis VDP DMA trace)
-      perFrame: z.boolean().default(false).describe("on:'dma' — FEEL/PERF MODE: instead of one aggregated source/dest log, return a PER-FRAME timeline of VDP-DMA WORK [{frame, dmas, bytes, romBytes, ramBytes}] + peakFrame/peakBytes. This is the cheap 'why does horizontal movement feel choppy?' answer — a frame whose DMA bytes spike (esp. romBytes, an asset re-upload) is doing too much VDP work in the loop (the classic 'I rewrote a tilemap every frame' bug). A smooth hardware-scroll loop shows a low, flat curve. Combine with `pressDuring` to correlate the spike with input (hold RIGHT, see which frames burst). No core rebuild — re-arms the DMA counter each frame."),
-      precision: z.enum(["exact", "sampled"]).default("exact").describe("on:'dma' — exact=per-DMA core log with VRAM dest + ROM source (catches same-frame DMAs); sampled=frame-sampled source-register read (cheaper, may miss two DMAs in one frame, dest-agnostic). Ignored when perFrame:true."),
-      vramDest: z.number().int().min(0).optional().describe("on:'dma' precision:'exact' — keep only DMAs whose VRAM destination is within ±`destWindow` of this address."),
-      destWindow: z.number().int().min(0).default(0x40).describe("on:'dma' precision:'exact' — match window around vramDest (default 64 bytes ≈ 1 tile)."),
-      dedupe: z.boolean().optional().describe("Collapse identical events to one entry with an `occurrences` count. on:'dma' precision:'exact' — identical DMAs (same dest+source+length+code), DEFAULT ON. on:'range' — identical (pc,address,value) writes, DEFAULT OFF (turns per-frame churn from hundreds of rows into a few)."),
-      sourceFilter: z.enum(["all", "rom-only", "ram-only"]).default("all").describe("on:'dma' precision:'exact' — 'rom-only' drops the RAM→VRAM per-frame refresh noise; 'ram-only' keeps only it."),
-      romPreviewBytes: z.number().int().min(0).max(64).default(0).describe("on:'dma' — bytes of the ROM source to preview per DMA (exact default 0; sampled default 16)."),
-      minLengthBytes: z.number().int().min(0).max(65536).default(0).describe("on:'dma' precision:'sampled' — ignore DMAs shorter than this many bytes (filters tiny scroll/sprite updates so graphic uploads stand out)."),
+      perFrame: z.boolean().default(false).describe("on:'dma' - FEEL/PERF MODE: instead of one aggregated source/dest log, return a PER-FRAME timeline of VDP-DMA WORK [{frame, dmas, bytes, romBytes, ramBytes}] + peakFrame/peakBytes. This is the cheap 'why does horizontal movement feel choppy?' answer - a frame whose DMA bytes spike (esp. romBytes, an asset re-upload) is doing too much VDP work in the loop (the classic 'I rewrote a tilemap every frame' bug). A smooth hardware-scroll loop shows a low, flat curve. Combine with `pressDuring` to correlate the spike with input (hold RIGHT, see which frames burst). No core rebuild - re-arms the DMA counter each frame."),
+      precision: z.enum(["exact", "sampled"]).default("exact").describe("on:'dma' - exact=per-DMA core log with VRAM dest + ROM source (catches same-frame DMAs); sampled=frame-sampled source-register read (cheaper, may miss two DMAs in one frame, dest-agnostic). Ignored when perFrame:true."),
+      vramDest: z.number().int().min(0).optional().describe("on:'dma' precision:'exact' - keep only DMAs whose VRAM destination is within ±`destWindow` of this address."),
+      destWindow: z.number().int().min(0).default(0x40).describe("on:'dma' precision:'exact' - match window around vramDest (default 64 bytes ≈ 1 tile)."),
+      dedupe: z.boolean().optional().describe("Collapse identical events to one entry with an `occurrences` count. on:'dma' precision:'exact' - identical DMAs (same dest+source+length+code), DEFAULT ON. on:'range' - identical (pc,address,value) writes, DEFAULT OFF (turns per-frame churn from hundreds of rows into a few)."),
+      sourceFilter: z.enum(["all", "rom-only", "ram-only"]).default("all").describe("on:'dma' precision:'exact' - 'rom-only' drops the RAM→VRAM per-frame refresh noise; 'ram-only' keeps only it."),
+      romPreviewBytes: z.number().int().min(0).max(64).default(0).describe("on:'dma' - bytes of the ROM source to preview per DMA (exact default 0; sampled default 16)."),
+      minLengthBytes: z.number().int().min(0).max(65536).default(0).describe("on:'dma' precision:'sampled' - ignore DMAs shorter than this many bytes (filters tiny scroll/sprite updates so graphic uploads stand out)."),
       pressDuring: z.array(z.union([
         /* The SAME bare-string spelling input({op:'press'}) takes. It used to
          * be rejected here ("must be a object"), so the vocabulary that worked
@@ -2306,9 +2306,9 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
             + "walking one screen typically needs 60+. A too-short hold returns a clean "
             + "eventCount:0 that reads as 'the byte never changes'."),
         }),
-      ])).optional().describe("Schedule input while watching (drive the game to the state that touches the watched bytes/range, or uploads the graphic for on:'dma'). If OMITTED, this run inherits whatever input({op:'set'}) last held — same as frame({op:'step'}). If GIVEN, the schedule OWNS the pad for the whole run (a prior input({op:'set'}) is ignored). Entries with OVERLAPPING windows on the same port are OR'd into a chord (e.g. b+right held while a fires mid-window), not overwritten. MENU SCREENS: if a schedule never registers (some menus poll input in a way scheduled taps miss), hold the button via input({op:'set'}) and OMIT pressDuring — the run inherits the held state and the menu sees the edge."),
-      fromState: z.string().optional().describe("on:'range'/'pc' — restore an in-memory savestate SLOT (from state({op:'save', name})) BEFORE tracing, so the log runs from a known moment (jump to the boss fight, then see what writes HP). Deterministic + repeatable."),
-      fromStatePath: z.string().optional().describe("on:'range'/'pc' — like fromState but restore from a savestate FILE on disk (state({op:'save', path})). Relative path resolves against the loaded ROM's dir."),
+      ])).optional().describe("Schedule input while watching (drive the game to the state that touches the watched bytes/range, or uploads the graphic for on:'dma'). If OMITTED, this run inherits whatever input({op:'set'}) last held - same as frame({op:'step'}). If GIVEN, the schedule OWNS the pad for the whole run (a prior input({op:'set'}) is ignored). Entries with OVERLAPPING windows on the same port are OR'd into a chord (e.g. b+right held while a fires mid-window), not overwritten. MENU SCREENS: if a schedule never registers (some menus poll input in a way scheduled taps miss), hold the button via input({op:'set'}) and OMIT pressDuring - the run inherits the held state and the menu sees the edge."),
+      fromState: z.string().optional().describe("on:'range'/'pc' - restore an in-memory savestate SLOT (from state({op:'save', name})) BEFORE tracing, so the log runs from a known moment (jump to the boss fight, then see what writes HP). Deterministic + repeatable."),
+      fromStatePath: z.string().optional().describe("on:'range'/'pc' - like fromState but restore from a savestate FILE on disk (state({op:'save', path})). Relative path resolves against the loaded ROM's dir."),
     },
     safeTool(async (args) => {
       switch (args.on) {
@@ -2338,7 +2338,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
     }),
   );
 
-  // ── watch({on:'copy'}) — the generic graphics source-trace ─────────────────
+  // ── watch({on:'copy'}) - the generic graphics source-trace ─────────────────
   async function wCopy({ start, end, frames = 120, limit = 200, pressDuring }) {
       const host = getHost(sessionKey);
       const presses = normalizePressDuring(pressDuring).sort((a, b) => a.frame - b.frame);
@@ -2369,11 +2369,11 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
             "triggered the DMA). Addresses are VRAM-space. Next: breakpoint({on:'pc', address: <pc>}) to stop " +
             "there with registersAtHit (source pointer in the index/address regs), then disasm({target:'rom', " +
             "startAddress: <pc>}) to read the routine." +
-            (r.truncated ? " Ring overflowed — narrow the window or lower frames." : ""),
+            (r.truncated ? " Ring overflowed - narrow the window or lower frames." : ""),
         });
       }
       // Direct-mapped video memory (GB/GBC/GBA/C64/Lynx/7800): the same
-      // question routes through the CPU-address range log — start/end are CPU
+      // question routes through the CPU-address range log - start/end are CPU
       // addresses (e.g. GB VRAM $8000-$9FFF).
       pressDriver.finish();
       const out = await wRange({ start, end, frames, limit, kind: "write", pressDuring });
@@ -2412,7 +2412,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       // VDP code low bits: 1=VRAM, 3=CRAM, 5=VSRAM (write codes). Decode the target.
       const targetOf = (code) => { const c = code & 0x0F; return c === 1 ? "VRAM" : c === 3 ? "CRAM" : c === 5 ? "VSRAM" : "VRAM?"; };
       // Genesis 68k bus: ROM is the low address space (< $400000 typically), work
-      // RAM is $E00000-$FFFFFF. A DMA `source` is a 68k byte address — split on the
+      // RAM is $E00000-$FFFFFF. A DMA `source` is a 68k byte address - split on the
       // RAM window so 'rom-only' drops the RAM→VRAM sprite/scroll refresh.
       const isRam = (src) => (src >>> 0) >= 0xE00000;
       let dmas = r.dmas;
@@ -2452,16 +2452,16 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
         ...(vramDest !== undefined ? { filteredToVramDest: "$" + vramDest.toString(16).toUpperCase(), destWindow } : {}),
         ...(sourceFilter !== "all" ? { sourceFilter } : {}),
         dmas: out,
-        note: "`source` is the 68k byte address the tiles were copied from — for a ROM source (`from:ROM`) edit the tiles THERE. " +
+        note: "`source` is the 68k byte address the tiles were copied from - for a ROM source (`from:ROM`) edit the tiles THERE. " +
           "dedupe collapses the per-frame refresh; sourceFilter:'rom-only' drops the RAM→VRAM sprite/scroll noise (use it to find a cart-ROM asset DMA). " +
-          (totalDistinct > limit ? `Showing ${out.length}/${totalDistinct} distinct — raise limit or narrow vramDest.` : ""),
+          (totalDistinct > limit ? `Showing ${out.length}/${totalDistinct} distinct - raise limit or narrow vramDest.` : ""),
       }), host);
   }
 
-  // watch({on:'dma', perFrame:true}) — FEEL/PERF timeline. Steps frame-by-frame,
+  // watch({on:'dma', perFrame:true}) - FEEL/PERF timeline. Steps frame-by-frame,
   // re-arming the DMA counter each frame (the core resets on arm), and reports
   // VDP-DMA WORK per frame. The cheap, no-core-rebuild "why is movement choppy?"
-  // diagnostic: a frame whose bytes (esp. romBytes — an asset re-upload) spike is
+  // diagnostic: a frame whose bytes (esp. romBytes - an asset re-upload) spike is
   // doing too much VDP work in the loop. Optionally driven by `pressDuring` so the
   // spike correlates with input. See genesis MENTAL_MODEL "feel trap".
   async function dmaPerFrame({ frames = 120, pressDuring, maxFrames = 600 }) {
@@ -2477,7 +2477,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
     pressDriver.finish();
     const tl = r.frames;
     // Compact: only KEEP frames that did any DMA, plus always the peak. A flat
-    // hardware-scroll loop is mostly the steady SAT refresh — summarise it.
+    // hardware-scroll loop is mostly the steady SAT refresh - summarise it.
     const nonZero = tl.filter((f) => f.bytes > 0);
     const avgBytes = tl.length ? Math.round(r.totalBytes / tl.length) : 0;
     const peak = tl[r.peakFrame] || null;
@@ -2503,11 +2503,11 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
       ...(nonZero.length > rows.length ? { timelineTruncated: nonZero.length } : {}),
       note: "Per-frame VDP-DMA WORK. `bytes` = VRAM/CRAM/VSRAM bytes DMA'd that frame; `romBytes` = bytes copied FROM cart ROM (an asset upload), `ramBytes` = the steady RAM→VRAM sprite/scroll refresh. " +
         "A smooth hardware-scroll loop shows a low, flat curve (mostly ramBytes ≈ the SAT refresh). " +
-        "A `spikes` entry (bytes >3x avg WITH romBytes) is the 'I rewrote a tilemap / re-uploaded tiles in the frame loop' smell — move that work to setup or stream ONE column per 8-px scroll step instead. " +
-        "Hold input with `pressDuring` to see which input bursts. CEILING: this counts DMA bytes; CPU writes to the VDP data port (VDP_setTileMapXY without DMA) are NOT DMA and aren't counted here — those need a core-side VDP-write hook (future).",
+        "A `spikes` entry (bytes >3x avg WITH romBytes) is the 'I rewrote a tilemap / re-uploaded tiles in the frame loop' smell - move that work to setup or stream ONE column per 8-px scroll step instead. " +
+        "Hold input with `pressDuring` to see which input bursts. CEILING: this counts DMA bytes; CPU writes to the VDP data port (VDP_setTileMapXY without DMA) are NOT DMA and aren't counted here - those need a core-side VDP-write hook (future).",
     }), host);
   }
   // dmaExact + dmaPerFrame + traceVramSourceCore are reached via watch({on:'dma'})
-  // above — dmaTrace was folded into `watch` (it's a log-all VDP-DMA trace, same
+  // above - dmaTrace was folded into `watch` (it's a log-all VDP-DMA trace, same
   // family as on:'mem'/'range'/'pc'), so there's no separate top-level tool.
 }

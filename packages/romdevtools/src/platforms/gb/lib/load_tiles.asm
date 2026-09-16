@@ -1,8 +1,8 @@
-; Game Boy tile loader — bulk VRAM upload from ROM.
+; Game Boy tile loader - bulk VRAM upload from ROM.
 ;
 ; GB tiles are 16 bytes each (2bpp interleaved). VRAM at $8000-$97FF
 ; holds 384 tiles. The PPU is reading tiles continuously while the
-; LCD is on — writes during active scanlines are IGNORED by the bus.
+; LCD is on - writes during active scanlines are IGNORED by the bus.
 ; You can only safely write VRAM during:
 ;   - vblank (LY >= 144)
 ;   - hblank (PPU mode 0, very short)

@@ -1,4 +1,4 @@
-/* default.c — Atari 7800 MARIA single-sprite minimal demo.
+/* default.c - Atari 7800 MARIA single-sprite minimal demo.
  *
  * Renders ONE sprite (16 pixels wide × 8 scanlines tall) at (X=80,
  * Y=110) on a solid blue background. Plays a boot chime on the TIA.
@@ -30,7 +30,7 @@
  *
  * Tradeoff: the DLL needs ONE entry per visible scanline, plus the
  * 10 lines of top overscan that MARIA walks before the visible area
- * starts. That's 243 entries × 3 bytes = 729 bytes — fits easily in
+ * starts. That's 243 entries × 3 bytes = 729 bytes - fits easily in
  * the 4KB of internal RAM.
  *
  * ── Build ───────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ static const uint8_t sprite_row7[4] = { 0x05, 0x55, 0x55, 0x50 };
 
 /* DL for ONE sprite scanline. 5-byte (extended) form:
  *   [0] = ADDR LSB                  (patched at runtime)
- *   [1] = mode = 0x40 — extended form (bits 0-4 = 0) + bit 6 set so
+ *   [1] = mode = 0x40 - extended form (bits 0-4 = 0) + bit 6 set so
  *         MARIA's parse-loop continues. bit 7 unset = "write mode 0"
  *         (4-pixels-per-byte, 160A graphics). bit 5 unset = direct.
  *   [2] = ADDR MSB                  (patched at runtime)
@@ -80,7 +80,7 @@ static const uint8_t sprite_row7[4] = { 0x05, 0x55, 0x55, 0x50 };
  * After the 5-byte entry, MARIA reads `dp + 6` as the next entry's
  * mode byte. So we need byte 6 to be 0 (terminator). Total: 7 bytes.
  *
- * A previous version of this scaffold used a 6-byte array — MARIA
+ * A previous version of this scaffold used a 6-byte array - MARIA
  * then read random memory at offset 6 as the next "mode" byte and
  * walked off into garbage. If you change this size, update the
  * terminator slot accordingly.
@@ -89,7 +89,7 @@ static const uint8_t sprite_row7[4] = { 0x05, 0x55, 0x55, 0x50 };
 MK_DL(dl_row0); MK_DL(dl_row1); MK_DL(dl_row2); MK_DL(dl_row3);
 MK_DL(dl_row4); MK_DL(dl_row5); MK_DL(dl_row6); MK_DL(dl_row7);
 
-/* Empty DL — for zones with no objects. MARIA reads the mode byte
+/* Empty DL - for zones with no objects. MARIA reads the mode byte
  * at dp+1; if it's 0, the parse loop exits immediately. */
 static uint8_t dl_empty[2] = { 0, 0 };
 
@@ -140,7 +140,7 @@ static uint16_t bg_zone_dl(int zone) {
  *   byte 1: DL pointer HIGH
  *   byte 2: DL pointer LOW
  *
- * MARIA has NO DLL terminator — it just walks for every scanline.
+ * MARIA has NO DLL terminator - it just walks for every scanline.
  * If your DLL is shorter than 243 entries, MARIA reads past the
  * end into random memory and renders garbage. Always cover the
  * full 243 lines.
@@ -148,7 +148,7 @@ static uint16_t bg_zone_dl(int zone) {
 #define DLL_ZONES 243
 static uint8_t dll[DLL_ZONES * 3];
 
-#define SPRITE_Y 110  /* DLL index — ~middle of the visible area */
+#define SPRITE_Y 110  /* DLL index - ~middle of the visible area */
 
 static void set_dl_addr(uint8_t* dl, const uint8_t* row) {
   uint16_t a = (uint16_t)(uintptr_t)row;

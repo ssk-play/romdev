@@ -20,8 +20,8 @@ if (
   // re-exec wrapper, so it is the only place that knows how the child died.
   //
   // Cross-platform: `r.signal` and `r.error` are plain Node fields on every
-  // platform. Windows has no POSIX signals — spawnSync reports a signal there
-  // only for simulated kills — so the 128+signum convention is applied only
+  // platform. Windows has no POSIX signals - spawnSync reports a signal there
+  // only for simulated kills - so the 128+signum convention is applied only
   // where it means something and the name is reported either way.
   if (r.error) {
     console.error(`romdev: could not start the server process: ${r.error.message}`);
@@ -35,7 +35,7 @@ if (
   process.exit(r.status ?? 0);
 }
 
-// romdev — MCP server (Streamable HTTP).
+// romdev - MCP server (Streamable HTTP).
 //
 // Exposes the libretro harness, save state, memory inspection, screenshot,
 // and platform/toolchain introspection as MCP tools over the modern
@@ -53,7 +53,7 @@ if (
 //   PORT=7332 node src/mcp/server.js    # override port (env; flag wins)
 //   node src/mcp/server.js --host 0.0.0.0
 //   HOST=0.0.0.0 node src/mcp/server.js
-//     (binds to all interfaces; DNS rebinding protection disabled — only
+//     (binds to all interfaces; DNS rebinding protection disabled - only
 //      use this when you're explicitly fronting the server.)
 
 import { readFile } from "node:fs/promises";
@@ -98,10 +98,10 @@ const PKG_VERSION = (() => {
 })();
 
 // AGENTS.md is the CHANNEL-NEUTRAL body (workflow knowledge, footguns, per-platform
-// docs) — it must not contain "how to connect / how to call" prose, because that
+// docs) - it must not contain "how to connect / how to call" prose, because that
 // differs per delivery channel. The MCP channel prepends mcpPreamble ("call the
-// MCP tools…", never mentions HTTP routes); the skill channel (GET /skills/romdev/SKILL.md)
-// prepends skillPreamble ("POST /tool/{name}…", never mentions MCP). Both live in
+// MCP tools...", never mentions HTTP routes); the skill channel (GET /skills/romdev/SKILL.md)
+// prepends skillPreamble ("POST /tool/{name}...", never mentions MCP). Both live in
 // src/http/skill-doc.js so neither leaks into the other surface.
 async function loadAgentsBody() {
   try {
@@ -199,13 +199,13 @@ async function main() {
   const portRaw = cliArg("port") ?? process.env.PORT ?? 7331;
   const port = Number(portRaw);
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
-    log.error(`romdev: invalid port "${portRaw}" — pass --port <1-65535> or set PORT.`);
+    log.error(`romdev: invalid port "${portRaw}" - pass --port <1-65535> or set PORT.`);
     process.exit(1);
   }
 
   // Build the Express app manually so we can set a large JSON body limit.
   // (The SDK's createMcpExpressApp uses body-parser's default ~100KB,
-  // which is too small for our payloads — ROMs encoded as base64 can be
+  // which is too small for our payloads - ROMs encoded as base64 can be
   // hundreds of KB to several MB.)
   const app = express();
   // 64 MB covers any ROM up to a 48MB GBA cartridge with base64 overhead.
@@ -221,7 +221,7 @@ async function main() {
   // payloads don't bloat the log file.
   app.use("/mcp", (req, res, next) => {
     // Per-call trace. ALWAYS recorded into the /log ring buffer (the summary is
-    // a cheap, bounded string — sizes, not payloads), and PRINTED to stdout only
+    // a cheap, bounded string - sizes, not payloads), and PRINTED to stdout only
     // in verbose mode (log.debug handles that split). This keeps the console
     // quiet in prod while /log stays rich enough to diagnose what an agent did.
     if (req.method === "POST" && req.body) {
@@ -249,7 +249,7 @@ async function main() {
   // Dev-only diagnostic endpoint: the last N log records as JSON, so someone
   // working ON the MCP server can see recent activity without scraping stdout
   // or having had --verbose on (the ring buffer captures debug lines either
-  // way). NOT an end-user feature — undocumented, loopback-only, no stability
+  // way). NOT an end-user feature - undocumented, loopback-only, no stability
   // guarantee. `?limit=N` caps the count (default 100).
   app.get("/log", (req, res) => {
     const n = Number.parseInt(req.query.limit, 10);
@@ -263,8 +263,8 @@ async function main() {
   // Session id → last-activity timestamp (ms). Bumped on every request so
   // the idle reaper below can evict sessions whose client vanished without
   // a clean MCP close (restarted Codex/Claude, crashed client, abandoned
-  // tab). Without this the transports map — and the /livestream session
-  // list — grows forever: each reconnect mints a new session and the dead
+  // tab). Without this the transports map - and the /livestream session
+  // list - grows forever: each reconnect mints a new session and the dead
   // one is never closed.
   /** @type {Map<string, number>} */
   const lastSeen = new Map();
@@ -273,10 +273,10 @@ async function main() {
   const SESSION_IDLE_MS = Number(process.env.ROMDEV_SESSION_IDLE_MS ?? 30 * 60 * 1000);
 
   // Spin up a fresh transport + McpServer for a NEW session (only ever
-  // created in response to an `initialize` request — the server mints the
+  // created in response to an `initialize` request - the server mints the
   // session id).
   // `fixedId`: when set (the LAZY-INIT / reconnect path), the transport
-  // adopts the client's existing session id instead of minting a new one —
+  // adopts the client's existing session id instead of minting a new one -
   // the SDK binds whatever sessionIdGenerator returns on initialize, so we
   // just return the client's id. This is how a client survives a server
   // restart: it shows up with an id we've never seen (because WE restarted),
@@ -295,7 +295,7 @@ async function main() {
     // Compute the session id ONCE. The SDK may call sessionIdGenerator more
     // than once; if it returned a fresh randomUUID() each time, the id placed
     // in the response header and the id we register under in `transports`
-    // would diverge — so every subsequent call would miss the map, look
+    // would diverge - so every subsequent call would miss the map, look
     // "unknown", get re-adopted into a brand-new host, and lose all state.
     // A stable closure over a single value keeps the header id == the map key.
     const publicId = fixedId ?? randomUUID();
@@ -305,7 +305,7 @@ async function main() {
       // persistent SSE stream. Without this the transport treats every request
       // as a stream; non-streaming clients let that stream end immediately,
       // the SDK fires `onclose`, and our onclose handler deletes the session
-      // from `transports` — so the NEXT call arrives as an "unknown session",
+      // from `transports` - so the NEXT call arrives as an "unknown session",
       // gets lazily re-adopted (a brand-new host), and the cycle repeats. That
       // is the "every call makes a new session / state never persists" bug.
       // We don't stream server-initiated messages, so JSON responses are
@@ -319,7 +319,7 @@ async function main() {
       },
     });
     transport.onclose = () => {
-      // Close THIS session's playtest window (if any) — one agent disconnecting
+      // Close THIS session's playtest window (if any) - one agent disconnecting
       // tears down only its own window/host; other agents' games keep running.
       try { stopPlaytestForSession(sessionKey); } catch {}
       try { clearHost(sessionKey); } catch {}
@@ -338,11 +338,11 @@ async function main() {
   // Lazy-initialize a session the client THINKS exists but we don't (because
   // we restarted). Create a transport bound to the client's id and mark it
   // initialized so the SDK's per-request validation (sessionId match +
-  // _initialized) passes — i.e. we adopt the client's session instead of
+  // _initialized) passes - i.e. we adopt the client's session instead of
   // forcing a reinitialize.
   //
   // ⚠ SDK-COUPLING: the streamable-HTTP transport only binds its sessionId by
-  // running a real `initialize` HTTP request through Hono — which needs
+  // running a real `initialize` HTTP request through Hono - which needs
   // genuine Node req/res stream objects, not fabricable here. So we set the
   // two state fields on the inner web-standard transport directly. These are
   // plain instance fields (sessionId, _initialized) on _webStandardTransport.
@@ -450,7 +450,7 @@ async function main() {
         // A minted key is one the caller CANNOT send back BY ITSELF, so bind
         // it to the connection: the next request on this socket resolves to
         // the same key. The handle is also advertised in every result so the
-        // agent can pin it with `session:"…"` should the connection change.
+        // agent can pin it with `session:"..."` should the connection change.
         if (minted) {
           rememberMinted(sessionKey);
           if (req.socket) socketSessions.set(req.socket, sessionKey);
@@ -484,14 +484,14 @@ async function main() {
         // RECONNECT ROBUSTNESS: a reconnecting client may re-send initialize
         // while STILL carrying its dead Mcp-Session-Id header. The MCP spec
         // says initialize must not carry a session id, and the SDK transport
-        // can reject (400) an initialize that does — which would block the
+        // can reject (400) an initialize that does - which would block the
         // very reconnect we want to allow. So strip the stale id header
         // before handing the request to the fresh transport: an initialize
         // is always "start clean," never "resume id X". This guarantees a
         // client can always get back in, no matter what id it's clinging to.
         if (typeof sid === "string" && sid.length > 0) {
           delete req.headers["mcp-session-id"];
-          log.debug(`[mcp] initialize carried stale session id ${sid} — stripped, minting fresh`);
+          log.debug(`[mcp] initialize carried stale session id ${sid} - stripped, minting fresh`);
         }
         // A client may pin its own session by sending a handle in the
         // initialize request's `_meta`. Legacy clients send none and get the
@@ -499,19 +499,19 @@ async function main() {
         const requestedHandle = req.body?.params?._meta?.[SESSION_META_KEY];
         transport = await createTransport(undefined, requestedHandle);
       } else if (!transport && typeof sid === "string" && sid.length > 0) {
-        // The client presented a session id we don't have — almost always
+        // The client presented a session id we don't have - almost always
         // because WE restarted (the client's session is fine from its side).
         // LAZY-INIT: transparently re-create that exact session and serve the
         // request, so the client never sees a failure and keeps its id. The
         // emulator/host state was in our RAM and is gone, so the session comes
-        // back EMPTY — the first host-needing call returns the clear "reload
+        // back EMPTY - the first host-needing call returns the clear "reload
         // your ROM" guidance (state.js). This is safe now that the full tool
         // surface registers at init by default (no per-session loadCategory
-        // state to lose — the old reason we used to reject + force reinit).
+        // state to lose - the old reason we used to reject + force reinit).
         log.debug(`[mcp] lazy-init: re-adopting unknown session ${sid} (likely post-restart)`);
         transport = await lazyInitTransport(sid);
         if (!transport) {
-          // Lazy-init failed — fall back to the spec 404 so the client
+          // Lazy-init failed - fall back to the spec 404 so the client
           // reinitializes cleanly rather than hanging.
           res.status(404).json({
             jsonrpc: "2.0",
@@ -522,7 +522,7 @@ async function main() {
         }
         lastSeen.set(sid, Date.now());
       } else if (!transport) {
-        // No session id at all on a non-initialize request — there's nothing
+        // No session id at all on a non-initialize request - there's nothing
         // to adopt. Tell the client to start a session.
         res.status(400).json({
           jsonrpc: "2.0",
@@ -545,7 +545,7 @@ async function main() {
     }
   });
 
-  // Healthcheck endpoint — handy for verifying the server is up without
+  // Healthcheck endpoint - handy for verifying the server is up without
   // doing a full MCP handshake.
   app.get("/healthz", (req, res) => {
     // `version` lets a saved skill / HTTP client detect staleness against the
@@ -558,7 +558,7 @@ async function main() {
   // generated from the same tool registry the MCP path uses. Same Express app,
   // same localhost trust, per-agent dynamic sessions. Lets MCP-wary users (or
   // agents that prefer the Agent Skills standard) use romdev with near-zero
-  // always-on context — the skill metadata is ~100 tokens until invoked.
+  // always-on context - the skill metadata is ~100 tokens until invoked.
   const agentsBody = await loadAgentsBody();
   mountHttpToolRoutes(app, { agentsBody, version: PKG_VERSION, idleMs: SESSION_IDLE_MS });
 
@@ -579,7 +579,7 @@ async function main() {
   });
 
   // Loopback resolves to BOTH 127.0.0.1 (IPv4) and ::1 (IPv6) depending on the
-  // box — a client that connects to `localhost` may pick either. Binding only
+  // box - a client that connects to `localhost` may pick either. Binding only
   // one stack means clients hitting the other get connection-refused (e.g. a
   // Rust HTTP client that resolves localhost→::1 while we listen on 127.0.0.1).
   // So when HOST is the default loopback, listen on BOTH; otherwise honor the
@@ -601,15 +601,15 @@ async function main() {
   httpServer.keepAliveTimeout = 30 * 60 * 1000;
   httpServer.headersTimeout = httpServer.keepAliveTimeout + 5000;
   // FAIL LOUDLY on a bad bind (commonly: port already in use). The primary
-  // listener's 'error' event would otherwise be unhandled — and because
+  // listener's 'error' event would otherwise be unhandled - and because
   // app.listen()'s success callback fires before the async EADDRINUSE arrives,
-  // the process could print a "listening…" banner and exit 0 while NOT actually
+  // the process could print a "listening..." banner and exit 0 while NOT actually
   // bound (silent failure). So we print the banner ONLY from the 'listening'
-  // event (fires after a real bind) and exit non-zero on 'error' — `npx
+  // event (fires after a real bind) and exit non-zero on 'error' - `npx
   // romdevtools` runs in the foreground, so the user sees exactly what happened.
   httpServer.on("error", (e) => {
     if (e && e.code === "EADDRINUSE") {
-      log.error(`romdev: port ${port} is already in use — another romdev server (or some other process) is on it.`);
+      log.error(`romdev: port ${port} is already in use - another romdev server (or some other process) is on it.`);
       log.error(`Fix: stop the other process, or run on a different port: PORT=7332 npx romdevtools  (or --port 7332).`);
     } else if (e && e.code === "EACCES") {
       log.error(`romdev: not allowed to bind port ${port} (privileged port?). Use a port >= 1024.`);
@@ -632,7 +632,7 @@ async function main() {
         const SK = await import("../decomp/skill-sync.js");
         const { CAPABILITIES } = await import("../cores/capabilities.js");
         const st = await SK.skillStatus({ version: PKG_VERSION, platforms: Object.keys(CAPABILITIES), hasDecomp: true });
-        if (st.stale) log.info(`romdev: WARNING — the installed client skill is v${st.skillVersion} against server v${st.serverVersion}`
+        if (st.stale) log.info(`romdev: WARNING - the installed client skill is v${st.skillVersion} against server v${st.serverVersion}`
           + (st.undocumentedCapabilities?.length ? `; it never mentions ${st.undocumentedCapabilities.join(", ")}` : "")
           + `. Regenerate with decomp({op:'skill', action:'write'}).`);
       } catch { /* the skill check must never affect startup */ }
@@ -649,7 +649,7 @@ async function main() {
     // playtest window to a human (the op itself still errors with the full fix).
     if (process.platform === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
       log.info("");
-      log.info("note: no display detected (headless) — playtest({op:'open'}) is unavailable; all other tools work.");
+      log.info("note: no display detected (headless) - playtest({op:'open'}) is unavailable; all other tools work.");
     }
   });
   const extraServers = [];
@@ -657,13 +657,13 @@ async function main() {
     const s = app.listen(port, h);
     s.keepAliveTimeout = httpServer.keepAliveTimeout;
     s.headersTimeout = httpServer.headersTimeout;
-    // A missing IPv6 stack shouldn't take the server down — log and move on.
+    // A missing IPv6 stack shouldn't take the server down - log and move on.
     s.on("error", (e) => log.debug(`[mcp] secondary bind ${h}:${port} skipped: ${e.code || e.message}`));
     extraServers.push(s);
   }
 
   // Mount /livestream + socket.io on the same port. Attach socket.io to EVERY
-  // loopback listener (IPv4 + IPv6), not just the primary — otherwise a browser
+  // loopback listener (IPv4 + IPv6), not just the primary - otherwise a browser
   // whose `localhost` resolves to the other stack 404s on /socket.io. The
   // observer module attaches itself; tool calls emit through the observer bus
   // via the middleware installed in buildMcpServer().
@@ -674,7 +674,7 @@ async function main() {
     clearInterval(reaper);
     clearInterval(hostReaper);
     log.info(`\n[mcp] ${sig} received, draining ${transports.size} session(s)...`);
-    // Close ALL open playtest windows (every session) FIRST — the server must
+    // Close ALL open playtest windows (every session) FIRST - the server must
     // not leave emulator windows running that it opened. They're in-process so a
     // clean exit tears them down anyway, but closing them explicitly here avoids
     // a flash of dead windows and frees SDL before we drop the event loop.
@@ -695,7 +695,7 @@ async function main() {
 
   // Idle-session reaper. MCP transports don't time themselves out, and a
   // client that restarts/crashes/abandons its tab never sends a clean
-  // close — so without this the transports map (and the /livestream
+  // close - so without this the transports map (and the /livestream
   // session list) grows unbounded, one entry per reconnect. Sweep every
   // few minutes and close anything idle past SESSION_IDLE_MS. Closing the
   // transport fires its onclose, which removes it from the map + observer
@@ -708,7 +708,7 @@ async function main() {
       if (now - seen > SESSION_IDLE_MS) {
         log.debug(`[mcp] reaping idle session ${id} (idle ${Math.round((now - seen) / 1000)}s)`);
         try { transport.close(); } catch (e) {
-          // close() failed — still evict from our tables so it can't leak.
+          // close() failed - still evict from our tables so it can't leak.
           transports.delete(id); lastSeen.delete(id);
         }
       }
@@ -716,7 +716,7 @@ async function main() {
   }, 60 * 1000);
   reaper.unref(); // don't keep the process alive just for the reaper
 
-  // Host reaper — SEPARATE from the session reaper above, and the one that
+  // Host reaper - SEPARATE from the session reaper above, and the one that
   // actually bounds memory. A host is emulator state (a WASM core plus its
   // whole linear memory, tens to hundreds of MB); a transport is a socket.
   // They are evicted on different clocks because they have different costs
@@ -746,10 +746,10 @@ async function main() {
   // a setImmediate inside a WASM callback). Without this Node's
   // default is to crash the process.
   process.on("uncaughtException", (err) => {
-    log.error("[mcp] uncaughtException — keeping process alive:", err);
+    log.error("[mcp] uncaughtException - keeping process alive:", err);
   });
   process.on("unhandledRejection", (reason) => {
-    log.error("[mcp] unhandledRejection — keeping process alive:", reason);
+    log.error("[mcp] unhandledRejection - keeping process alive:", reason);
   });
 }
 

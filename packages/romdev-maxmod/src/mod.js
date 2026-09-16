@@ -1,8 +1,8 @@
 /****************************************************************************
- * romdev-maxmod — mod.js
+ * romdev-maxmod - mod.js
  *
  * Faithful pure-JS ESM port of devkitPro mmutil's mod.c
- * (Copyright (c) 2008, Mukunda Johnson — ISC license).
+ * (Copyright (c) 2008, Mukunda Johnson - ISC license).
  *
  * Parses a ProTracker / FastTracker .MOD into the in-memory module model
  * that the MAS emitter (mas.js, ported from mas.c) consumes. The model
@@ -14,7 +14,7 @@
  *
  * NOTE on scope: mod.c's Load_MOD_SampleData() calls FixSample() after
  * loading PCM. FixSample lives in samplefix.c (a separate translation
- * unit) — loop trimming, BIDI unroll, GBA min-loop padding, 8-bit
+ * unit) - loop trimming, BIDI unroll, GBA min-loop padding, 8-bit
  * conversion. That is ported separately (samplefix.js) and applied by the
  * pipeline, NOT here. What THIS file replicates from mod.c is exactly what
  * mod.c itself does inline: the +128 unsign of the raw signed-8-bit PCM
@@ -504,7 +504,7 @@ function loadModSample(r) {
   samp.loop_end = samp.loop_start + (r.read8() * 256 + r.read8()) * 2;
 
   // frequency = 8363 * 2^(finetune/192). mod.c casts to int (truncation).
-  // "IS THIS WRONG?? :" — yes, mmutil keeps it as-is; we replicate exactly.
+  // "IS THIS WRONG?? :" - yes, mmutil keeps it as-is; we replicate exactly.
   samp.frequency = Math.trunc(8363.0 * Math.pow(2.0, finetune * (1.0 / 192.0)));
 
   samp.global_volume = 64; // max global volume
@@ -523,7 +523,7 @@ function loadModSample(r) {
 
 /**
  * Load_MOD_SampleData (mod.c). Reads sample_length bytes of signed-8-bit PCM
- * and unsigns them (+128), then runs FixSample (samplefix.js) — mod.c calls
+ * and unsigns them (+128), then runs FixSample (samplefix.js) - mod.c calls
  * FixSample(samp) unconditionally at the end of Load_MOD_SampleData (line 86),
  * even for zero-length samples (it clamps the loop bounds).
  * @param {Reader} r
@@ -539,7 +539,7 @@ function loadModSampleData(r, samp, fixSample) {
     }
     samp.data = data;
   }
-  // FixSample( samp ) — mod.c, unconditional. See parseMod options.fixSample.
+  // FixSample( samp ) - mod.c, unconditional. See parseMod options.fixSample.
   if (fixSample) fixSample(samp);
 }
 
@@ -615,7 +615,7 @@ function loadModPattern(r, nchannels, instCountRef) {
   // The C Pattern struct (mas.h) is calloc'd: parapointer, clength, and the
   // cmarks[256] run-length-reset flags all start zero/false. The MAS serializer
   // (mas.js Mark_Patterns / Write_Pattern) reads cmarks[], so include the full
-  // shape — matching util.js makePattern() and the other loaders (xm/s3m/it).
+  // shape - matching util.js makePattern() and the other loaders (xm/s3m/it).
   return {
     parapointer: 0,
     nrows: 64,
@@ -629,7 +629,7 @@ function loadModPattern(r, nchannels, instCountRef) {
 
 /**
  * Convert a byte array (C char[] read raw) to a JS string, stopping at the
- * first NUL — mirrors how mmutil treats these as C strings for printf and
+ * first NUL - mirrors how mmutil treats these as C strings for printf and
  * for filename[0]=='#' SFX detection downstream.
  * @param {number[]} bytes
  * @returns {string}

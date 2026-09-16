@@ -1,12 +1,12 @@
-/* dc.h — minimal Dreamcast helper for romdev homebrew.
+/* dc.h - minimal Dreamcast helper for romdev homebrew.
  *
  * Brings up the PowerVR2 video output for a plain 640x480 RGB565 framebuffer and
- * exposes pixel/fill/rect primitives. No KallistiOS dependency — just the registers
+ * exposes pixel/fill/rect primitives. No KallistiOS dependency - just the registers
  * the Flycast (reios HLE) core needs to scan out a direct framebuffer.
  *
  * Memory map:
  *   PVR/HOLLY registers : 0xA05F8000 (uncached)
- *   VRAM (64-bit area)  : 0xA5000000 (16 MB) — the framebuffer lives here
+ *   VRAM (64-bit area)  : 0xA5000000 (16 MB) - the framebuffer lives here
  *
  * The DC has two VRAM views; the 64-bit area (0xA5000000) is the linear one we draw to.
  */
@@ -87,7 +87,7 @@ static inline void dc_rect(int x0, int y0, int w, int h, u16 c) {
 }
 
 /* ── Controller input (Maple bus, port 0) ─────────────────────────────────────
- * Digital-button bits, matching Flycast's DC kcode (active-LOW on the wire — a bit
+ * Digital-button bits, matching Flycast's DC kcode (active-LOW on the wire - a bit
  * is 0 when pressed). dc_pad() does a real Maple "Get Condition" DMA, inverts the
  * kcode to active-HIGH, and masks to the real button bits. The romdev host's
  * setInput drives the emulated pad. */

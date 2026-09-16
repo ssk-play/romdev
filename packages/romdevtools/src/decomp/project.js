@@ -1,7 +1,7 @@
-// project.js — a registered matching-decompilation project: the manifest, its
+// project.js - a registered matching-decompilation project: the manifest, its
 // durable workspace, toolchain fingerprints, and the per-TU compile invocation
 // captured from the project's OWN build system (never re-derived from a
-// guessed flag set — the Makefile's per-file exceptions are the truth).
+// guessed flag set - the Makefile's per-file exceptions are the truth).
 //
 // Workspace: ~/.romdev/decomp/<projectId>/ (or $ROMDEV_DECOMP_HOME/<id>). It
 // lives OUTSIDE the source checkout so nothing lands in the project's git
@@ -73,7 +73,7 @@ export async function importProject({ id, root, splatYaml, rom, expectedSha1, bu
   if (!fs.existsSync(romPath)) throw new Error(`base ROM '${romPath}' not found (splat target_path). Pass rom.`);
   const romSha1 = await sha1File(romPath);
   const want = expectedSha1 ?? map.sha1 ?? null;
-  if (want && want.toLowerCase() !== romSha1) throw new Error(`base ROM sha1 ${romSha1} != expected ${want} (from ${expectedSha1 ? "argument" : "splat yaml"}). Wrong ROM — refusing to register.`);
+  if (want && want.toLowerCase() !== romSha1) throw new Error(`base ROM sha1 ${romSha1} != expected ${want} (from ${expectedSha1 ? "argument" : "splat yaml"}). Wrong ROM - refusing to register.`);
   const romBuf = await readFile(romPath, { encoding: null });
   const splatPlatform = map.options.platform ?? "n64";
   const profile = profileFor(splatPlatform);
@@ -82,7 +82,7 @@ export async function importProject({ id, root, splatYaml, rom, expectedSha1, bu
   const buildCmd = buildCommand ?? (fs.existsSync(path.join(root, "tools", "matching-build.sh")) ? ["bash", "tools/matching-build.sh"] : ["make"]);
   const manifest = {
     manifestVersion: MANIFEST_VERSION, id, root, platform: profile.platform, splatPlatform, endian: profile.endian, platformVerified: profile.verified,
-    platformNote: profile.verified ? undefined : `the ${splatPlatform} splat path shares the MIPS code with n64 but has not been run on a real ${profile.platform} checkout yet — treat verdicts as unproven until a known-matching function compares exact here`,
+    platformNote: profile.verified ? undefined : `the ${splatPlatform} splat path shares the MIPS code with n64 but has not been run on a real ${profile.platform} checkout yet - treat verdicts as unproven until a known-matching function compares exact here`,
     registeredAt: new Date().toISOString(),
     splat: { yaml: path.relative(root, yamlPath), name: map.name, compiler: o.compiler ?? null, srcPath: sourceDir ?? o.src_path ?? "src", asmPath: o.asm_path ?? "asm", buildPath: o.build_path ?? "build",
       symbolAddrs: (o.symbol_addrs_path ? [].concat(o.symbol_addrs_path) : []), elfPath: o.elf_path ?? null, ldScript: o.ld_script_path ?? null, basename: o.basename ?? null },
@@ -127,7 +127,7 @@ export async function gitState(root) {
  * different HEAD with 141 dirty paths while status still said the
  * registration-time HEAD and 18 dirty files. Nothing marked it stale.
  *
- * `buildFreshness` answers the other half — whether the built artifact is
+ * `buildFreshness` answers the other half - whether the built artifact is
  * newer than every source/header it was built from. "unknown" is a real
  * answer here and is never upgraded to "fresh".
  */
@@ -317,13 +317,13 @@ export class Project {
         else if (!other) other = s;
       }
       if (best) name = best.name;
-      else if (other) symbolNote = `no symbol of segment '${res.segment}' covers ${hx(address)}; '${other.name}' (object ${other.object}) does in another overlay at the same VA — not adopted`;
+      else if (other) symbolNote = `no symbol of segment '${res.segment}' covers ${hx(address)}; '${other.name}' (object ${other.object}) does in another overlay at the same VA - not adopted`;
     }
     const src = name ? findFunctionSource(this.root, this.m.splat.srcPath, name) : [];
     const ldRec = name ? ld?.symbols.get(name) ?? null : null;
     // The target asm: the pragma's path when the function is still asm; otherwise
     // splat's extracted .s still exists under asm/<ver>/nonmatchings/ (splat keeps
-    // it after a match) — search by name. Neither → the ROM bytes are the target.
+    // it after a match) - search by name. Neither → the ROM bytes are the target.
     let targetAsm = null;
     if (src[0]?.asmPath && fs.existsSync(this.abs(src[0].asmPath))) targetAsm = { path: src[0].asmPath, from: "pragma" };
     else if (name) {

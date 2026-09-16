@@ -1,7 +1,7 @@
 // state({op:'load', reapplyCheats}) + the cheat sidecar on save.
 //
 // A restore always clears active cheats, and `cheatsCleared:N` has reported that
-// for a long time — in the right tool, at the moment it becomes true. It bit
+// for a long time - in the right tool, at the moment it becomes true. It bit
 // anyway: a reported session read `cheatsCleared:1`, moved on, re-seeded a rig,
 // ran 200 frames and took a screenshot that came back GAME OVER, because the
 // invincibility patch had been cleared two calls earlier. The gap is not
@@ -79,7 +79,7 @@ test("without reapplyCheats a load clears them and says so, pointing at the flag
   const r = parseResult(await handler({ op: "load", path: p, probeLiveness: false }));
 
   assert.equal(r.cheatsCleared, 1);
-  assert.equal(host.listActiveCheats().length, 0, "genuinely disarmed — this is what wasted the run");
+  assert.equal(host.listActiveCheats().length, 0, "genuinely disarmed - this is what wasted the run");
   assert.equal(r.cheatsReapplied, undefined);
   assert.match(r.cheatsClearedHint, /reapplyCheats:true/);
 });
@@ -132,7 +132,7 @@ test("saving with cheats active writes a sidecar; the .state bytes are untouched
   assert.ok(existsSync(p + ".cheats.json"), "sidecar written next to the state");
   const side = JSON.parse(readFileSync(p + ".cheats.json", "utf8"));
   assert.deepEqual(side.cheats.map((c) => c.code), ["OXAASYAO"]);
-  // The blob itself must be exactly what the core produced — that is the whole
+  // The blob itself must be exactly what the core produced - that is the whole
   // reason this is a sidecar and not a new field in the state format.
   assert.deepEqual(Array.from(readFileSync(p)), [1, 2, 3, 4]);
 });

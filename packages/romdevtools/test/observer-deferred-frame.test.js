@@ -1,5 +1,5 @@
 // The breakpoint/watch tools push the post-run framebuffer to /livestream for
-// the HUMAN to watch — but the PNG encode must NOT slow the agent down. This
+// the HUMAN to watch - but the PNG encode must NOT slow the agent down. This
 // pins that contract: a tool result carrying `_observerFrameProvider` has the
 // provider (a) stripped from the agent-visible result, (b) NOT invoked on the
 // tool's critical path, (c) invoked ASYNC afterward, and (d) emitted as a
@@ -28,7 +28,7 @@ test("deferred observer frame: stripped, async, off the agent's critical path", 
     const res = await captured({}, {});
     // (a) stripped from the agent-visible result
     assert.equal(res._observerFrameProvider, undefined, "provider must be stripped from the agent result");
-    // (b) NOT called synchronously — the expensive encode is off the agent's path
+    // (b) NOT called synchronously - the expensive encode is off the agent's path
     assert.equal(providerCalled, false, "provider must not run on the tool's critical path");
 
     // (c) called asynchronously after the response went out

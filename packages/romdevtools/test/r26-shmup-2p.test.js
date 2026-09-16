@@ -1,4 +1,4 @@
-// R26 — 2P competitive shmup on platforms with native dual-controller
+// R26 - 2P competitive shmup on platforms with native dual-controller
 // hardware. Adds shmup_2p template to Genesis + SMS. Each player owns
 // their own ship + bullet pool + score; enemies are shared (first hit
 // wins). Existing single-player `shmup` template unchanged.
@@ -19,7 +19,7 @@ async function readSource(rel) {
 test("R26 Genesis shmup_2p builds via buildGenesisC", { timeout: 180000 }, async () => {
   const { buildGenesisC } = await import("romdev-toolchain-m68k-gcc");
   const src = await readSource("examples/genesis/templates/shmup_2p.c");
-  // R30: scaffold uses genesis_sfx — provide it.
+  // R30: scaffold uses genesis_sfx - provide it.
   const sfxH = await readSource("../romdev-toolchain-m68k-gcc/share/genesis/lib/c/genesis_sfx.h");
   const sfxC = await readSource("../romdev-toolchain-m68k-gcc/share/genesis/lib/c/genesis_sfx.c");
   const r = await buildGenesisC({

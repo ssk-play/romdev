@@ -28,7 +28,7 @@ async function runJsgame(gamePath) {
 
   const globals = host.jsGlobals();
 
-  // Snapshot everything into a plain object BEFORE destroy() — `status` is a live
+  // Snapshot everything into a plain object BEFORE destroy() - `status` is a live
   // reference to host.status, and destroy() flips loaded/platform, so reading them
   // after teardown would report false/null.
   const result = {

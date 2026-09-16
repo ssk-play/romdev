@@ -1,4 +1,4 @@
-// pack — the "build" (zip) step for the native-runtime kinds. Round-trips: pack a dir
+// pack - the "build" (zip) step for the native-runtime kinds. Round-trips: pack a dir
 // into a .wasc/.jsgame, then confirm the host loads the packed archive back.
 
 import { test } from "node:test";

@@ -5,7 +5,7 @@
 // Why a child process (not a worker thread): rungame's jsgame session loads @kmamal/sdl,
 // which refuses to run off the main thread ("can only be used in the main thread"). A
 // forked child is a real process with its own main thread, so SDL works there. Running
-// the session in the child + calling it over rawr keeps the MAIN test process clean —
+// the session in the child + calling it over rawr keeps the MAIN test process clean -
 // killing the child disposes rungame's leaked SDL/audio/timer handles without a global
 // --test-force-exit (which would mask real leaks elsewhere).
 

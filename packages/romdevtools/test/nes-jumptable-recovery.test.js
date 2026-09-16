@@ -3,14 +3,14 @@
 // Static analysis follows direct addressing only, so a `JMP (table,X)` /
 // function-pointer dispatch collapses to "Could not recover jumptable" in the
 // decompiler. romdev resolves it dynamically: break at the dispatcher, single-
-// step THROUGH the indirect transfer, and record the PC it actually lands on —
+// step THROUGH the indirect transfer, and record the PC it actually lands on -
 // accumulating the distinct target set across frames. No static-only tool can
 // do this; it needs a live emulator in the loop.
 //
 // This builds a NES ROM whose main loop dispatches through a function-pointer
 // table indexed by a counter that changes every frame, so the dispatcher lands
 // on a DIFFERENT arm each frame. The op must recover MORE THAN ONE distinct
-// target — the property a static decompiler structurally cannot produce.
+// target - the property a static decompiler structurally cannot produce.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -39,7 +39,7 @@ const toJSON = (res) => { assert.equal(res.isError, undefined, "isError: " + JSO
 // A computed-jump dispatcher: `dispatch()` calls one of four handlers through a
 // function-pointer table indexed by (frame_counter & 3). cc65 lowers the
 // indirect call to a `jsr` into the pointer-call shim, which ends in an
-// indirect `jmp` — exactly the construct static analysis can't follow. The
+// indirect `jmp` - exactly the construct static analysis can't follow. The
 // counter advances every frame, so successive dispatches land on different
 // handlers → multiple distinct targets.
 const SRC = `
@@ -75,7 +75,7 @@ test("A4: breakpoint({on:'jumptable'}) recovers multiple computed targets (fceum
   }, undefined, { timeout: 180000 }));
   assert.equal(build.ok, true, "nes build failed:\n" + build.log);
   const romPath = build.binaryPath ?? build.outputPath ?? outPath;
-  // The four handler entry addresses — the recovered targets must BE these (not
+  // The four handler entry addresses - the recovered targets must BE these (not
   // the fixed trampolines on the dispatch path).
   const handlerAddrs = new Set(["h0", "h1", "h2", "h3"].map((h) => build.resolvedSymbols?.[h]?.address));
   assert.equal(handlerAddrs.size, 4, "expected 4 distinct handler addresses: " + JSON.stringify(build.resolvedSymbols));
@@ -94,13 +94,13 @@ test("A4: breakpoint({on:'jumptable'}) recovers multiple computed targets (fceum
     arguments: { on: "jumptable", address: sym, maxFrames: 240 },
   }));
 
-  assert.equal(jt.notSupported, undefined, "jumptable notSupported — pcbreak/step missing on fceumm?");
+  assert.equal(jt.notSupported, undefined, "jumptable notSupported - pcbreak/step missing on fceumm?");
   assert.equal(jt.ok, true, "op did not return ok: " + JSON.stringify(jt));
   assert.ok(jt.dispatcherHits > 0, "dispatcher never executed: " + JSON.stringify(jt));
   assert.equal(jt.resolved, true, "no targets resolved: " + JSON.stringify(jt));
   assert.notEqual(jt.singleArmObserved, true, "should observe multiple arms (tick cycles 0..3): " + JSON.stringify(jt));
 
-  // The recovered targets must BE the actual handler entries — not the fixed
+  // The recovered targets must BE the actual handler entries - not the fixed
   // trampolines on the dispatch path. cycling tick&3 over 240 frames hits all 4.
   const recovered = new Set(jt.targets.map((t) => t.targetRaw));
   const recoveredHandlers = [...handlerAddrs].filter((a) => recovered.has(a));
@@ -113,6 +113,6 @@ test("A4: breakpoint({on:'jumptable'}) recovers multiple computed targets (fceum
   for (const t of jt.targets) {
     assert.ok(typeof t.targetRaw === "number", "each target carries a raw address");
     assert.ok(t.hits >= 1 && t.hits < jt.dispatcherHits,
-      `target ${t.target} has hits=${t.hits} == dispatcherHits — that's a fixed trampoline, not a computed arm`);
+      `target ${t.target} has hits=${t.hits} == dispatcherHits - that's a fixed trampoline, not a computed arm`);
   }
 });

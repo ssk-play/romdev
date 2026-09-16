@@ -2,9 +2,9 @@
  * name table, enables display. Pressing P1-B1 scrolls the BG by one
  * pixel per frame.
  *
- * Single-file example — pulls the SMS hardware port declarations
+ * Single-file example - pulls the SMS hardware port declarations
  * directly. For a more realistic multi-file project, see
- * src/platforms/sms/lib/c/ (vdp_init.c, load_tiles.c, etc.) — those
+ * src/platforms/sms/lib/c/ (vdp_init.c, load_tiles.c, etc.) - those
  * snippets are bundled as part of the starter library:
  *
  *   getStarterSnippet({platform:"sms", name:"vdp_init", language:"c"})

@@ -1,4 +1,4 @@
-// GameTank ACP (audio coprocessor) state decoder — the "what is the sound doing
+// GameTank ACP (audio coprocessor) state decoder - the "what is the sound doing
 // this frame?" view that getAudioState gives the other platforms' chips.
 //
 // GameTank has no fixed-register synth (no APU/SID); its "sound chip" is a SECOND
@@ -6,7 +6,7 @@
 // rate. So this decode reports the ACP's STATE rather than per-voice registers:
 // the live DAC output, the IRQ/sample rate, run/mute flags, volume, and which
 // audio-CPU routine is executing. Data source: the romdev_acp_get export
-// (gametank core) — a Uint32Array(10) (see LibretroHost.getAcpState for layout).
+// (gametank core) - a Uint32Array(10) (see LibretroHost.getAcpState for layout).
 
 /**
  * @param {Uint32Array|null} a romdev_acp_get block (10 u32) or null
@@ -26,7 +26,7 @@ export function decodeGameTankAcp(a) {
   const clkMult = a[9] & 0xFF;
 
   // "playing" = the audio CPU is running, not muted/resetting, and the DAC isn't
-  // parked at the midpoint silence ($80) — a coarse but honest activity signal.
+  // parked at the midpoint silence ($80) - a coarse but honest activity signal.
   const playing = running && !muted && !resetting && dacReg !== 0x80;
 
   return {
@@ -48,6 +48,6 @@ export function decodeGameTankAcp(a) {
     note: muted ? "ACP muted"
       : resetting ? "ACP in reset"
       : !running ? "ACP idle (not running)"
-      : "ACP running — driving the DAC from audio RAM",
+      : "ACP running - driving the DAC from audio RAM",
   };
 }

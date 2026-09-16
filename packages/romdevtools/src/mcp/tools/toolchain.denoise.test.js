@@ -1,4 +1,4 @@
-// Unit tests for denoiseSuccessLog — strips GCC LTO interprocedural-optimization
+// Unit tests for denoiseSuccessLog - strips GCC LTO interprocedural-optimization
 // banners and the -ftime-report timing table from a SUCCESSFUL build log, so the
 // linker-map / objcopy signal isn't crowded out of the tail.
 

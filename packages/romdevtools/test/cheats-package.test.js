@@ -30,7 +30,7 @@ test("romdev lookupCheats resolves PCE cheats through the package", async () => 
   const r = await lookupCheats({ platform: "pce", romName: "1943 Kai (Japan)" });
   assert.equal(r.matched, true);
   assert.ok(r.entries.length >= 1, "PCE 1943 Kai should have cheats");
-  // PCE codes are raw hex ADDR:VAL — the first part's address must decode.
+  // PCE codes are raw hex ADDR:VAL - the first part's address must decode.
   assert.equal(typeof r.entries[0].parts[0].address, "number");
 });
 

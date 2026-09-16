@@ -1,4 +1,4 @@
-// Generic recompile IR — the spine of the source/target-agnostic port engine.
+// Generic recompile IR - the spine of the source/target-agnostic port engine.
 //
 // The port engine has two halves: a LIFTER turns one source-CPU instruction into
 // IR node(s); an EMITTER turns IR node(s) into target-CPU assembly. Adding a
@@ -10,30 +10,30 @@
 // DESIGN PRINCIPLE: the IR is DELIBERATELY SMALL and HONEST. It models only the
 // instruction classes a mechanical port actually needs, and REFUSES (rather than
 // guesses) anything whose semantics don't carry across ISAs. A refused node is
-// surfaced as residue, never silently mistranslated — the same contract the
+// surfaced as residue, never silently mistranslated - the same contract the
 // original 6502→65816 recompiler held. We are NOT building a full optimizing
 // compiler IR (SSA, types, dataflow); we're building a normalized transfer format
 // for "this instruction loads/stores/branches/calls/touches-hardware".
 //
 // IR node shape (a plain object; `op` is the discriminant):
-//   { op:'label',   name }                              — a code label / branch target
-//   { op:'reg',     mnemonic, operand, raw }            — a register/ALU op that maps
+//   { op:'label',   name }                              - a code label / branch target
+//   { op:'reg',     mnemonic, operand, raw }            - a register/ALU op that maps
 //        1:1 across the source & target's compatible register file. `kind` tags the
 //        abstract operation so an emitter that ISN'T 1:1 can translate it.
-//   { op:'load',    reg, addr, mode }                   — reg ← mem
-//   { op:'store',   reg, addr, mode }                   — mem ← reg
-//   { op:'alu',     fn, reg, operand, mode }            — reg = reg fn operand
-//   { op:'branch',  cond, target }                      — conditional relative branch
-//   { op:'jump',    target }                            — unconditional jump
-//   { op:'call',    target }                            — subroutine call (push return)
-//   { op:'ret',     kind:'sub'|'interrupt' }            — return
-//   { op:'hwreg',   access:'read'|'write', reg, addr, via } — a hardware-MMIO access
+//   { op:'load',    reg, addr, mode }                   - reg ← mem
+//   { op:'store',   reg, addr, mode }                   - mem ← reg
+//   { op:'alu',     fn, reg, operand, mode }            - reg = reg fn operand
+//   { op:'branch',  cond, target }                      - conditional relative branch
+//   { op:'jump',    target }                            - unconditional jump
+//   { op:'call',    target }                            - subroutine call (push return)
+//   { op:'ret',     kind:'sub'|'interrupt' }            - return
+//   { op:'hwreg',   access:'read'|'write', reg, addr, via } - a hardware-MMIO access
 //        (the "seam"): the target can't do the source's MMIO, so this becomes a
 //        call into the target's runtime shim. `reg` is the source register-file
 //        address (e.g. NES $2000); `via` is the CPU register carrying the value.
-//   { op:'passthrough', text, raw }                     — emitter writes `text` as-is
+//   { op:'passthrough', text, raw }                     - emitter writes `text` as-is
 //        (used by a 1:1 emitter where the source mnemonic IS a valid target mnemonic)
-//   { op:'refuse',  reason, raw }                       — not mechanically translatable;
+//   { op:'refuse',  reason, raw }                       - not mechanically translatable;
 //        becomes residue. NEVER emitted as code.
 //
 // Every node may carry `label` (a leading code label) and `addr` (the source CPU
@@ -60,7 +60,7 @@ export const IR = Object.freeze({
  * passthrough (e.g. emitting m68k from 6502, where `lda`→`move.b` and the named
  * 8-bit accumulator becomes a chosen data register). A lifter tags each `reg`/
  * `alu`/`load`/`store`/`branch` node with one of these so the emitter never has
- * to know the SOURCE mnemonic — only the abstract intent.
+ * to know the SOURCE mnemonic - only the abstract intent.
  */
 export const ABSTRACT = Object.freeze({
   // data movement
@@ -99,7 +99,7 @@ export const irRet = (kind, raw, label) => ({ op: IR.RET, kind, raw, label });
 export const irHwReg = (access, reg, via, raw, label) => ({ op: IR.HWREG, access, reg, via, raw, label });
 
 /**
- * Validate an IR program (array of nodes) — a cheap structural check so a buggy
+ * Validate an IR program (array of nodes) - a cheap structural check so a buggy
  * lifter fails loudly here, not deep in an emitter. Returns the array unchanged
  * or throws. Not a type system; just a guard that every node has a known `op`.
  * @param {Array<object>} nodes
@@ -116,7 +116,7 @@ export function validateIR(nodes) {
   return nodes;
 }
 
-/** Collect the residue (refused nodes) from an IR program — what the engine
+/** Collect the residue (refused nodes) from an IR program - what the engine
  *  could NOT mechanically translate, surfaced to the caller instead of guessed. */
 export function collectResidue(nodes) {
   return nodes.filter((n) => n.op === IR.REFUSE).map((n) => ({ reason: n.reason, line: (n.raw || "").trim() }));

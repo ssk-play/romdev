@@ -1,4 +1,4 @@
-// drawFpsOverlay — the F3 on-window fps counter drawn into the RGBA frame
+// drawFpsOverlay - the F3 on-window fps counter drawn into the RGBA frame
 // right before the SDL blit. Pure pixel writes; these tests pin that it
 // draws green digits on a black box in the top-left, stays inside its box,
 // and never writes out of bounds on tiny framebuffers.

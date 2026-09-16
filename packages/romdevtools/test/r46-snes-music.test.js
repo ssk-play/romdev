@@ -1,4 +1,4 @@
-// R46 — SNES SPC700 continuous music smoke test.
+// R46 - SNES SPC700 continuous music smoke test.
 //
 // Validates the music engine extension to the R31 sfx driver:
 //   - sfx_music_play() / sfx_music_stop() exist in snes_sfx.{h,c}
@@ -6,7 +6,7 @@
 //   - The music_demo template + driver source compile + link
 //   - All R31 sfx commands still exist (sfx_play, sfx_release)
 //
-// Doesn't run the ROM in an emulator (that's a separate verify step) —
+// Doesn't run the ROM in an emulator (that's a separate verify step) -
 // the build-passes contract is enough to catch regressions in the
 // driver source, the apu_blob.asm assembler invocation, or the C
 // wrapper signatures.
@@ -21,7 +21,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, "..");
 
 // R31 apu_blob was exactly 9240 bytes. The R46 music engine adds
-// ~80 bytes of driver code and a song table at ARAM $5000 — that
+// ~80 bytes of driver code and a song table at ARAM $5000 - that
 // $5000 base alone forces the payload past ~20 KB. Anything above
 // the R31 baseline proves the new code path is linked.
 const R31_APU_BLOB_SIZE = 9240;
@@ -30,7 +30,7 @@ test("R46 apu_blob.bin grew vs R31 (music engine + song table linked in)", async
   const apuBlob = await readFile(join(REPO_ROOT, "src/platforms/snes/lib/audio/apu_blob.bin"));
   assert.ok(
     apuBlob.length > R31_APU_BLOB_SIZE,
-    `apu_blob.bin is ${apuBlob.length} bytes — expected > ${R31_APU_BLOB_SIZE} (R31 baseline) after music-engine extension`,
+    `apu_blob.bin is ${apuBlob.length} bytes - expected > ${R31_APU_BLOB_SIZE} (R31 baseline) after music-engine extension`,
   );
 });
 

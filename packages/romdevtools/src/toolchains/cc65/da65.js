@@ -1,4 +1,4 @@
-// da65 — cc65's 6502 / 65C02 / 65816 disassembler, in WASM.
+// da65 - cc65's 6502 / 65C02 / 65816 disassembler, in WASM.
 //
 // Run with --cpu 6502 (default). For SNES/65816 use --cpu 65816.
 
@@ -24,7 +24,7 @@ const glue = () =>
   }));
 
 /** True if the da65 WASM (romdev-toolchain-cc65) is installed/resolvable, without
- *  throwing — for capability probes (catalog status) that must not crash when the
+ *  throwing - for capability probes (catalog status) that must not crash when the
  *  toolchain is absent. */
 export function da65Available() {
   try { return !!glue(); } catch { return false; }
@@ -63,7 +63,7 @@ export async function runDa65(args) {
   // Info-file precedence: explicit `info` > code-map RANGEs (65816 + spans) >
   // the whole-range-Code default (non-6502). 6502 with no spans/info uses da65's
   // built-in decode (no info file). An EMPTY spans array (`[]`, "region is all
-  // data") is distinct from absent (`undefined`, "no code map — decode it all"):
+  // data") is distinct from absent (`undefined`, "no code map - decode it all"):
   // for empty spans on 65816, codeMapInfo emits an info with zero Code RANGEs so
   // da65 dumps the whole region as `.byte`.
   const info = args.info
@@ -105,10 +105,10 @@ export async function runDa65(args) {
  * @param {string} cpu
  */
 function defaultCodeInfo(startAddress, length, cpu) {
-  // Don't put CPU in the info file — we already pass --cpu, and da65
+  // Don't put CPU in the info file - we already pass --cpu, and da65
   // errors on duplicate. INPUTOFFS too; we set --start-addr.
   // 65816 RANGEs need an ADDRMODE: M0X0 = both 16-bit, M1X1 = both 8-bit
-  // (the reset state). Default to M1X1 — matches what hardware boots
+  // (the reset state). Default to M1X1 - matches what hardware boots
   // into. Caller can override via custom info string for 16-bit modes.
   const hex = (n) => "$" + n.toString(16).toUpperCase();
   const endAddress = startAddress + length - 1;
@@ -116,7 +116,7 @@ function defaultCodeInfo(startAddress, length, cpu) {
   //   char 0 must be 'm' or 'M' (lowercase = A is 16-bit, uppercase = 8-bit)
   //   char 1 must be 'x' or 'X' (lowercase = X/Y are 16-bit, uppercase = 8-bit)
   // Post-reset SNES state is 8-bit A AND 8-bit X/Y → "MX".
-  // RANGE START/END are 16-bit only — da65 doesn't accept 24-bit
+  // RANGE START/END are 16-bit only - da65 doesn't accept 24-bit
   // bank-prefixed addresses in info-file RANGEs (it's an old NES/65xx
   // tool). Strip the bank for the info file; we'll still pass the full
   // 24-bit start to --start-addr so the asm output uses real labels.
@@ -137,21 +137,21 @@ function defaultCodeInfo(startAddress, length, cpu) {
  * Everything not covered stays da65's default (Data → `.byte`). This is the
  * 65816 readability-floor fix: da65 decodes real functions as opcodes and never
  * tries to decode inline data (which would mis-decode and desync the .a8/.i8
- * width state for the rest of the region). Byte-exact by construction — the
+ * width state for the rest of the region). Byte-exact by construction - the
  * gaps are literal bytes, the code round-trips.
  *
  * `spans` are region-relative byte offsets ({start, end} half-open); we add
  * `startAddress` to get CPU addresses, then strip to the low 16 bits (da65
- * RANGEs are 16-bit — the bank comes from --start-addr). Spans are assumed
+ * RANGEs are 16-bit - the bank comes from --start-addr). Spans are assumed
  * pre-merged, non-overlapping, sorted; each maps to one Code RANGE.
  *
  * @param {number} startAddress CPU address of region byte 0
  * @param {{start:number,end:number}[]} spans region-relative code byte offsets
- * @param {string} _cpu (only 65816 reaches here — kept for call-site symmetry)
+ * @param {string} _cpu (only 65816 reaches here - kept for call-site symmetry)
  */
 function codeMapInfo(startAddress, spans, _cpu) {
   const lo16 = (n) => "$" + ((startAddress + n) & 0xFFFF).toString(16).toUpperCase();
-  // ADDRMODE "MX" = post-reset 8-bit A / 8-bit X,Y — the entry width for each
+  // ADDRMODE "MX" = post-reset 8-bit A / 8-bit X,Y - the entry width for each
   // span. NOTE: da65 does NOT auto-widen on a mid-span `rep #$30`, so a 16-bit
   // immediate after a rep can render one byte short + a spurious following op.
   // That's still BYTE-EXACT (the reassemble heal pins any line whose bytes don't

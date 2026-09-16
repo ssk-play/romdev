@@ -1,4 +1,4 @@
-// scenario.js — replayable gameplay evidence, kept apart from byte matching.
+// scenario.js - replayable gameplay evidence, kept apart from byte matching.
 //
 // A boot smoke test answers "does it start". It cannot answer "does the rebuilt
 // ROM behave like the base one once the game is actually running", and it tells
@@ -79,7 +79,7 @@ const sha = (b) => createHash("sha256").update(b).digest("hex").slice(0, 16);
  * @param {{capability?:object}} [opts]
  */
 export async function runScenario(host, scenario, { capability } = {}) {
-  if (!host) throw Object.assign(new Error("runScenario: no host — loadMedia first"), { code: "NO_HOST" });
+  if (!host) throw Object.assign(new Error("runScenario: no host - loadMedia first"), { code: "NO_HOST" });
   const startFrame = host.status?.frameCount ?? 0;
   const windows = [];
   for (const e of scenario.inputs ?? []) {
@@ -129,7 +129,7 @@ export async function runScenario(host, scenario, { capability } = {}) {
       // difference between coverage evidence and a coverage-shaped guess.
       note: coverageExact
         ? "the core's PC bitmap was available: executed PCs are exact"
-        : "exact PC coverage is NOT available on this core, so nothing here may be reported as 'executed' — a frame-boundary sample only shows what was observed at a sample point",
+        : "exact PC coverage is NOT available on this core, so nothing here may be reported as 'executed' - a frame-boundary sample only shows what was observed at a sample point",
     },
     kind: "semantic",
     policy: "SEMANTIC evidence only. Runtime agreement is not byte matching: two ROMs can play identically and differ in bytes, and a "
@@ -139,7 +139,7 @@ export async function runScenario(host, scenario, { capability } = {}) {
 
 /**
  * Compare two scenario runs (base vs rebuilt).
- * Divergence is reported with the FIRST frame it appears at — the last frame
+ * Divergence is reported with the FIRST frame it appears at - the last frame
  * they agreed is what a bisect needs.
  */
 export function compareRuns(baseRun, rebuiltRun) {
@@ -167,7 +167,7 @@ export function compareRuns(baseRun, rebuiltRun) {
       : (baseRun.observations.filter((o) => o.frame < firstDiverged).at(-1)?.frame ?? null),
     kind: "semantic",
     note: diffs.length === 0
-      ? "the two runs agreed at every checkpoint. That is SEMANTIC agreement over this scenario only — it is not a byte-identity claim, and another scenario may still diverge."
+      ? "the two runs agreed at every checkpoint. That is SEMANTIC agreement over this scenario only - it is not a byte-identity claim, and another scenario may still diverge."
       : "divergence is semantic: the rebuilt ROM behaved differently. Start from `lastAgreedFrame` to bisect.",
   };
 }
@@ -192,7 +192,7 @@ export function coverageGuidedQueue({ remaining, executedPCs, symbolRanges, cove
     notObserved: uncovered.sort((a, b) => (b.sizeBytes ?? 0) - (a.sizeBytes ?? 0)),
     coverageExact: !!coverageExact,
     guidance: coverageExact
-      ? "Functions in `coveredByScenario` can have their behaviour checked against the base ROM after integration — prefer those when a "
+      ? "Functions in `coveredByScenario` can have their behaviour checked against the base ROM after integration - prefer those when a "
         + "semantic check is worth having. `notObserved` need a new scenario before runtime evidence is possible; a function reached only "
         + "through a table or callback may need one written specifically for it."
       : "coverage was NOT exact on this core, so `coveredByScenario` is a list of functions OBSERVED AT SAMPLE POINTS, not functions proven "

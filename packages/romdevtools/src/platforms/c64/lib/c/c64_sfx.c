@@ -1,4 +1,4 @@
-/* c64_sfx.c — SID driver for C64 scaffolds.
+/* c64_sfx.c - SID driver for C64 scaffolds.
  *
  * Three voices, each with:
  *   FREQ_LO/HI   16-bit frequency divider
@@ -13,7 +13,7 @@
  *
  * SID_VOL_MODE ($D418):
  *   bits 0..3  master volume 0..15 (15 = full)
- *   (filter bits in 4..7 — not used here)
+ *   (filter bits in 4..7 - not used here)
  *
  * Per-voice "frames-left" counter drives auto-key-off.
  */
@@ -48,9 +48,9 @@ void sfx_tone(uint8_t channel, uint8_t freq_lo, uint8_t freq_hi, uint8_t length_
   /* Pulse waveform at 50% duty (PW = 0x800). */
   POKE(SID_PW_LO(channel), 0x00);
   POKE(SID_PW_HI(channel), 0x08);
-  /* Attack 0, decay 9 — punchy then fades. */
+  /* Attack 0, decay 9 - punchy then fades. */
   POKE(SID_AD(channel), 0x09);
-  /* Sustain 8/15, release 5/15 — note holds then fades. */
+  /* Sustain 8/15, release 5/15 - note holds then fades. */
   POKE(SID_SR(channel), 0x85);
   /* Pulse waveform + GATE on. */
   ctrl = SID_PULSE | SID_GATE;
@@ -76,7 +76,7 @@ void sfx_update(void) {
     if (sfx_remaining[i] > 0) {
       sfx_remaining[i]--;
       if (sfx_remaining[i] == 0) {
-        /* Clear GATE — release phase of the ADSR envelope plays. */
+        /* Clear GATE - release phase of the ADSR envelope plays. */
         POKE(SID_CTRL(i), sfx_ctrl[i] & ~SID_GATE);
       }
     }

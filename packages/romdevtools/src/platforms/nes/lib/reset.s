@@ -1,4 +1,4 @@
-; NES — standard reset routine.
+; NES - standard reset routine.
 ;
 ; Sets up the CPU + APU + PPU to a known clean state. Standard idiom every
 ; NES game uses; copy this verbatim into a new project's reset handler and
@@ -37,7 +37,7 @@
   inx
   bne @clrmem
 
-  ; wait for second vblank — PPU is fully warm now
+  ; wait for second vblank - PPU is fully warm now
 @v2:
   bit $2002
   bpl @v2

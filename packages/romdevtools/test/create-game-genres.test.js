@@ -1,4 +1,4 @@
-// createGame — verify each NES genre scaffold (a) produces files on disk,
+// createGame - verify each NES genre scaffold (a) produces files on disk,
 // (b) builds successfully end-to-end through buildSource.
 
 import { test } from "node:test";
@@ -29,7 +29,7 @@ function toJSON(res) {
 }
 
 for (const genre of ["shmup", "platformer", "puzzle"]) {
-  test(`createGame({platform:"nes", genre:"${genre}"}) — scaffolds + builds`, async () => {
+  test(`createGame({platform:"nes", genre:"${genre}"}) - scaffolds + builds`, async () => {
     const client = await startClient();
     const tmp = mkdtempSync(path.join(os.tmpdir(), `genre-${genre}-`));
     try {
@@ -43,7 +43,7 @@ for (const genre of ["shmup", "platformer", "puzzle"]) {
       // Confirm the expected NES template files landed.
       const onDisk = readdirSync(tmp).sort();
       for (const f of ["main.c", "nes_runtime.h", "nes_runtime.c", "chr-ram-runtime.crt0.s", "chr-ram-runtime.cfg", "README.md"]) {
-        assert.ok(onDisk.includes(f), `missing ${f} in scaffold — got ${onDisk.join(", ")}`);
+        assert.ok(onDisk.includes(f), `missing ${f} in scaffold - got ${onDisk.join(", ")}`);
       }
       // main.c should be the genre template (not the generic default).
       const main = readFileSync(path.join(tmp, "main.c"), "utf-8");
@@ -74,11 +74,11 @@ for (const genre of ["shmup", "platformer", "puzzle"]) {
   });
 }
 
-test("createGame: the 14×5 grid is complete — atari2600/puzzle now forks", async () => {
+test("createGame: the 14×5 grid is complete - atari2600/puzzle now forks", async () => {
   const client = await startClient();
   const tmp = mkdtempSync(path.join(os.tmpdir(), "genre-a26puzzle-"));
   try {
-    // As of 2026-06-11 every platform ships all five canonical genres — the
+    // As of 2026-06-11 every platform ships all five canonical genres - the
     // 2600 was the last holdout and now ships TILE TWINS (memory match-pairs,
     // a real puzzle drawn with full-width COLUPF bands, no tilemap needed). So
     // this previously-rejected combo now forks. (The genuinely-unsupported

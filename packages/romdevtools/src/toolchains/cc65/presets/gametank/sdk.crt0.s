@@ -1,6 +1,6 @@
 ; ---------------------------------------------------------------------------
 ; GameTank SDK-runtime crt0 (single-bank EEPROM32K, with the bundled SDK gfx/
-; input/random/ACP runtime). Adapted from gametank_sdk src/gt/crt0.s, MIT — but
+; input/random/ACP runtime). Adapted from gametank_sdk src/gt/crt0.s, MIT - but
 ; STRIPPED of flash banking + the audio-FW asset: a single 32 KB cart maps at
 ; boot, so there's no flash bank to shift in, and the bare runtime has no
 ; asset-pipeline audio firmware. Calls _sdk_init (init_graphics + ACP) then
@@ -52,7 +52,7 @@ viaWakeup:
           JSR     initlib
 
           JSR     _sdk_init          ; init_graphics + ACP (the bundled runtime)
-          CLI                        ; enable IRQs — the draw queue + ACP are
+          CLI                        ; enable IRQs - the draw queue + ACP are
                                      ; INTERRUPT-DRIVEN (blit-done IRQ processes
                                      ; queue_draw_box; without CLI nothing draws)
           JSR     _main

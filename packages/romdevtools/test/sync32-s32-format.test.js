@@ -3,7 +3,7 @@
 //
 // This is an ORACLE test: every fixture is a cart the native SDK produced, so
 // a drift in our header packing shows up as a byte difference against a file
-// we did not write. The header is 64 bytes of offsets and a CRC — the kind of
+// we did not write. The header is 64 bytes of offsets and a CRC - the kind of
 // thing that is either exactly right or silently loads garbage on hardware,
 // which is why it is pinned to real output rather than to itself.
 //

@@ -1,4 +1,4 @@
-// C64 .d64 codec — pack a .prg into a 1541 disk image, read it back, extract.
+// C64 .d64 codec - pack a .prg into a 1541 disk image, read it back, extract.
 // The disk path is how the C64 resurgence ships/loads games (the new Commodore
 // 64 Ultimate FPGA hardware + the homebrew scene), so the codec has to produce a
 // real, loadable image and round-trip files out of it.
@@ -16,7 +16,7 @@ function fakePrg(n = 300) {
 }
 
 // REGRESSION: a directory entry whose name is in HIGH-BIT PETSCII (0xC1..0xDA =
-// A..Z) — how the C64 KERNAL SAVE actually stores filenames. readDirectory used
+// A..Z) - how the C64 KERNAL SAVE actually stores filenames. readDirectory used
 // to drop those bytes, so an emulator-written "SCORE" read back as an empty name
 // and the file looked missing. This is the bug that hid working in-game saves.
 test("readDirectory decodes high-bit PETSCII filenames (KERNAL SAVE style)", () => {

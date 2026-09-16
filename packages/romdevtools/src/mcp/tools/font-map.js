@@ -1,17 +1,17 @@
-// learnFontMap / encodeTextForRom / findEncodedText — text-hack workflow.
+// learnFontMap / encodeTextForRom / findEncodedText - text-hack workflow.
 //
 // Every retro game maps characters to tile-IDs differently (one NES racer:
 // A=$0A, B=$0B, ..., Z=$23; another game: ASCII offset; a third: sparse table). The
 // agent currently reverse-engineers this by hand each session. These
 // three tools automate it:
 //
-//   1. learnFontMap   — from known {text, offset} hints, infer the map.
-//   2. encodeTextForRom — text + map → bytes (ready for patchFile).
-//   3. findEncodedText — text + map → list of file offsets + cpu addr +
+//   1. learnFontMap   - from known {text, offset} hints, infer the map.
+//   2. encodeTextForRom - text + map → bytes (ready for patchFile).
+//   3. findEncodedText - text + map → list of file offsets + cpu addr +
 //                        context + likelySlotLength (catches length-byte
 //                        overruns).
 //
-// All three are platform-agnostic — the mapping is per-ROM, not per-
+// All three are platform-agnostic - the mapping is per-ROM, not per-
 // platform. The `platform` arg is only used for CPU-address translation
 // in findEncodedText (NES/GB/GBC bank-aware, Genesis flat; SNES is mapper-
 // dependent and left to fileOffset).
@@ -26,7 +26,7 @@ import { getHost } from "../state.js";
  * bank (O >> 14). The FIXED top bank (the last 16KB) is mapped at $C000-$FFFF;
  * any other (switchable) bank is mapped at $8000-$BFFF when banked in. A flat
  * `$8000 + O` (the old behavior) overflows past $FFFF for any bank > 0 on a
- * multi-bank ROM — e.g. it returned $15E03 for prg $DE03 instead of bank 3 /
+ * multi-bank ROM - e.g. it returned $15E03 for prg $DE03 instead of bank 3 /
  * $9E03. Returns null when the offset isn't inside PRG.
  * @param {number} fileOffset raw .nes offset (includes the 16-byte iNES header)
  * @param {number} prgSize total PRG size in bytes (header[4] * 16384)
@@ -70,7 +70,7 @@ async function learnFontMapCore({ romPath, knownStrings, alphabet }) {
       if (byte === undefined) {
         throw new Error(
           `learnFontMap: hint {text: "${text}", offset: 0x${offset.toString(16).toUpperCase()}} ` +
-          `extends past EOF — char '${ch}' at position ${i} would read byte ${offset + i} but ROM is ${data.length} bytes.`
+          `extends past EOF - char '${ch}' at position ${i} would read byte ${offset + i} but ROM is ${data.length} bytes.`
         );
       }
       if (fontMap[ch] !== undefined && fontMap[ch] !== byte) {
@@ -105,7 +105,7 @@ async function learnFontMapCore({ romPath, knownStrings, alphabet }) {
 
 /**
  * Infer the font map from text RENDERED ON SCREEN: read the live nametable and
- * pull the tile IDs at each hint's (row,col) position — the tile ID IS the
+ * pull the tile IDs at each hint's (row,col) position - the tile ID IS the
  * fontMap byte for that character. Solves the chicken-and-egg (you'd otherwise
  * need the ROM offset, which is what you're hunting). Works on every tilemap
  * platform via makeTilemapReader (NES/SNES/Genesis/GB-GBC/SMS-GG/C64).
@@ -161,7 +161,7 @@ async function makeTilemapReader(host, platform, which) {
     const fillram = host.readMemory("snes_fillram", 0, 0x8000);
     const ppu = decodePpuRegs(fillram);
     const bg = ppu.bg?.[which] ?? ppu.bg?.[0];
-    if (!bg) throw new Error("learnFontMap fromScreen: couldn't resolve a SNES BG tilemap base (PPU regs not populated — step a frame first).");
+    if (!bg) throw new Error("learnFontMap fromScreen: couldn't resolve a SNES BG tilemap base (PPU regs not populated - step a frame first).");
     const base = bg.scBaseByte; // VRAM byte offset of the BG map
     const vram = host.readMemory("video_ram", 0, 0x10000);
     // BG map entry: 2 bytes LE; tile index = low 10 bits. 32×32 per screen.
@@ -188,8 +188,8 @@ async function makeTilemapReader(host, platform, which) {
  * a bitmap, where each cell is a unique tile). The trap a long RE session hit:
  * Some games' player names are bitmaps, so patching the ASCII string does nothing.
  * Signals a graphic when: (1) a repeated character used a DIFFERENT tile each
- * time (a real font reuses one tile per letter) — the direct proof; OR (2) every
- * tile is unique AND the ids form a near-contiguous run (tiles X,X+1,X+2,… = one
+ * time (a real font reuses one tile per letter) - the direct proof; OR (2) every
+ * tile is unique AND the ids form a near-contiguous run (tiles X,X+1,X+2,... = one
  * ripped image). `repeatedCharReuse` is null/true/false from the scan loop.
  * @param {Array<{ch:string, tileId:number}>} reads
  * @param {boolean|null} repeatedCharReuse
@@ -237,7 +237,7 @@ async function learnFontMapFromScreen({ platform, fromScreen, which = 0, alphabe
       const tileId = reader.tile(row, c);
       // A real font reuses the SAME tile for the SAME letter. A pre-rendered
       // graphic (the name drawn as a bitmap) uses a different tile per cell even
-      // for repeated letters — so a same-char-different-tile is NOT a conflict
+      // for repeated letters - so a same-char-different-tile is NOT a conflict
       // there, it's the tell. Record it instead of hard-erroring; decide after.
       if (fontMap[ch] !== undefined) {
         if (fontMap[ch] === tileId) repeatedCharReuse = true;
@@ -266,19 +266,19 @@ async function learnFontMapFromScreen({ platform, fromScreen, which = 0, alphabe
     learnedChars: Object.keys(fontMap).sort().join(""),
     unknownChars,
     inferredFrom,
-    note: "Tile/char IDs read from the live tilemap — they ARE the in-ROM character bytes for a game that stores text as raw tile indices. Verify with findEncodedText before patching.",
+    note: "Tile/char IDs read from the live tilemap - they ARE the in-ROM character bytes for a game that stores text as raw tile indices. Verify with findEncodedText before patching.",
   };
   if (looksLikeGraphic) {
     result.likelyPreRenderedGraphic = true;
     result.warning =
-      "⚠ These tiles look like a PRE-RENDERED GRAPHIC, not font-rendered text — " +
+      "⚠ These tiles look like a PRE-RENDERED GRAPHIC, not font-rendered text - " +
       (repeatedCharReuse === false
         ? "a repeated character used a DIFFERENT tile each time (a real font reuses one tile per letter). "
-        : "every tile is unique and the ids form a contiguous run (tiles X,X+1,X+2,… = one ripped bitmap). ") +
-      "So this on-screen text is NOT sourced from a string/font you can patch — it's an image uploaded to VRAM. " +
+        : "every tile is unique and the ids form a contiguous run (tiles X,X+1,X+2,... = one ripped bitmap). ") +
+      "So this on-screen text is NOT sourced from a string/font you can patch - it's an image uploaded to VRAM. " +
       "Editing it means changing the TILE BITMAPS (the pixels), not an ASCII string. Do NOT patch a text string " +
       "expecting this to change. To find where the graphic came from, trace the VRAM source (watch the VRAM-DMA " +
-      "source address). The fontMap below is unreliable here — it's per-cell tile ids, not a reusable character map.";
+      "source address). The fontMap below is unreliable here - it's per-cell tile ids, not a reusable character map.";
   }
   return result;
 }
@@ -389,7 +389,7 @@ async function findEncodedTextCore({ romPath, text, fontMap, fontMapPath, platfo
     }
   }
   if (unknown.length > 0) {
-    // Don't bail — wildcards still find partial matches.
+    // Don't bail - wildcards still find partial matches.
   }
 
   const data = new Uint8Array(await readFile(romPath));
@@ -433,13 +433,13 @@ async function findEncodedTextCore({ romPath, text, fontMap, fontMapPath, platfo
       const inBank = i & 0x3FFF;
       cpuAddress = "$" + ((bank === 0 ? 0x0000 : 0x4000) + inBank).toString(16).toUpperCase();
     } else if (platform === "genesis" || platform === "megadrive" || platform === "md") {
-      // Genesis: flat 68k ROM mapped at $000000, no header — file offset IS the
+      // Genesis: flat 68k ROM mapped at $000000, no header - file offset IS the
       // CPU address.
       cpuAddress = "$" + i.toString(16).toUpperCase();
     }
     // SNES is intentionally left null: file-offset → CPU address depends on the
     // LoROM/HiROM mapper (and a possible 512B copier header), so a correct value
-    // needs the mapper — not guessed here. Use prgFileOffset/fileOffset for SNES.
+    // needs the mapper - not guessed here. Use prgFileOffset/fileOffset for SNES.
 
     // PRG-frame offset (NES: subtract the 16-byte iNES header). Useful
     // because patchFile against `prg.bin` (from extractCart) needs the
@@ -462,7 +462,7 @@ async function findEncodedTextCore({ romPath, text, fontMap, fontMapPath, platfo
       prgFileOffsetDec,
       cpuAddress,
       // NES/GB/GBC: the 16KB bank this byte lives in. cpuAddress is the in-bank
-      // CPU address (valid only when this bank is mapped in) — pair them when
+      // CPU address (valid only when this bank is mapped in) - pair them when
       // feeding disassembleRom({ startAddress: cpuAddress, bank }).
       ...(bank != null ? { bank } : {}),
       contextBefore: ctxBefore,
@@ -497,31 +497,31 @@ async function findEncodedTextCore({ romPath, text, fontMap, fontMapPath, platfo
 export function registerFontMapTools(server, z, sessionKey) {
   server.tool(
     "text",
-    "Custom-font text workflow for ROM hacking — learn a game's character→tile encoding, then encode/find strings. " +
+    "Custom-font text workflow for ROM hacking - learn a game's character→tile encoding, then encode/find strings. " +
     "`op`: 'learn' | 'encode' | 'find'.\n" +
     "'learn' infers a ROM's custom char→tile-ID map (most retro games use their own font encoding). TWO modes:\n" +
     "• ROM mode (`knownStrings:[{text, offset}]`): you found the text's bytes in the ROM file.\n" +
-    "• LIVE mode (`fromScreen:[{text, row, col}]`): the text is RENDERED on screen now — reads tile IDs straight " +
+    "• LIVE mode (`fromScreen:[{text, row, col}]`): the text is RENDERED on screen now - reads tile IDs straight " +
     "from the live nametable at a tile (row,col). Solves the chicken-and-egg where you'd need the ROM offset to " +
     "learn the map. Live mode works on NES/SNES/Genesis/GB/GBC/SMS/GG/C64; NOT atari2600/7800 (race-the-beam) or " +
-    "lynx/gba (bitmap fb) — use ROM mode there. `which` selects the nametable/plane/BG layer.\n" +
+    "lynx/gba (bitmap fb) - use ROM mode there. `which` selects the nametable/plane/BG layer.\n" +
     "⚠ GRAPHIC vs FONT (live mode): if on-screen 'text' is actually a PRE-RENDERED GRAPHIC (a name/logo drawn as a " +
-    "bitmap, not font-rendered — common for player names, title logos), 'learn' DETECTS it (repeated letters use " +
+    "bitmap, not font-rendered - common for player names, title logos), 'learn' DETECTS it (repeated letters use " +
     "different tiles, or the tiles are a unique contiguous run) and returns `likelyPreRenderedGraphic:true` + a " +
-    "`warning`. Then the text is NOT editable as a string — change the tile bitmaps, not ASCII. Heed it before " +
+    "`warning`. Then the text is NOT editable as a string - change the tile bitmaps, not ASCII. Heed it before " +
     "patching a string that won't do anything.\n" +
-    "'encode' is the inverse — text → ROM bytes (hex AND base64, ready for romPatch). Unknown chars fall back to " +
+    "'encode' is the inverse - text → ROM bytes (hex AND base64, ready for romPatch). Unknown chars fall back to " +
     "`unknownChar` (default 0xFC = NES blank tile) and are listed in `unknownChars[]`.\n" +
-    "'find' locates a string in a ROM via the map — decodes surrounding context and flags a likely length-prefix " +
+    "'find' locates a string in a ROM via the map - decodes surrounding context and flags a likely length-prefix " +
     "byte before each match (catches the off-by-one where text has a leading length byte). Returns `fileOffset` " +
     "(raw .nes), `prgFileOffset` (NES header-stripped), and a bank-aware `cpuAddress` when `platform` is " +
-    "nes/gb/gbc/genesis (+ `bank` on nes/gb/gbc — pass both to disasm on a banked ROM). SNES cpuAddress is left " +
+    "nes/gb/gbc/genesis (+ `bank` on nes/gb/gbc - pass both to disasm on a banked ROM). SNES cpuAddress is left " +
     "null (LoROM/HiROM mapper-dependent); use fileOffset there.",
     {
       op: z.enum(["learn", "encode", "find"]).describe("learn a font map; encode text→bytes; find a string in a ROM."),
       // shared
       romPath: z.string().optional().describe("op=learn(ROM mode)/find: absolute path to the ROM file."),
-      platform: z.string().optional().describe("op=learn: required for `fromScreen` live mode. op=find: nes|gb|gbc|genesis|megadrive|md enables bank-aware CPU-address translation (snes left null — mapper-dependent; use fileOffset)."),
+      platform: z.string().optional().describe("op=learn: required for `fromScreen` live mode. op=find: nes|gb|gbc|genesis|megadrive|md enables bank-aware CPU-address translation (snes left null - mapper-dependent; use fileOffset)."),
       text: z.string().optional().describe("op=encode: text to encode. op=find: text to search for."),
       fontMap: z.record(z.string(), z.number().int().min(0).max(255)).optional().describe("op=encode/find: inline char→byte map (from a prior learn)."),
       fontMapPath: z.string().optional().describe("op=encode/find: JSON file with the font map ({fontMap:{...}} or a bare {ch:byte} object)."),

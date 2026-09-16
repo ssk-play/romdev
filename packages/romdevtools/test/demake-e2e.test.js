@@ -1,6 +1,6 @@
 // End-to-end demake demonstration:
 //
-//   1. Build a NES ROM with cc65 — its CHR ROM contains the cc65 default
+//   1. Build a NES ROM with cc65 - its CHR ROM contains the cc65 default
 //      font (HELLO-ish glyphs).
 //   2. Extract that CHR from the iNES file.
 //   3. Render it to a PNG as we'd show the user.
@@ -61,7 +61,7 @@ test("demake: NES CHR → PNG → GB tiles round-trip", async () => {
   await writeFile(path.join(tmp, "gb-out.chr"), r.tiles);
 
   // 5. Verify the converted CHR isn't all zeros and tiles have varied content.
-  // Pick a tile from the middle of the source — should be a font glyph.
+  // Pick a tile from the middle of the source - should be a font glyph.
   // The cc65 font tiles 0x30-0x39 are digits '0'-'9'; we'll inspect a few.
   let nonEmptyTiles = 0;
   let multiColorTiles = 0;

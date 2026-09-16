@@ -1,6 +1,6 @@
 // Phase 2 gate (ROMDEV_CORE_RUNNER_PLAN §6b): the isomorphic core must run a
 // full emulation session from BYTES with the Node adapter DISABLED
-// ({io: false} — exactly what a browser bundle gets), and the result must be
+// ({io: false} - exactly what a browser bundle gets), and the result must be
 // byte-identical to the path-based Node load. The test does all the I/O; the
 // host under test touches no disk, no tmpdir, no node:fs.
 

@@ -1,4 +1,4 @@
-; SNES — OAM (sprite list) upload.
+; SNES - OAM (sprite list) upload.
 ;
 ; OAM is 544 bytes total: 512 byte "low table" (128 sprites × 4 bytes)
 ; plus 32 byte "high table" (2 bits per sprite, packed).
@@ -17,7 +17,7 @@
 ;   bit 0   = X position high bit (sprite X is 9-bit signed!)
 ;   bit 1   = size select (small/large per OBSEL $2101)
 ;
-; The simplest pattern — write the whole 544 bytes via DMA each frame
+; The simplest pattern - write the whole 544 bytes via DMA each frame
 ; from a "shadow OAM" in WRAM at $0400-$0621. Update sprites by writing
 ; to the shadow; the OAM DMA every NMI flushes.
 ;
@@ -26,7 +26,7 @@
 ;
 ; OAM DMA via channel 0:
 ;
-;   stz $2102           ; OAMADDL — start at OAM byte 0
+;   stz $2102           ; OAMADDL - start at OAM byte 0
 ;   stz $2103           ; OAMADDH
 ;   stz $4300           ; DMA mode 0 (1 byte to one register)
 ;   lda #$04

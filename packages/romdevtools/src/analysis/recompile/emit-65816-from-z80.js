@@ -5,7 +5,7 @@
 // re-emit verbatim; Z80 mnemonics do not exist on a 65816 at all, and emitting
 // them produces a file that looks like assembly and cannot build.
 //
-// REGISTER MODEL — the whole design turns on this.
+// REGISTER MODEL - the whole design turns on this.
 //
 // The Z80 has more registers than the 65816 (A,B,C,D,E,H,L + the 16-bit pairs
 // BC/DE/HL/IX/IY/SP), and the 65816 has A,X,Y and a direct page. So the Z80
@@ -66,7 +66,7 @@ function pairSlot(name) {
  *
  * `I` is the interrupt-vector register and `R` the memory-refresh counter.
  * Neither exists on a 65816, and both are plain identifiers, so `ld a,r` sailed
- * through `labelToken()` and emitted `lda r` — an ALU op against a LABEL NAMED
+ * through `labelToken()` and emitted `lda r` - an ALU op against a LABEL NAMED
  * r that does not exist, rejected by asar as Elabel_not_found. Emitting a
  * marker keeps the line visible in the output AND counted in residue, which is
  * the honest outcome: refusing to translate is not the same as pretending the
@@ -221,12 +221,12 @@ function restoreIndexWidth(state, out) {
   if (state.wide) out.push(`${I}sep     #$10            ; back to 8-bit index`);
 }
 
-/** Untranslatable line marker — visible in the output AND in the residue. */
+/** Untranslatable line marker - visible in the output AND in the residue. */
 function untranslated(node, why) {
   return `${I}; UNTRANSLATED (${why}): ${(node.raw || "").trim()}`;
 }
 
-/** Z80 `ld` — the single most common instruction, hence its own path. */
+/** Z80 `ld` - the single most common instruction, hence its own path. */
 function emitLd(node, out) {
   const [dst, src] = operands(node.operand);
   if (!dst || !src) { out.push(untranslated(node, "ld needs two operands")); return; }
@@ -320,7 +320,7 @@ function emitAlu(op65, node, out) {
     const pr = pairSlot(src);
     const albl = labelToken(src) ?? absolute(src);
     // ORDER MATTERS. `absolute()` also accepts the `(LABEL)` spelling, so it
-    // matches `(hl)` and hands back the bare text `hl` — which then emitted
+    // matches `(hl)` and hands back the bare text `hl` - which then emitted
     // `eor hl`, an ALU op against a LABEL NAMED hl that does not exist. asar
     // rejects it with Elabel_not_found, and only on real code: a register
     // indirect as an ALU source is common in commercial ROMs and absent from
@@ -427,7 +427,7 @@ function emitReg(node, out) {
       }
       out.push(untranslated(node, `unsupported ${m} operand`)); return;
     }
-    // bit/set/res N,<target> — the 65816 has no bit-addressing, so build the
+    // bit/set/res N,<target> - the 65816 has no bit-addressing, so build the
     // mask and use and/ora/bit.
     case "bit": case "set": case "res": {
       const parts = String(node.operand ?? "").split(",");
@@ -452,7 +452,7 @@ function emitReg(node, out) {
       // `ex af,af'` swaps the accumulator/flags with their shadow copies.
       // Shadows live just past the main file, so the swap is byte moves.
       if (/^af\s*,\s*af'?$/i.test(String(node.operand ?? "").trim())) {
-        out.push(`${I}; ex af,af' — swap A/F with their shadow copies`);
+        out.push(`${I}; ex af,af' - swap A/F with their shadow copies`);
         for (const [main, shadow] of [[DP.A, 0x10], [DP.F, 0x11]]) {
           out.push(`${I}lda     ${dp(main)}`, `${I}pha`,
                    `${I}lda     ${dp(shadow)}`, `${I}sta     ${dp(main)}`,
@@ -520,12 +520,12 @@ function emitReg(node, out) {
     }
     // Interrupt mode / halt have no 65816 equivalent worth faking; they are
     // system-level and the target's own init owns that decision.
-    case "im":   out.push(`${I}; im ${node.operand ?? ""} — interrupt mode is the target's own concern`); return;
-    case "halt": out.push(`${I}; halt — target decides (wai on 65816 if an IRQ will arrive)`); return;
+    case "im":   out.push(`${I}; im ${node.operand ?? ""} - interrupt mode is the target's own concern`); return;
+    case "halt": out.push(`${I}; halt - target decides (wai on 65816 if an IRQ will arrive)`); return;
     case "exx": {
       // Swap BC/DE/HL with the shadow bank. Shadows occupy $12..$17, mirroring
       // the main file's layout so each swap is a word move.
-      out.push(`${I}; exx — swap BC/DE/HL with the shadow bank`);
+      out.push(`${I}; exx - swap BC/DE/HL with the shadow bank`);
       out.push(`${I}rep     #$20`);
       for (const [main, shadow] of [[DP.C, 0x12], [DP.E, 0x14], [DP.L, 0x16]]) {
         out.push(`${I}lda     ${dp(main)}`, `${I}pha`,
@@ -553,7 +553,7 @@ export function emit65816FromZ80Body(ir) {
   // ONE DEFINITION PER LABEL. A label can arrive twice for the same address:
   // once as its own LABEL node and again attached to the instruction that
   // follows it. Emitting both produced `reset:` twice and asar rejected the
-  // file with Elabel_redefined — visible only on a slice big enough to include
+  // file with Elabel_redefined - visible only on a slice big enough to include
   // the vector table, which is why a small region assembled fine. Defining a
   // label a second time is never meaningful here, so the duplicate is dropped
   // rather than renamed: a renamed label would silently break the branch that
@@ -574,8 +574,8 @@ export function emit65816FromZ80Body(ir) {
         //
         // A Z80 `jr`/`djnz` and a 65816 `beq`/`bne` have the SAME +/-128 range,
         // so a naive 1:1 emission looks safe. It is not: this emitter expands
-        // ONE Z80 instruction into MANY 65816 instructions — every 16-bit pair
-        // op becomes a rep/op/sep sandwich — so a loop that fit comfortably in
+        // ONE Z80 instruction into MANY 65816 instructions - every 16-bit pair
+        // op becomes a rep/op/sep sandwich - so a loop that fit comfortably in
         // Z80 no longer fits. Real code fails in both directions (measured
         // -139, -482 and +252 on commercial ROMs); a short synthetic routine
         // survives, which is exactly why an assembly gate on a small fixture
@@ -584,7 +584,7 @@ export function emit65816FromZ80Body(ir) {
         // The fix is the standard assembler expansion: invert the condition,
         // branch OVER a long jump, and let the long jump carry the distance.
         // `brl` is +/-32767 and stays relative, so the output remains
-        // position-independent — which a `jmp` to an absolute label would not.
+        // position-independent - which a `jmp` to an absolute label would not.
         const b = BRANCH_OF[node.cond] ?? "bne";
         const inv = BRANCH_INVERSE[b] ?? "beq";
         const over = `Lz80_br_${brSeq++}`;
@@ -622,7 +622,7 @@ export function emit65816FromZ80Body(ir) {
   return out.join("\n");
 }
 
-/** The Z80 I/O seam stub — one place to wire the target's real hardware. */
+/** The Z80 I/O seam stub - one place to wire the target's real hardware. */
 export function emitZ80SeamAsm() {
   return [
     "; Z80 I/O seam. X = port number, A = value (write) / result (read).",

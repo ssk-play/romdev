@@ -31,7 +31,7 @@ import { NES_PALETTE } from "./palette.js";
 /**
  * Convert a PNG buffer to CHR bytes.
  *
- * @param {Buffer | Uint8Array} pngBytes      PNG-encoded image (any source — agent-generated, ripped from another ROM)
+ * @param {Buffer | Uint8Array} pngBytes      PNG-encoded image (any source - agent-generated, ripped from another ROM)
  * @param {Object} [opts]
  * @param {number} [opts.maxTiles] hard cap on tile count (e.g. 256 = one pattern table)
  * @returns {ConvertResult}

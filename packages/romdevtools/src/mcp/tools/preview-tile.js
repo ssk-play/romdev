@@ -1,5 +1,5 @@
-// previewTileArt — render tile bytes against a palette to PNG. Pure
-// compositing — no emulator build cycle. Replaces the build → load →
+// previewTileArt - render tile bytes against a palette to PNG. Pure
+// compositing - no emulator build cycle. Replaces the build → load →
 // screenshot loop per art tweak: encode bytes, preview, iterate, then
 // patchFile once the bytes look right.
 //
@@ -44,13 +44,13 @@ async function resolveTileBytes({ tileBytes, tilePath, fromEmulator, tileStart, 
   if (fromEmulator) {
     const host = getHostOrNull(sessionKey);
     if (!host || !host.status?.platform) {
-      throw new Error("previewTileArt: fromEmulator:true requires a loaded ROM — call loadMedia first.");
+      throw new Error("previewTileArt: fromEmulator:true requires a loaded ROM - call loadMedia first.");
     }
     const region = liveTileRegion(platform);
     const startByte = (tileStart ?? 0) * bytesPerTile;
     const lenBytes = (tileCount ?? 256) * bytesPerTile;
     let bytes = host.readMemory(region, startByte, lenBytes);
-    // Genesis VRAM is host-LE 16-bit-word-swapped — un-swap so tiles decode in
+    // Genesis VRAM is host-LE 16-bit-word-swapped - un-swap so tiles decode in
     // VDP render order (same correction getTile applies). Other platforms /
     // file sources are already logical.
     const md = platform === "genesis" || platform === "megadrive" || platform === "md";
@@ -74,7 +74,7 @@ async function resolveTileBytes({ tileBytes, tilePath, fromEmulator, tileStart, 
     const prgSize = file[4] * 16384;
     const chrSize = file[5] * 8192;
     if (chrSize === 0) {
-      throw new Error(`previewTileArt: '${tilePath}' is a CHR-RAM cart — no graphics in the file. Load it and pass paletteFromEmulator:true with tileBytes from a live readMemory.`);
+      throw new Error(`previewTileArt: '${tilePath}' is a CHR-RAM cart - no graphics in the file. Load it and pass paletteFromEmulator:true with tileBytes from a live readMemory.`);
     }
     const chr = file.slice(16 + prgSize, 16 + prgSize + chrSize);
     const startByte = (tileStart ?? 0) * bytesPerTile;
@@ -83,7 +83,7 @@ async function resolveTileBytes({ tileBytes, tilePath, fromEmulator, tileStart, 
       : chr.length;
     return { bytes: chr.subarray(startByte, endByte), source: "file (iNES auto-CHR)" };
   }
-  // Raw bytes — whole file is tile data.
+  // Raw bytes - whole file is tile data.
   const startByte = (tileStart ?? 0) * bytesPerTile;
   const endByte = tileCount != null
     ? Math.min(startByte + tileCount * bytesPerTile, file.length)
@@ -93,7 +93,7 @@ async function resolveTileBytes({ tileBytes, tilePath, fromEmulator, tileStart, 
 
 /**
  * Resolve a palette into N RGB triples for the platform's bit depth.
- * Generic across platforms — decodes each platform's native palette format
+ * Generic across platforms - decodes each platform's native palette format
  * into a flat [r,g,b][] for the renderer.
  *
  * Inputs:
@@ -146,7 +146,7 @@ async function resolvePalette({ platform, palette, palettePath, paletteIndex, pa
     // No ROM loaded. Under intent:"homebrew" (live-or-platform colorMode)
     // fall back to the per-platform default palette so the agent still
     // gets COLOR, not grayscale. Under rom-hack, the explicit
-    // paletteFromEmulator:true was clearly an error — surface it.
+    // paletteFromEmulator:true was clearly an error - surface it.
     if (intentDefaults?.colorMode === "live-or-platform") {
       const { DEFAULT_PALETTES } = await import("../../platforms/common/default-palette.js");
       if (DEFAULT_PALETTES[platform]) return DEFAULT_PALETTES[platform];
@@ -280,7 +280,7 @@ function decodePaletteBytes(data, platform, subIdx, spec) {
 
 /**
  * Render N tiles to a PNG sheet given decoded pixel-index arrays + a
- * palette. Generic — works for any platform whose decoder we have.
+ * palette. Generic - works for any platform whose decoder we have.
  */
 function renderSheet(tileBytes, platform, paletteRgb, tilesPerRow, scale, bytesPerTile, fallbackBg) {
   const tileCount = Math.floor(tileBytes.length / bytesPerTile);
@@ -341,7 +341,7 @@ export async function previewTileArtCore(args) {
   const bytesPerTile = (8 * 8 * spec.bpp) / 8;
   // byteOffset: preview tiles starting at a raw BYTE offset (e.g. a watchDma /
   // findReferences source, which is byte-exact but rarely tile-aligned). Convert
-  // to a tile index and WARN if it isn't a clean multiple of the tile size — a
+  // to a tile index and WARN if it isn't a clean multiple of the tile size - a
   // mid-tile start silently scrambles every tile, which is the trap the agent
   // hit. (Takes precedence over tileStart when both are given.)
   let alignmentWarning;
@@ -352,9 +352,9 @@ export async function previewTileArtCore(args) {
       const upper = lower + bytesPerTile;
       alignmentWarning =
         `byteOffset 0x${args.byteOffset.toString(16).toUpperCase()} is NOT a multiple of the ${bytesPerTile}-byte ${platform} tile size ` +
-        `(${spec.bpp}bpp) — tiles will be mis-decoded. Nearest tile-aligned offsets: ` +
+        `(${spec.bpp}bpp) - tiles will be mis-decoded. Nearest tile-aligned offsets: ` +
         `0x${lower.toString(16).toUpperCase()} or 0x${upper.toString(16).toUpperCase()}. ` +
-        `(A DMA/findReferences source is byte-exact but rarely tile-aligned — a graphic usually starts a few bytes after a header.)`;
+        `(A DMA/findReferences source is byte-exact but rarely tile-aligned - a graphic usually starts a few bytes after a header.)`;
     }
     args = { ...args, tileStart: Math.floor(args.byteOffset / bytesPerTile) };
   }
@@ -364,7 +364,7 @@ export async function previewTileArtCore(args) {
   let resolvedPaletteFromEmulator = args.paletteFromEmulator;
   if (resolvedPaletteFromEmulator === undefined && !args.palette && !args.palettePath) {
     // If the TILES come from the live emulator, default the palette to live
-    // too — "preview my uploaded tiles" almost always means against the live
+    // too - "preview my uploaded tiles" almost always means against the live
     // palette. Otherwise fall back to the intent default.
     resolvedPaletteFromEmulator = args.fromEmulator ? true : d.colorMode === "live-or-platform";
   }

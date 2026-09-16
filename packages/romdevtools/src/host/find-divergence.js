@@ -52,7 +52,7 @@ export function findDivergence(hostA, hostB, { region = "system_ram", regionB = 
   }
   if (primaryError) throw Object.assign(primaryError, { restoration });
   // A frame-0 divergence returns BEFORE the stepping loop, so changedFramesA/B
-  // are structurally 0 — not an observation that the slots sat still. Reporting
+  // are structurally 0 - not an observation that the slots sat still. Reporting
   // them undecorated made a caller read "slot B never executes a frame" off a
   // result that never asked slot B to execute one. Say which it is.
   const steppedAtAll = framesStepped > 0;
@@ -69,7 +69,7 @@ export function findDivergence(hostA, hostB, { region = "system_ram", regionB = 
       ...(steppedAtAll ? {} : { activityNote: "No frames were stepped, so changedFramesA/B are 0 by construction and say NOTHING about whether either slot executes. The comparison ended before the stepping loop (the slots already differed at frame 0). To test whether a slot advances, step it directly: frame({op:'step', slot:'b'})." }) },
     restoration,
     conclusion: result.diverged ? "diverged" : meaningfulActivity ? "no-observed-divergence" : "inconclusive-no-observed-memory-activity",
-    note: result.diverged ? `First divergence at frame ${result.atFrame} in the selected memory.${result.atFrame === 0 ? " The slots differed BEFORE any frame was stepped, so this is a difference in starting state, not an execution divergence — warm each side to a common point with frame({op:'step', slot:'a'|'b'}) and compare from there. Note that an emulator slot is NOT at hardware power-on after loadMedia: warm-up frames ran during load (loadMedia reports settleFrames) and the game's boot code has already written RAM, so a starting-state difference here is expected rather than a finding about either side." : ""} This localizes an observation, not its cause.`
+    note: result.diverged ? `First divergence at frame ${result.atFrame} in the selected memory.${result.atFrame === 0 ? " The slots differed BEFORE any frame was stepped, so this is a difference in starting state, not an execution divergence - warm each side to a common point with frame({op:'step', slot:'a'|'b'}) and compare from there. Note that an emulator slot is NOT at hardware power-on after loadMedia: warm-up frames ran during load (loadMedia reports settleFrames) and the game's boot code has already written RAM, so a starting-state difference here is expected rather than a finding about either side." : ""} This localizes an observation, not its cause.`
       : meaningfulActivity ? "Selected memory agreed at each sampled frame and changed during execution. This does not prove whole-program equivalence or instruction-level lockstep."
         : "Selected memory remained unchanged on one or both sides. An idle/spin loop can produce this result; it is NOT a successful verification of the recompiled game." };
 }

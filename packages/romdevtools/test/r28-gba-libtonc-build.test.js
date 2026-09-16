@@ -1,13 +1,13 @@
-// R28 — Game Boy Advance libtonc smoke test.
+// R28 - Game Boy Advance libtonc smoke test.
 //
 // Confirms the libtonc runtime path works end-to-end. libtonc is the
-// new DEFAULT GBA C runtime as of R28 (replacing libgba — see PLAN.md
+// new DEFAULT GBA C runtime as of R28 (replacing libgba - see PLAN.md
 // + new_note_for_mcp_user.md for the rationale).
 //
 // Three paths exercised:
-//   runtime: "libtonc" — Tonc tutorial alignment, TTE text engine
-//   runtime: "libgba"  — devkitPro SDK (R24 backward compat)
-//   runtime: "none"    — bare main() against raw GBA regs
+//   runtime: "libtonc" - Tonc tutorial alignment, TTE text engine
+//   runtime: "libgba"  - devkitPro SDK (R24 backward compat)
+//   runtime: "none"    - bare main() against raw GBA regs
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { buildGbaC } from "romdev-platform-gba";
 
 test("R28 GBA libtonc (default): #include <tonc.h> compiles + links", { timeout: 180000 }, async () => {
-  // Default runtime is libtonc — no `runtime` arg needed.
+  // Default runtime is libtonc - no `runtime` arg needed.
   const r = await buildGbaC({
     source: `
 #include <tonc.h>
@@ -33,7 +33,7 @@ int main(void) {
 });
 
 test("R28 GBA libtonc: TTE drawing actually links (tte_init_chr4c_default + tte_write)", { timeout: 180000 }, async () => {
-  // TTE (Tonc Text Engine) is the headline libtonc feature — tile-text
+  // TTE (Tonc Text Engine) is the headline libtonc feature - tile-text
   // rendering without needing libsysbase. This is the path that
   // replaces libgba's console.c for "Hello, World".
   const r = await buildGbaC({
@@ -50,14 +50,14 @@ int main(void) {
   });
   assert.equal(r.ok, true, `TTE build failed at ${r.stage}: ${(r.log || "").slice(-800)}`);
   assert.equal(r.runtime, "libtonc");
-  // TTE pulls in the font + a chunk of libtonc — expect a much bigger
+  // TTE pulls in the font + a chunk of libtonc - expect a much bigger
   // ROM than the bare hello (R24 measured 32 KB for tonc_hello.c).
   assert.ok(r.binary.length > 4000,
     `TTE-using ROM should be substantial; got ${r.binary.length}`);
 });
 
 test("R28 GBA libgba opt-in still works after R28 default switch", { timeout: 180000 }, async () => {
-  // R24 backward-compatibility check — anyone passing runtime:"libgba"
+  // R24 backward-compatibility check - anyone passing runtime:"libgba"
   // (or the legacy libgba:true flag) must keep getting the libgba path.
   const r = await buildGbaC({
     source: `

@@ -1,4 +1,4 @@
-/* ── music_demo.c — SNES SPC700 continuous-music demo ──────────────
+/* ── music_demo.c - SNES SPC700 continuous-music demo ──────────────
  *
  * Standalone demo of the R46 music engine in the bundled SPC driver.
  * After sfx_init(), calling sfx_music_play() kicks off a looping
@@ -7,14 +7,14 @@
  * resume it.
  *
  * What this demonstrates:
- *   - Music engine runs autonomously on the SPC700 once started —
+ *   - Music engine runs autonomously on the SPC700 once started -
  *     no per-frame work is required from the 65816 side. The 65816
  *     just sends one command byte ($03 = start, $04 = stop) and the
  *     SPC700 walks the song table itself, driven by its own Timer 0.
  *   - SFX and music coexist on separate DSP voices (voice 0 vs 1),
  *     so triggering a shoot doesn't interrupt the melody.
  *
- * Pair with a real BRR instrument sample for proper music tone — the
+ * Pair with a real BRR instrument sample for proper music tone - the
  * bundled shoot.brr is short and percussive, so the arpeggio sounds
  * chirpy/8-bit. Replace via apu_blob.asm + scripts/build-apu-blob.js.
  *
@@ -50,7 +50,7 @@ int main(void) {
     consoleInitText(0, 16 * 2, &tilfont, &palfont);
     setMode(BG_MODE1, 0);
     /* consoleInitText DMAs the font but does NOT set the PPU BG base
-     * registers — point BG0 at the same font ($3000) + map ($6800). */
+     * registers - point BG0 at the same font ($3000) + map ($6800). */
     bgSetGfxPtr(0, 0x3000);
     bgSetMapPtr(0, 0x6800, SC_32x32);
 
@@ -74,7 +74,7 @@ int main(void) {
     setScreenOn();
 
     /* Upload SPC driver + sample bank + song table to ARAM. sfx_init() must
-     * run AFTER setScreenOn() (snes_sfx.h:63) — if the SPC stalls before the
+     * run AFTER setScreenOn() (snes_sfx.h:63) - if the SPC stalls before the
      * screen is on you get a black/forced-blank screen forever. */
     sfx_init();
 
@@ -82,7 +82,7 @@ int main(void) {
      * instant the SPC echoes the jump command, but the driver then spends
      * ~50 port writes initialising the DSP BEFORE it seeds its command
      * edge-detector from $2140. A command sent inside that window gets
-     * swallowed by the seed — the music silently never starts. */
+     * swallowed by the seed - the music silently never starts. */
     WaitForVBlank();
 
     /* Auto-start music. */

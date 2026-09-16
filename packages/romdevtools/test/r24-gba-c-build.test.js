@@ -1,12 +1,12 @@
-// R24 — Game Boy Advance C tier-1 build smoke test.
+// R24 - Game Boy Advance C tier-1 build smoke test.
 //
 // End-to-end check that the WASM toolchain (cc1-arm + arm-none-eabi-as
 // + arm-none-eabi-ld + arm-none-eabi-objcopy) + bundled libgba runtime
 // produces a loadable .gba ROM from a `#include <gba.h>` source.
 //
 // Two paths exercised:
-//   libgba: false (minimum-viable) — bare main() against raw GBA regs
-//   libgba: true  (full SDK)       — links libgba.a + libgcc + libc
+//   libgba: false (minimum-viable) - bare main() against raw GBA regs
+//   libgba: true  (full SDK)       - links libgba.a + libgcc + libc
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

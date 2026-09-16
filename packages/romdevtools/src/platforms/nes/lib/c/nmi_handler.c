@@ -1,4 +1,4 @@
-/* nmi_handler.c — install a C-level NMI handler for NES.
+/* nmi_handler.c - install a C-level NMI handler for NES.
  *
  * REQUIRES: linkerConfig:"chr-ram" AND `nmi_trampoline.s` (paste both).
  *
@@ -9,16 +9,16 @@
  *
  * PITFALLS:
  *   - DO NOT include this when also using the chr-ram crt0's default
- *     stub — they both define `nmi:`. The trampoline below assumes
+ *     stub - they both define `nmi:`. The trampoline below assumes
  *     you've also dropped the crt0's `nmi: rti` (or replaced the
- *     whole crt0 with a custom one — see the comments in
+ *     whole crt0 with a custom one - see the comments in
  *     src/toolchains/cc65/presets/nes/chr-ram.crt0.s).
  *
  *     Easiest path: don't override the default crt0 here. Instead just
  *     don't include nmi_trampoline.s, and put your "wait for vblank"
  *     pattern in main() using `bit $2002 / bpl` via inline asm or by
  *     polling `*(volatile uint8_t*)0x2002`. The default `nmi: rti`
- *     still fires (so PPU vblank flag DOES tick) — you just won't run
+ *     still fires (so PPU vblank flag DOES tick) - you just won't run
  *     custom code at that moment.
  *
  *   - If you do install a real NMI handler, keep it SHORT. Vblank is
@@ -37,7 +37,7 @@ volatile uint8_t vblank_ready;
 volatile uint8_t nmi_count;
 
 /* This is the C-side handler the trampoline jumps to. Name + signature
- * are coupled to nmi_trampoline.s — change both together. */
+ * are coupled to nmi_trampoline.s - change both together. */
 void __fastcall__ nmi_c_main(void) {
     /* 1. OAM DMA: shadow OAM at $0200..$02FF → sprite RAM. 513 cycles. */
     *(volatile uint8_t*)0x2003 = 0;       /* OAMADDR = 0 */

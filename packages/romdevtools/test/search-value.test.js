@@ -1,7 +1,7 @@
-// searchValue / searchNext — the iterative RAM value search (cheat-search).
+// searchValue / searchNext - the iterative RAM value search (cheat-search).
 //
 // Verifies the engine end-to-end on a LIVE host (plant a known value with
-// writeMemory, search for it, change it, narrow) on more than one platform —
+// writeMemory, search for it, change it, narrow) on more than one platform -
 // it operates on the generic system_ram region so it works on all 14.
 
 import { test } from "node:test";

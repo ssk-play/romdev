@@ -1,6 +1,6 @@
-/* ── shmup.c — Game Boy Advance vertical shooter (complete example game) ─────
+/* ── shmup.c - Game Boy Advance vertical shooter (complete example game) ─────
  *
- * A COMPLETE, working game — title screen, score + persistent hi-score
+ * A COMPLETE, working game - title screen, score + persistent hi-score
  * (cartridge SRAM), music + SFX, waves of enemies, and the GBA's signature
  * hardware feature shown BOTH ways it exists:
  *   - an AFFINE BACKGROUND: the playfield backdrop is a vortex on BG2 that
@@ -8,40 +8,40 @@
  *   - an AFFINE SPRITE: the wave boss is a 32x32 OBJ that spins and
  *     scale-pulses as it attacks (OAM affine parameter slot 0, double-size)
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented GBA footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented GBA footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — enemy patterns, scoring, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - enemy patterns, scoring, tuning, art: reshape freely.
  *
  * What depends on what:
- *   gba_sfx.{h,c} — PSG sound: sfx_tone/sfx_noise one-shots + the music loop
- *     (sfx_music_tick once per frame — forget it and the game is silent).
- *   libtonc (the build links it) — VBlankIntrWait/key_poll/OAM/TTE.
+ *   gba_sfx.{h,c} - PSG sound: sfx_tone/sfx_noise one-shots + the music loop
+ *     (sfx_music_tick once per frame - forget it and the game is silent).
+ *   libtonc (the build links it) - VBlankIntrWait/key_poll/OAM/TTE.
  *
  * HANDHELD, SO SINGLE-PLAYER ONLY (honest note): 2P on GBA means a link
- * cable between two units — a second emulator instance this environment
+ * cable between two units - a second emulator instance this environment
  * can't provide. Title is press-start, no mode select.
  *
  * Frame budget: ARM7TDMI at 16.78MHz with this object count (1+6+6+boss)
  * doesn't come close to a full frame; the affine math is a handful of
- * multiplies per frame, not per pixel — the PPU does the per-pixel work.
+ * multiplies per frame, not per pixel - the PPU does the per-pixel work.
  */
 
 #include <tonc.h>
 #include "gba_sfx.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "GYRE GUNNER"
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * Object pools — fixed slots, no allocation. Sprite slot discipline (128 OAM
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * Object pools - fixed slots, no allocation. Sprite slot discipline (128 OAM
  * entries total, we use 14):
  *   slot 0      → player
  *   slot 1..6   → bullets
  *   slot 7..12  → enemies
- *   slot 13     → boss (AFFINE — uses OAM affine parameter slot 0; see the
+ *   slot 13     → boss (AFFINE - uses OAM affine parameter slot 0; see the
  *                 affine-sprite idiom below for why slot CHOICE matters)
  */
 #define MAX_BULLETS 6
@@ -77,20 +77,20 @@ static const u32 tile_enemy[8] = {
 typedef struct { s16 x, y; u16 alive; } Obj;
 
 static OBJ_ATTR obj_buffer[128];
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * OAM AFFINE SLOT LAYOUT. There is no separate affine-matrix memory: the 32
  * OBJ_AFFINE parameter sets live INTERLEAVED inside OAM itself, in the
  * 16-bit "fill" field of every OBJ_ATTR (4 sprites × 8 bytes carry one
- * 8-byte matrix between them — pa in sprite 4n, pb in 4n+1, pc in 4n+2,
+ * 8-byte matrix between them - pa in sprite 4n, pb in 4n+1, pc in 4n+2,
  * pd in 4n+3). Casting the shadow-OAM buffer to OBJ_AFFINE* is the whole
  * trick: obj_aff_buffer[k] aliases the fill words of sprites 4k..4k+3, and
  * one oam_copy() of the full buffer commits sprites AND matrices together.
  * Consequences you must respect:
  *   - oam_init() already set all 32 matrices to identity (pa=pd=0x0100).
- *   - NEVER memset OBJ_ATTRs to 0 — that zeroes the interleaved matrices
+ *   - NEVER memset OBJ_ATTRs to 0 - that zeroes the interleaved matrices
  *     (pa=0 means "scale by infinity": every affine sprite vanishes).
  *   - Matrix slot k is INDEPENDENT of which sprite uses it (attr1 AFF_ID
- *     picks any of the 32) — but the bytes live under sprites 4k..4k+3.
+ *     picks any of the 32) - but the bytes live under sprites 4k..4k+3.
  * requires: obj_buffer staged with oam_init(), committed with oam_copy(). */
 static OBJ_AFFINE *const obj_aff_buffer = (OBJ_AFFINE *)obj_buffer;
 
@@ -104,33 +104,33 @@ static u8  kills;           /* kills this wave (boss gate) */
 static u16 spawn_timer;
 static u16 frame;           /* free-running frame counter (drives the vortex) */
 
-/* Boss state — the affine sprite showcase. */
+/* Boss state - the affine sprite showcase. */
 static u8  boss_active;
 static s16 boss_x, boss_y;  /* CENTER of the boss, in screen pixels */
 static u8  boss_hp;
 static u16 boss_theta;      /* rotation angle: full circle = 0x10000 */
 static u16 boss_pulse;      /* scale-pulse phase */
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static u8 state;
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * PERSISTENT SRAM at 0x0E000000. Two footguns, both fatal-but-silent:
- *   1. The SRAM bus is 8 BITS WIDE. Byte reads/writes only — a u16/u32
+ *   1. The SRAM bus is 8 BITS WIDE. Byte reads/writes only - a u16/u32
  *      access doesn't fault, it just reads the same byte mirrored (and a
  *      wide write stores one byte), so your data "almost" round-trips and
  *      then the checksum never matches. Every access below is via vu8.
  *   2. Emulators and flashcarts detect the SAVE TYPE by scanning the ROM
  *      image for a marker string. Without "SRAM_V" in the ROM, mGBA gives
  *      the cart NO save memory at all and writes to 0x0E000000 vanish.
- *      The aligned, (used)-attributed const below plants that marker —
+ *      The aligned, (used)-attributed const below plants that marker -
  *      delete it and persistence dies even though this code is untouched.
- * Layout: 'V' 'X' score-lo score-hi checksum (xor ^ 0xA5) — magic+checksum
+ * Layout: 'V' 'X' score-lo score-hi checksum (xor ^ 0xA5) - magic+checksum
  * so a fresh (0xFF-filled) cart reads as "no record" instead of garbage.
- * requires: nothing else — self-contained; safe to transplant whole. */
+ * requires: nothing else - self-contained; safe to transplant whole. */
 #define SRAM_BYTE ((volatile u8 *)0x0E000000)
 __attribute__((used, aligned(4))) static const char sram_type_marker[] = "SRAM_V113";
 
@@ -151,10 +151,10 @@ static void hiscore_save(u16 v) {
     SRAM_BYTE[4] = (u8)((u8)v ^ (u8)(v >> 8) ^ 0xA5);
 }
 
-/* ── GAME LOGIC (clay) — TTE text helpers ────────────────────────────────────
+/* ── GAME LOGIC (clay) - TTE text helpers ────────────────────────────────────
  * Draw right-aligned decimal digits at pixel (x,y) WITHOUT tte_printf. The
  * bundled libtonc's tte_printf with a %d conversion is broken (it routes
- * through a vsnprintf path that isn't wired in this build — it garbles
+ * through a vsnprintf path that isn't wired in this build - it garbles
  * output AND wedges the loop when called per-frame, GBA-1). We build the
  * string ourselves and use tte_write, which processes the #{P:x,y} position
  * command but does NO format conversion → safe every frame. */
@@ -175,22 +175,22 @@ static void draw_num(int x, int y, unsigned v, int digits) {
     tte_write(buf);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * AFFINE BACKGROUND (BG2, Mode 1) — the GBA's "Mode 7": one background the
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * AFFINE BACKGROUND (BG2, Mode 1) - the GBA's "Mode 7": one background the
  * PPU rotates/scales per frame for free. This block owns four matrix
  * registers and one reference point:
  *
- *   REG_BG2PA..PD — a 2x2 matrix in 8.8 FIXED POINT (256 == 1.0) that maps
+ *   REG_BG2PA..PD - a 2x2 matrix in 8.8 FIXED POINT (256 == 1.0) that maps
  *     SCREEN pixels → TEXTURE pixels:  tex = P · (screen - origin) + ref.
  *     Because it maps screen→texture (the INVERSE of "how is the image
  *     transformed"), a matrix that SAMPLES texture 2px per screen px makes
  *     the image look HALF size: bigger pa = smaller image. To zoom IN by z,
  *     write 1/z; to rotate the image one way, write the matrix of the other.
- *   REG_BG2X/Y — the texture point sampled at screen pixel (0,0), in 20.8
+ *   REG_BG2X/Y - the texture point sampled at screen pixel (0,0), in 20.8
  *     fixed point. Without compensation the bg rotates around the screen's
  *     TOP-LEFT. To pivot around screen center (cx,cy)=(120,80) anchored at
  *     texture point (tx,ty): BG2X = (tx<<8) - (pa*cx + pb*cy)  (same shape
- *     for Y with pc/pd) — i.e. "walk back from the anchor by half a screen
+ *     for Y with pc/pd) - i.e. "walk back from the anchor by half a screen
  *     through the matrix".
  *
  * The math, spelled out (libtonc's bg_aff_rotscale does the same):
@@ -205,15 +205,15 @@ static void draw_num(int x, int y, unsigned v, int digits) {
  *     keep your angle/zoom in variables (boss_theta-style) and rewrite ALL
  *     of them every frame.
  *   - Affine BGs are ALWAYS 8bpp, and the map is 1 BYTE per tile (no flip
- *     bits, no palbank — plain tile index), unlike regular BGs' u16 entries.
+ *     bits, no palbank - plain tile index), unlike regular BGs' u16 entries.
  *   - VRAM IGNORES BYTE WRITES (a u8 store writes the byte TWICE into the
  *     16-bit lane). Building tiles/map in a work-RAM staging buffer and
- *     tonccpy()ing them over is the idiom — tonccpy is VRAM-safe.
+ *     tonccpy()ing them over is the idiom - tonccpy is VRAM-safe.
  *   - BG_WRAP makes the 256x256 texture tile forever; without it everything
  *     outside the map edge renders as tile 0.
  * requires: DCNT_MODE1 (BG2 affine there), BG2CNT pointing CBB 1 / SBB 26,
  *   vortex_apply() called every frame, BG palette indices 224..228 (bank 14
- *   — bank 15 belongs to TTE; see the palette footgun at vortex_build). */
+ *   - bank 15 belongs to TTE; see the palette footgun at vortex_build). */
 static void vortex_apply(u16 theta, u32 zoom_q8) {
     s32 inv = (s32)(65536u / zoom_q8);          /* 8.8 ── 1/zoom        */
     s32 cc  = ((lu_cos(theta) >> 4) * inv) >> 8; /* 8.8 ── cosθ/zoom    */
@@ -225,8 +225,8 @@ static void vortex_apply(u16 theta, u32 zoom_q8) {
     REG_BG2Y = (128 << 8) - (ss * 120 +   cc  * 80);
 }
 
-/* ── GAME LOGIC (clay) — the vortex ART (the idiom above is the machinery;
- * this is just what the texture looks like — replace at will).
+/* ── GAME LOGIC (clay) - the vortex ART (the idiom above is the machinery;
+ * this is just what the texture looks like - replace at will).
  * 8bpp tiles are 64 bytes, 1 byte per pixel, row-major. We stage 5 tiles +
  * the 32x32 one-byte-per-entry map in work RAM, then tonccpy to VRAM
  * (CBB 1 tiles, SBB 26 map) per the byte-write footgun above. The texture
@@ -236,7 +236,7 @@ static void vortex_apply(u16 theta, u32 zoom_q8) {
  * tte_init_chr4c_default OWNS BANK 15 (indices 240-255: ink 241 = yellow,
  * shadow 242 = orange). Park 8bpp art colors in bank 14 (224..) or your
  * backdrop turns ink-yellow the moment TTE initialises. */
-#define VC 224   /* vortex colors live at 224..228 — clear of TTE's bank 15 */
+#define VC 224   /* vortex colors live at 224..228 - clear of TTE's bank 15 */
 static void vortex_build(void) {
     static u8 tiles[5][64];
     static u8 vmap[1024];
@@ -283,23 +283,23 @@ static void vortex_build(void) {
     REG_BG2CNT = BG_CBB(1) | BG_SBB(26) | BG_AFF_32x32 | BG_WRAP | BG_PRIO(3);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * AFFINE SPRITE (the boss) — same 8.8 screen→texture matrix as the affine
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * AFFINE SPRITE (the boss) - same 8.8 screen→texture matrix as the affine
  * BG, but stored in OAM affine slot 0 (see the slot-layout idiom at
  * obj_aff_buffer). Three OBJ-specific footguns this block dodges:
  *   1. attr0 mode bits: ATTR0_AFF (01) turns affine ON; ATTR0_AFF_DBL (11)
  *      is affine + DOUBLE-SIZE. Without double-size the sprite is clipped
- *      to its original WxH box — a rotated 32x32 has its corners CUT OFF
+ *      to its original WxH box - a rotated 32x32 has its corners CUT OFF
  *      (≈29% of the diagonal) and a zoomed-up one is cropped to 32x32.
  *      Double-size renders into a 64x64 window so rotation/zoom≤2x fits.
  *   2. Double-size MOVES THE SPRITE: attr0/attr1 x/y are the top-left of
  *      the RENDER WINDOW, so the visual center sits at (x+32, y+32) for a
- *      32x32 sprite — position it by center and subtract 32 (a plain
+ *      32x32 sprite - position it by center and subtract 32 (a plain
  *      sprite would subtract 16). Forks that toggle DBL must re-anchor.
- *   3. ATTR0_HIDE does NOT hide an affine sprite — mode bits 01/11 reuse
+ *   3. ATTR0_HIDE does NOT hide an affine sprite - mode bits 01/11 reuse
  *      the hide bit. To hide the boss, drop attr0 back to a REGULAR hidden
  *      object (ATTR0_HIDE alone), as boss_stage() does below.
- * requires: OAM affine slot 0 free (sprites 0..3's fill words — fine here,
+ * requires: OAM affine slot 0 free (sprites 0..3's fill words - fine here,
  *   they're regular objects whose fill is untouched), obj_buffer committed
  *   by oam_copy() every frame, boss tiles at OBJ tile 16 (4bpp 32x32, 1D). */
 static void boss_stage(void) {
@@ -323,7 +323,7 @@ static void boss_stage(void) {
     o->attr2 = (u16)(ATTR2_PALBANK(4) | TILE_BOSS);
 }
 
-/* ── GAME LOGIC (clay) — boss ART: a spiked disc with ONE cyan spike (the
+/* ── GAME LOGIC (clay) - boss ART: a spiked disc with ONE cyan spike (the
  * asymmetry makes the spin readable; a symmetric disc looks static).
  * Drawn procedurally into a 32x32 4bpp staging buffer laid out exactly as
  * OBJ VRAM wants it in 1D mapping: 16 consecutive 8x8 tiles, row-major
@@ -353,7 +353,7 @@ static void boss_build_tiles(void) {
     pal_obj_bank[4][4] = RGB15(8, 30, 30);   /* THE cyan spike (spin marker) */
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ─────────────────────────────────── */
+/* ── GAME LOGIC (clay - reshape freely) ─────────────────────────────────── */
 static u8 rng_state = 0xA5;
 static u8 rand8(void) {  /* Galois LFSR, period 255 */
     u8 lsb = (u8)(rng_state & 1);
@@ -390,7 +390,7 @@ static int aabb_hit(const Obj *a, const Obj *b) {
         && (a->y < b->y + 8) && (a->y + 8 > b->y);
 }
 
-/* ── GAME LOGIC (clay) — HUD / screens (TTE on BG1, priority 0) ── */
+/* ── GAME LOGIC (clay) - HUD / screens (TTE on BG1, priority 0) ── */
 static void draw_hud_labels(void) {
     tte_erase_screen();
     tte_write("#{P:8,4}SC");
@@ -433,7 +433,7 @@ static void enter_over(void) {
     state = ST_OVER;
     if (score > hiscore) {
         hiscore = score;
-        hiscore_save(hiscore);   /* byte-wise SRAM write — see the idiom */
+        hiscore_save(hiscore);   /* byte-wise SRAM write - see the idiom */
         draw_hud_numbers();
     }
     tte_write("#{P:84,64}GAME OVER");
@@ -465,7 +465,7 @@ static void lose_life(void) {
     if (lives == 0) enter_over();
 }
 
-/* ── GAME LOGIC (clay) — one ST_PLAY tick ── */
+/* ── GAME LOGIC (clay) - one ST_PLAY tick ── */
 static void update_play(void) {
     int i, j;
 
@@ -505,7 +505,7 @@ static void update_play(void) {
         if (++spawn_timer >= 90) { spawn_timer = 0; spawn_enemy(); }
 
         /* Bullets vs boss: 28x28 box around the boss CENTER. Collision is
-         * the UNROTATED box on purpose — honest simplification; rotating
+         * the UNROTATED box on purpose - honest simplification; rotating
          * hitboxes buys little for a round boss. */
         for (i = 0; i < MAX_BULLETS; i++) {
             if (!bullets[i].alive) continue;
@@ -550,7 +550,7 @@ static void update_play(void) {
     }
 }
 
-/* ── GAME LOGIC (clay) — stage the regular sprites (boss has its own idiom
+/* ── GAME LOGIC (clay) - stage the regular sprites (boss has its own idiom
  * block). Inactive slots park offscreen (y=200) instead of HIDE so the loop
  * stays branch-light; either works for REGULAR sprites. ── */
 static void stage_sprites(void) {
@@ -575,12 +575,12 @@ static void stage_sprites(void) {
 }
 
 int main(void) {
-    /* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
      * Init order: tiles/palettes → oam_init → irq_init + II_VBLANK →
      * TTE init → DISPCNT last. VBlankIntrWait() HANGS FOREVER without the
      * vblank IRQ registered (the #1 "frozen on frame 1" cause), and
      * enabling DISPCNT layers before their tiles/maps exist flashes
-     * garbage. TTE owns BG1 (CBB 2 / SBB 30) — keep other layers off
+     * garbage. TTE owns BG1 (CBB 2 / SBB 30) - keep other layers off
      * those blocks. requires: nothing prior; this IS the boot. */
     tonccpy(&tile_mem[4][TILE_SHIP],   tile_ship,   sizeof(tile_ship));
     tonccpy(&tile_mem[4][TILE_BULLET], tile_bullet, sizeof(tile_bullet));
@@ -605,7 +605,7 @@ int main(void) {
     REG_BG1CNT |= BG_PRIO(0);
     REG_DISPCNT = DCNT_MODE1 | DCNT_BG1 | DCNT_BG2 | DCNT_OBJ | DCNT_OBJ_1D;
 
-    hiscore = hiscore_load();          /* cartridge SRAM — 0 on first boot */
+    hiscore = hiscore_load();          /* cartridge SRAM - 0 on first boot */
     enter_title();
 
     while (1) {
@@ -626,7 +626,7 @@ int main(void) {
         }
 
         /* The vortex breathes with the game: gentle on the title, driving
-         * during play, frantic while the boss is up. (Affine BG idiom —
+         * during play, frantic while the boss is up. (Affine BG idiom -
          * rewrite ALL the write-only registers every frame.) */
         {
             u16 vth; u32 vzoom;

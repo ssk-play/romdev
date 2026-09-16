@@ -1,10 +1,10 @@
-// clusterChanges — turn a flat list of changed byte offsets into a context-safe
+// clusterChanges - turn a flat list of changed byte offsets into a context-safe
 // summary: adjacent changes merge into ranges, and evenly-spaced ranges report
 // their stride. The trap this kills: a 20-frame gameplay diff churns thousands
 // of bytes and a raw {offset,before,after} dump blows the token budget. The
-// summary says "4 change-islands at stride 0x80 — likely a player-struct array"
+// summary says "4 change-islands at stride 0x80 - likely a player-struct array"
 // in a few rows instead, which is also the more USEFUL answer (the stride is the
-// record size of an entity array — exactly what an RE session is hunting for).
+// record size of an entity array - exactly what an RE session is hunting for).
 
 /**
  * Group changed absolute offsets into clusters and detect a uniform stride.

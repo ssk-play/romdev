@@ -1,10 +1,10 @@
 /*
- * puzzle/main.c — DROP GRID: a 2D PlayStation falling-block puzzle.
+ * puzzle/main.c - DROP GRID: a 2D PlayStation falling-block puzzle.
  *
- * The one 2D game in the PS1 set — a grid puzzle is naturally flat, so it's drawn
+ * The one 2D game in the PS1 set - a grid puzzle is naturally flat, so it's drawn
  * with the GPU's 2D rectangles (no 3D pipeline). Colored blocks fall down a well;
  * steer + drop them; a full row clears and scores. Speed ramps up. Title -> play ->
- * game-over (stack reaches the top). 16.16 not needed — plain integer grid logic.
+ * game-over (stack reaches the top). 16.16 not needed - plain integer grid logic.
  *
  * Build: build({ platform:"ps1", language:"c" }). Controls: LEFT/RIGHT move the
  * falling block, DOWN soft-drop, START begin/restart.

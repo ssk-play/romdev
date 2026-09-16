@@ -1,4 +1,4 @@
-// R42 — Genesis XGM2 music playback smoke test.
+// R42 - Genesis XGM2 music playback smoke test.
 //
 // Confirms the xgm2_demo template compiles + links against SGDK and the
 // compiled .xgc music blob gets incbin'd into ROM. This is the music
@@ -49,7 +49,7 @@ test("R42 Genesis XGM2 music: xgm2_demo template builds with .xgc incbin'd into 
 
   // Sanity: Sega header at $100.
   const headerStart = Buffer.from(r.binary.subarray(0x100, 0x110)).toString("ascii");
-  assert.equal(headerStart, "SEGA MEGA DRIVE ", "missing SEGA header — build wired wrong");
+  assert.equal(headerStart, "SEGA MEGA DRIVE ", "missing SEGA header - build wired wrong");
 
   // The music_xgm bytes should appear somewhere in the ROM (look for the
   // first 16 bytes of the compiled .xgc). XGC2 blobs don't carry a fixed
@@ -63,14 +63,14 @@ test("R42 Genesis XGM2 music: xgm2_demo template builds with .xgc incbin'd into 
     }
     if (match) { found = true; break; }
   }
-  assert.ok(found, "compiled XGM2 blob bytes not located in final ROM — .incbin wiring broken");
+  assert.ok(found, "compiled XGM2 blob bytes not located in final ROM - .incbin wiring broken");
 });
 
 test("R42 demo.vgm + demo.xgc are byte-stable (regen via scripts/build-genesis-demo-vgm.js + xgm2tool)", { timeout: 180000 }, async () => {
   const vgm = await readFile(join(REPO_ROOT, "../romdev-toolchain-m68k-gcc/share/genesis/lib/sgdk/music/demo.vgm"));
   const xgc = await readFile(join(REPO_ROOT, "../romdev-toolchain-m68k-gcc/share/genesis/lib/sgdk/music/demo.xgc"));
   // Sizes pinned so any silent regeneration-drift is caught.
-  assert.equal(vgm.length, 691, "demo.vgm size changed — re-run scripts/build-genesis-demo-vgm.js");
+  assert.equal(vgm.length, 691, "demo.vgm size changed - re-run scripts/build-genesis-demo-vgm.js");
   assert.ok(xgc.length > 100 && xgc.length < 4096, `demo.xgc unexpected size: ${xgc.length}`);
   // VGM ident.
   assert.equal(vgm.subarray(0, 4).toString("ascii"), "Vgm ", "demo.vgm missing 'Vgm ' magic");

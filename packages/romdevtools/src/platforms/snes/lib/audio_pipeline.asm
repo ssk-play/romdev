@@ -1,23 +1,23 @@
-; SNES — audio pipeline overview (this is a doc snippet, not asm to .include).
+; SNES - audio pipeline overview (this is a doc snippet, not asm to .include).
 ;
 ; The SNES has a separate Sony SPC700 coprocessor that handles ALL sound.
-; The main 65816 CPU cannot make a beep — it can only upload a program +
+; The main 65816 CPU cannot make a beep - it can only upload a program +
 ; sample data to the SPC700, then send commands telling it what to play.
 ;
 ; You write TWO programs:
-;   1. An SPC700 driver (arch spc700) — lives in ARAM, polls $F4 for
+;   1. An SPC700 driver (arch spc700) - lives in ARAM, polls $F4 for
 ;      command bytes from the main CPU, pokes DSP registers ($00-$7F)
 ;      to start/stop voices.
-;   2. The 65816 uploader — runs once at boot. Walks the $BBAA handshake
+;   2. The 65816 uploader - runs once at boot. Walks the $BBAA handshake
 ;      protocol at $2140-$2143 to copy your SPC driver bytes into ARAM,
 ;      then jumps it.
 ;
 ; This MCP server provides:
-;   - `build({output:'rom'})({platform:"spc700", source})` — assembles standalone
+;   - `build({output:'rom'})({platform:"spc700", source})` - assembles standalone
 ;     SPC700 code to a flat raw binary (no SNES header, no padding).
 ;     Write your driver in arch-spc700 .asm, build separately, then
 ;     `.incbin` the resulting .bin into your SNES main.asm.
-;   - `pcmToBrr({pcmPath, outputPath, loop})` — encodes raw 16-bit signed
+;   - `pcmToBrr({pcmPath, outputPath, loop})` - encodes raw 16-bit signed
 ;     PCM (mono, little-endian) into SNES BRR format. Generate the PCM
 ;     yourself (sox, ffmpeg, mathematical square wave, AI-generated wav
 ;     with the header stripped) and run it through this.
@@ -56,7 +56,7 @@
 ; (compile-time or runtime) where samples start so it can build the
 ; DSP sample directory ($XX00 = 4-byte entries, start addr + loop addr).
 ;
-; Helpful references — the snesdev wiki pages "APU I/O", "SPC700 reference",
+; Helpful references - the snesdev wiki pages "APU I/O", "SPC700 reference",
 ; "BRR sample format", "DSP". These are the canonical specs. The actual
 ; protocol is short (a 4-page wiki article); the trick is just getting all
 ; four pieces aligned.

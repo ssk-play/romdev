@@ -1,8 +1,8 @@
-// Genesis (VDP) — palette PNG generator for the -remap workflow.
+// Genesis (VDP) - palette PNG generator for the -remap workflow.
 //
 // The Genesis VDP supports 512 distinct colors total: 8 levels per channel
-// (R, G, B), 3 bits each, 9-bit overall. Hardware spec is "non-linear" —
-// the ladder isn't perfectly evenly spaced — but for input-image
+// (R, G, B), 3 bits each, 9-bit overall. Hardware spec is "non-linear" -
+// the ladder isn't perfectly evenly spaced - but for input-image
 // quantization the linear approximation is what most tools use and
 // matches what gpgx renders.
 //
@@ -33,7 +33,7 @@ const H = 224;
  * colors, pack them into up to 4 lines, then per tile pick the line that
  * contains all of that tile's colors. Tiles whose colors span more than
  * one line are reported (the image needs authoring to ≤16 colors per 8×8
- * cell — the VDP's hard constraint, same as SNES/SMS).
+ * cell - the VDP's hard constraint, same as SNES/SMS).
  *
  * @param {Object} args
  * @param {Buffer|Uint8Array} args.pngBytes  320×224 PNG, pre-dithered to the Genesis palette.
@@ -90,7 +90,7 @@ export function genesisImageToTilemap(args) {
   // TRANSPARENT on a scroll plane (it shows the hardware backdrop, not the
   // color). For a full-screen BG whose dominant color is a visible fill (e.g. a
   // white/blue sky), this silently renders that area as the backdrop color
-  // (usually black) in-game. Warn — and the fix is one call: set that color as
+  // (usually black) in-game. Warn - and the fix is one call: set that color as
   // the hardware backdrop so index 0 actually shows it.
   {
     const r0 = backdrop & 7, g0 = (backdrop >> 3) & 7, b0 = (backdrop >> 6) & 7;
@@ -98,7 +98,7 @@ export function genesisImageToTilemap(args) {
     if ((r0 || g0 || b0) && dominantFrac >= 0.15) {
       const hex = "#" + [r0, g0, b0].map((c) => Math.round((c / 7) * 255).toString(16).padStart(2, "0")).join("");
       warnings.push(
-        `palette index 0 = a VISIBLE color (~${hex}, ${Math.round(dominantFrac * 100)}% of the image) — on a scroll PLANE index 0 is TRANSPARENT and shows the hardware backdrop (usually black), so this area will render wrong in-game. Fix: call VDP_setBackgroundColor() with this color's CRAM slot (palette-line*16 + 0) so the backdrop matches, OR recolor so index 0 is an intentional transparent/background color.`
+        `palette index 0 = a VISIBLE color (~${hex}, ${Math.round(dominantFrac * 100)}% of the image) - on a scroll PLANE index 0 is TRANSPARENT and shows the hardware backdrop (usually black), so this area will render wrong in-game. Fix: call VDP_setBackgroundColor() with this color's CRAM slot (palette-line*16 + 0) so the backdrop matches, OR recolor so index 0 is an intentional transparent/background color.`
       );
     }
   }
@@ -128,7 +128,7 @@ export function genesisImageToTilemap(args) {
         lines.push(nl);
         placed = lines.length - 1;
       } else {
-        // No room — assign to the line that already covers the most of this
+        // No room - assign to the line that already covers the most of this
         // tile's colors (best-effort; off-palette pixels map to nearest).
         let best = 0, bestHit = -1;
         for (let li = 0; li < 4; li++) {
@@ -137,7 +137,7 @@ export function genesisImageToTilemap(args) {
           if (hit > bestHit) { bestHit = hit; best = li; }
         }
         placed = best;
-        warnings.push(`out of palette lines (max 4) — cell ${t % tilesAcross},${Math.floor(t / tilesAcross)} forced onto line ${best}; some colors approximated.`);
+        warnings.push(`out of palette lines (max 4) - cell ${t % tilesAcross},${Math.floor(t / tilesAcross)} forced onto line ${best}; some colors approximated.`);
       }
     }
     tilePalLine[t] = placed;

@@ -1,10 +1,10 @@
-// Generic recompile orchestrator — the source/target-agnostic port engine.
+// Generic recompile orchestrator - the source/target-agnostic port engine.
 //
 // recompile(sourceAsm, {source, target}) wires LIFT (source ISA → IR) → EMIT (IR
 // → target ISA) through a registry. Adding a platform PAIR is one lifter + one
 // emitter; the orchestrator, IR, residue handling, callee-stubbing, and the
 // disasm-tool wiring are all shared. NES→SNES and NES→Genesis go through the SAME
-// code path here — the only difference is which emitter the registry hands back.
+// code path here - the only difference is which emitter the registry hands back.
 //
 // An EMITTER is an object: {
 //   targetPlatform, targetIsa,
@@ -19,12 +19,12 @@
 //
 // ── NOTE FOR A FUTURE WASM/WAT BACKEND ─────────────────────────────────────
 // Every emitter here targets ASSEMBLY (65816, m68k), so this does not bite
-// today — but it will the moment someone adds a WASM backend, and it is a
+// today - but it will the moment someone adds a WASM backend, and it is a
 // measured result rather than a guess (reported from a shipped SMS→WAT
 // recompiler):
 //
 //   A single wasm function with ~3,800 nested blocks and a ~3,800-entry
-//   `br_table` blows V8's COMPILER ZONE — an OOM inside the zone allocator
+//   `br_table` blows V8's COMPILER ZONE - an OOM inside the zone allocator
 //   that `--max-old-space-size` does nothing about, because the zone is not
 //   the JS heap. ~1,070 arms was fine.
 //
@@ -228,7 +228,7 @@ export function recompile(sourceAsm, opts = {}) {
     nmiBody = emitter.emitBody(nl.ir);
   }
 
-  // 3. equs (address aliases) — union, de-duped, emitted once in the reset prefix.
+  // 3. equs (address aliases) - union, de-duped, emitted once in the reset prefix.
   const seen = new Set();
   const allEqus = [...lifted.equs, ...nmiEqus].filter((e) => {
     const name = e.split(/\s*=/)[0].trim();
@@ -270,7 +270,7 @@ export function recompile(sourceAsm, opts = {}) {
     ...(emittedBytes > BANK_BYTES ? {
       warning: `the translated body is roughly ${emittedBytes} bytes, past the ${BANK_BYTES}-byte ${emitter.targetIsa} bank. `
         + "Cross-ISA translation expands (about 5x for z80->65816), so a slice that looks small in source bytes can overflow a bank. "
-        + "Recompile a SMALLER region, or split the output across banks — the assembler's own error for this "
+        + "Recompile a SMALLER region, or split the output across banks - the assembler's own error for this "
         + "(Ebank_border_crossed) does not say why it happened.",
     } : {}),
   };
@@ -289,7 +289,7 @@ export function recompile(sourceAsm, opts = {}) {
 /**
  * Rough emitted size of an assembly body, for the bank-budget check.
  *
- * Counts instruction lines only — labels, comments and directives occupy no
+ * Counts instruction lines only - labels, comments and directives occupy no
  * space. Sizes are approximate per-instruction averages, which is enough to
  * tell "comfortably inside a bank" from "past it"; the assembler remains the
  * authority on the exact number.

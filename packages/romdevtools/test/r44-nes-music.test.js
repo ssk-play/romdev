@@ -1,10 +1,10 @@
-// R44 — NES bundled music driver (FamiTone2).
+// R44 - NES bundled music driver (FamiTone2).
 //
 // FamiTone2 is Shiru's public-domain 6502 music engine. We bundle:
-//   - src/platforms/nes/lib/asm/famitone2.s     — engine (~27 KB src, ~1.5 KB code)
-//   - src/platforms/nes/lib/asm/famitone_bridge.s — cc65-fastcall C wrappers
-//   - src/platforms/nes/lib/asm/music_data.s    — example track (public domain)
-//   - examples/nes/templates/music_demo.c       — template that drives it
+//   - src/platforms/nes/lib/asm/famitone2.s     - engine (~27 KB src, ~1.5 KB code)
+//   - src/platforms/nes/lib/asm/famitone_bridge.s - cc65-fastcall C wrappers
+//   - src/platforms/nes/lib/asm/music_data.s    - example track (public domain)
+//   - examples/nes/templates/music_demo.c       - template that drives it
 //
 // Test coverage:
 //   1. Each bundled source file exists and contains the expected exports.

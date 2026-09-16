@@ -6,7 +6,7 @@
 // The ISA-specific part is the return-address convention. Phase 1 covers the
 // 6502 family (the dominant RE target); the structure generalizes to Z80 / SM83 /
 // m68k by adding a decoder. We DON'T claim a frame is real beyond what the raw
-// stack bytes say — a 6502 stack also holds saved registers and data pushes, so
+// stack bytes say - a 6502 stack also holds saved registers and data pushes, so
 // each candidate is validated (the byte two-before the return target must be a
 // `jsr` opcode $20) and flagged `confident` accordingly. Unvalidated candidates
 // are still returned (some callers use jmp-based trampolines) but marked.
@@ -22,7 +22,7 @@ const JSR_6502 = 0x20;
  * 6502 stack model: page 1 ($0100-$01FF), SP points to the NEXT-FREE slot, so the
  * topmost pushed byte is at $0100 + ((S + 1) & 0xFF). JSR pushes the return
  * address (the address of its LAST operand byte = JSR_addr + 2) high byte first
- * then low byte — so on the stack the low byte sits at the lower address. To
+ * then low byte - so on the stack the low byte sits at the lower address. To
  * recover the caller: read a little-endian word off the stack, subtract 2 (→ the
  * JSR instruction), and confirm the byte there is $20.
  *
@@ -144,10 +144,10 @@ function decodeM68kStack(sp, readLongBE, maxDepth = 8) {
 /**
  * Build a backtrace from a register snapshot + a stack reader, dispatching on CPU
  * family. Returns null if the platform isn't supported or the snapshot lacks a
- * stack pointer — callers treat null as "no backtrace available", not an error.
+ * stack pointer - callers treat null as "no backtrace available", not an error.
  *
  * Coverage: 6502 family (nes/2600/7800/c64/lynx/pce), m68k (genesis), Z80
- * (sms/gg/msx), SM83 (gb/gbc) — 13 of 14. GBA (ARM) is intentionally excluded:
+ * (sms/gg/msx), SM83 (gb/gbc) - 13 of 14. GBA (ARM) is intentionally excluded:
  * ARM's BL leaves the return address in the LINK REGISTER, not on the stack, so a
  * stack walk doesn't recover the call chain without frame-pointer/unwind analysis.
  *
@@ -158,9 +158,9 @@ function decodeM68kStack(sp, readLongBE, maxDepth = 8) {
  * @param {(cpuAddr:number)=>(number|null)} [opts.readByteAt]  validate the 6502 JSR opcode
  * @param {(cpuAddr:number, bytes:number)=>(number|null)} [opts.readCpuWord]  read
  *   a little-endian word at a CPU address (Z80/SM83 stacks live in work RAM at the
- *   SP, not a fixed page) — required for z80/sm83.
+ *   SP, not a fixed page) - required for z80/sm83.
  * @param {(cpuAddr:number)=>(number|null)} [opts.readCpuLongBE]  read a 32-bit
- *   big-endian longword at a 68K bus address — required for genesis.
+ *   big-endian longword at a 68K bus address - required for genesis.
  * @param {number} [opts.maxDepth=8]
  * @returns {{ frames: Array, isa: string } | null}
  */
@@ -194,5 +194,5 @@ export function buildBacktrace({ platform, regs, readMemory, readByteAt, readCpu
     const frames = decodeM68kStack(sp, readCpuLongBE, maxDepth);
     return { isa: "m68k", frames };
   }
-  return null; // gba (ARM, link-register calls) — not a stack walk
+  return null; // gba (ARM, link-register calls) - not a stack walk
 }

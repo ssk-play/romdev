@@ -1,36 +1,36 @@
-/* ── shmup.c — sync32 vertical shooter (complete example game) ───────────────
+/* ── shmup.c - sync32 vertical shooter (complete example game) ───────────────
  *
- * A COMPLETE, working game — title screen, lives, score + persistent hi-score
- * (save slot 0), enemy waves, and a HUD — on monteslu's RP2350 console.
+ * A COMPLETE, working game - title screen, lives, score + persistent hi-score
+ * (save slot 0), enemy waves, and a HUD - on monteslu's RP2350 console.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — how the sync32 ABI actually works;
+ *   HARDWARE IDIOM (load-bearing) - how the sync32 ABI actually works;
  *     reshape your gameplay around it.
- *   GAME LOGIC (clay) — enemy patterns, scoring, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - enemy patterns, scoring, tuning, art: reshape freely.
  *
  * WHAT MAKES sync32 DIFFERENT from every 8/16-bit platform in this tree:
  * there is NO PPU. No tilemap, no OAM, no VRAM, no banking, no scanline
  * timing. A game is one function, `game_main(api)`, handed a struct of
  * function pointers, drawing into a flat 8-bit canvas. Everything you know
- * about fighting a video chip does not apply here — which is why this is the
+ * about fighting a video chip does not apply here - which is why this is the
  * gentlest build target in romdev despite being the newest hardware.
  *
  * SINGLE-PLAYER BY DESIGN: `api->pad(player, ...)` takes a player index, but
  * a second pad is only present if the hardware has one, so a shmup ships 1P.
- * (Analog sticks are reported when present and NEVER required — see
+ * (Analog sticks are reported when present and NEVER required - see
  * `s32_pad_t.connected`.)
  *
  * Frame budget (60Hz, S32CORE_FLOOR_CYCLES = 2 500 000 cycles/frame at a
  * 150MHz-equivalent clock): this game is ~1 ship + 12 bullets + 16 enemies
  * with AABB checks (≈ 200 tests) plus one full 320x240 clear and ~30 sprite
- * blits. That is a rounding error against the budget — sync32 gives you far
+ * blits. That is a rounding error against the budget - sync32 gives you far
  * more headroom than any 8-bit target here, so spend it on gameplay.
  */
 
 #include "sync32.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it short; it is drawn with the built-in
  * 3x5 glyphs below. */
 #define GAME_TITLE "STARFALL"
@@ -91,7 +91,7 @@ static struct {
 /* ── HARDWARE IDIOM: the sprite sheet ────────────────────────────────────────
  * Sheets are 8-bit indexed pixels uploaded once with `api->sheet_load()`,
  * which returns a handle. This one is DRAWN IN CODE rather than shipped as
- * art, so the example has no binary dependency — replace it with your own
+ * art, so the example has no binary dependency - replace it with your own
  * pixels (see `examples({op:'show', example:'sync32/puzzle'})` for a sheet
  * built from a compact string table).
  *
@@ -130,7 +130,7 @@ static void build_sheet(void) {
     }
 
     /* bullet: a 4x8 slug, CENTRED in the 8-wide cell that starts at x=48.
-     * The blit below reads sx=48 w=8, i.e. columns 48..55 — art drawn outside
+     * The blit below reads sx=48 w=8, i.e. columns 48..55 - art drawn outside
      * that span is silently clipped, which is the easiest sheet mistake to
      * make and the hardest to see (the sprite just does not appear). */
     for (int y = 4; y < 12; y++) for (int x = 50; x < 54; x++) px(x, y, IDX_BULLET);
@@ -147,7 +147,7 @@ static void build_palette(const sync32_api_t *api) {
     pal[IDX_ENEMY_B]     = RGB(0x9B, 0x4F, 0xD8);
     pal[IDX_BULLET]      = RGB(0xFF, 0xE0, 0x6A);
     pal[IDX_EDGE]        = RGB(0x50, 0x58, 0x6A);
-    /* Colours the game DRAWS WITH must be IN the palette — rect()/clear()
+    /* Colours the game DRAWS WITH must be IN the palette - rect()/clear()
      * snap to the nearest entry, so an unregistered colour renders as
      * something else entirely. */
     pal[8] = COL_SPACE;
@@ -199,7 +199,7 @@ static void draw_text(const sync32_api_t *api, const char *t, int x, int y, int 
 
 /* ── HARDWARE IDIOM: persistence ─────────────────────────────────────────────
  * `save_read`/`save_write` take a SLOT index (0..S32_SAVE_SLOTS-1), not a
- * file name. A short read means "nothing saved yet" — not an error.
+ * file name. A short read means "nothing saved yet" - not an error.
  */
 static void hiscore_load(const sync32_api_t *api) {
     uint32_t v = 0;

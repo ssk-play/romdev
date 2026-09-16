@@ -1,4 +1,4 @@
-// audioDebug({op:'inspect', frames}) — the v0.6.0 music-feedback #3: a single
+// audioDebug({op:'inspect', frames}) - the v0.6.0 music-feedback #3: a single
 // inspect() is a snapshot and can't assert a *melody*. The trace mode steps N
 // frames, samples the chip each frame, and returns a per-channel note-timeline
 // (value transitions) you can assert a tune on headlessly.
@@ -28,7 +28,7 @@ function audioHandler(sessionKey) {
 
 // NES C: write the APU directly to play pulse-1 and step its period down each
 // NMI so the decoded frequency changes over time (a crude rising "melody").
-// cc65 is C89 — ALL locals declared at the top of the block (no mixed decls).
+// cc65 is C89 - ALL locals declared at the top of the block (no mixed decls).
 // We sweep the pulse-1 period in a tight loop; a counter steps it down every
 // ~256 iterations so the decoded frequency genuinely changes across the trace.
 const SRC = `#include <stdint.h>

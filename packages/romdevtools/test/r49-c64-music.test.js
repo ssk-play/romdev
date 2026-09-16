@@ -1,4 +1,4 @@
-// R49 — C64 music_demo: continuous 3-voice SID composition via a
+// R49 - C64 music_demo: continuous 3-voice SID composition via a
 // per-frame note-table sequencer (c64_music.{h,c}). The note table IS
 // the song; we just verify it compiles into a real .prg with enough
 // embedded data to be a recognisable melody.
@@ -31,7 +31,7 @@ test("R49 C64 music_demo: builds a real .prg with the music driver linked in", {
   });
   assert.equal(r.ok, true, `c64/music_demo build failed at ${r.stage}: ${(r.log || "").slice(-600)}`);
   assert.ok(r.binary && r.binary.length > 1024,
-    `c64/music_demo: .prg too small (${r.binary ? r.binary.length : 0} bytes — expected >1 KB so the note tables made it in)`);
+    `c64/music_demo: .prg too small (${r.binary ? r.binary.length : 0} bytes - expected >1 KB so the note tables made it in)`);
 });
 
 test("R49 C64 c64_music driver: smoke-builds standalone with a tiny main", { timeout: 120000 }, async () => {

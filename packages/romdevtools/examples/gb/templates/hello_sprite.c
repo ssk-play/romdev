@@ -1,4 +1,4 @@
-/* ── hello_sprite.c — GBC starter (works on plain GB too) ──────────
+/* ── hello_sprite.c - GBC starter (works on plain GB too) ──────────
  *
  * A complete, tested, boots-from-cold game-loop skeleton:
  *   - Turns the LCD off safely (handles "LCD already off at boot")
@@ -8,7 +8,7 @@
  *   - Reads d-pad each vblank and moves the sprite
  *   - Uses shadow_oam + oam_dma_flush so writes are clean
  *
- * Edit FROM this baseline rather than building from scratch — the
+ * Edit FROM this baseline rather than building from scratch - the
  * boot order below is the GBC pitfall that costs new ports the most
  * time (see TROUBLESHOOTING.md "screen is blank").
  */
@@ -33,10 +33,10 @@ static const uint8_t tile_data[16] = {
 /* CGB object palette 0 in BGR555. Color 0 must be transparent for sprites,
  * but the value is still written (the hardware ignores it). */
 static const uint16_t obj_palette[4] = {
-  0x7FFF,  /* color 0 — transparent (any value) */
-  0x001F,  /* color 1 — red */
-  0x03E0,  /* color 2 — green */
-  0x7C00,  /* color 3 — blue */
+  0x7FFF,  /* color 0 - transparent (any value) */
+  0x001F,  /* color 1 - red */
+  0x03E0,  /* color 2 - green */
+  0x7C00,  /* color 3 - blue */
 };
 
 void main(void) {
@@ -62,13 +62,13 @@ void main(void) {
    * accidentally render garbage tiles that point to it. */
   vram_dst = (uint8_t *)0x8010;
   src = tile_data;
-  /* memcpy_vram (pointer-walk) — NOT an indexed vram_dst[i]=src[i] loop, which
+  /* memcpy_vram (pointer-walk) - NOT an indexed vram_dst[i]=src[i] loop, which
    * SDCC sm83 miscompiles when the dest points into VRAM ($8000-$9FFF). */
   memcpy_vram(vram_dst, src, 16);
 
   /* ── 2b. Fill the BG tilemap so the screen isn't an empty backdrop. ──
    * With LCDC_TILE_DATA_LO ($8000 addressing) BG tile index 1 == our tile
-   * at $8010 — so we tile the whole 32×32 BG map with it. memcpy_vram-style
+   * at $8010 - so we tile the whole 32×32 BG map with it. memcpy_vram-style
    * pointer walk (NOT bg_map[k]=1, which SDCC sm83 miscompiles into VRAM). */
   bg_map = (uint8_t *)0x9800;
   for (j = 0; j < 32u * 32u; j++) *bg_map++ = 1;
@@ -79,7 +79,7 @@ void main(void) {
    * Setting OCPS = 0x80 means "palette 0, color 0, low byte, then
    * auto-advance". 8 byte writes = 4 colors × 2 bytes (BGR555).
    *
-   * On DMG, OCPS/OCPD don't exist — the writes are silently dropped
+   * On DMG, OCPS/OCPD don't exist - the writes are silently dropped
    * and DMG uses OBP0 instead, which lcd_init_default already set. */
   OCPS = 0x80;
   for (i = 0; i < 4; i++) {
@@ -93,7 +93,7 @@ void main(void) {
    * FIRST visible frame shows your sprite instead of power-on garbage /
    * an all-zero OAM. (oam_dma_flush is VRAM/OAM-safe while the LCD is
    * off.) Skipping this is the classic GB/GBC "flat screen, OAM reads
-   * zero on frame 1" trap — especially if you also use the
+   * zero on frame 1" trap - especially if you also use the
    * enable_vblank_irq() HALT path, where the first wait_vblank() sleeps
    * before you'd otherwise get a chance to flush. */
   oam_clear();
@@ -105,7 +105,7 @@ void main(void) {
    * BG is on now that we filled the BG map in step 2b. */
   LCDC = LCDC_LCD_ON | LCDC_BG_ON | LCDC_OBJ_ON | LCDC_TILE_DATA_LO;
 
-  /* ── 6. APU on — let the player beep ──────────────────────────── */
+  /* ── 6. APU on - let the player beep ──────────────────────────── */
   sound_init();
 
   /* ── 7. Game loop ────────────────────────────────────────────────

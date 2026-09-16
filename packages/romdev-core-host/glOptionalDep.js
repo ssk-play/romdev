@@ -1,4 +1,4 @@
-// glOptionalDep.js — lazy, optional loader for the native GL stack.
+// glOptionalDep.js - lazy, optional loader for the native GL stack.
 //
 // The HW-render cores (N64 ParaLLEl, PS1 Beetle-PSX) need a real headless GL
 // context. romdev provides it through `native-gles` (EGL/GLES via a prebuilt
@@ -29,7 +29,7 @@ export async function loadNativeGles() {
     throw new Error(`${INSTALL_HINT}\n(underlying: ${e.message})`);
   }
   if (!_gl || typeof _gl.createContext !== "function") {
-    throw new Error(`native-gles loaded but has no createContext — ${INSTALL_HINT}`);
+    throw new Error(`native-gles loaded but has no createContext - ${INSTALL_HINT}`);
   }
   return _gl;
 }
@@ -49,7 +49,7 @@ export async function loadWebGl2Context() {
     throw new Error(`${INSTALL_HINT}\n(underlying: ${e.message})`);
   }
   if (typeof _webgl !== "function") {
-    throw new Error(`webgl-node loaded but has no createWebGL2Context — ${INSTALL_HINT}`);
+    throw new Error(`webgl-node loaded but has no createWebGL2Context - ${INSTALL_HINT}`);
   }
   return _webgl;
 }
@@ -57,18 +57,18 @@ export async function loadWebGl2Context() {
 let _ctxProbe = null; // null = untried; true/false = cached verdict
 
 /**
- * Is the GL stack actually USABLE — not merely importable?
+ * Is the GL stack actually USABLE - not merely importable?
  *
  * The import-only version of this check passed on every machine with the
  * prebuilt .node installed, and then real context creation decided the truth:
  * fast EACCES on a box whose /dev/dri is ACL-gated (tests failed), or an
  * INDEFINITE BLOCK inside eglInitialize on a machine with no GPU device nodes
- * at all — which is what ate a CI runner's whole 30-minute job with two hung
+ * at all - which is what ate a CI runner's whole 30-minute job with two hung
  * addon threads. A native hang cannot be timed out in-process, so the probe
  * creates a real context in a CHILD process with a hard kill. Verdict cached
  * per process; each test file pays at most one probe.
  *
- * ROMDEV_NO_GL=1 short-circuits to false with no probe — set it where the
+ * ROMDEV_NO_GL=1 short-circuits to false with no probe - set it where the
  * answer is known ahead of time (CI runners have no GPU, ever).
  */
 export async function glStackAvailable() {

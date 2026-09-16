@@ -1,10 +1,10 @@
 /*
- * sgdk_hello.c — minimum SGDK starter for Sega Genesis C.
+ * sgdk_hello.c - minimum SGDK starter for Sega Genesis C.
  *
  * Demonstrates the canonical SGDK game-loop shape:
  *   - main(bool hard) is the entry point (called from SGDK's sega.s crt0)
  *   - VDP_drawText writes ASCII into the default font region
- *   - SYS_doVBlankProcess is SGDK's frame heartbeat — drives DMA queue
+ *   - SYS_doVBlankProcess is SGDK's frame heartbeat - drives DMA queue
  *     flushing, sprite engine updates, joypad reads, sound driver tick
  *
  * Extend from here:
@@ -15,7 +15,7 @@
  *
  * SGDK's full API surface lives in include/genesis.h and the per-module
  * headers (vdp.h, joy.h, sprite_eng.h, sound.h, etc.). The headers are
- * shipped alongside this file — your project is self-contained and can
+ * shipped alongside this file - your project is self-contained and can
  * rebuild on any machine with m68k-elf-gcc installed.
  */
 
@@ -24,7 +24,7 @@
 /* Two simple 8x8 background tiles for the far plane (BG_B). Tiling them
  * in a checkerboard fills the whole screen so it doesn't read as a blank
  * black backdrop. T_BG_A is a framed block (colour 1 border, colour 2
- * fill); T_BG_B is the same block in colour 3 — alternating them gives a
+ * fill); T_BG_B is the same block in colour 3 - alternating them gives a
  * two-tone grid with a clear majority of non-backdrop pixels. */
 #define T_BG_A (TILE_USER_INDEX + 0)
 #define T_BG_B (TILE_USER_INDEX + 1)

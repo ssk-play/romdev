@@ -5,7 +5,7 @@
 // carries 49 parameters across targets as different as "read a byte range" and
 // "recompile NES code to 65816". An agent that pulls the schema in on demand
 // pays for all 49 even when it wants six of them for a one-shot
-// `target:'rom'` read — a direct, repeated per-use token cost.
+// `target:'rom'` read - a direct, repeated per-use token cost.
 //
 // Splitting the tool would be the other fix, but it breaks every existing
 // caller and scatters one coherent surface across several names. Filtering the
@@ -42,7 +42,7 @@ const SUBSETS = {
  *
  * @param {string} toolName
  * @param {string|undefined} target
- * @param {object} schema full JSON Schema (properties/required/…)
+ * @param {object} schema full JSON Schema (properties/required/...)
  * @returns {{schema: object, filtered: boolean, note?: string}}
  */
 export function schemaForTarget(toolName, target, schema) {
@@ -66,7 +66,7 @@ export function schemaForTarget(toolName, target, schema) {
   return {
     schema: { ...schema, properties },
     filtered: true,
-    note: `Filtered to target:'${target}' — ${Object.keys(properties).length} of ` +
+    note: `Filtered to target:'${target}' - ${Object.keys(properties).length} of ` +
       `${Object.keys(schema.properties).length} parameters (${dropped} omitted). ` +
       `Omit ?for= to get the complete schema.`,
   };

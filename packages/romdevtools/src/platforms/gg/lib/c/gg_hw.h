@@ -1,6 +1,6 @@
 /* Game Gear hardware register declarations for SDCC.
  *
- * GG = "SMS in a handheld" — same Z80, same VDP (Mode 4), same SN76489 PSG,
+ * GG = "SMS in a handheld" - same Z80, same VDP (Mode 4), same SN76489 PSG,
  * same I/O port layout for SMS-compatible reads. Key differences:
  *
  *   1. Visible viewport is 160×144 (vs SMS 256×192). The framebuffer is
@@ -44,7 +44,7 @@ __sfr __at 0xDD PORT_JOY_B;
 __sfr __at 0x00 PORT_GG_INPUT;       /* bit 7 = START (active low) */
 __sfr __at 0x06 PORT_GG_PSG_STEREO;  /* PSG L/R routing, write-only */
 
-/* ─── Joypad bits (active low — invert after read) ─────────────── */
+/* ─── Joypad bits (active low - invert after read) ─────────────── */
 #define JOY_UP    0x01
 #define JOY_DOWN  0x02
 #define JOY_LEFT  0x04

@@ -1,5 +1,5 @@
 /*
- * sports/main.c — SLAM COURT: a 3D Nintendo 64 sports game (air-hockey / pong).
+ * sports/main.c - SLAM COURT: a 3D Nintendo 64 sports game (air-hockey / pong).
  *
  * A 3D playfield seen in perspective: you control the near paddle, the CPU the far
  * one. A ball bounces down the court in 3D (X across, Z into the screen); rally it

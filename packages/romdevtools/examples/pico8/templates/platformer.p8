@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 18
 __lua__
--- hop quest — a platformer scaffold
+-- hop quest - a platformer scaffold
 -- genre example for romdev/pico8. real hero sprite w/ walk + jump frames
 -- (see __gfx__), looping music, sfx, gravity + solid-box collision,
 -- animated spinning coins, a goal flag, parallax hills. fork it.

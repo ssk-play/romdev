@@ -1,4 +1,4 @@
-// Re-inject path — findPointerTo / makeStoredBlock / relocateBlock.
+// Re-inject path - findPointerTo / makeStoredBlock / relocateBlock.
 //
 // makeStoredBlock's correctness is proven the only way that matters: a REFERENCE
 // DECOMPRESSOR (implemented here from the format spec) expands the tool's output
@@ -171,7 +171,7 @@ test("findPointerTo: 24-bit shadow of a 32-bit hit is suppressed by default (Gen
   const rom = new Uint8Array(0x10000);
   const target = 0x4000;
   // Plant the 32-bit BE pointer at 0x200; its low 3 bytes (00 40 00) are also a
-  // valid 24-bit BE pointer to 0x4000 starting at 0x201 — the shadow.
+  // valid 24-bit BE pointer to 0x4000 starting at 0x201 - the shadow.
   rom.set(encodeInt(target, 4, "be"), 0x200);
   const romPath = path.join(dir, "shadow.md");
   await writeFile(romPath, Buffer.from(rom));

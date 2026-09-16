@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.XGMMulti — merge many XGM tracks into one multi-track XGM2 file.
+// Port of sgdk.xgm2tool.format.XGMMulti - merge many XGM tracks into one multi-track XGM2 file.
 
 import { align, alignBytes } from "./util.js";
 

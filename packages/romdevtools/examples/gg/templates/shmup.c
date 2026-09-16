@@ -1,39 +1,39 @@
-/* ── shmup.c — Game Gear vertical shooter (complete example game) ────────────
+/* ── shmup.c - Game Gear vertical shooter (complete example game) ────────────
  *
- * A COMPLETE, working game — title screen (press START), lives, score +
- * hi-score (cart-RAM save code included — see the honesty note at
+ * A COMPLETE, working game - title screen (press START), lives, score +
+ * hi-score (cart-RAM save code included - see the honesty note at
  * hiscore_save), PSG music + SFX, and the GG/SMS signature LINE INTERRUPT
  * split: a fixed HUD strip over a drifting starfield, with the scroll change
  * timed by the VDP's programmable line counter.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented GG footgun; reshape
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented GG footgun; reshape
  *     your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — enemy patterns, scoring, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - enemy patterns, scoring, tuning, art: reshape freely.
  *
- * SINGLE-PLAYER BY DESIGN (honest note): the Game Gear has ONE controller —
+ * SINGLE-PLAYER BY DESIGN (honest note): the Game Gear has ONE controller -
  * its 2P story is the Gear-to-Gear link cable on the EXT port, which needs a
  * second console and can't be emulated in a single emulator instance. So
- * this game is honestly 1P; the console examples (SMS/NES/Genesis/…) carry
+ * this game is honestly 1P; the console examples (SMS/NES/Genesis/...) carry
  * the 2P modes.
  *
- * THE #1 GG FOOTGUN — THE VISIBLE WINDOW: the GG VDP is the SMS VDP. It
+ * THE #1 GG FOOTGUN - THE VISIBLE WINDOW: the GG VDP is the SMS VDP. It
  * renders a full 256×192 frame; the LCD shows only the CENTERED 160×144 of
  * it. Hardware coordinates (sprite OAM, tilemap rows/cols, scanline counts)
- * are all in the FULL 256×192 frame — content placed outside the centered
+ * are all in the FULL 256×192 frame - content placed outside the centered
  * window is rendered "correctly" and is simply never shown. Every SMS habit
  * ports over EXCEPT placement: see the VIS_* block below, which this whole
  * file is written against. (The emulator screenshot is the 160×144 visible
- * crop — "my sprite is at y=10 but invisible" means it's parked in the
+ * crop - "my sprite is at y=10 but invisible" means it's parked in the
  * unseen border, not a render bug.)
  *
  * What depends on what:
  *   gg_hw.h / vdp_init.c / load_tiles.c / load_palette.c / sprite_table.c /
- *     joypad_read.c — the bundled VDP + input runtime (this file's externs).
- *   gg_sfx.{h,c} + gg_music.{h,c} — SN76489 PSG sound layers (music owns
- *     PSG ch 2; sfx use ch 0/1 + noise ch 3 — no arbitration needed).
- *   gg_crt0.s — boot + vector table. Its $0038 IM-1 handler is the OTHER
+ *     joypad_read.c - the bundled VDP + input runtime (this file's externs).
+ *   gg_sfx.{h,c} + gg_music.{h,c} - SN76489 PSG sound layers (music owns
+ *     PSG ch 2; sfx use ch 0/1 + noise ch 3 - no arbitration needed).
+ *   gg_crt0.s - boot + vector table. Its $0038 IM-1 handler is the OTHER
  *     HALF of the line-interrupt idiom below: it acks the VDP (one status
  *     read clears BOTH the frame and line IRQ flags) and returns with
  *     ei/reti. Load-bearing; edit with TROUBLESHOOTING open.
@@ -48,7 +48,7 @@
 #include "gg_music.h"
 #include <stdint.h>
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "PRISM PATROL"
 
@@ -65,7 +65,7 @@ extern void    gg_sprite_init(void);
 extern void    gg_sprite_set(uint8_t slot, uint8_t x, uint8_t y, uint8_t tile);
 extern void    gg_sat_upload(void);
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
  * THE GG VISIBLE WINDOW. The VDP frame is 256×192; the LCD shows the
  * centered 160×144. In FULL-FRAME hardware units the window is:
  *
@@ -73,11 +73,11 @@ extern void    gg_sat_upload(void);
  *   tilemap: col ∈ [6..25]   row ∈ [3..20]    (20×18 visible cells)
  *
  * EVERYTHING the hardware takes is full-frame: gg_sprite_set x/y, tilemap
- * row/col, and — easy to forget — the LINE COUNTER (VDP R10) counts
+ * row/col, and - easy to forget - the LINE COUNTER (VDP R10) counts
  * full-frame scanlines from the top of the 192-line active area, NOT from
  * the top of the LCD. The window's first visible scanline is 24.
  *
- * Requires: nothing — these are constants of the machine. Everything below
+ * Requires: nothing - these are constants of the machine. Everything below
  * (HUD placement, split line, spawn ranges, movement clamps, text columns)
  * is derived from them; if you reshape the layout, derive from VIS_*, never
  * hardcode SMS-frame numbers. */
@@ -95,21 +95,21 @@ extern void    gg_sat_upload(void);
 #define VROW(r)   ((uint8_t)((r) + VIS_ROW0))
 #define VCOL(c)   ((uint8_t)((c) + VIS_COL0))
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Palette. THE GG's HEADLINE UPGRADE over the SMS: CRAM holds 12-bit
  * 4-4-4 BGR colour (4096 colours) instead of the SMS's 6-bit 2-2-2 (64).
- * The WRITE FORMAT differs too — that's the #2 GG footgun:
+ * The WRITE FORMAT differs too - that's the #2 GG footgun:
  *
  *   SMS: 32 entries × 1 byte   --BBGGRR
  *   GG:  32 entries × 2 bytes  little-endian: low byte = GGGGRRRR
  *                                             high byte = ----BBBB
  *
  * So a GG palette array is 64 bytes (entries 0-15 BG, 16-31 sprite). Feeding
- * gg_load_palette a 32-byte SMS-style table reads past the array — the
+ * gg_load_palette a 32-byte SMS-style table reads past the array - the
  * sprite palette loads garbage and every sprite renders invisible (this
  * exact bug shipped in an earlier GG scaffold round). Pack an entry with:
  * low = (g << 4) | r, high = b, each channel 0..15. Most colours below
- * (15-step mints, ambers, duskpinks) have NO 2-2-2 SMS equivalent — that's
+ * (15-step mints, ambers, duskpinks) have NO 2-2-2 SMS equivalent - that's
  * the 4096-colour panel earning its keep. */
 static const uint8_t palette[64] = {
   /* BG 0-15: 0 = deep-space violet (backdrop/border), 1 = HUD-bar teal,
@@ -118,21 +118,21 @@ static const uint8_t palette[64] = {
   0x01,0x04, 0x50,0x08, 0x78,0x0C, 0xFF,0x0F, 0x17,0x06, 0x22,0x08,
   0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0,
   /* SPRITE 16-31: 16 = transparent, 17 = ice-mint (ship), 18 = amber
-   * (bullet), 19 = magenta / 20 = cyan / 21 = lime — the three enemy
+   * (bullet), 19 = magenta / 20 = cyan / 21 = lime - the three enemy
    * "prism" hues. One shared sprite palette on GG/SMS: per-sprite colour
    * means per-TILE colour indices, not per-sprite palettes. */
   0,0, 0xFB,0x0C, 0xAF,0x01, 0x2E,0x0B, 0xC1,0x0E, 0xE8,0x02,
   0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0,
 };
 
-/* ── GAME LOGIC (clay) — BG tile inventory (BG bank $0000) ───────────────────
+/* ── GAME LOGIC (clay) - BG tile inventory (BG bank $0000) ───────────────────
  * tile 0          = blank space (colour 0)
  * tiles 1..37     = font: digits 0-9, A-Z, '-'  (uploaded 1bpp→4bpp below)
  * tile 38         = dim star   (one colour-2 pixel)
  * tile 39         = bright star(one colour-3 pixel + glow)
- * tile 40         = solid HUD bar (colour 1) — the split seam hides in it
+ * tile 40         = solid HUD bar (colour 1) - the split seam hides in it
  * tile 41         = nebula band A (solid colour 4)
- * tile 42         = nebula band B (solid colour 5) — two band hues keep the
+ * tile 42         = nebula band B (solid colour 5) - two band hues keep the
  *                   field colourful AND off the render-health blank floor */
 #define FONT_BASE  1
 #define BG_STAR    38
@@ -141,7 +141,7 @@ static const uint8_t palette[64] = {
 #define BG_BANDA   41
 #define BG_BANDB   42
 
-/* 1bpp font (same glyph set as the NES/SMS/GB examples — 0-9, A-Z, '-').
+/* 1bpp font (same glyph set as the NES/SMS/GB examples - 0-9, A-Z, '-').
  * Stored 8 bytes/glyph; expanded to the VDP's 32-byte 4bpp tiles at upload
  * (see load_font below), so the ROM carries 296 bytes instead of 1184. */
 static const uint8_t font8[37][8] = {
@@ -185,7 +185,7 @@ static void load_font(void) {
   }
 }
 
-/* Star + HUD-bar + band tiles (4bpp, 32 bytes each — rows of plane0..3). */
+/* Star + HUD-bar + band tiles (4bpp, 32 bytes each - rows of plane0..3). */
 static const uint8_t deco_tiles[160] = {
   /* BG_STAR: one colour-2 pixel */
   0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x10,0x00,0x00, 0x00,0x00,0x00,0x00,
@@ -193,7 +193,7 @@ static const uint8_t deco_tiles[160] = {
   /* BG_BRITE: colour-3 dot with colour-2 glow */
   0x00,0x00,0x00,0x00, 0x00,0x10,0x00,0x00, 0x10,0x28,0x10,0x00, 0x00,0x10,0x00,0x00,
   0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
-  /* BG_HUDBAR: solid colour 1 — the split seam lands inside this row */
+  /* BG_HUDBAR: solid colour 1 - the split seam lands inside this row */
   0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00,
   0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00,
   /* BG_BANDA: solid colour 4 (binary 100 → plane 2 only) */
@@ -204,24 +204,24 @@ static const uint8_t deco_tiles[160] = {
   0xFF,0x00,0xFF,0x00, 0xFF,0x00,0xFF,0x00, 0xFF,0x00,0xFF,0x00, 0xFF,0x00,0xFF,0x00,
 };
 
-/* Sprite tiles (sprite bank $2000 — vdp_init's R6=0xFF baseline reads
+/* Sprite tiles (sprite bank $2000 - vdp_init's R6=0xFF baseline reads
  * sprite patterns from $2000, so upload there, not $0000). The three enemy
- * tiles use colour indices 3/4/5 — three different prism hues from ONE
+ * tiles use colour indices 3/4/5 - three different prism hues from ONE
  * shared sprite palette. */
 static const uint8_t sprite_tiles[32 * 5] = {
-  /* T_SHIP — arrowhead, colour 1 (ice mint, plane 0) */
+  /* T_SHIP - arrowhead, colour 1 (ice mint, plane 0) */
   0x18,0x00,0x00,0x00, 0x18,0x00,0x00,0x00, 0x3C,0x00,0x00,0x00, 0x3C,0x00,0x00,0x00,
   0x7E,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00, 0xDB,0x00,0x00,0x00, 0x81,0x00,0x00,0x00,
-  /* T_BULLET — slug, colour 2 (amber, plane 1) */
+  /* T_BULLET - slug, colour 2 (amber, plane 1) */
   0x00,0x18,0x00,0x00, 0x00,0x3C,0x00,0x00, 0x00,0x3C,0x00,0x00, 0x00,0x3C,0x00,0x00,
   0x00,0x3C,0x00,0x00, 0x00,0x3C,0x00,0x00, 0x00,0x18,0x00,0x00, 0x00,0x00,0x00,0x00,
-  /* T_ENEMY0 — X fighter, colour 3 (magenta, planes 0+1) */
+  /* T_ENEMY0 - X fighter, colour 3 (magenta, planes 0+1) */
   0x81,0x81,0x00,0x00, 0x42,0x42,0x00,0x00, 0x24,0x24,0x00,0x00, 0xFF,0xFF,0x00,0x00,
   0xFF,0xFF,0x00,0x00, 0x24,0x24,0x00,0x00, 0x42,0x42,0x00,0x00, 0x81,0x81,0x00,0x00,
-  /* T_ENEMY1 — hollow diamond, colour 4 (cyan, plane 2) */
+  /* T_ENEMY1 - hollow diamond, colour 4 (cyan, plane 2) */
   0x00,0x00,0x18,0x00, 0x00,0x00,0x3C,0x00, 0x00,0x00,0x66,0x00, 0x00,0x00,0xC3,0x00,
   0x00,0x00,0xC3,0x00, 0x00,0x00,0x66,0x00, 0x00,0x00,0x3C,0x00, 0x00,0x00,0x18,0x00,
-  /* T_ENEMY2 — beetle, colour 5 (lime, planes 0+2) */
+  /* T_ENEMY2 - beetle, colour 5 (lime, planes 0+2) */
   0x3C,0x00,0x3C,0x00, 0x7E,0x00,0x7E,0x00, 0xDB,0x00,0xDB,0x00, 0xFF,0x00,0xFF,0x00,
   0xFF,0x00,0xFF,0x00, 0xDB,0x00,0xDB,0x00, 0x7E,0x00,0x7E,0x00, 0x3C,0x00,0x3C,0x00,
 };
@@ -229,9 +229,9 @@ static const uint8_t sprite_tiles[32 * 5] = {
 #define T_BULLET  1
 #define T_ENEMY0  2   /* + kind (0..2) selects the hue */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * Object pools — fixed slots, no allocation (3.58MHz Z80, 8KB WRAM: a heap
- * buys you nothing). SAT slot map: 0 = ship, 1-6 bullets, 7-12 enemies —
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * Object pools - fixed slots, no allocation (3.58MHz Z80, 8KB WRAM: a heap
+ * buys you nothing). SAT slot map: 0 = ship, 1-6 bullets, 7-12 enemies -
  * 13 of 64 slots; mind the 8-sprites-PER-SCANLINE limit when adding rows
  * of objects (the 9th sprite on a line silently vanishes). */
 #define MAX_BULLETS 6
@@ -264,14 +264,14 @@ static uint8_t over_pending;     /* defer GAME OVER text to the next vblank */
 static uint8_t hud_dirty;        /* score/lives changed → redraw next vblank */
 static uint16_t rng = 0xACE1;
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static uint8_t state;
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * LINE-INTERRUPT SPLIT SCROLL — the GG/SMS VDP's signature trick (fixed
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * LINE-INTERRUPT SPLIT SCROLL - the GG/SMS VDP's signature trick (fixed
  * status bar over a moving field, palette splits, water effects). The VDP
  * has ONE scroll register pair for the whole frame; to keep the HUD fixed
  * while the starfield drifts you change the scroll MID-FRAME. Where the NES
@@ -284,40 +284,40 @@ static uint8_t state;
  *   R1 bit 5 (IE0) frame(vblank)-IRQ enable (set by gg_vdp_display_on's 0xE0).
  *
  * GG WINDOW CONTRAST (the part SMS habits get wrong): R10 counts FULL-FRAME
- * scanlines — line 0 is the top of the 192-line active area, which is 24
+ * scanlines - line 0 is the top of the 192-line active area, which is 24
  * lines ABOVE the LCD. The HUD strip starts at the window top (scanline
  * VIS_Y0 = 24) and its last line is VIS_Y0 + HUD_PX - 1 = 47, so SPLIT_LINE
- * is 47 — NOT 23 as it would be on an SMS with the same 3-row HUD. Lines
+ * is 47 - NOT 23 as it would be on an SMS with the same 3-row HUD. Lines
  * 0..23 are rendered and never shown; they ride along with the HUD's
  * unscrolled region for free.
  *
  * Both IRQs land on the Z80's IM-1 vector at $0038. The crt0's handler does
  * the canonical minimal handshake:  push af / in a,($BF) / pop af / ei / reti
- * — reading the status port ACKS the VDP (clears BOTH pending flags; skip
+ * - reading the status port ACKS the VDP (clears BOTH pending flags; skip
  * the read and the IRQ line stays asserted = interrupt storm), and EI must
  * precede RETI or interrupts stay off forever after the first one.
  *
  * Because the handler does no work, the MAIN loop synchronizes with HALT:
  * the Z80 sleeps until the next interrupt, then we read the V-counter (port
- * $7E) to learn WHICH one woke us — line IRQs only fire during the active
+ * $7E) to learn WHICH one woke us - line IRQs only fire during the active
  * area (V < 0xC0 here), the frame IRQ fires at vblank (V ≥ 0xC0).
  *
  *   wait_vblank():  sleep until the frame IRQ  → do per-frame VRAM work,
  *                   write R8 = 0 so the HUD strip renders unscrolled.
  *   wait_split():   sleep until the line IRQ at scanline 47 (the last line
- *                   of the solid bar row — any single-line tear from the
+ *                   of the solid bar row - any single-line tear from the
  *                   mid-row write hides inside solid colour) → write
  *                   R8 = scroll_x; everything below drifts.
  *
- * FOOTGUN — you cannot poll once IRQs are on: gg_vblank_wait() spins on
+ * FOOTGUN - you cannot poll once IRQs are on: gg_vblank_wait() spins on
  * the same status port the ISR reads. The ISR always wins the race (the
  * IRQ fires the instant the flag sets), eats the flag, and the poll loop
  * hangs forever. HALT + V-counter is the IRQ-era replacement.
  *
- * FOOTGUN — why the field drifts HORIZONTALLY: the Y-scroll register (R9)
+ * FOOTGUN - why the field drifts HORIZONTALLY: the Y-scroll register (R9)
  * is LATCHED ONCE PER FRAME by the VDP; mid-frame R9 writes do nothing
  * until the next frame, so a "vertical scroll below the HUD" split is
- * impossible on this chip. X-scroll (R8) is sampled per line — that's the
+ * impossible on this chip. X-scroll (R8) is sampled per line - that's the
  * one you can change mid-frame. (Vertical motion: animate the star tiles
  * or stream the name table instead.)
  *
@@ -325,7 +325,7 @@ static uint8_t state;
  * display-on, the crt0's ack-only ISR, and wait_vblank/wait_split called
  * EVERY frame in this order. R10 reloads after each underflow, so the line
  * IRQ re-fires every HUD_PX+VIS_Y0 lines down the frame (here: 47, 95,
- * 143, 191) — the later wakes harmlessly interrupt game logic (the ISR
+ * 143, 191) - the later wakes harmlessly interrupt game logic (the ISR
  * acks them) and re-halt inside the NEXT wait_vblank(). */
 #define SPLIT_LINE (VIS_Y0 + HUD_PX - 1)
 
@@ -342,7 +342,7 @@ static void wait_split(void) {
   gg_vdp_write_reg(8, scroll_x);    /* field below the bar drifts */
 }
 
-/* ── HARDWARE IDIOM (load-bearing) — hi-score in Sega-mapper cart RAM ────────
+/* ── HARDWARE IDIOM (load-bearing) - hi-score in Sega-mapper cart RAM ────────
  * Same cartridge mapper as the SMS. The control register at $FFFC: bit 3
  * maps the cart's 8KB battery RAM into $8000-$BFFF (bank slot 2). Map →
  * copy → unmap; keep the window short so stray pointer bugs can't shred
@@ -350,13 +350,13 @@ static void wait_split(void) {
  * (all $FF) reads back as "no save" instead of a garbage hi-score.
  *
  * NOTE the $FFFC address: it's IN the WRAM mirror ($C000-$DFFF mirrors at
- * $E000-$FFFF), so this write also lands in WRAM at $DFFC — the mapper
+ * $E000-$FFFF), so this write also lands in WRAM at $DFFC - the mapper
  * just snoops the bus. That's why the crt0 parks SP at $DFF0: the bytes
  * above it ($DFFC-$FFFF) belong to the mapper registers' shadow.
  *
  * HONESTY (verified 2026-06-10 against the bundled gpgx core, same finding
  * as the SMS example): gpgx only instantiates the Sega mapper for ROMs
- * LARGER than 48KB, and this build pipeline emits 32KB ROMs — so
+ * LARGER than 48KB, and this build pipeline emits 32KB ROMs - so
  * in-emulator the $8000 window stays open-bus (reads $FF), the magic check
  * fails, and the game falls back to the WRAM hi-score (in-session only).
  * The code below is still the correct real-hardware idiom and lights up
@@ -388,7 +388,7 @@ static uint16_t hiscore_load(void) {
   return v;
 }
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (~tens of cycles per call) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (~tens of cycles per call) ── */
 static uint8_t random8(void) {
   uint16_t r = rng;
   r ^= r << 7;
@@ -398,11 +398,11 @@ static uint8_t random8(void) {
   return (uint8_t)r;
 }
 
-/* ── GAME LOGIC (clay) — text via the font tiles ─────────────────────────────
+/* ── GAME LOGIC (clay) - text via the font tiles ─────────────────────────────
  * These write the name table directly, so call them only during vblank (or
  * with the display off): VRAM access during active display races the VDP's
  * own fetches and drops/garbles bytes on real hardware. Rows/cols here are
- * WINDOW coordinates (0..17 / 0..19) — VROW/VCOL add the border offset, so
+ * WINDOW coordinates (0..17 / 0..19) - VROW/VCOL add the border offset, so
  * text can never accidentally land in the unseen 256×192 margin. */
 static uint8_t font_tile(char ch) {
   if (ch >= '0' && ch <= '9') return (uint8_t)(FONT_BASE + (ch - '0'));
@@ -424,8 +424,8 @@ static void draw_u16(uint8_t vrow, uint8_t vcol, uint16_t v) {
                         (uint8_t)(FONT_BASE + d[4 - i]), 0);
 }
 
-/* ── GAME LOGIC (clay) — HUD: SC sssss  HI hhhhh  Ln on window row 0.
- * Only 20 columns are visible — the layout below uses 18 of them. An SMS
+/* ── GAME LOGIC (clay) - HUD: SC sssss  HI hhhhh  Ln on window row 0.
+ * Only 20 columns are visible - the layout below uses 18 of them. An SMS
  * HUD string laid out for 32 columns gets its ends cut off by the border. */
 static void draw_hud_labels(void) {
   text_draw(0, 0, "SC");
@@ -439,16 +439,16 @@ static void draw_hud(void) {
   gg_set_tilemap_cell(VROW(0), VCOL(17), (uint8_t)(FONT_BASE + (lives > 9 ? 9 : lives)), 0);
 }
 
-/* ── GAME LOGIC (clay) — screen painters ─────────────────────────────────────
+/* ── GAME LOGIC (clay) - screen painters ─────────────────────────────────────
  * Full-screen repaints happen with the DISPLAY OFF (free VRAM access, and a
  * clean cut instead of a visible wipe). While the display is off the frame
- * IRQ doesn't fire — so no halt-based waits in here, or you hang forever.
+ * IRQ doesn't fire - so no halt-based waits in here, or you hang forever.
  *
  * IRQ-RACE FOOTGUN (cost this file a letter of its own title): repaints also
- * run with INTERRUPTS OFF — the di/ei bracket below. Display-off stops the
+ * run with INTERRUPTS OFF - the di/ei bracket below. Display-off stops the
  * FRAME IRQ but NOT the LINE IRQ (R0's IE1 stays set; the line counter runs
  * every scanline regardless of blanking). The crt0's ISR acks by READING the
- * control port ($BF) — and that read also resets the VDP's two-byte
+ * control port ($BF) - and that read also resets the VDP's two-byte
  * address-latch state machine. If the line IRQ fires between the two bytes
  * of a gg_vdp_set_addr() control-port pair, the second byte is taken as a
  * new first byte, the VRAM address de-syncs, and one cell of your repaint
@@ -456,8 +456,8 @@ static void draw_hud(void) {
  * don't need the bracket: vblank has no line IRQs and the frame IRQ was
  * already consumed by the halt that woke us. */
 /* PERF FOOTGUN (inherited from the SMS example, found the slow way): the
- * obvious per-cell version of this — set_tilemap_cell(r, c, (r*7+c*5) % 11
- * ? ... ) — costs ~35 FRAMES: SDCC's 16-bit `%` is a software-division call
+ * obvious per-cell version of this - set_tilemap_cell(r, c, (r*7+c*5) % 11
+ * ? ... ) - costs ~35 FRAMES: SDCC's 16-bit `%` is a software-division call
  * and set_tilemap_cell redoes the 4-OUT address setup for every cell. So:
  * set the VRAM address ONCE per row (the data port autoincrements through
  * the row's 64 bytes) and keep the star pattern in add/compare counters.
@@ -467,7 +467,7 @@ static void paint_starfield(uint8_t from_row) {
   uint8_t r, c, t, s, q;
   for (r = from_row; r < 24; r++) {
     gg_vdp_set_addr((uint16_t)(0x3800 + (uint16_t)r * 64), VDP_VRAM_WRITE);
-    /* s = (r*7) mod 11, q = (r*3) mod 29 — then walk +5 mod 11 / +13 mod 29
+    /* s = (r*7) mod 11, q = (r*3) mod 29 - then walk +5 mod 11 / +13 mod 29
      * across the columns (same field as the % expressions, no division). */
     s = (uint8_t)(r * 7); while (s >= 11) s -= 11;
     q = (uint8_t)(r * 3); while (q >= 29) q -= 29;
@@ -496,7 +496,7 @@ static void paint_title(void) {
   gg_sat_upload();
   gg_vdp_write_reg(8, 0);
   gg_vdp_display_on();              /* re-enables the frame IRQ too */
-  __asm__("ei");                    /* interrupts back on LAST — regs are set */
+  __asm__("ei");                    /* interrupts back on LAST - regs are set */
 }
 
 static void paint_field(void) {
@@ -518,7 +518,7 @@ static void paint_field(void) {
   __asm__("ei");
 }
 
-/* ── GAME LOGIC (clay) — pools ── */
+/* ── GAME LOGIC (clay) - pools ── */
 static void fire_bullet(void) {
   uint8_t i;
   for (i = 0; i < MAX_BULLETS; i++) {
@@ -526,7 +526,7 @@ static void fire_bullet(void) {
       bullet_active[i] = 1;
       bullet_x[i] = ship_x;
       bullet_y[i] = (uint8_t)(ship_y - 8);
-      /* PSG ch 0 — gg_music owns ch 2, so sfx and music never collide. */
+      /* PSG ch 0 - gg_music owns ch 2, so sfx and music never collide. */
       sfx_tone(0, 180, 3);
       return;
     }
@@ -539,7 +539,7 @@ static void spawn_enemy(void) {
     if (!enemy_active[i]) {
       enemy_active[i] = 1;
       /* Spawn across the VISIBLE width only: VIS_X0 + (0..127) + (0..15)
-       * lands in [48..190] — inside the window, never in the unseen
+       * lands in [48..190] - inside the window, never in the unseen
        * margin (an SMS-style 16..240 spawn range hides a third of the
        * enemies in the border). */
       enemy_x[i] = (uint8_t)(VIS_X0 + (random8() & 0x7F) + (random8() & 0x0F));
@@ -559,7 +559,7 @@ static uint8_t hits(uint8_t ax, uint8_t ay, uint8_t bx, uint8_t by) {
   return (uint8_t)((dx < 8) && (dy < 8));
 }
 
-/* ── GAME LOGIC (clay) — start a run / end a run ── */
+/* ── GAME LOGIC (clay) - start a run / end a run ── */
 static void start_game(void) {
   uint8_t i;
   for (i = 0; i < MAX_BULLETS; i++) bullet_active[i] = 0;
@@ -585,10 +585,10 @@ static void game_over(void) {
   }
   sfx_noise(20);
   state = ST_OVER;
-  over_pending = 1;          /* text is drawn next vblank — not mid-frame */
+  over_pending = 1;          /* text is drawn next vblank - not mid-frame */
 }
 
-/* ── GAME LOGIC (clay) — ship update. Movement clamps to the VISIBLE box:
+/* ── GAME LOGIC (clay) - ship update. Movement clamps to the VISIBLE box:
  * the hardware happily renders a ship at x=10, the LCD just never shows it. */
 static void update_ship(uint8_t pad) {
   if (!ship_alive) return;
@@ -604,7 +604,7 @@ static void update_ship(uint8_t pad) {
 }
 
 /* Stage the SAT shadow for this frame. Inactive slots park at Y=$E0 (below
- * the 192-line area AND below the LCD window). NEVER park at Y=$D0 — that's
+ * the 192-line area AND below the LCD window). NEVER park at Y=$D0 - that's
  * the SAT terminator: the VDP stops scanning at the first $D0 and every
  * later slot vanishes. */
 static void stage_sprites(void) {
@@ -620,13 +620,13 @@ static void stage_sprites(void) {
 void main(void) {
   uint8_t i, pad, prev_pad = 0;
 
-  /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+  /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
    * Init order: VDP regs (display off) → palette → tiles → name table →
    * SAT → R10 → display on (which also enables the frame IRQ) → EI. The
-   * one hard rule: EI comes LAST, after every register is in place — the
+   * one hard rule: EI comes LAST, after every register is in place - the
    * crt0 boots with DI and the FIRST halt would hang forever if interrupts
    * were never enabled. (paint_title's trailing __asm__("ei") IS that final
-   * step here — every repaint ends by re-arming interrupts.) */
+   * step here - every repaint ends by re-arming interrupts.) */
   gg_vdp_init();                     /* R0=0x36 already has IE1 (line IRQ) set */
   gg_load_palette(palette);
   load_font();
@@ -637,18 +637,18 @@ void main(void) {
   music_init();
   music_play(0);
 
-  /* R10 = SPLIT_LINE arms the line counter: IRQ at the last bar line —
+  /* R10 = SPLIT_LINE arms the line counter: IRQ at the last bar line -
    * scanline 47 in FULL-FRAME terms (window top 24 + HUD 24 - 1). Set
-   * once — it reloads itself every underflow. */
+   * once - it reloads itself every underflow. */
   gg_vdp_write_reg(10, SPLIT_LINE);
 
-  hiscore = hiscore_load();          /* cart RAM if present — else 0 */
+  hiscore = hiscore_load();          /* cart RAM if present - else 0 */
   state = ST_TITLE;
-  paint_title();                     /* …ends with EI: interrupts live now */
+  paint_title();                     /* ...ends with EI: interrupts live now */
 
   for (;;) {
     if (state == ST_TITLE) {
-      /* ── GAME LOGIC (clay) — title: START begins a run. START is a
+      /* ── GAME LOGIC (clay) - title: START begins a run. START is a
        * GG-only input: it lives on port $00 bit 7 (gg_joypad_read merges
        * it into bit 7 of the pad byte), NOT on the SMS pad port $DC. ── */
       wait_vblank();
@@ -663,7 +663,7 @@ void main(void) {
     if (state == ST_OVER) {
       /* Freeze the final frame; START returns to the title. */
       wait_vblank();
-      if (over_pending) {            /* deferred draw — now we're in vblank */
+      if (over_pending) {            /* deferred draw - now we're in vblank */
         over_pending = 0;
         text_draw(8, 5, "GAME OVER");
         draw_hud();                  /* show the (possibly new) hi-score */
@@ -686,14 +686,14 @@ void main(void) {
      * vblank; logic runs while the VDP draws the field.
      *
      * BUDGET FOOTGUN: everything between wait_vblank() and wait_split()
-     * must finish before the line IRQ at scanline 47 — vblank (70 lines) +
+     * must finish before the line IRQ at scanline 47 - vblank (70 lines) +
      * the 47 lines above the split ≈ 27k cycles. (The GG split budget is
      * BIGGER than the SMS's: the 24 never-shown border lines are free
      * cycles.) The SAT upload eats ~7k of that. An unconditional draw_hud()
      * here (10 software 16-bit divisions for the digits) is the classic
      * budget-blower: miss the line and the seam slips to a later reload of
      * the line counter, and the top of the starfield renders unscrolled in
-     * jittery stripes. Hence the dirty flag — the HUD only redraws on the
+     * jittery stripes. Hence the dirty flag - the HUD only redraws on the
      * frame after the score/lives actually changed. */
     wait_vblank();
     gg_sat_upload();                 /* shadow SAT staged at end of last frame */
@@ -703,7 +703,7 @@ void main(void) {
     }
     sfx_update();
     music_update();
-    wait_split();                    /* the line-interrupt split — every frame */
+    wait_split();                    /* the line-interrupt split - every frame */
 
     /* ── GAME LOGIC (clay) from here down ── */
     pad = gg_joypad_read();
@@ -770,7 +770,7 @@ void main(void) {
       spawn_enemy();
     }
 
-    /* Stage the SAT shadow NOW (RAM only — cheap, any time); the actual
+    /* Stage the SAT shadow NOW (RAM only - cheap, any time); the actual
      * VRAM upload waits for the next vblank at the top of the loop. */
     stage_sprites();
   }

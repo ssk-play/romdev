@@ -27,7 +27,7 @@ const parse = (res) => JSON.parse(res.content.find((c) => c.type === "text").tex
 
 // Fake Genesis host: video_ram holds one 4bpp tile (32 bytes) whose row 0
 // logical bytes are [0x13,0x33,0x33,0x30] but stored host-LE word-swapped as
-// [0x33,0x13,0x30,0x33] — exactly the scramble the real core exhibits.
+// [0x33,0x13,0x30,0x33] - exactly the scramble the real core exhibits.
 function makeGenesisHost() {
   const vram = new Uint8Array(64);
   // logical row0 = 13 33 33 30 → swapped per 16-bit word = 33 13 30 33
@@ -68,7 +68,7 @@ test("Genesis build emits an ld map; symbol address maps to system_ram offset", 
   const addr = parseInt(line.trim().split(/\s+/)[0], 16);
   assert.ok(addr >= 0xE0FF0000 && addr <= 0xE0FFFFFF, `well should be in mirrored work-RAM, got 0x${addr.toString(16)}`);
 
-  // The low 16 bits are the system_ram offset — verify a write lands there.
+  // The low 16 bits are the system_ram offset - verify a write lands there.
   const offset = addr & 0xFFFF;
   const tmp = await mkdtemp(path.join(os.tmpdir(), "gen-tool-"));
   try {

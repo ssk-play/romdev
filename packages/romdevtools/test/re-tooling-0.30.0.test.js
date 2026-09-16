@@ -1,11 +1,11 @@
 // 0.30.0 RE-tooling round (from a v0.28.0 NES reverse-engineering feedback round):
-//   #1  op:'searchUnknown' — Cheat-Engine unknown-initial-value hunt: seed the
+//   #1  op:'searchUnknown' - Cheat-Engine unknown-initial-value hunt: seed the
 //       WHOLE region, narrow by dec/inc/changed across events (find the
 //       lives/timer address you can't see).
 //   #3  op:'diff' direction/range filters (changeDir/deltaEq/before*/after*) so
 //       a 537-byte death diff returns the ~3 rows you want.
 //   #2b op:'diff' honors outputPath (+ echo:false) like op:'read' does.
-//   #2a op:'readCart' by banked {cpuAddress, bank} — the inverse of the
+//   #2a op:'readCart' by banked {cpuAddress, bank} - the inverse of the
 //       breakpoint result's bank/prgOffset.
 
 import { test } from "node:test";
@@ -56,7 +56,7 @@ test("#1 op:'searchUnknown' seeds the whole region, then dec-narrows to the hidd
   assert.equal(seed.count, 256, "searchUnknown seeds EVERY byte (no value filter)");
   assert.equal(seed.mode, "unknown");
 
-  // lose a life (7->6) while another byte wiggles UP — dec must isolate the life
+  // lose a life (7->6) while another byte wiggles UP - dec must isolate the life
   host.writeMemory("system_ram", 0x50, Uint8Array.from([6]));
   host.writeMemory("system_ram", 0x60, Uint8Array.from([255]));
   const r1 = parse(await memory({ op: "searchNext", name: "h", compare: "dec" }));
@@ -111,7 +111,7 @@ test("#2b op:'diff' honors outputPath; echo:false returns a slim envelope", asyn
   }
 });
 
-test("#4 condition:'equals' — core handles it when supported (conditionApplied)", async () => {
+test("#4 condition:'equals' - core handles it when supported (conditionApplied)", async () => {
   // Fake host whose watchpoint supports the condition export: it only 'hits'
   // when the (pretend) written value equals the requested conditionValue.
   let armedCond = null;
@@ -132,7 +132,7 @@ test("#4 condition:'equals' — core handles it when supported (conditionApplied
   assert.equal(r.condition, "equals");
   assert.equal(r.valueByte, "0x01");
   assert.equal(r.oldValueByte, "0x00", "the core's pre-write byte is surfaced");
-  assert.ok(!("conditionAppliedBy" in r), "core handled it — not the host fallback");
+  assert.ok(!("conditionAppliedBy" in r), "core handled it - not the host fallback");
 });
 
 test("#4 condition:'equals' requires conditionValue", async () => {
@@ -163,7 +163,7 @@ test("#2a op:'readCart' maps a banked CPU address to PRG bytes (NES)", async () 
   assert.equal(r.fileOffset, "0x4010");
 });
 
-// #5 schema slim — the inlined ~62-value region enum was dropped from the
+// #5 schema slim - the inlined ~62-value region enum was dropped from the
 // secondary region sub-params (validated at runtime instead). On runUntil the
 // old enum was also a STALE 8-value list that wrongly schema-rejected valid
 // non-NES regions. Prove the region sub-params now accept the full canonical

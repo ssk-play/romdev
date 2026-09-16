@@ -1,4 +1,4 @@
-; NES — copy 256-byte shadow OAM at $0200 to the PPU via DMA.
+; NES - copy 256-byte shadow OAM at $0200 to the PPU via DMA.
 ;
 ; Call this inside your NMI handler. It transfers all 64 sprites' attributes
 ; in ~513 cycles, which is the only fast way to update sprites without

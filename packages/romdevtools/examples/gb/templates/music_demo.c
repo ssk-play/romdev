@@ -1,4 +1,4 @@
-/* ── music_demo.c — hUGEDriver music player demo (GB) ────────────────
+/* ── music_demo.c - hUGEDriver music player demo (GB) ────────────────
  *
  * Plays the bundled sample_song (see song_data.c) on the GB APU.
  *
@@ -31,8 +31,8 @@ extern const huge_song_t sample_song;
 
 /* Two 8×8 2bpp tiles so the BG isn't a single flat colour (a uniform
  * screen reads >=92% one colour and fails the blank-screen check):
- *   tile 1 — solid colour 3
- *   tile 2 — solid colour 1
+ *   tile 1 - solid colour 3
+ *   tile 2 - solid colour 1
  * We checkerboard them across the BG map below. */
 static const uint8_t tile_solid3[16] = {
   0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF, 0xFF,0xFF,
@@ -53,7 +53,7 @@ void main(void) {
   LCDC = 0;               /* LCD off so we can write VRAM freely */
 
   /* Upload two tiles to VRAM slots 1 ($8010) and 2 ($8020). Use
-   * memcpy_vram (pointer-walk) — an indexed dst[i]=src[i] loop into VRAM
+   * memcpy_vram (pointer-walk) - an indexed dst[i]=src[i] loop into VRAM
    * is miscompiled by SDCC sm83. */
   memcpy_vram((uint8_t *)0x8010, tile_solid3, 16);
   memcpy_vram((uint8_t *)0x8020, tile_solid1, 16);
@@ -80,7 +80,7 @@ void main(void) {
     frame++;
     if ((frame & 0x1F) == 0) {
       shade = (uint8_t)((shade + 1) & 0x03);
-      /* DMG palette cycle — every 32 frames shift the BG shade.
+      /* DMG palette cycle - every 32 frames shift the BG shade.
        * On GBC this writes through to the legacy DMG-compat palette. */
       BGP = (uint8_t)(0xE4u ^ (uint8_t)(shade * 0x55u));
     }

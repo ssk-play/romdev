@@ -48,7 +48,7 @@ export function snesImageToTilemap(args) {
 
   // 1) Convert every pixel to BGR555. Collect the up-to-16 distinct colors.
   // Color 0 = whichever appears as the FIRST pixel (top-left), which makes
-  // the universal backdrop deterministic — imagemagick's quantizer puts the
+  // the universal backdrop deterministic - imagemagick's quantizer puts the
   // most-common color at index 0 in its output palette anyway.
   /** @type {Map<number, number>} BGR555 → palette index 0..15 */
   const colorIndex = new Map();
@@ -61,7 +61,7 @@ export function snesImageToTilemap(args) {
       idx = colorIndex.size;
       if (idx >= 16) {
         throw new Error(
-          `SNES 4bpp requires ≤16 distinct colors; image has more. Use \`magick … -colors 16 -dither FloydSteinberg\` first.`
+          `SNES 4bpp requires ≤16 distinct colors; image has more. Use \`magick ... -colors 16 -dither FloydSteinberg\` first.`
         );
       }
       colorIndex.set(c, idx);
@@ -92,7 +92,7 @@ export function snesImageToTilemap(args) {
         if (c & 4) p2 |= 1 << (7 - xx);
         if (c & 8) p3 |= 1 << (7 - xx);
       }
-      // SNES 4bpp tile layout — confirmed by trial:
+      // SNES 4bpp tile layout - confirmed by trial:
       // Row Y uses 4 bytes: planes 0+1+2+3 interleaved at offsets:
       //   yy*2+0     plane 0 (LSB)
       //   yy*2+1     plane 1
@@ -188,7 +188,7 @@ export function snesImageToTilemap(args) {
 /**
  * Emit a 16-color sample SNES palette PNG (useful as imagemagick -remap
  * target). For SNES we generally want imagemagick to PICK its own 16
- * colors via `-colors 16`, then quantize within those — there's no
+ * colors via `-colors 16`, then quantize within those - there's no
  * "canonical 16 SNES greys" the way the NES has a fixed master palette.
  *
  * We provide a generic vibrant 16-color palette as a default. Caller can

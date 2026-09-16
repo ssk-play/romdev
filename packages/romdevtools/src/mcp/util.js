@@ -12,7 +12,7 @@ import { dirname } from "node:path";
 //     location → nothing ever lands somewhere the user can't find / loses.
 //   • inline:true   → the payload comes back in the response, no path.
 // This keeps the common call cheap on context AND prevents the "my ROM
-// went to /tmp and got wiped" footgun — the agent must say where it goes.
+// went to /tmp and got wiped" footgun - the agent must say where it goes.
 
 /**
  * Enforce the path-or-inline contract and (when not inline) write to disk.
@@ -23,11 +23,11 @@ import { dirname } from "node:path";
  */
 export function writeOutput(data, { outputPath, inline = false, what = "output", encoding } = {}) {
   if (inline) {
-    throw new Error("writeOutput called with inline:true — caller should return the payload inline instead of writing.");
+    throw new Error("writeOutput called with inline:true - caller should return the payload inline instead of writing.");
   }
   if (!outputPath) {
     throw new Error(
-      `No output path given for ${what}. Pass outputPath (absolute path / dir where it should be saved — ` +
+      `No output path given for ${what}. Pass outputPath (absolute path / dir where it should be saved - ` +
       `e.g. your project dir) or inline:true to get it back in the response.`,
     );
   }
@@ -49,10 +49,10 @@ export function parseHexBytes(hex, label = "hex") {
   const cleaned = String(hex).replace(/[\s_$]/g, "");
   if (!/^[0-9a-fA-F]*$/.test(cleaned)) {
     const bad = cleaned.match(/[^0-9a-fA-F]/);
-    throw new Error(`${label}: contains a non-hex character '${bad[0]}' — pass plain hex like "1A2B" (spaces/underscores/$ are fine and stripped).`);
+    throw new Error(`${label}: contains a non-hex character '${bad[0]}' - pass plain hex like "1A2B" (spaces/underscores/$ are fine and stripped).`);
   }
   if (cleaned.length % 2 !== 0) {
-    throw new Error(`${label}: odd hex length (${cleaned.length} nibbles after stripping separators) — a byte is two hex chars, so one nibble is missing or extra.`);
+    throw new Error(`${label}: odd hex length (${cleaned.length} nibbles after stripping separators) - a byte is two hex chars, so one nibble is missing or extra.`);
   }
   const buf = new Uint8Array(cleaned.length / 2);
   for (let i = 0; i < buf.length; i++) buf[i] = parseInt(cleaned.substr(i * 2, 2), 16);
@@ -147,7 +147,7 @@ export function safeTool(fn) {
 // The MCP SDK validates args against the registered zod schema BEFORE our
 // handler runs, and on failure throws a raw JSON dump ("Input validation error:
 // [{...}]"). It also silently DROPS unknown keys (so `addr` instead of `offset`
-// fails silently). Param descriptions can't fix either — and they cost every
+// fails silently). Param descriptions can't fix either - and they cost every
 // agent context on every connect. So instead we keep param docs terse and put
 // the guidance in the ERROR (paid only by the agent who errs, only when it errs).
 //
@@ -159,7 +159,7 @@ export function safeTool(fn) {
 
 /**
  * Wrap an McpServer's `tool()` so every registered tool gets clear validation
- * errors instead of the SDK's raw JSON dump — and unknown/misspelled params are
+ * errors instead of the SDK's raw JSON dump - and unknown/misspelled params are
  * caught (the SDK strips them silently by default). Call ONCE at the top of
  * registerTools(): `server = withClearToolErrors(server, z)`.
  *
@@ -167,7 +167,7 @@ export function safeTool(fn) {
  * we pass, safeParses the args, and surfaces `issues[0].message`. We instead
  * register a `.strict()` object carrying a custom `error` map that returns a
  * plain sentence per issue (enum/type/missing/unknown-key with "did you mean").
- * So the SDK's own validator emits good text — no ordering fight, no per-tool code.
+ * So the SDK's own validator emits good text - no ordering fight, no per-tool code.
  *
  * @param {any} server  the McpServer
  * @param {any} z       the zod module
@@ -209,13 +209,13 @@ export function withClearToolErrors(server, z) {
   const origTool = server.tool.bind(server);
   server.tool = (name, ...rest) => {
     // Register normally (the SDK requires a RAW shape as inputSchema and builds
-    // z.object(shape) itself — passing a built object is rejected). THEN patch
+    // z.object(shape) itself - passing a built object is rejected). THEN patch
     // the stored tool's inputSchema to a `.strict()` object carrying a custom
     // error map. Both validation AND tools/list go through the stored schema
     // (the SDK calls normalizeObjectSchema(tool.inputSchema) for each), so this
     // makes the SDK itself: (a) reject unknown/misspelled params (.strict) with
     // a "did you mean", and (b) emit a clean sentence for bad enum / wrong type
-    // / missing — instead of its raw JSON dump. No ordering fight; the param
+    // / missing - instead of its raw JSON dump. No ordering fight; the param
     // descriptions can stay terse because the guidance lives in the error.
     const shapeIdx = rest.findIndex(
       (x) => x && typeof x === "object" && !Array.isArray(x) && !("_def" in x) &&
@@ -224,7 +224,7 @@ export function withClearToolErrors(server, z) {
     const shape = shapeIdx >= 0 ? rest[shapeIdx] : null;
 
     // PER-OP PARAMETER VALIDATION runs on the handler's own arguments, which
-    // are exactly what the caller sent — no schema defaults applied yet. A
+    // are exactly what the caller sent - no schema defaults applied yet. A
     // parameter that is real for a SIBLING op is refused here instead of being
     // accepted and silently ignored.
     if (shape) {
@@ -253,14 +253,14 @@ export function withClearToolErrors(server, z) {
 }
 
 // ── Hex-string coercion on address-like params ─────────────────────
-// JSON forbids `0x…` number literals, so an agent that pastes an address as hex
+// JSON forbids `0x...` number literals, so an agent that pastes an address as hex
 // (`{address: 0xC06C}`) gets a HARD parse error, and even valid JSON can't carry
-// hex. We accept the STRING forms `"0x…"`, `"$…"`, and decimal strings on
+// hex. We accept the STRING forms `"0x..."`, `"$..."`, and decimal strings on
 // address-like params and coerce them to a number BEFORE validation, so the
 // natural thing an agent reaches for just works. (Reported repeatedly in v0.41.0
 // feedback as the #1 first-try-fail.)
 //
-// Matched by KEY NAME (not schema introspection — robust across zod versions).
+// Matched by KEY NAME (not schema introspection - robust across zod versions).
 // DELIBERATELY NARROW: only names that are unambiguously a numeric address/offset
 // across the toolset. Names like `start`/`end`/`from`/`to`/`target`/`compare` are
 // EXCLUDED because they're also booleans (the START button) or enums (`compare:'eq'`,
@@ -293,15 +293,15 @@ export function coerceHexNumber(v) {
 /**
  * Which ops/targets a parameter belongs to, read from its own description.
  *
- * The descriptions already say this — "target=recompile: ...", "op=timeline: ...",
- * "op=bytes/rom: ..." — so the scope is declared data, not something this has to
+ * The descriptions already say this - "target=recompile: ...", "op=timeline: ...",
+ * "op=bytes/rom: ..." - so the scope is declared data, not something this has to
  * be told separately. A parameter with no such prefix is treated as global.
  *
  * WHY THIS EXISTS. Validation was per-TOOL: every key valid on ANY op was
  * accepted on EVERY op. So a parameter that belongs to a sibling op is taken
  * and silently ignored, and the caller gets a plausible answer to a question
  * they did not ask. Three measured cases: `address` on target:'recompile'
- * (always lifted the reset vector, so on NES — where reset IS $8000 — it
+ * (always lifted the reset vector, so on NES - where reset IS $8000 - it
  * returned a believable result for the wrong address), `bank` on
  * target:'reachable' (a silently wrong closure), and `path` on
  * playtest({op:'open'}) (dropped, then an error that never mentions it).
@@ -311,11 +311,11 @@ function scopesFromDescription(desc) {
   const text = String(desc);
   // A scope marker only counts when the description LEADS with it. These texts
   // are prose: `project` says "Required by every op except list. op:'import'
-  // picks it." — the marker is an aside, not a whitelist, and reading it as one
+  // picks it." - the marker is an aside, not a whitelist, and reading it as one
   // rejected `project` on every decomp op. A real scope declaration starts the
   // description or starts a sentence within it.
   // The marker must OPEN the description. When it appears later it is an aside
-  // inside prose — `project` reads "Required by every op except list.
+  // inside prose - `project` reads "Required by every op except list.
   // op:'import' picks it.", where the leading sentence is the real scope and
   // the marker names one special case. Treating that as a whitelist rejected
   // `project` on every decomp op.
@@ -325,7 +325,7 @@ function scopesFromDescription(desc) {
   // FOUR SPELLINGS ARE IN USE, and matching only the first two is why this
   // fired on `disasm`/`frame` and not on `memory`/`playtest`:
   //   op=step/stepAndShot:   (160 uses)   target=rom:          (57)
-  //   op:'readCart' —        (~80)        target:'decompile' — (25)
+  //   op:'readCart' -        (~80)        target:'decompile' - (25)
   // The `=`-form ends at a colon; the `:`-form ends at an em-dash, a colon or
   // the first sentence break. Both are the author saying the same thing.
   const add = (list) => {
@@ -336,14 +336,14 @@ function scopesFromDescription(desc) {
   };
   // "op=a/b:" / "target=a:"
   for (const m of String(desc).matchAll(/\b(?:op|target)\s*=\s*([A-Za-z0-9'"|/,\s]+?)\s*:/g)) add(m[1]);
-  // "op:'a' —" / "op:a —" / "target:'a' —", ending at an em-dash, hyphen or colon.
-  for (const m of String(desc).matchAll(/\b(?:op|target)\s*:\s*((?:'[A-Za-z0-9]+'|[A-Za-z0-9]+)(?:\s*[/,|]\s*(?:'[A-Za-z0-9]+'|[A-Za-z0-9]+))*)\s*(?=[—–:-]|\s)/g)) add(m[1]);
+  // "op:'a' -" / "op:a -" / "target:'a' -", ending at an em-dash, hyphen or colon.
+  for (const m of String(desc).matchAll(/\b(?:op|target)\s*:\s*((?:'[A-Za-z0-9]+'|[A-Za-z0-9]+)(?:\s*[/,|]\s*(?:'[A-Za-z0-9]+'|[A-Za-z0-9]+))*)\s*(?=[--:-]|\s)/g)) add(m[1]);
   return scopes.size ? scopes : null;
 }
 
 /**
  * Build a per-op checker. Returns null when the tool has no op/target
- * discriminator or no parameter declares a scope — in which case per-tool
+ * discriminator or no parameter declares a scope - in which case per-tool
  * validation is all there is and nothing changes.
  */
 export function makeScopeChecker(shape, toolName) {
@@ -361,22 +361,22 @@ export function makeScopeChecker(shape, toolName) {
   // DESCRIPTIONS ARE NOT ALWAYS AN EXHAUSTIVE WHITELIST. Some are written for
   // the reader: `path` says "target=bytes ... target=rom/project/references"
   // and is ALSO required by target:'recompile', which the text never mentions.
-  // Enforcing those rejects valid calls — a worse failure than the silent drop.
+  // Enforcing those rejects valid calls - a worse failure than the silent drop.
   //
   // So a small SHARED list is exempt. Everything else with an explicit scope is
   // enforced, however many ops it names: `address` naming four targets is a
   // complete list, and 'recompile' genuinely is not one of them.
   // The exemption is PER TOOL, not global. `path` on `disasm` is genuinely
-  // under-documented — its text names some targets and it is required by others
-  // (recompile) that the text never mentions — so enforcing it there rejects
+  // under-documented - its text names some targets and it is required by others
+  // (recompile) that the text never mentions - so enforcing it there rejects
   // valid calls. On `playtest` the same NAME means one specific thing
-  // ("op:framebuffer — absolute path to write the PNG to"), and passing it to
+  // ("op:framebuffer - absolute path to write the PNG to"), and passing it to
   // op:'open' really is a silent drop. A global exemption made the second case
   // unreachable in order to fix the first.
   // DECLARED SCOPE BEATS PROSE. Deriving applicability from description text
   // was wrong twice in the same week, both times by refusing a call the
   // handler genuinely supports: `action` on op:'assets', and `candidatePath`
-  // on op:'gate' (whose handler calls candidateSource() — it REQUIRES the
+  // on op:'gate' (whose handler calls candidateSource() - it REQUIRES the
   // parameter it was rejecting). Prose is written for a reader; the validator
   // needs a contract. This map is that contract: an entry here replaces the
   // parsed scope entirely, so a handler's real needs cannot be overridden by
@@ -429,7 +429,7 @@ export function makeScopeChecker(shape, toolName) {
   if (!scopeOf.size) return null;
 
   // A parameter that still holds its DECLARED DEFAULT is indistinguishable from
-  // one the caller never passed — the SDK applies defaults before the handler
+  // one the caller never passed - the SDK applies defaults before the handler
   // runs. Flagging those rejected every valid call on the tool (`cpu` defaults
   // to "6502" on every disasm target). Read each default off the schema and
   // treat a value equal to it as absent.
@@ -451,7 +451,7 @@ export function makeScopeChecker(shape, toolName) {
       // The parameter is real, just not for THIS op. Name where it does apply:
       // the caller is usually one word away from the right call.
       const where = [...scopes].map((x) => `${discriminator}:'${x}'`).join(" or ");
-      return `${toolName}: '${key}' does not apply to ${discriminator}:'${op}' — it belongs to ${where}. `
+      return `${toolName}: '${key}' does not apply to ${discriminator}:'${op}' - it belongs to ${where}. `
         + `Passing it here would be silently ignored, so it is refused instead.`;
     }
     return null;
@@ -460,8 +460,8 @@ export function makeScopeChecker(shape, toolName) {
 
 function strictFriendlyObject(z, shape, toolName) {
   // Wrap address-like fields with a hex-string→number preprocessor. z.preprocess
-  // runs the coercion first, then the field's own schema (number().int()…)
-  // validates the result — so descriptions, optionality, and ranges are preserved.
+  // runs the coercion first, then the field's own schema (number().int()...)
+  // validates the result - so descriptions, optionality, and ranges are preserved.
   const coercedShape = {};
   for (const [key, schema] of Object.entries(shape)) {
     if (ADDR_KEY_RE.test(key)) {
@@ -586,7 +586,7 @@ export function validateArgs(shape, args, toolName) {
   const validKeys = Object.keys(shape);
   const validSet = new Set(validKeys);
 
-  // 1) Unknown / misspelled params — the silent-drop footgun.
+  // 1) Unknown / misspelled params - the silent-drop footgun.
   for (const k of Object.keys(a)) {
     if (!validSet.has(k)) {
       const hint = suggestKey(k, validKeys);

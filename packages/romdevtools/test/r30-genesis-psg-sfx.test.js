@@ -1,4 +1,4 @@
-// R30 — Genesis PSG sound wrapper smoke test.
+// R30 - Genesis PSG sound wrapper smoke test.
 //
 // Confirms genesis_sfx.{h,c} compiles + links against SGDK on the
 // genesis-c toolchain. The wrapper provides sfx_init / sfx_tone /

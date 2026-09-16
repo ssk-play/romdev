@@ -1,4 +1,4 @@
-// Genesis PC breakpoint / read watchpoint / single-step — end to end.
+// Genesis PC breakpoint / read watchpoint / single-step - end to end.
 //
 // Exercises the romdev_pcbreak_* / romdev_readwatch_* core patch (gpgx m68k)
 // through the MCP tool surface: runUntilPC freezes the CPU at an exact
@@ -77,7 +77,7 @@ test("Genesis PC breakpoint + read watch + single-step (gpgx m68k)", { timeout: 
   const bp = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "pc",  address: writerPC, maxFrames: 300 },
   }));
-  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported — core patch missing?");
+  assert.equal(bp.notSupported, undefined, "PC breakpoint reported notSupported - core patch missing?");
   assert.equal(bp.hit, true, "runUntilPC did not hit the writer PC: " + JSON.stringify(bp));
   assert.equal(bp.pcRaw, writerPC, "frozen PC != requested PC");
 
@@ -91,28 +91,28 @@ test("Genesis PC breakpoint + read watch + single-step (gpgx m68k)", { timeout: 
 
   // 4) runUntilRead on g_value's effect: watch the work-RAM write target's
   //    SOURCE isn't a fixed addr, so instead prove the read watch fires on a
-  //    known-read address — 0xFF2000 is also read-back-free, so watch the ROM
+  //    known-read address - 0xFF2000 is also read-back-free, so watch the ROM
   //    read path via the write target is not ideal. Simpler: single-step works.
   const stepRes = toJSON(await client.callTool({ name: "frame", arguments: { op: "stepInstruction" } }));
   assert.equal(stepRes.notSupported, undefined, "stepInstruction reported notSupported");
   assert.equal(stepRes.stepped, true, "single-step failed: " + JSON.stringify(stepRes));
   assert.ok(stepRes.pcRaw >= 0, "single-step returned no pc");
-  // Single-step must ADVANCE the PC past the breakpoint — not re-stop on the
+  // Single-step must ADVANCE the PC past the breakpoint - not re-stop on the
   // same (un-executed) instruction. (The countdown-arm fix; a before-dispatch
   // fire would return the same PC.)
   assert.notEqual(stepRes.pcRaw, writerPC, "single-step did not advance PC: " + JSON.stringify(stepRes));
 
-  // 5) runUntilRead — watch a RAM address the program reads. The counter at
+  // 5) runUntilRead - watch a RAM address the program reads. The counter at
   //    0xFF2000 is written but `acc` lives in a register; to have a deterministic
   //    READ we watch the write target after it's been written (the next frame's
   //    `acc +=` path doesn't read it, so instead assert the tool is wired and
-  //    returns a clean shape on a no-hit within a small window — i.e. it doesn't
+  //    returns a clean shape on a no-hit within a small window - i.e. it doesn't
   //    crash and reports notSupported:false). A positive-hit read test would need
   //    a known read address; the mechanism is shared with runUntilPC above.
   const rd = toJSON(await client.callTool({
     name: "breakpoint", arguments: { on: "read",  address: 0xFF2000, maxFrames: 30 },
   }));
-  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported — read-watch patch missing?");
+  assert.equal(rd.notSupported, undefined, "runUntilRead reported notSupported - read-watch patch missing?");
   assert.ok(typeof rd.hit === "boolean", "runUntilRead returned no hit field: " + JSON.stringify(rd));
 
   // 6) runUntilPC drives the core via _runFramesExclusive, which suspends the

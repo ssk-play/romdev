@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.SampleBank — VGM sample data bank + InternalSample.
+// Port of sgdk.xgm2tool.format.SampleBank - VGM sample data bank + InternalSample.
 
 import * as Util from "./util.js";
 import { VGMCommand } from "./vgm-command.js";

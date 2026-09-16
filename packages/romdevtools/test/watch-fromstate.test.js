@@ -1,4 +1,4 @@
-// watch({on:'range'/'pc', fromState|fromStatePath}) — replay a savestate BEFORE
+// watch({on:'range'/'pc', fromState|fromStatePath}) - replay a savestate BEFORE
 // tracing so the log runs from a known, repeatable moment. Tests the restore
 // (in-memory slot + disk file), the determinism (same state → same trace), and
 // the both-given guard. Driven through the registered MCP tool via an in-process
@@ -24,7 +24,7 @@ async function makeWatchHandler(key) {
   const { registerWatchMemoryTools } = await import("../src/mcp/tools/watch-memory.js");
   const tools = {};
   const fakeServer = { tool: (name, _desc, _schema, handler) => { tools[name] = handler; } };
-  // minimal zod stand-in is not needed — registerWatchMemoryTools imports its own z? check:
+  // minimal zod stand-in is not needed - registerWatchMemoryTools imports its own z? check:
   const { z } = await import("zod");
   registerWatchMemoryTools(fakeServer, z, key);
   return tools.watch;
@@ -55,7 +55,7 @@ test("watch fromState: in-memory slot restore reruns the trace from that moment"
     assert.ok(Array.isArray(r.distinctPCs), "range trace ran after restore");
     // NOTE: host.status.frameCount is romdev's MONOTONIC bookkeeping counter and
     // is intentionally NOT rewound by a savestate restore (documented in state).
-    // The emulator's actual state IS rewound — proven by the determinism test
+    // The emulator's actual state IS rewound - proven by the determinism test
     // (same slot → identical PC set). So here we just confirm the restore + trace
     // happened, not the monotonic counter.
     assert.ok(r.total >= 0 && r.range, "range result well-formed after restore");
@@ -64,7 +64,7 @@ test("watch fromState: in-memory slot restore reruns the trace from that moment"
   }
 });
 
-test("watch fromState: determinism — same state slot gives the same distinctPCs", { timeout: 120000 }, async () => {
+test("watch fromState: determinism - same state slot gives the same distinctPCs", { timeout: 120000 }, async () => {
   const key = "watch-fromstate-det";
   try {
     const core = resolveCore("c64");

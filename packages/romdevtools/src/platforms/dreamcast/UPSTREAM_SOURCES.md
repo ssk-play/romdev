@@ -1,14 +1,14 @@
-# Sega Dreamcast — source you can read
+# Sega Dreamcast - source you can read
 
 Trust hierarchy (try in order before filing a feedback round):
 
 1. **Bundled examples** (`examples/dreamcast/{hello,shmup,platformer,puzzle,racing,sports}/main.c`)
-   — verified building + rendering on the GPU (full 480-line frame). Start here.
-2. **Bundled helper lib source** (`src/toolchains/sh-c/lib/dc.h`) — the PowerVR2
+   - verified building + rendering on the GPU (full 480-line frame). Start here.
+2. **Bundled helper lib source** (`src/toolchains/sh-c/lib/dc.h`) - the PowerVR2
    framebuffer bring-up + drawing + input. Read this when something doesn't render or input
-   doesn't read: it shows `dc_video_init` (FB_R_CTRL/SIZE/SOF1 + SPG, **480i interlace** —
+   doesn't read: it shows `dc_video_init` (FB_R_CTRL/SIZE/SOF1 + SPG, **480i interlace** -
    240p only shows the top 240 lines), `dc_clear`/`dc_rect`, and the Maple-DMA `dc_pad()`.
-3. **The core source** (NOT bundled — fetch on demand):
+3. **The core source** (NOT bundled - fetch on demand):
 
    | What | Upstream |
    |---|---|
@@ -18,7 +18,7 @@ Trust hierarchy (try in order before filing a feedback round):
    The cpuState/audioDebug exports we patch in (`romdev_sh4_regs_get`, `romdev_aica_get`)
    live in `scripts/patches/romdev-snippets/flycast-debug.c`.
 
-4. **The toolchain** — a from-scratch `sh-elf-gcc` cross-compiler (little-endian SH-4,
+4. **The toolchain** - a from-scratch `sh-elf-gcc` cross-compiler (little-endian SH-4,
    m4-single-only FP) built to WASM (`scripts/build-sh-toolchain.sh` +
    `build-sh-wasm-tools.sh`). NOTE: cc1 defaults to **-O1** (the sh-elf cc1.wasm has an
    -O2-only crash on common control flow):
@@ -29,7 +29,7 @@ Trust hierarchy (try in order before filing a feedback round):
    | gcc | https://ftp.gnu.org/gnu/gcc/ |
    | newlib | https://sourceware.org/pub/newlib/ |
 
-5. **Reverse engineering** — Rizin + Ghidra SH-4 (SuperH4 SLEIGH):
+5. **Reverse engineering** - Rizin + Ghidra SH-4 (SuperH4 SLEIGH):
 
    | What | Upstream |
    |---|---|
@@ -38,7 +38,7 @@ Trust hierarchy (try in order before filing a feedback round):
 
 ## Dreamcast hardware docs
 
-- **KallistiOS (KOS)** — the canonical open DC SDK; read its PowerVR2 TA, AICA, and Maple
+- **KallistiOS (KOS)** - the canonical open DC SDK; read its PowerVR2 TA, AICA, and Maple
   drivers for the standard register sequences: https://github.com/KallistiOS/KallistiOS
 - **Mc Spankled / DCEmulation docs + the Sega Dreamcast Hardware Specification** (PVR2/Holly
   register maps): cross-check against flycast's `core/hw/pvr/pvr_regs.h` enum.

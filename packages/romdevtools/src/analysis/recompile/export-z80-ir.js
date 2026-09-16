@@ -19,7 +19,7 @@ const MAX_Z80_INSTR = 4;
  * frequently does. The linear tiling answers "who owns this byte"; this answers
  * "what is the instruction if execution starts HERE".
  *
- * Done naively that is one decoder subprocess per offset — ~5ms each, so ~11
+ * Done naively that is one decoder subprocess per offset - ~5ms each, so ~11
  * minutes for a 128KB cart, which is the cost this is meant to remove. Instead
  * each offset contributes a fixed-stride slice to one buffer: MAX_Z80_INSTR
  * real bytes followed by 0x00 padding. The padding is `nop`, so an instruction
@@ -81,7 +81,7 @@ export function decodedIR(row, window, rom, { allowStraddle = false } = {}) {
   // not a decode limit: a bank whose last instruction's operands continue into
   // the next bank is normal (4 of 7 shipped Sega titles do it). What must hold
   // is that the instruction STARTS inside the window and its bytes are really
-  // the ROM's — reading past the window edge is fine, reading past the ROM is
+  // the ROM's - reading past the window edge is fine, reading past the ROM is
   // not.
   const straddles = off + bytes.length > windowEnd;
   // A SECONDARY-alignment record is a decode starting mid-instruction, so it
@@ -214,8 +214,8 @@ export async function exportZ80IR(args) {
       offsetsTotal: rom.length, offsetsWithRecord: instrCount + secondaryCount,
       // ALWAYS present when alignments:'all' is on, including at zero.
       //
-      // This was `...(unresolvedOffsets ? {...} : {})`, so the healthy case —
-      // zero unresolved — omitted the field entirely. A caller asserting
+      // This was `...(unresolvedOffsets ? {...} : {})`, so the healthy case -
+      // zero unresolved - omitted the field entirely. A caller asserting
       // `unresolvedOffsets === 0` then read `undefined`, which is falsy in the
       // same direction as success: a real regression to a nonzero count and an
       // absent field are indistinguishable to `if (!m.unresolvedOffsets)`. The
@@ -225,7 +225,7 @@ export async function exportZ80IR(args) {
       unresolvedOffsets,
       ...(unresolvedOffsets ? {
         unresolvedNote: "offsets the decoder produced no instruction for, usually because fewer than a full instruction's bytes remain before the end of the ROM." } : {}),
-      alignmentNote: "every byte offset carries a record. `alignment:'primary'` marks the linear tiling (unchanged from the default export, each byte owned once); `alignment:'secondary'` marks a decode STARTING at an offset the tiling did not begin an instruction at — the mid-instruction entry points a computed jump can land on. Secondary records deliberately overlap: they are alternative readings of the same bytes, not additional coverage, so do NOT sum their lengths against romBytes." } : {}),
+      alignmentNote: "every byte offset carries a record. `alignment:'primary'` marks the linear tiling (unchanged from the default export, each byte owned once); `alignment:'secondary'` marks a decode STARTING at an offset the tiling did not begin an instruction at - the mid-instruction entry points a computed jump can land on. Secondary records deliberately overlap: they are alternative readings of the same bytes, not additional coverage, so do NOT sum their lengths against romBytes." } : {}),
     // Always present, for the same reason as unresolvedOffsets above: a count
     // a consumer may guard on must exist when it is zero, or a regression to
     // nonzero is indistinguishable from the field never being there.

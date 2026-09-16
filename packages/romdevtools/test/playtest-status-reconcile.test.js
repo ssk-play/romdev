@@ -86,7 +86,7 @@ test("playtest when no window can open returns an actionable error (not a silent
   // preflight on DISPLAY/WAYLAND_DISPLAY (that was Linux-only and falsely
   // blocked macOS/Windows); playtest just attempts the SDL window and reports
   // the real failure. The contract under test: playtest must NEVER silently
-  // appear to succeed when it can't open — it returns an actionable error,
+  // appear to succeed when it can't open - it returns an actionable error,
   // whether that's "no ROM loaded" (no media here) or an sdl-error (display).
   const savedDisplay = process.env.DISPLAY;
   const savedWayland = process.env.WAYLAND_DISPLAY;
@@ -96,7 +96,7 @@ test("playtest when no window can open returns an actionable error (not a silent
     const client = await startClient();
     const res = await client.callTool({ name: "playtest", arguments: {} });
     const text = res.content.find((c) => c.type === "text")?.text ?? "";
-    // Either a structured tool result (opened:false) or a thrown error string —
+    // Either a structured tool result (opened:false) or a thrown error string -
     // both are acceptable "did not silently open a window" outcomes. What must
     // NOT happen is opened:true / a fake success.
     let opened = false;

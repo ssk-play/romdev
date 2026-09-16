@@ -1,4 +1,4 @@
-// romdev-analysis-decompiler — binary package: Ghidra decompiler (WASM) +
+// romdev-analysis-decompiler - binary package: Ghidra decompiler (WASM) +
 // SLEIGH specs for all 14 retro CPUs. Driven one-shot via the REPL through
 // romdev's WASM worker pool. See NOTICE for attribution.
 import { fileURLToPath } from "node:url";

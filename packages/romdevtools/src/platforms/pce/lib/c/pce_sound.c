@@ -1,5 +1,5 @@
 /*
- * pce_sound.c — HuC6280 PSG helpers (C89).
+ * pce_sound.c - HuC6280 PSG helpers (C89).
  *
  * The PCE PSG has 6 wavetable channels at $0800-$0809. To make a tone you:
  *   1. select the channel  (PSG_CHAN_SELECT = chan)
@@ -54,7 +54,7 @@ void psg_off(u8 chan) {
 
 /* ── background music: 8-step melody loop on channel 5 ─────────────
  * Call psg_music_tick() once per frame (the scaffolds wire it in after
- * their vsync wait). Deliberately MINIMAL — the PCE boot bank is 8KB
+ * their vsync wait). Deliberately MINIMAL - the PCE boot bank is 8KB
  * and the puzzle scaffold sits within ~100 bytes of the ceiling, so
  * there's no on/off toggle and no rests (re-trigger every note).
  * SFX use channels 0-3; the melody never fights an effect.
@@ -67,7 +67,7 @@ static u8 _music_timer;
 
 void psg_music_tick(void) {
     if (_music_timer == 0) {
-        psg_tone(5, _music_div[_music_step & 7], 29);  /* PCE vol is ~-1.5dB/step from 31 — 13 was -27dB, inaudible */
+        psg_tone(5, _music_div[_music_step & 7], 29);  /* PCE vol is ~-1.5dB/step from 31 - 13 was -27dB, inaudible */
         ++_music_step;
     }
     ++_music_timer;

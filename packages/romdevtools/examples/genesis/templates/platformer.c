@@ -1,66 +1,66 @@
-/* ── platformer.c — Genesis side-scrolling platformer (complete example game) ─
+/* ── platformer.c - Genesis side-scrolling platformer (complete example game) ─
  *
- * CINDER SPRINT — a COMPLETE, working game: title screen, 1P mode and 2P
+ * CINDER SPRINT - a COMPLETE, working game: title screen, 1P mode and 2P
  * ALTERNATING-TURNS mode (arcade-classic: players swap on death; each player
  * has their own score and own 3 lives; player 2 plays on CONTROLLER 2),
  * coins + distance scoring, persistent hi-score (cartridge SRAM), music +
  * SFX, and the Genesis's signature feature: DUAL-PLANE PARALLAX with
- * per-strip (cell) horizontal scroll — a dusk mountain ridge that slides at
+ * per-strip (cell) horizontal scroll - a dusk mountain ridge that slides at
  * HALF the foreground speed, under a hardware-fixed WINDOW-plane HUD.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented Genesis footgun;
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented Genesis footgun;
  *     reshape your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — level layout, physics tuning, scoring, art: reshape
+ *   GAME LOGIC (clay) - level layout, physics tuning, scoring, art: reshape
  *     freely.
  *
  * What depends on what:
- *   genesis_sfx.{h,c} — PSG sound wrapper (tones + noise + a background
+ *   genesis_sfx.{h,c} - PSG sound wrapper (tones + noise + a background
  *     melody loop). For full FM music, see the xgm2_demo template
  *     (XGM2_loadDriver + XGM2_play + a .xgc blob incbin'd via a data.s
- *     sibling) — we use the PSG path here so the platformer stays a
+ *     sibling) - we use the PSG path here so the platformer stays a
  *     single-file game; the swap is three lines plus the data.s sibling.
- *   rom_header.c (SGDK) — the Sega header at $100. Its 'RA' block at $1B0
+ *   rom_header.c (SGDK) - the Sega header at $100. Its 'RA' block at $1B0
  *     DECLARES the cartridge SRAM that hiscore_load/save below depend on
  *     (see the SRAM idiom). The build assembles it automatically.
  *
  * The level: a 512-px-wide COLUMN MAP (ground height + one-way slabs + pits)
  * painted once into plane A. The plane is exactly 512 px (64 cells) wide and
  * the VDP scroll WRAPS within the plane, so a forever-incrementing camera
- * loops the level seamlessly — an endless run of pits, slabs, coins and
+ * loops the level seamlessly - an endless run of pits, slabs, coins and
  * spikes with ZERO tilemap writes per frame (hardware scroll is free;
  * rewriting tilemaps in the loop is the #1 "choppy movement" bug).
  *
  * Frame budget (NTSC, 60 fps): player physics + a two-column ground probe +
  * (3 coins + 2 spikes) of AABB + 56 hscroll words + 6 SAT entries queued for
- * vblank DMA — a tiny fraction of the 68000's frame. The vblank DMA budget
+ * vblank DMA - a tiny fraction of the 68000's frame. The vblank DMA budget
  * (~7 KB/frame in H40) is the real ceiling on Genesis; we use < 200 bytes.
  */
 
 #include <genesis.h>
 #include "genesis_sfx.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "CINDER SPRINT"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * CONTROLLER MAPPING — two layers, both bite:
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * CONTROLLER MAPPING - two layers, both bite:
  *
  *   On the pad: SGDK's JOY_readJoypad(JOY_1/JOY_2) returns BUTTON_A/B/C/
  *   START/UP/DOWN/LEFT/RIGHT as a bitmask. Jump is BUTTON_A or BUTTON_C
- *   (real Genesis games map action buttons generously — thumbs rest on C).
+ *   (real Genesis games map action buttons generously - thumbs rest on C).
  *
  *   Driving this game HEADLESSLY through an emulator (libretro/gpgx): the
  *   core maps Genesis A/B/C onto libretro Y/B/A. So setInput({y:true})
  *   presses GENESIS A (jump/start here), setInput({b:true}) presses GENESIS
- *   B (2P select), and setInput({a:true}) presses GENESIS C — NOT Genesis A.
+ *   B (2P select), and setInput({a:true}) presses GENESIS C - NOT Genesis A.
  *   Getting this wrong looks like "the game ignores input". START is start.
  */
 #define BTN_JUMP (BUTTON_A | BUTTON_C)
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Tile art. Genesis tiles are 4bpp: each u32 row = 8 pixels, one hex nibble
  * per pixel = a colour index into the tile's palette line (0 = transparent).
  * Sprites use PAL0, plane A (world) PAL1, plane B (backdrop) PAL2. */
@@ -86,7 +86,7 @@ static const u32 tile_dirt[8] = {         /* speckles make motion visible  */
     0x22222222, 0x22223222, 0x22222222, 0x23222222,
 };
 static const u32 tile_slab[8] = {         /* thin one-way platform (top    */
-    0x44444444, 0x45555554, 0x55555555,   /* half only — jump up through   */
+    0x44444444, 0x45555554, 0x55555555,   /* half only - jump up through   */
     0x05555550, 0x00000000, 0x00000000,   /* the transparent bottom)       */
     0x00000000, 0x00000000,
 };
@@ -103,7 +103,7 @@ static const u32 tile_peak[8] = {         /* ridge tip: triangle over sky  */
     0x33433333, 0x33333333, 0x33333433, 0x33333333,
 };
 static const u32 tile_mount[8] = {        /* body speckled for parallax    */
-    0x33333333, 0x33343333, 0x33333333,   /* visibility — a flat colour    */
+    0x33333333, 0x33343333, 0x33333333,   /* visibility - a flat colour    */
     0x33333343, 0x43333333, 0x33333333,   /* shifted N px looks identical  */
     0x33334333, 0x33333333,               /* to itself (motion invisible)  */
 };
@@ -128,10 +128,10 @@ static const u32 tile_spike[8] = {
     0x00766700, 0x07666670, 0x07666670, 0x76666667,
 };
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * The level — a 64-column map; world x = (screen x + camera) mod 512.
- *   ground_row[c] — plane row of the grass top, 0xFF = pit.
- *   plat_row[c]   — row of a one-way slab, 0 = none.
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * The level - a 64-column map; world x = (screen x + camera) mod 512.
+ *   ground_row[c] - plane row of the grass top, 0xFF = pit.
+ *   plat_row[c]   - row of a one-way slab, 0 = none.
  * Rows are PLANE rows (y = row*8). Rows 0-1 sit under the HUD window;
  * playfield rows are 2..27 (the visible 224-px screen is 28 rows). */
 #define NO_GROUND 0xFF
@@ -156,17 +156,17 @@ static const u8 plat_row[64] = {
     0,  0,  19, 19, 0,  0,  0,  0,                     /* ...and over pit 3*/
     0,  0,  0,  0,  21, 21, 21, 0,
 };
-/* Mountain ridge silhouette for plane B — 16-column period (128 px), so a
+/* Mountain ridge silhouette for plane B - 16-column period (128 px), so a
  * half-speed shift is unambiguous to the eye (and to a headless pixel
  * probe). Values are the plane row of each column's ridge tip. */
 static const u8 ridge_top[16] = {
     13, 12, 11, 10, 10, 11, 12, 13, 14, 13, 11, 10, 11, 12, 13, 14,
 };
 
-/* ── GAME LOGIC (clay) — physics + tuning (Q4.4 fixed point: 16 = 1 px) ── */
+/* ── GAME LOGIC (clay) - physics + tuning (Q4.4 fixed point: 16 = 1 px) ── */
 #define GRAVITY_Q44    1     /* +1/16 px per frame per frame               */
 #define JUMP_VEL_Q44 (-40)   /* launch vy → ~50 px apex (~6 tile rows)     */
-#define MAX_VY_Q44    80     /* terminal 5 px/frame — MUST stay under 6:   *
+#define MAX_VY_Q44    80     /* terminal 5 px/frame - MUST stay under 6:   *
                               * the landing probe's 6-px window can't      *
                               * catch a faster fall (tunnelling)           */
 #define MOVE_SPEED     2     /* px/frame walk + scroll speed               */
@@ -180,7 +180,7 @@ static const u8 ridge_top[16] = {
 #define HUD_ROWS       2     /* window rows reserved for the HUD          */
 
 static s16  px;              /* player screen x                            */
-static u16  py_q44;          /* player y, Q4.4 — gravity adds <1 px/frame  *
+static u16  py_q44;          /* player y, Q4.4 - gravity adds <1 px/frame  *
                               * near the apex; integer y would stick       */
 static s16  vy_q44;
 static u8   on_ground;
@@ -197,7 +197,7 @@ static s16  coin_y[NUM_COINS];
 static s16  spike_x[NUM_SPIKES];
 static u8   spike_active[NUM_SPIKES];
 
-/* Players: index 0 = P1 (controller 1), 1 = P2 (controller 2 — alternating
+/* Players: index 0 = P1 (controller 1), 1 = P2 (controller 2 - alternating
  * turns, arcade-classic style). Each has own score + own lives; the HUD
  * shows the CURRENT player's numbers. */
 static u8   two_player;
@@ -208,14 +208,14 @@ static u16  hiscore;
 static u8   turn_pause;      /* freeze frames after a turn change          */
 static u16  rng = 0xC0DE;
 
-/* Game states — the shell every example shares: title → play → game over. */
+/* Game states - the shell every example shares: title → play → game over. */
 #define ST_TITLE 0
 #define ST_PLAY  1
 #define ST_OVER  2
 static u8  state;
 static u16 prev_pad;
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (a few 68k instructions) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (a few 68k instructions) ── */
 static u8 random8(void) {
     u16 r = rng;
     r ^= r << 7;
@@ -225,18 +225,18 @@ static u8 random8(void) {
     return (u8)r;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * CARTRIDGE SRAM — the Genesis battery-save mechanism, three parts:
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * CARTRIDGE SRAM - the Genesis battery-save mechanism, three parts:
  *
  *   1. The ROM HEADER declares it: bytes $1B0.. hold 'R','A', a type word
- *      ($F820 = battery-backed, byte-wide on ODD addresses — the classic
+ *      ($F820 = battery-backed, byte-wide on ODD addresses - the classic
  *      cart wiring), then start/end addresses $200000/$20FFFF. SGDK's
  *      rom_header.c (assembled into every build) already declares exactly
- *      this — no linker work needed. Emulators allocate the save RAM by
+ *      this - no linker work needed. Emulators allocate the save RAM by
  *      READING THIS HEADER; no 'RA' block = writes to $200000+ go nowhere.
  *   2. The MAPPER GATE: writing 1 to $A130F1 banks SRAM into $200000+,
  *      0 banks the ROM back in. SGDK's SRAM_enable()/SRAM_disable() do
- *      this. ALWAYS disable after access — on carts >2 MB the SRAM window
+ *      this. ALWAYS disable after access - on carts >2 MB the SRAM window
  *      shadows ROM, and leaving it enabled corrupts later ROM fetches.
  *   3. ODD-BYTE ADDRESSING: SRAM_readByte/writeByte(offset) access 68k
  *      address $200001 + offset*2. Headlessly, the emulator's save_ram
@@ -244,12 +244,12 @@ static u8 random8(void) {
  *      save_ram[k*2 + 1] (the even bytes read back $FF).
  *
  * Hi-score record layout (SGDK offsets): 0='H' 1='S' 2=lo 3=hi
- * 4=checksum(lo^hi^$A5). Fresh SRAM is all $FF — the magic+checksum
+ * 4=checksum(lo^hi^$A5). Fresh SRAM is all $FF - the magic+checksum
  * rejects it (and any corruption) so first boot shows 0, not 65535.
  *
  * Emulator note (verified against gpgx): the core sizes its save_ram
  * region by scanning for the last non-$FF byte, so the region reads as
- * EMPTY until the first write below lands — that's why hiscore_init runs
+ * EMPTY until the first write below lands - that's why hiscore_init runs
  * at the very top of main(). Real hardware and .srm-restoring frontends
  * have no such wrinkle. */
 static u16 hiscore_load(void) {
@@ -284,8 +284,8 @@ static void hiscore_init(void) {
     if (hiscore == 0) hiscore_save(0);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * DUAL-PLANE PARALLAX + per-strip scroll — THE Genesis signature. The VDP
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * DUAL-PLANE PARALLAX + per-strip scroll - THE Genesis signature. The VDP
  * composites two independent tilemap planes (A above B), each with its own
  * horizontal scroll, and the scroll can vary DOWN THE SCREEN:
  *
@@ -298,12 +298,12 @@ static void hiscore_init(void) {
  *   plane A: every strip = -cam        (the world, 1:1 with the camera)
  *   plane B: sky strips  = -(cam / 8)  (far: barely moves)
  *            ridge strips= -(cam / 2)  (the half-speed mountain layer)
- * Three speeds from two planes — banding ONE plane by strip is how real
+ * Three speeds from two planes - banding ONE plane by strip is how real
  * carts faked 3+ layers. POSITIVE camera = NEGATIVE scroll value (the
  * scroll offset slides the plane right; we want the world to slide left).
  *
  * DELUXE VARIANT (not used here, same table): HSCROLL_LINE gives one entry
- * per SCANLINE — 224 s16s per plane. Fill them with smooth per-line speeds
+ * per SCANLINE - 224 s16s per plane. Fill them with smooth per-line speeds
  * for a sky gradient, or add sin(line+frame) ripple inside a water band
  * (VDP_setHorizontalScrollLine). Costs ~1.8 KB/frame of vblank DMA versus
  * our 224 bytes, so budget it (H40 vblank fits ~7 KB).
@@ -311,9 +311,9 @@ static void hiscore_init(void) {
  * Requires: HSCROLL_TILE mode set BEFORE the first table write; BOTH
  *   tables queued every frame you move the camera (a stale plane-A table
  *   shears the world); DMA_QUEUE so the VRAM writes land in vblank, never
- *   mid-frame (SYS_doVBlankProcess flushes the queue — mid-frame writes
+ *   mid-frame (SYS_doVBlankProcess flushes the queue - mid-frame writes
  *   tear the strip boundary); the value arrays static (the queue reads
- *   them AT FLUSH TIME — stack arrays are gone by then, shipping garbage).
+ *   them AT FLUSH TIME - stack arrays are gone by then, shipping garbage).
  * Plane-size note: A and B share ONE size setting (default 64x32 cells =
  *   512x256 px). You can't size them independently. */
 #define SKY_STRIPS 10                  /* strips 0-9 = HUD band + sky      */
@@ -329,15 +329,15 @@ static void apply_camera(void) {
     VDP_setHorizontalScrollTile(BG_B, 0, hsB, 28, DMA_QUEUE);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * WINDOW-PLANE HUD — the fixed status bar. The window is a third tilemap
- * that REPLACES plane A wherever it's shown and IGNORES ALL SCROLLING —
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * WINDOW-PLANE HUD - the fixed status bar. The window is a third tilemap
+ * that REPLACES plane A wherever it's shown and IGNORES ALL SCROLLING -
  * a hardware-fixed HUD with zero per-frame cost. (The NES needs a sprite-0
  * raster trick for this; on Genesis it's one register.)
  * VDP_setWindowOnTop(2) shows it on the top 2 cell rows; text goes in with
  * VDP_drawTextBG(WINDOW, ...). Two footguns:
  *   - The window only lives at screen edges (top/bottom N rows or left/
- *     right N columns) — it cannot float mid-screen.
+ *     right N columns) - it cannot float mid-screen.
  *   - It replaces plane A ONLY: plane B and sprites still render behind/
  *     over it. We paint plane B's top rows with a flat dark band so HUD
  *     text always reads, and nothing in the game flies above y=16. */
@@ -345,7 +345,7 @@ static void hud_init(void) {
     VDP_setWindowOnTop(HUD_ROWS);
 }
 
-/* ── GAME LOGIC (clay) — HUD text (window plane, redrawn only on change) ── */
+/* ── GAME LOGIC (clay) - HUD text (window plane, redrawn only on change) ── */
 static void draw_u16(VDPPlane plane, u16 v, u16 x, u16 y) {
     char buf[8];
     uintToStr(v, buf, 5);
@@ -370,10 +370,10 @@ static void draw_hud_title(void) {
     draw_u16(WINDOW, hiscore, 21, 0);
 }
 
-/* ── GAME LOGIC (clay) — paint the two planes ───────────────────────────────
+/* ── GAME LOGIC (clay) - paint the two planes ───────────────────────────────
  * Plane B (backdrop) is painted ONCE at boot and never touched again.
  * Plane A is repainted on state changes only (title text ↔ the level).
- * NOTHING repaints inside the frame loop — scroll is hardware. */
+ * NOTHING repaints inside the frame loop - scroll is hardware. */
 static void paint_backdrop(void) {
     u16 c, r;
     /* Flat dark band behind the window HUD (rows 0-1). */
@@ -382,7 +382,7 @@ static void paint_backdrop(void) {
     for (c = 0; c < 64; c++) {
         u16 top = ridge_top[c & 15];
         /* Dusk sky with deterministic clouds (PRNG would repaint different
-         * art after a console reset — fine, but determinism helps tests). */
+         * art after a console reset - fine, but determinism helps tests). */
         for (r = HUD_ROWS; r < top; r++) {
             u16 t = (((r * 5 + c * 11) & 31) == 0 && r >= 3) ? T_CLOUD : T_SKY;
             VDP_setTileMapXY(BG_B, TILE_ATTR_FULL(PAL2, 0, 0, 0, t), c, r);
@@ -409,7 +409,7 @@ static void paint_level(void) {
     }
 }
 
-/* ── GAME LOGIC (clay) — the title screen (text on plane A, scroll 0) ── */
+/* ── GAME LOGIC (clay) - the title screen (text on plane A, scroll 0) ── */
 static void paint_title(void) {
     VDP_clearPlane(BG_A, TRUE);
     VDP_drawTextBG(BG_A, GAME_TITLE, (40 - (sizeof(GAME_TITLE) - 1)) / 2, 8);
@@ -419,7 +419,7 @@ static void paint_title(void) {
     draw_hud_title();
 }
 
-/* ── GAME LOGIC (clay) — the game-over results screen ── */
+/* ── GAME LOGIC (clay) - the game-over results screen ── */
 static void paint_over(void) {
     VDP_clearPlane(BG_A, TRUE);
     VDP_drawTextBG(BG_A, "GAME OVER", 15, 8);
@@ -434,7 +434,7 @@ static void paint_over(void) {
     VDP_drawTextBG(BG_A, "START - TITLE", 13, 21);
 }
 
-/* ── GAME LOGIC (clay) — coins + spikes (sprite objects in the world) ── */
+/* ── GAME LOGIC (clay) - coins + spikes (sprite objects in the world) ── */
 static const s16 coin_heights[4] = { 168, 144, 120, 152 };
 static void respawn_coin(u16 i) {
     coin_x[i] = SCREEN_W + 8 + (random8() & 31);   /* enter at the right  */
@@ -452,7 +452,7 @@ static void try_spawn_spike(u16 i) {
     spike_active[i] = 1;
 }
 
-/* ── GAME LOGIC (clay) — start a turn / a run ── */
+/* ── GAME LOGIC (clay) - start a turn / a run ── */
 static void begin_turn(void) {
     u16 i;
     px = 24;
@@ -465,7 +465,7 @@ static void begin_turn(void) {
     coin_x[1] = 200; coin_y[1] = 144;
     coin_x[2] = 280; coin_y[2] = 120;
     for (i = 0; i < NUM_SPIKES; i++) spike_active[i] = 0;
-    spike_x[0] = 232; spike_active[0] = 1;   /* runway columns — always    */
+    spike_x[0] = 232; spike_active[0] = 1;   /* runway columns - always    */
     spike_x[1] = 304; spike_active[1] = 1;   /* ground at cam 0            */
     turn_pause = 48;                         /* "P1/P2 ready" breather     */
     prev_pad = 0xFFFF;                       /* swallow held buttons across*
@@ -491,16 +491,16 @@ static void game_over(void) {
     if (two_player && p_score[1] > best) best = p_score[1];
     if (best > hiscore) {
         hiscore = best;
-        hiscore_save(hiscore);   /* battery SRAM — see the SRAM idiom      */
+        hiscore_save(hiscore);   /* battery SRAM - see the SRAM idiom      */
     }
     state = ST_OVER;
     cam = 0;
     apply_camera();
-    draw_hud();      /* refresh the window HUD — HI may have just changed */
+    draw_hud();      /* refresh the window HUD - HI may have just changed */
     paint_over();
 }
 
-/* ── GAME LOGIC (clay) — death + alternating-turn handoff ── */
+/* ── GAME LOGIC (clay) - death + alternating-turn handoff ── */
 static void kill_player(void) {
     u8 other;
     sfx_noise(14);
@@ -516,11 +516,11 @@ static void kill_player(void) {
     begin_turn();
 }
 
-/* ── GAME LOGIC (clay) — landing probe against the column map ──────────────
+/* ── GAME LOGIC (clay) - landing probe against the column map ──────────────
  * One-way platforms, arcade-classic style: only catch the player while
  * FALLING through a narrow window at the surface: top-1 (the standing snap
  * parks feet exactly at top, and gravity's sub-pixel trickle doesn't move
- * the integer y every frame — without the -1 slack the player "stands"
+ * the integer y every frame - without the -1 slack the player "stands"
  * with on_ground=0 most frames and jumps only register on lucky frames)
  * through top+4 (so a 5 px/frame terminal fall can't step over it). */
 static s16 land_top(u16 c, s16 feet) {
@@ -539,9 +539,9 @@ static s16 land_top(u16 c, s16 feet) {
     return 0;
 }
 
-/* ── GAME LOGIC (clay) — stage this frame's sprites ─────────────────────────
+/* ── GAME LOGIC (clay) - stage this frame's sprites ─────────────────────────
  * Fixed SAT slots: 0 = player, 1-3 = coins, 4-5 = spikes. Hidden sprites
- * park at y = -16 (above the screen). NEVER hide with x = -128..0 — a SAT
+ * park at y = -16 (above the screen). NEVER hide with x = -128..0 - a SAT
  * x of 0 is the VDP's sprite-masking trigger and silently blanks every
  * lower-priority sprite on those scanlines. */
 #define HIDE_Y (-16)
@@ -568,7 +568,7 @@ static void stage_sprites(void) {
         VDP_setSprite(4 + i, spike_x[i], vis ? (s16)SPIKE_Y : (s16)HIDE_Y,
                       SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL0, 1, 0, 0, T_SPIKE));
     }
-    /* ── HARDWARE IDIOM (load-bearing) — CHAIN the sprite list before
+    /* ── HARDWARE IDIOM (load-bearing) - CHAIN the sprite list before
      * uploading. VDP_setSprite does NOT set the SAT link byte, and link 0
      * means "end of list": skip this and the VDP draws sprite 0 only.
      * VDP_linkSprites(0, 6) links slots 0..5; the queued DMA flushes the
@@ -583,17 +583,17 @@ int main(bool hard) {
     u16 c0, c1;
     (void)hard;
 
-    /* SRAM first — before any VDP work. The save file then exists within
+    /* SRAM first - before any VDP work. The save file then exists within
      * the game's first frames of life, which is what lets a frontend (or
      * a headless host) see a non-empty save_ram region as early as
      * possible (see the SRAM idiom note on gpgx's size scan). */
     hiscore_init();
 
-    /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
      * Init order: scrolling MODE before scroll VALUES, tiles + palettes
      * before tilemaps that reference them, window size before window text.
      * SGDK's boot already did the dangerous part (VDP regs, Z80, vblank
-     * int) — keep VDP_setScrollingMode FIRST here so every later
+     * int) - keep VDP_setScrollingMode FIRST here so every later
      * apply_camera() writes the table layout the VDP is actually reading. */
     VDP_setScrollingMode(HSCROLL_TILE, VSCROLL_PLANE);
     hud_init();
@@ -641,10 +641,10 @@ int main(bool hard) {
 
     while (TRUE) {
         if (state == ST_TITLE) {
-            /* ── GAME LOGIC (clay) — title: A = 1P, B = 2P turns ──
+            /* ── GAME LOGIC (clay) - title: A = 1P, B = 2P turns ──
              * The camera drifts so the title sells the parallax: plane B
              * slides at two speeds while the plane-A title text holds
-             * still (its strip values stay 0 — only B's get the drift). */
+             * still (its strip values stay 0 - only B's get the drift). */
             cam += 1;
             for (i = 0; i < 28; i++) {
                 hsA[i] = 0;
@@ -693,9 +693,9 @@ int main(bool hard) {
         }
 
         /* ── GAME LOGIC (clay) from here down ─────────────────────────────
-         * Input — the CURRENT player's controller (alternating turns: P2
+         * Input - the CURRENT player's controller (alternating turns: P2
          * is on controller 2). Past SCROLL_WALL the world scrolls instead
-         * of the player (the camera never scrolls back — the classic
+         * of the player (the camera never scrolls back - the classic
          * one-way runner camera). */
         pad = JOY_readJoypad(cur_player ? JOY_2 : JOY_1);
         delta = 0;
@@ -745,7 +745,7 @@ int main(bool hard) {
             continue;
         }
 
-        /* Landing — probe the two level columns under the player's feet. */
+        /* Landing - probe the two level columns under the player's feet. */
         if (vy_q44 >= 0) {
             feet = y + 8;
             c0 = ((u16)(px + cam) >> 3) & 63;

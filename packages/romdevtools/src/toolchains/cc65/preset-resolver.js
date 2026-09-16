@@ -4,9 +4,9 @@
 // Otherwise treat the argument as the literal ld65 config contents.
 //
 // Presets layout: src/toolchains/cc65/presets/<platform>/
-//   <preset>.cfg         — the ld65 config
-//   <preset>.crt0.s      — optional custom crt0 spliced into sources
-//   <preset>.*.s         — additional support sources
+//   <preset>.cfg         - the ld65 config
+//   <preset>.crt0.s      - optional custom crt0 spliced into sources
+//   <preset>.*.s         - additional support sources
 
 import path from "node:path";
 import { readFile, readdir } from "node:fs/promises";
@@ -41,7 +41,7 @@ export async function resolveLinkerConfig(platform, arg) {
   }
   const supportSources = {};
   // Bundled headers a preset makes available to the C compile (e.g. GameTank's
-  // `gametank.h` register defs) — keyed by their REAL name so `#include "gametank.h"`
+  // `gametank.h` register defs) - keyed by their REAL name so `#include "gametank.h"`
   // resolves, NOT renamed like the `.s` support sources. A bundled header is named
   // `<name>.h` (no `<preset>.` prefix needed); the `.s`/`.asm` files follow the
   // support-source convention.

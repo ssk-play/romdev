@@ -129,7 +129,7 @@ test("searchCheatGames: a nonsense query returns no matches, not garbage", async
 });
 
 test("searchCheatGames: tolerates a character-level TYPO (Fuse, not just token overlap)", async () => {
-  // 'tournmant' / 'editon' are misspelled — the old token-Jaccard matcher would
+  // 'tournmant' / 'editon' are misspelled - the old token-Jaccard matcher would
   // miss these (different tokens, no overlap); Fuse's fuzzy distance catches them.
   const r = await searchCheatGames({ platform: "genesis", query: "nba jam tournmant editon" });
   assert.ok(r.matches.length > 0, "typo'd query should still find candidates");

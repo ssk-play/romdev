@@ -1,4 +1,4 @@
-// romdev-core-parallel-n64 — binary package: ParaLLEl-N64 libretro core (N64).
+// romdev-core-parallel-n64 - binary package: ParaLLEl-N64 libretro core (N64).
 // HEADLESS-ANGRYLION software build: GL is compiled OUT and the angrylion software
 // RDP is forced, so raw CPU-rendered VI framebuffers DISPLAY (the GL/glide64 build
 // only presents RDP display-lists). This is what lets romdev's software-3D homebrew
@@ -16,7 +16,7 @@ const WASM = path.join(__dirname, "wasm");
 
 export const platform = "n64";
 
-// Emulator core (libretro) — glue .js + .wasm. Software renderer (no GL bridge).
+// Emulator core (libretro) - glue .js + .wasm. Software renderer (no GL bridge).
 export const core = {
   name: "parallel_n64",
   jsPath: path.join(WASM, "parallel_n64_libretro.js"),

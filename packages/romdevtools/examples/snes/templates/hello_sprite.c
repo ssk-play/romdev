@@ -1,11 +1,11 @@
-/* ── hello_sprite.c — SNES PVSnesLib starter (one sprite + d-pad) ──
+/* ── hello_sprite.c - SNES PVSnesLib starter (one sprite + d-pad) ──
  *
  * Drives one 8×8 sprite around the screen with the directional pad.
- * Uses PVSnesLib's oamSet + oamUpdate path — the canonical SNES C
+ * Uses PVSnesLib's oamSet + oamUpdate path - the canonical SNES C
  * sprite loop.
  *
  * Boots-from-cold game-loop:
- *   1. consoleInitText + setMode(BG_MODE1) — gives us text on BG0
+ *   1. consoleInitText + setMode(BG_MODE1) - gives us text on BG0
  *      so we have a visible status line.
  *   2. oamInitGfxSet uploads the sprite tile data + sprite palette
  *      into VRAM/CGRAM.
@@ -16,7 +16,7 @@
  *
  * Sibling data.asm provides tilfont + palfont (text font) AND
  * tilsprite + palsprite (sprite tile + palette). Both are stubbed
- * with hand-authored 8×8 4bpp data — replace with .incbin'd .pic /
+ * with hand-authored 8×8 4bpp data - replace with .incbin'd .pic /
  * .pal from gfx4snes for real art.
  */
 
@@ -39,7 +39,7 @@ int main(void) {
     u16 prev = 0;
     u16 i;
 
-    /* Text setup — same layout as c-hello. */
+    /* Text setup - same layout as c-hello. */
     consoleSetTextMapPtr(0x6800);
     consoleSetTextGfxPtr(0x3000);
     consoleSetTextOffset(0x0000);   /* tile index = (char-0x20); font is at the BG char base */
@@ -47,7 +47,7 @@ int main(void) {
 
     setMode(BG_MODE1, 0);
     /* consoleInitText DMAs the font but does NOT set the PPU BG base
-     * registers — point BG0 at the same font ($3000) + map ($6800). */
+     * registers - point BG0 at the same font ($3000) + map ($6800). */
     bgSetGfxPtr(0, 0x3000);
     bgSetMapPtr(0, 0x6800, SC_32x32);
 
@@ -63,7 +63,7 @@ int main(void) {
     bgSetEnable(1);
     bgSetDisable(2);
 
-    /* OAM init — sprite tiles at VRAM $0000, 8x8 default. */
+    /* OAM init - sprite tiles at VRAM $0000, 8x8 default. */
     oamInitGfxSet(&tilsprite, 32 /* sprite tile bytes */,
                   &palsprite, 32 /* palette bytes */,
                   0 /* palette slot */, 0x0000 /* VRAM addr */,

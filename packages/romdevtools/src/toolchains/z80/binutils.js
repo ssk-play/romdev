@@ -1,5 +1,5 @@
 // z80-elf binutils (as / ld / objcopy), compiled to WASM. The GNU assembler
-// for BOTH plain Z80 (SMS/GG/MSX) and the Game Boy CPU (gbz80 / SM83) — select
+// for BOTH plain Z80 (SMS/GG/MSX) and the Game Boy CPU (gbz80 / SM83) - select
 // with `-march=z80` or `-march=gbz80`. Used to reassemble native objdump output
 // byte-exact (the disassembler is the matching z80-elf-objdump). Ships in
 // romdev-toolchain-sdcc alongside sdas/sdcc.

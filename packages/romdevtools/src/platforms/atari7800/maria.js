@@ -1,9 +1,9 @@
 // Atari 7800 MARIA helpers.
 //
-// MARIA is the 7800's display chip — fundamentally different from the 2600's
+// MARIA is the 7800's display chip - fundamentally different from the 2600's
 // TIA. It reads a "display list" from RAM each scanline, where each entry
 // points at a chunk of pixel data + says how to draw it. No tile maps in
-// the conventional sense — just lists of (sprite/character) draws per zone.
+// the conventional sense - just lists of (sprite/character) draws per zone.
 //
 // Memory layout (6502 sees it):
 //   $0000-$001F  MARIA + TIA register file (writes only; some MARIA regs)
@@ -17,16 +17,16 @@
 //   $4000-$FFFF  cart ROM
 //
 // MARIA palette: 8 software palettes × 4 colors. Each color is one byte
-// from the 256-color master palette (4 hues × 16 luma sweeps × 4 levels —
+// from the 256-color master palette (4 hues × 16 luma sweeps × 4 levels -
 // see NTSC master).
 //
 // memory_ram[65536] (returned via "system_ram") is the full 6502 address
-// space — agents read $20-$3F to get MARIA regs, $1800-$27FF for RAM.
+// space - agents read $20-$3F to get MARIA regs, $1800-$27FF for RAM.
 
 import { PNG } from "pngjs";
 
 /**
- * Atari 7800 NTSC master palette — 256 colors arranged as 16 hues × 16
+ * Atari 7800 NTSC master palette - 256 colors arranged as 16 hues × 16
  * luminance levels. The 16 luma levels make sweeps smoother than the
  * 2600's 8. Color byte format: (hue << 4) | lum.
  *
@@ -34,7 +34,7 @@ import { PNG } from "pngjs";
  * homebrew (matches what prosystem renders).
  */
 export const A78_PALETTE = (() => {
-  // Approximate NTSC 7800 chart — same hue arrangement as 2600 but with
+  // Approximate NTSC 7800 chart - same hue arrangement as 2600 but with
   // 16 luma levels instead of 8.
   const hues = [
     { r: 0x00, g: 0x00, b: 0x00 },   // 0: grayscale
@@ -115,7 +115,7 @@ export function decodeMariaRegs(bytes20) {
     palette4:   colorTriplet(b, 0x12),   // $32/33/34
     palette5:   colorTriplet(b, 0x16),   // $36/37/38
     palette6:   colorTriplet(b, 0x1A),   // $3A/3B/3C
-    palette7:   colorTriplet(b, 0x1E),   // $3E/3F/00 (P7C3 lives at $40 — caveat)
+    palette7:   colorTriplet(b, 0x1E),   // $3E/3F/00 (P7C3 lives at $40 - caveat)
     ctrl: {
       hex: "0x" + b[0x1C].toString(16).toUpperCase().padStart(2, "0"),
       // CTRL bits: 0=color kill, 1=DMA enable, 2=character control width,

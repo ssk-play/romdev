@@ -1,4 +1,4 @@
-// R50 — Atari 7800 TIA 2-voice music_demo template smoke test.
+// R50 - Atari 7800 TIA 2-voice music_demo template smoke test.
 //
 // Pairs with R40 (atari7800_sfx). Where sfx is one-shot tones, music is
 // a song player: two parallel note tables (melody on TIA voice 0, bass
@@ -7,7 +7,7 @@
 //
 // Test 1: the music_demo template compiles + links into a real .a78 ROM
 //         with atari7800_music.{h,c} bundled as ATARI7800_MUSIC_RUNTIME.
-// Test 2: sanity-check the note tables — both melody_notes[] and
+// Test 2: sanity-check the note tables - both melody_notes[] and
 //         bass_notes[] are present, end with a 0-length sentinel, and
 //         the melody is meaningfully longer than the bass (it should
 //         contain more notes since it's eighth-notes vs half-notes).

@@ -1,4 +1,4 @@
-// vasm68k_mot — bundled m68k assembler with Motorola syntax (Genesis dev).
+// vasm68k_mot - bundled m68k assembler with Motorola syntax (Genesis dev).
 
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -26,14 +26,14 @@ const gluePath = () =>
  * pattern. Returns null when source looks clean, or a string diagnostic.
  *
  * Catches:
- *   1. Missing reset SSP / reset PC at $00000000 / $00000004 — the
+ *   1. Missing reset SSP / reset PC at $00000000 / $00000004 - the
  *      cart will jump to garbage on power-on. Detects "no org or org
  *      not at 0".
  *   2. Reset SSP not in WRAM range ($00FF0000-$00FFFFFF). Common typo:
  *      using $FFE000 (which is right) vs $FFE000 without the leading
- *      $00 in some assemblers — vasm68k handles both, but the latter
+ *      $00 in some assemblers - vasm68k handles both, but the latter
  *      is sometimes misread.
- *   3. No "SEGA" magic at $100 — most emulators don't enforce this but
+ *   3. No "SEGA" magic at $100 - most emulators don't enforce this but
  *      hardware does; warning before the agent ships a non-bootable ROM.
  *
  * @param {string} source
@@ -68,7 +68,7 @@ function vasm68kPreflight(source) {
     );
   }
 
-  // Return as warnings (not errors) — these are lints, not blockers.
+  // Return as warnings (not errors) - these are lints, not blockers.
   if (issues.length) return "warning: vasm68k preflight\n" + issues.join("\n");
   return null;
 }
@@ -90,7 +90,7 @@ export async function runVasm68k(args) {
   const opts = args.options ?? [];
   const format = args.format ?? "bin";
 
-  // Run preflight checks. These are warnings, not blockers — Genesis
+  // Run preflight checks. These are warnings, not blockers - Genesis
   // homebrew without proper headers still builds; the warnings just
   // show up in the response log for the agent to see.
   const preflightWarning = vasm68kPreflight(source);

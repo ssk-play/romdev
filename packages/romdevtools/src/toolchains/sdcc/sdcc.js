@@ -1,12 +1,12 @@
-// sdcc — bundled Z80 family C compiler + assembler + linker.
+// sdcc - bundled Z80 family C compiler + assembler + linker.
 //
 // Wraps SDCC 4.5.0 compiled to WASM. Targets z80 (SMS / GG). Game Boy uses
 // RGBDS for asm; the SDCC sm83 port is bundled for the GB/GBC C path.
 //
 // Pipeline:
-//   1. sdcc.wasm    — C → relocatable (.rel)  (-mz80 / -mez80_z80, etc)
-//   2. sdasz80.wasm — .s → .rel               (assembly path)
-//   3. sdld.wasm    — .rel + .lib → .ihx      (Intel hex)
+//   1. sdcc.wasm    - C → relocatable (.rel)  (-mz80 / -mez80_z80, etc)
+//   2. sdasz80.wasm - .s → .rel               (assembly path)
+//   3. sdld.wasm    - .rel + .lib → .ihx      (Intel hex)
 //   4. ihx → raw bin → per-platform ROM wrapper (handled by buildForPlatform)
 //
 // Each tool runs in its own Emscripten module with its own MEMFS.
@@ -17,7 +17,7 @@ import path from "node:path";
 import { readFile } from "node:fs/promises";
 
 import { resolveToolBaseDir } from "../common/wasm-tool.js";
-// sdcc uses CBuild ONLY as the log accumulator (cb.log) — every one of its stages
+// sdcc uses CBuild ONLY as the log accumulator (cb.log) - every one of its stages
 // has custom failure handling (the `[buildZ80C] FAILED on TU` context line +
 // failedTU/compiledOK fields, and sdld's raw-exitCode return) that doesn't fit the
 // generic cb.stage(throw-on-fail) shape, so they stay inline. Same partial-fit call
@@ -34,7 +34,7 @@ const __dirname = path.dirname(__filename);
 // time. (Mirrors the cc65 resolver.)
 //
 // Lazy + memoized: resolve (and possibly throw "not installed") only on the
-// first SDCC build (GB/GBC/SMS/GG C), not at module load — so booting the
+// first SDCC build (GB/GBC/SMS/GG C), not at module load - so booting the
 // server never touches this package unless SDCC is actually used. Resolve the
 // base dir once; derive each tool glue + the share dir from it on demand.
 let _sdccBase;
@@ -65,7 +65,7 @@ import { runIsolated, textFile, getOutputText } from "../_worker/run.js";
 
 /**
  * Tag the abort/crash log with the SDCC-flavored hint pointing at the
- * R6 stack-overflow fix. Pre-R6, this hint shipped on every Abort —
+ * R6 stack-overflow fix. Pre-R6, this hint shipped on every Abort -
  * since the build pipeline now runs in a child worker that gets killed
  * on abort, we need to re-add this hint at the wrapper layer when we
  * detect a crash result.
@@ -77,7 +77,7 @@ function appendSdccAbortHint(log, argv, toolName) {
     `Hint: unexpected SDCC abort. The historical "dbuf_append_str ` +
     `NULL" assertion family was fixed at the build level on ` +
     `2026-05-25 (emscripten stack overflow). If you see it now, it ` +
-    `is a different bug — capture the .c source + this log and open ` +
+    `is a different bug - capture the .c source + this log and open ` +
     `an issue at https://github.com/monteslu/romdev/issues.\n`;
 }
 
@@ -87,7 +87,7 @@ function appendSdccAbortHint(log, argv, toolName) {
  *   1. SDCC ships sdcpp as a shell wrapper around the system /usr/bin/cpp,
  *      which we can't bundle.
  *   2. sdcc.wasm internally fork+exec's its preprocessor; Emscripten's
- *      libc can't fork — popen() returns ENOSYS.
+ *      libc can't fork - popen() returns ENOSYS.
  * So we preprocess with mcpp.wasm ourselves and feed the .i to sdcc.wasm
  * (sdcc skips its own preprocessor when given a .i input file).
  *
@@ -136,7 +136,7 @@ export async function runSdcpp(args) {
  *
  * @param {Object} args
  * @param {string} args.source C source
- * @param {string} args.port "z80" / "ez80_z80" / etc — sdcc -m value
+ * @param {string} args.port "z80" / "ez80_z80" / etc - sdcc -m value
  * @param {Record<string, string>} [args.headers] virtual headers, mounted at /work
  * @param {string[]} [args.options] extra sdcc flags
  */
@@ -170,7 +170,7 @@ export async function runSdccCompile(args) {
     asmSource: getOutputText(sdccResult, "/work/main.asm"),
   };
 
-  // Now sdcc emitted assembly — feed it to sdasz80 to get the .rel.
+  // Now sdcc emitted assembly - feed it to sdasz80 to get the .rel.
   if (r.exitCode !== 0 || !r.asmSource) {
     return {
       rel: null,
@@ -178,7 +178,7 @@ export async function runSdccCompile(args) {
       log: "--- mcpp ---\n" + cpp.log + "\n--- sdcc --c1mode ---\n" + r.log,
     };
   }
-  // sm83 (Game Boy) uses sdasgb instead of sdasz80 — different instruction set.
+  // sm83 (Game Boy) uses sdasgb instead of sdasz80 - different instruction set.
   const isSm83 = port === "sm83" || port === "gbz80";
   const asmRunner = isSm83 ? runSdasgb : runSdasz80;
   const asmLabel  = isSm83 ? "sdasgb"  : "sdasz80";
@@ -346,7 +346,7 @@ export function ihxToBin(ihx, size, fill = 0xFF) {
       // EOF
       break;
     }
-    // 0x02 / 0x03 / 0x05 — segment + start records, not relevant for our flat-binary targets
+    // 0x02 / 0x03 / 0x05 - segment + start records, not relevant for our flat-binary targets
   }
   return out;
 }
@@ -371,7 +371,7 @@ export async function buildZ80C(args) {
   const cb = new CBuild();
   /** @type {Record<string, string>} */
   const objects = {};
-  // SM83 (Game Boy) uses sdasgb instead of sdasz80 — different instruction set.
+  // SM83 (Game Boy) uses sdasgb instead of sdasz80 - different instruction set.
   const isSm83 = args.port === "sm83" || args.port === "gbz80";
   // Track which TUs compiled successfully before any failure, so the
   // error response can pinpoint exactly which translation unit died
@@ -380,7 +380,7 @@ export async function buildZ80C(args) {
   for (const [name, src] of Object.entries(sources)) {
     const ext = path.extname(name).toLowerCase();
     if (ext === ".s" || ext === ".asm") {
-      // Assembly path — sdasz80 for z80 ports, sdasgb for sm83.
+      // Assembly path - sdasz80 for z80 ports, sdasgb for sm83.
       const asmRun = isSm83 ? runSdasgb : runSdasz80;
       const asmLabel = isSm83 ? "sdasgb" : "sdasz80";
       const r = await asmRun({ source: src });
@@ -392,7 +392,7 @@ export async function buildZ80C(args) {
       compiledOK.push(name);
       objects[name.replace(/\.(s|asm)$/i, ".rel")] = r.rel;
     } else {
-      // C path — sdcc -c
+      // C path - sdcc -c
       const r = await runSdccCompile({
         source: src,
         port: args.port,
@@ -421,12 +421,12 @@ export async function buildZ80C(args) {
   //
   // Detection: a real sdld .rel object starts with `XL2\n` or `XL4\n`
   // (the relocation byte-order tag). A .s source typically starts with
-  // a comment (`;`) or a directive (`.module`, `.area`, etc.) — but
+  // a comment (`;`) or a directive (`.module`, `.area`, etc.) - but
   // never with the .rel header. Asm-pre-assembled .rel files (e.g.
   // from runSdasgb output above) carry the XL prefix naturally.
   let crt0Rel = args.crt0;
   if (crt0Rel && !/^XL[2-4]\b/.test(crt0Rel.trim())) {
-    // Looks like .s source — assemble it via the same path we use for
+    // Looks like .s source - assemble it via the same path we use for
     // user .s sources. (Keeps its custom FAILED-context line, so inline.)
     const crt0Asm = await (isSm83 ? runSdasgb : runSdasz80)({ source: crt0Rel });
     cb.log += `--- ${isSm83 ? "sdasgb" : "sdasz80"} (crt0) ---\n` + crt0Asm.log + "\n";
@@ -440,7 +440,7 @@ export async function buildZ80C(args) {
   // sdld is a clean stage (no per-TU context) → cb.stage. NOTE: the failure
   // shape here had NO `exitCode || 1` fallback (raw link.exitCode); CBuild uses
   // `exitCode || 1`. link.exitCode is non-zero on a real link failure, so this
-  // is equivalent in practice — but to stay byte-identical, handle it inline.
+  // is equivalent in practice - but to stay byte-identical, handle it inline.
   const link = await runSdld({
     objects,
     port: args.port,
@@ -457,7 +457,7 @@ export async function buildZ80C(args) {
   // ihx writes records at absolute $4000+, so size the buffer to cover them,
   // then slice to a `romBase`-based page image (offset 0 == address romBase).
   // Without it, an MSX ROM would be a $0000-based image with its real code at
-  // offset $4000 — the header check + the core both expect it at offset 0.
+  // offset $4000 - the header check + the core both expect it at offset 0.
   if (args.romBase) {
     const span = args.romBase + (args.romSize || 0);
     const full = ihxToBin(link.ihx, span);
@@ -502,7 +502,7 @@ export function parseSdldMap(map) {
     //   1. Area summary:   "0000C000  s__DATA"            (addr + name, EOL)
     //   2. Global symbol:  "0000C000  _score   _work_main" (addr + name +
     //      a "defined in module" column). The user's variables/functions are
-    //      shape 2 — the original regex's `$` anchor after the name dropped
+    //      shape 2 - the original regex's `$` anchor after the name dropped
     //      them, so PC→symbol + getMemoryMap only ever saw the area markers.
     // Accept an OPTIONAL trailing module column.
     const m = /^([0-9A-Fa-f]{4,8})\s+([A-Za-z_.][A-Za-z0-9_.]*)(?:\s+\S.*)?$/.exec(line);

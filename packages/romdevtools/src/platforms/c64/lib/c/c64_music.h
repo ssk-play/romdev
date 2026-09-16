@@ -1,7 +1,7 @@
-/* c64_music.h — tiny per-frame SID music driver for C64 scaffolds.
+/* c64_music.h - tiny per-frame SID music driver for C64 scaffolds.
  *
  * 3-voice continuous music player on top of the SID. The note table IS
- * the song — open this file's .c sibling to see and edit the tune.
+ * the song - open this file's .c sibling to see and edit the tune.
  *
  * NOT a .sid player (those need reSID-class emulation of a 6502 sub-
  * program). This is a plain frame-tick sequencer: each voice walks a
@@ -10,10 +10,10 @@
  * scaffold "music_demo".
  *
  * Wire it up:
- *   music_init()       — set master vol + ADSR for all 3 voices
- *   music_play()       — reset song position to 0 (begin playback)
- *   music_update()     — call once per frame from your main loop
- *   music_stop()       — clear gates + silence
+ *   music_init()       - set master vol + ADSR for all 3 voices
+ *   music_play()       - reset song position to 0 (begin playback)
+ *   music_update()     - call once per frame from your main loop
+ *   music_stop()       - clear gates + silence
  *
  * The track loops indefinitely; each voice can have its own length so
  * polyphony stays interesting.
@@ -29,7 +29,7 @@ void music_play(void);
 void music_update(void);
 void music_stop(void);
 
-/* Returns 0..255 — a frame counter useful for sync (e.g. flash colors
+/* Returns 0..255 - a frame counter useful for sync (e.g. flash colors
  * on the beat). Wraps freely. */
 uint8_t music_tick(void);
 

@@ -1,9 +1,9 @@
-// known-source.js — look before you decompile.
+// known-source.js - look before you decompile.
 //
 // Twenty-seven libultra functions remain in assembly on this project. libultra
 // is SDK code: its sources are published, several N64 decompilation projects
 // have already matched it, and hand-decompiling a routine whose source exists is
-// the most expensive way to obtain it. The same is true inside one project —
+// the most expensive way to obtain it. The same is true inside one project -
 // camera, menu and render families repeat with small variations, so a sibling
 // that already matched is the best possible starting candidate.
 //
@@ -12,8 +12,8 @@
 // attributions. Three signals, in decreasing strength:
 //
 //   1. exact instruction-word equality (modulo relocated operands)
-//   2. relocation SHAPE — the sequence of relocation types and their positions
-//   3. normalized CFG — block count, edge structure, terminator kinds
+//   2. relocation SHAPE - the sequence of relocation types and their positions
+//   3. normalized CFG - block count, edge structure, terminator kinds
 //
 // A hit is a CANDIDATE with provenance and a license note, never an answer. It
 // still has to compile and compare locally, because a function that looks like
@@ -146,7 +146,7 @@ export async function findKnownSource(project, { symbol, asmText, workClass }, {
     siblingHits: hits.slice(0, limit),
     referenceRootsSearched: refs,
     ...(workClass === "libultra-known-source" ? {
-      libultraNote: "This function is SDK code. Its source is published and several N64 decompilation projects have already matched it — "
+      libultraNote: "This function is SDK code. Its source is published and several N64 decompilation projects have already matched it - "
         + "search those before decompiling by hand. Set ROMDEV_DECOMP_REFERENCES to a colon-separated list of checked-out reference "
         + "repositories to include them in this search.",
     } : {}),
@@ -154,7 +154,7 @@ export async function findKnownSource(project, { symbol, asmText, workClass }, {
       referenceNote: "no reference repositories are configured, so ONLY this project's own functions were searched. "
         + "Set ROMDEV_DECOMP_REFERENCES to widen it.",
     } : {}),
-    policy: "matching is by instruction words, relocation shape and CFG profile — NEVER by symbol name, because a name is not evidence "
+    policy: "matching is by instruction words, relocation shape and CFG profile - NEVER by symbol name, because a name is not evidence "
       + "and a name-similarity hit would be a confident wrong attribution. Every hit is a CANDIDATE with provenance: it still has to "
       + "compile and compare locally, since a function that looks like a known one can have been built with different flags. "
       + "Check the license of any source you import.",

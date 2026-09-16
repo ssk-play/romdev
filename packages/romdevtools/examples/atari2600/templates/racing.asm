@@ -1,40 +1,40 @@
-; ── racing.asm — SWERVE STREAK — Atari 2600 road racer (complete game) ───────
+; ── racing.asm - SWERVE STREAK - Atari 2600 road racer (complete game) ───────
 ;
-; A COMPLETE, working game — drawn title screen, a forward-view lane racer
+; A COMPLETE, working game - drawn title screen, a forward-view lane racer
 ; (your car weaving up a road as traffic descends toward you), distance
 ; score + in-session hi-score, TIA sound effects + a title jingle, a crash
 ; → game over with auto-return to the title, and the 2600's signature
-; feature: THE WHOLE MACHINE. There is no framebuffer, no tilemap, no OS —
+; feature: THE WHOLE MACHINE. There is no framebuffer, no tilemap, no OS -
 ; every visible scanline below is composed live by racing the beam, and this
 ; file teaches the road-racer's load-bearing TIA tricks while doing it:
 ;
-;   1. THE ROAD IS PLAYFIELD, AND IT ANIMATES (the sense of motion) — the
+;   1. THE ROAD IS PLAYFIELD, AND IT ANIMATES (the sense of motion) - the
 ;      2600 has NO hardware scroll and NO tilemap, so a road racer cannot
 ;      "scroll" anything. The road is drawn from the PLAYFIELD registers
 ;      (PF0/PF1/PF2) as two edges; the illusion of forward speed comes from
 ;      animating a dashed CENTRE LINE that crawls DOWN the screen every
 ;      frame (a per-frame phase offset, SCROLL), plus traffic cars that
 ;      descend toward you. This is exactly how the era's forward-view road
-;      games faked motion — honest, period-correct, no scroll hardware.
-;   2. RESP/HMOVE BEAM POSITIONING (the SBC-#15 idiom) — there is no sprite
+;      games faked motion - honest, period-correct, no scroll hardware.
+;   2. RESP/HMOVE BEAM POSITIONING (the SBC-#15 idiom) - there is no sprite
 ;      X register; you strobe RESPx/RESM0 WHERE THE BEAM IS, then nudge ±7px
 ;      with HMOVE. Three objects (your car P0, a rival car P1, a hazard M0)
 ;      positioned this way each frame, inside the timed VBLANK window.
-;   3. TIA COLLISION LATCHES (the crash detect) — the TIA detects P0/P1 and
+;   3. TIA COLLISION LATCHES (the crash detect) - the TIA detects P0/P1 and
 ;      M0/P0 pixel overlap in silicon as it draws; we read the latched
 ;      result one frame later, free, instead of doing AABB math. Clear it
 ;      every frame (CXCLR) or a stale hit crashes a car that isn't there.
-;   4. TIM64T/INTIM FRAME TIMING — set the RIOT timer for VBLANK/overscan and
+;   4. TIM64T/INTIM FRAME TIMING - set the RIOT timer for VBLANK/overscan and
 ;      let it absorb however much the game logic costs, instead of hand-
 ;      counting WSYNCs (which rolls the picture the moment logic grows).
 ;
-; THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+; THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
 ; very different one. The markers tell you what's what:
-;   HARDWARE IDIOM (load-bearing) — cycle-counted / footgun-dodging code;
+;   HARDWARE IDIOM (load-bearing) - cycle-counted / footgun-dodging code;
 ;     reshape your gameplay around it (see TROUBLESHOOTING before changing).
-;   GAME LOGIC (clay) — movement, scoring, tuning, art: reshape freely.
+;   GAME LOGIC (clay) - movement, scoring, tuning, art: reshape freely.
 ;
-; GAME_TITLE: on the 2600 a title is DRAWN, not printed — there is no font
+; GAME_TITLE: on the 2600 a title is DRAWN, not printed - there is no font
 ; hardware. The SWERVE/STREAK banner bitmaps near the bottom of this file ARE
 ; the title; redraw them for your game (the comment above each table shows
 ; the 40-pixel artwork and the PF0/PF1/PF2 bit-order encoding).
@@ -48,19 +48,19 @@
 ;   A crash flashes the screen and ends the run. Your DISTANCE this run is
 ;   your score; your best DISTANCE this session is shown on the title screen.
 ;
-; PLAYERS — 1P, honest. The 2600 has two joystick ports, but this genre's
+; PLAYERS - 1P, honest. The 2600 has two joystick ports, but this genre's
 ; kernel is already spending its scanline budget on the road playfield, your
 ; car (P0), a rival car (P1) and a hazard (M0). A second human car would
 ; need its OWN positioned object competing for the SAME 76-cycle two-line
-; passes the road + traffic already fill — and a split-screen second road has
+; passes the road + traffic already fill - and a split-screen second road has
 ; no spare PF registers. So like the era's single-driver road games, SWERVE
 ; STREAK is single-player. (To add a 2P "best distance, alternating runs"
-; mode — cheap, no extra kernel objects — keep a second hi-score and swap on
+; mode - cheap, no extra kernel objects - keep a second hi-score and swap on
 ; crash; left as an exercise.)
 ;
 ; HI-SCORE HONESTY: real 2600 cartridges had NO battery, NO SRAM, NO
 ; persistence of any kind. The hi-score here lives in RIOT RAM ($A4) and
-; survives game → title cycles only WITHIN one power-on session — exactly
+; survives game → title cycles only WITHIN one power-on session - exactly
 ; like the arcade machines of the era. Power off and it is gone. Do not
 ; fake an EEPROM; state it honestly in your fork too.
 ;
@@ -102,7 +102,7 @@ AUDF0    = $17
 AUDF1    = $18
 AUDV0    = $19
 AUDV1    = $1A
-; ── TIA READ registers (separate read map — the same addresses as some
+; ── TIA READ registers (separate read map - the same addresses as some
 ; write strobes; e.g. CXPPMM reads $07 while STA $07 writes COLUP1) ─────
 CXM0P    = $00          ; bit6 = missile0 / player0 collision (latched)
 CXPPMM   = $07          ; bit7 = player0 / player1 collision (latched)
@@ -113,7 +113,7 @@ SWCHB    = $282         ; console: bit0 RESET, bit1 SELECT (ACTIVE LOW)
 INTIM    = $284         ; timer read
 TIM64T   = $296         ; timer set, 64-cycle ticks
 
-; ── Zero-page state (the 2600's ENTIRE RAM is $80-$FF — 128 bytes; in
+; ── Zero-page state (the 2600's ENTIRE RAM is $80-$FF - 128 bytes; in
 ; core memory dumps system_ram offset 0 = $80) ────────────────────────
 STATE     = $80         ; 0 = title, 1 = play, 2 = game over
 P_X       = $81         ; player car X column (visible 0..159)
@@ -122,7 +122,7 @@ E1_Y      = $83         ; rival car TOP scanline (beam counts 192→1, so a
                         ;   SMALLER value = LOWER on screen = closer to you)
 E2_X      = $84         ; hazard (M0) X column
 E2_Y      = $85         ; hazard TOP scanline
-SPEED     = $86         ; current speed 1..6 — drives scroll + descent rate
+SPEED     = $86         ; current speed 1..6 - drives scroll + descent rate
 SCROLL    = $87         ; centre-line dash phase 0..7 (the road's "motion")
 DIST      = $88         ; distance score, BCD (digit nibbles fall out free)
 DIST_HI   = $89         ; distance score high byte, BCD (hundreds/thousands)
@@ -141,7 +141,7 @@ TMP       = $95
 TICK      = $96         ; distance accumulator: +1 score every N frames
 S0BUF     = $97         ; 6 rows: packed score digits for the kernel
 SCRATCH   = $9D         ; 6 bytes general kernel/packer scratch
-DIST_HSV  = $A4         ; SESSION hi-score (BCD low byte). RAM only — real
+DIST_HSV  = $A4         ; SESSION hi-score (BCD low byte). RAM only - real
 DIST_HSH  = $A5         ;   2600 carts have no battery; honest by design.
 HSBUF     = $A6         ; 6 rows: hi-score, packed
 
@@ -160,7 +160,7 @@ START:
 .clr:
   STA $00,X             ; clears ALL of $00-$FF: zero page RAM AND the TIA
   DEX                   ; write registers (GRP/ENAxx/HMxx/audio all silenced
-  BNE .clr             ; — the standard 2600 power-on hygiene)
+  BNE .clr             ; - the standard 2600 power-on hygiene)
 
   ; Fixed identity colors (the kernels rewrite COLUPF/COLUBK per band, but
   ; the car colors are constant all session).
@@ -178,14 +178,14 @@ START:
   JSR enter_title
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
 ; THE FRAME LOOP. 262 scanlines, every frame, forever. VBLANK and overscan
 ; are timed with the RIOT timer (TIM64T) instead of counted WSYNCs: set the
 ; timer, run however much game logic the state needs, then spin on INTIM.
 ; This is how shipped 2600 games did it, and it kills the classic homebrew
 ; bug class where adding one branch to the game logic emits a 263rd line
 ; and the TV loses vsync (rolling picture). The VISIBLE 192 lines are still
-; counted exactly — every STA WSYNC below is one scanline, and each state's
+; counted exactly - every STA WSYNC below is one scanline, and each state's
 ; kernel accounts for all 192.
 ; ──────────────────────────────────────────────────────────────────────
 MAIN:
@@ -210,7 +210,7 @@ MAIN:
   BNE .vbwait
   STA WSYNC
 
-  ; kernel dispatch — title has its own kernel; play and game-over share one
+  ; kernel dispatch - title has its own kernel; play and game-over share one
   LDA STATE
   BNE .ingame
   JMP title_kernel
@@ -231,13 +231,13 @@ kernel_done:
 
 ; ──────────────────────────────────────────────────────────────────────
 ; Per-frame logic, dispatched by state. Runs entirely inside the timed
-; VBLANK window (~2800 cycles — an eternity next to the kernel's 76/line).
+; VBLANK window (~2800 cycles - an eternity next to the kernel's 76/line).
 ; ──────────────────────────────────────────────────────────────────────
 frame_logic:
   INC FRAME
   JSR audio_tick
 
-  ; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  ; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
   ; Console RESET + fire button are ACTIVE LOW and not debounced; a held
   ; RESET would restart every frame. Convert to press-EDGES once per frame:
   ; edge = was-released-last-frame AND pressed-now.
@@ -270,7 +270,7 @@ frame_logic:
 logic_play_jmp:
   JMP logic_play
 
-; ── GAME LOGIC (clay — reshape freely) ── title-screen behavior ────────
+; ── GAME LOGIC (clay - reshape freely) ── title-screen behavior ────────
 logic_title:
   ; fire 0 or console RESET starts the game.
   LDA FIRE_EDG
@@ -283,7 +283,7 @@ logic_title:
   JMP start_game
 .packtitle:
   ; Pack the hi-score into the title's display buffer (the kernel just
-  ; streams bytes — all per-frame thinking happens HERE, in VBLANK, never
+  ; streams bytes - all per-frame thinking happens HERE, in VBLANK, never
   ; inside a kernel). We show the low TWO digits of the best distance.
   LDA DIST_HSV
   JSR pack_two_digits
@@ -302,7 +302,7 @@ logic_title:
   STA ENAM0
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── one frame of the racer ───────
+; ── GAME LOGIC (clay - reshape freely) ── one frame of the racer ───────
 logic_play:
   LDA EDGEB
   AND #$01              ; console RESET → back to title
@@ -310,10 +310,10 @@ logic_play:
   JMP enter_title
 .noquit:
 
-  ; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
+  ; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
   ; SWCHA is ACTIVE LOW (0 = pressed) and must be RE-LOADED for every
   ; direction check. The classic bug: caching it in A and chaining ASLs,
-  ; then clobbering A with game state between shifts — "right works once,
+  ; then clobbering A with game state between shifts - "right works once,
   ; left never steers". Fresh LDA SWCHA + AND #mask per check is immune.
   ; Joystick 0 lives in the HIGH nibble: bit7 right, bit6 left.
   LDA SWCHA
@@ -325,7 +325,7 @@ logic_play:
   INC P_X
   INC P_X
 .nr:
-  LDA SWCHA            ; RE-LOAD — never trust A to still hold SWCHA
+  LDA SWCHA            ; RE-LOAD - never trust A to still hold SWCHA
   AND #$40             ; joy0 left
   BNE .nl
   LDA P_X
@@ -335,10 +335,10 @@ logic_play:
   DEC P_X
 .nl:
 
-  ; ── GAME LOGIC (clay) — road MOTION. No scroll hardware exists, so the
+  ; ── GAME LOGIC (clay) - road MOTION. No scroll hardware exists, so the
   ; centre-line dash phase crawls every frame: subtract SPEED from SCROLL
   ; and wrap mod 8. The kernel reads (Y + SCROLL) & 8 to decide whether a
-  ; dash is lit on each line — so as SCROLL counts down, the lit bands
+  ; dash is lit on each line - so as SCROLL counts down, the lit bands
   ; appear to march DOWN the screen toward you = forward speed.
   LDA SCROLL
   SEC
@@ -352,10 +352,10 @@ logic_play:
   DEC FLASH
 .noflash:
 
-  ; ── GAME LOGIC (clay) — descend the rival car. Beam-Y counts 192→1 going
+  ; ── GAME LOGIC (clay) - descend the rival car. Beam-Y counts 192→1 going
   ; DOWN the screen, so "moving down toward the player" = SUBTRACT from Y.
   ; When it passes the bottom, recycle it to the top in a new (deterministic)
-  ; lane and bump distance — you survived a car.
+  ; lane and bump distance - you survived a car.
   LDA E1_Y
   SEC
   SBC SPEED
@@ -390,11 +390,11 @@ logic_play:
   STA E2_X
 .e2ok:
 
-  ; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-  ; CRASH via the TIA's hardware collision LATCHES — the 2600 detects P0/P1
+  ; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+  ; CRASH via the TIA's hardware collision LATCHES - the 2600 detects P0/P1
   ; and M0/P0 pixel overlap in silicon while it draws; we read the latched
   ; result here, one frame late, for free (no AABB math). Rules:
-  ;   * latches accumulate until CXCLR — clear them EVERY frame, or a stale
+  ;   * latches accumulate until CXCLR - clear them EVERY frame, or a stale
   ;     hit from 10 frames ago crashes a car that isn't there;
   ;   * P0/P1 = CXPPMM bit7 (N flag after BIT); M0/P0 = CXM0P bit6 (V flag).
   BIT CXPPMM           ; bit7 (N) = player car overlapped the rival car
@@ -408,7 +408,7 @@ do_crash:
 .nocrash:
   STA CXCLR            ; arm the latches fresh for the frame we're about to draw
 
-  ; ── GAME LOGIC (clay) — distance score. +1 every DIST_PERIOD/SPEED frames
+  ; ── GAME LOGIC (clay) - distance score. +1 every DIST_PERIOD/SPEED frames
   ; (faster speed scores faster). When DIST crosses a multiple of $20 in
   ; BCD, ramp SPEED (cap 6): the longer you survive, the harder it gets.
   INC TICK
@@ -438,7 +438,7 @@ do_crash:
 
   JMP pack_score       ; render DIST into the kernel's row buffer (tail-RTS)
 
-; ── GAME LOGIC (clay — reshape freely) ── game-over freeze-frame ───────
+; ── GAME LOGIC (clay - reshape freely) ── game-over freeze-frame ───────
 logic_over:
   LDA EDGEB
   AND #$01
@@ -462,7 +462,7 @@ logic_over:
   STA FLASH            ; reuse FLASH as the freeze-flash color carrier
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── helpers ──────────────────────
+; ── GAME LOGIC (clay - reshape freely) ── helpers ──────────────────────
 
 add_distance:          ; +1 distance, BCD, capped at 9999
   SED
@@ -554,10 +554,10 @@ digit_times6:           ; A = digit 0-9 → A = digit*6 (DIGITS row index)
   ASL                 ; *6
   RTS
 
-; pack_two_digits — A = a BCD byte (two digits). Writes 6 rows into SCRATCH,
+; pack_two_digits - A = a BCD byte (two digits). Writes 6 rows into SCRATCH,
 ; left digit (high nibble) in PF1 high nibble, right digit (low nibble) in
-; PF1 low nibble. In SCORE mode the byte draws twice (two colors) — the
-; classic dual-score look — but here both halves carry the SAME packed pair.
+; PF1 low nibble. In SCORE mode the byte draws twice (two colors) - the
+; classic dual-score look - but here both halves carry the SAME packed pair.
 pack_two_digits:
   PHA
   LSR
@@ -605,7 +605,7 @@ pack_score:             ; render the low two DIST digits into S0BUF
   BNE .pks
   RTS
 
-; ── GAME LOGIC (clay — reshape freely) ── TIA sound ────────────────────
+; ── GAME LOGIC (clay - reshape freely) ── TIA sound ────────────────────
 ; Voice 0 = one-shot sound effects (engine revs + crash); voice 1 = the
 ; jingle player. Separate voices means a rev blip never cuts the tune off.
 sfx_play:               ; A = AUDF pitch, X = AUDC waveform, Y = frames
@@ -668,8 +668,8 @@ audio_tick:             ; called once per frame, every state
   RTS
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-; OBJECT POSITIONING — the canonical SBC-#15 beam-race. There is no "X
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+; OBJECT POSITIONING - the canonical SBC-#15 beam-race. There is no "X
 ; register" for sprites: you strobe RESPx/RESM0 and the object lands
 ; WHEREVER THE BEAM IS. Each SBC/BCS lap is 5 CPU cycles = 15 beam pixels,
 ; so when the subtraction underflows the beam has crossed x/15 coarse
@@ -725,23 +725,23 @@ position_objects:
   RTS                   ; come fresh after a WSYNC (mid-line HMOVE combs)
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-; THE PLAY/GAME-OVER KERNEL — 192 visible lines, fully accounted:
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+; THE PLAY/GAME-OVER KERNEL - 192 visible lines, fully accounted:
 ;   24 = score bar  +  168 = road (84 two-line passes)
 ;
 ; SCORE BAR (SCORE mode): CTRLPF = $02 colors the LEFT playfield half with
-; COLUP0 and the RIGHT half with COLUP1 — a two-color scoreboard with zero
+; COLUP0 and the RIGHT half with COLUP1 - a two-color scoreboard with zero
 ; sprites. We stream the packed distance digits into PF1, one font row per
 ; 4 scanlines.
 ;
-; ROAD (two-line kernel): one line of road work — road edges (PF0/PF2) +
-; scrolling centre dash (PF) + ONE car test — is ~80+ cycles, more than a
+; ROAD (two-line kernel): one line of road work - road edges (PF0/PF2) +
+; scrolling centre dash (PF) + ONE car test - is ~80+ cycles, more than a
 ; single 76-cycle scanline allows. So each loop pass spans TWO scanlines:
 ;   line A draws the road playfield (rails + centre dash) + the player car;
 ;   line B draws the rival car (P1) + the hazard (M0).
 ; 84 passes × 2 = 168 lines; objects move in 2-px steps (invisible on 1977
 ; televisions). The road's MOTION is in the dash phase (SCROLL), updated in
-; VBLANK — the kernel only READS it; never animate inside a kernel.
+; VBLANK - the kernel only READS it; never animate inside a kernel.
 ; ──────────────────────────────────────────────────────────────────────
 play_kernel:
   ; positioning runs first, inside the still-blanked region
@@ -780,7 +780,7 @@ play_kernel:
 
   ; transition: clear the bar, switch the TIA to the road. CTRLPF bit0
   ; (reflect) MIRRORS the 20-pixel playfield so the left rail draws a
-  ; matching right rail for free — the road is symmetric. COLUPF = the
+  ; matching right rail for free - the road is symmetric. COLUPF = the
   ; white road markings; COLUBK = black tarmac.
   STA WSYNC
   LDA #$01
@@ -799,7 +799,7 @@ play_kernel:
   ; rail bar there, mirrored by reflect to the right edge. Constant rails.
   LDA #%00010000
   STA PF0
-  ; Centre DASH via PF2 — lit on some line groups, phased by SCROLL so the
+  ; Centre DASH via PF2 - lit on some line groups, phased by SCROLL so the
   ; lit bands crawl DOWN the screen (forward motion). (Y + SCROLL) & 8.
   TYA
   CLC
@@ -872,12 +872,12 @@ play_kernel:
   JMP kernel_done
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-; THE TITLE KERNEL — 192 lines, banded:
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+; THE TITLE KERNEL - 192 lines, banded:
 ;   24 blank + 28 banner "SWERVE" + 8 gap + 28 banner "STREAK" + 16 gap +
 ;   24 hi-score + remainder pad = 192
 ;
-; The banner is an ASYMMETRIC PLAYFIELD — the 2600's only way to draw
+; The banner is an ASYMMETRIC PLAYFIELD - the 2600's only way to draw
 ; full-width artwork. The playfield registers hold just 20 pixels; the TIA
 ; replays them for the right half of the line (CTRLPF bit0 chooses repeat
 ; or mirror). For 40 INDEPENDENT pixels you rewrite all three registers
@@ -886,7 +886,7 @@ play_kernel:
 ;   PF0 again after cycle ~28 (left copy drawn) before ~49 (right copy reads)
 ;   PF1 again after cycle ~39                   before ~54
 ;   PF2 again after cycle ~50                   before ~65
-; The code below hits those windows by instruction order alone — count
+; The code below hits those windows by instruction order alone - count
 ; cycles before you reorder ANYTHING between the WSYNC and the last STA.
 ; REQUIRES: CTRLPF bit0 = 0 (repeat mode). In mirror mode the right half
 ; reads the registers in REVERSE order and every window above is wrong.
@@ -901,7 +901,7 @@ title_kernel:
   STA GRP0
   STA GRP1
   STA ENAM0
-  STA CTRLPF           ; REPEAT mode — required by the banner (see above)
+  STA CTRLPF           ; REPEAT mode - required by the banner (see above)
   STA VBLANK           ; beam on
 
   LDX #24              ; band 1: 24 blank lines
@@ -990,7 +990,7 @@ title_kernel:
 
   ; band 6: hi-score, 24 lines (6 rows × 4). Packed digits stream into PF1;
   ; SCORE mode draws them twice in the two player colors. In-session best
-  ; DISTANCE; honest: there is no battery — gone at power-off, like the
+  ; DISTANCE; honest: there is no battery - gone at power-off, like the
   ; arcades.
   LDX #0
 .hsb:
@@ -1017,9 +1017,9 @@ title_kernel:
   JMP kernel_done
 
 ; ──────────────────────────────────────────────────────────────────────
-; ── GAME LOGIC (clay — reshape freely) ── data tables ──────────────────
+; ── GAME LOGIC (clay - reshape freely) ── data tables ──────────────────
 ; Digit font: 4 pixels wide × 6 rows, stored in the HIGH nibble (PF1 bit7
-; is the LEFTMOST pixel of the left playfield half — high nibble = left).
+; is the LEFTMOST pixel of the left playfield half - high nibble = left).
 DIGITS:
   .byte $60,$90,$90,$90,$90,$60   ; 0
   .byte $20,$60,$20,$20,$20,$70   ; 1
@@ -1032,7 +1032,7 @@ DIGITS:
   .byte $60,$90,$60,$90,$90,$60   ; 8
   .byte $60,$90,$90,$70,$10,$60   ; 9
 
-; Title jingle (voice 1, AUDC $04 square; AUDF divider — LOWER = higher
+; Title jingle (voice 1, AUDC $04 square; AUDF divider - LOWER = higher
 ; pitch; 10 frames per note; $FF terminates). The table IS the song.
 TITLE_TUNE:
   .byte $0F,$0C,$09,$0C,$0F,$13,$0F,$0C,$FF
@@ -1056,7 +1056,7 @@ CAR:
 ; ── THE TITLE BANNER ──────────────────────────────────────────────────
 ; 40-pixel-wide artwork, 7 rows per word, drawn by the asymmetric-playfield
 ; kernel above. Each row is six bytes across six tables (left PF0/PF1/PF2,
-; right PF0/PF1/PF2). PF bit order is the 2600's great prank — three
+; right PF0/PF1/PF2). PF bit order is the 2600's great prank - three
 ; registers, three different orders:
 ;   PF0: only bits 4-7 used, bit 4 = LEFTMOST pixel   (reversed)
 ;   PF1: bit 7 = leftmost                              (normal)

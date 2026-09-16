@@ -1,12 +1,12 @@
 // 6502 → IR lifter. Turns one da65 6502 disassembly into the generic recompile
 // IR (ir.js), tagging each instruction with an ABSTRACT op so a non-1:1 target
-// emitter (m68k, z80, …) can translate the INTENT without knowing 6502. The 1:1
+// emitter (m68k, z80, ...) can translate the INTENT without knowing 6502. The 1:1
 // emitter (65816 emulation mode) ignores the abstract tag and re-emits the
-// mnemonic verbatim — both consume the same IR.
+// mnemonic verbatim - both consume the same IR.
 //
 // This is the existing recompile-65816 classification logic, refactored to emit
 // IR nodes instead of 65816 text. Same documented-opcode set, same seam
-// detection, same refuse rules — but now source-agnostic at the boundary.
+// detection, same refuse rules - but now source-agnostic at the boundary.
 //
 // Plain JS ESM + JSDoc.
 
@@ -17,7 +17,7 @@ import {
   irLabel, irReg, irBranch, irJump, irCall, irRet, irHwReg, irRefuse,
 } from "./ir.js";
 
-/** The 151 documented 6502 mnemonics — anything else (an undocumented opcode da65
+/** The 151 documented 6502 mnemonics - anything else (an undocumented opcode da65
  *  rendered, or a data byte caught in the stream) is REFUSED, not guessed. */
 export const DOCUMENTED_6502 = new Set([
   "adc", "and", "asl", "bcc", "bcs", "beq", "bit", "bmi", "bne", "bpl", "brk",
@@ -53,7 +53,7 @@ const BRANCH_COND = {
 };
 
 /**
- * Detect a hardware-register (MMIO) access — the seam. Returns the register's low
+ * Detect a hardware-register (MMIO) access - the seam. Returns the register's low
  * address if the operand targets a NES PPU/APU register, else null. Only absolute
  * operands count; immediates and zero-page never hit the register file.
  * @param {string|undefined} operand
@@ -69,7 +69,7 @@ export function seamRegister(operand) {
 }
 
 /**
- * Lift one parsed da65 6502 line to an IR node (or null for blank/directive/equ —
+ * Lift one parsed da65 6502 line to an IR node (or null for blank/directive/equ -
  * those are handled by the orchestrator, which collects equs separately). The
  * leading label, if any, rides on the returned node so branch targets resolve.
  * @param {ReturnType<typeof parseDa65Line>} p
@@ -83,7 +83,7 @@ function liftInstr(p) {
   // Refuse the non-mechanical constructs up front (same as the original).
   if (mnem === "sed") return irRefuse("decimal-mode (sed): BCD edge-flag semantics differ across ISAs", p.raw, label);
   if (mnem === "jmp" && operand && operand.startsWith("(")) {
-    return irRefuse("indirect jump (jmp (addr)): target is computed — resolve with breakpoint({on:'jumptable'})", p.raw, label);
+    return irRefuse("indirect jump (jmp (addr)): target is computed - resolve with breakpoint({on:'jumptable'})", p.raw, label);
   }
 
   // Hardware seam: any PPU/APU register access becomes an IR hwreg node.
@@ -110,7 +110,7 @@ function liftInstr(p) {
   }
 
   // Unknown mnemonic = undocumented opcode or a parse miss.
-  return irRefuse(`unrecognized/undocumented opcode '${mnem}' — not a documented 6502 instruction`, p.raw, label);
+  return irRefuse(`unrecognized/undocumented opcode '${mnem}' - not a documented 6502 instruction`, p.raw, label);
 }
 
 /**
@@ -149,7 +149,7 @@ export function lift6502(da65Asm) {
         const node = liftInstr(p);
         if (!node) break;
         // Anchor the entry to the FIRST real instruction (lifted node), labeled or
-        // not — da65 only labels branch targets, so a fall-through opener is
+        // not - da65 only labels branch targets, so a fall-through opener is
         // unlabeled and would otherwise let the reset skip the routine's setup.
         if (entry == null && node.op !== "refuse") {
           if (node.label) {

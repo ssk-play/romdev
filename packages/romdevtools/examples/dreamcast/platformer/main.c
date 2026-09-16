@@ -1,4 +1,4 @@
-/* Dreamcast PLATFORMER demo — a side-scrolling scene: a hero hops across platforms
+/* Dreamcast PLATFORMER demo - a side-scrolling scene: a hero hops across platforms
  * while the camera scrolls. Self-animating (no input). Renders on the PowerVR2 via
  * the framebuffer path. */
 #include "dc.h"

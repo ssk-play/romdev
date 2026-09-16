@@ -7,7 +7,7 @@
 // lifter's defining hazard and it produced TWO separate silent miscompiles
 // before it was tested: every Z80 register name (a b c d e h l, and the pairs
 // bc/de/hl/af) is also a valid hexadecimal number. A bare-hex regex therefore
-// matches a REGISTER, and the result is not a crash or a refusal — it is
+// matches a REGISTER, and the result is not a crash or a refusal - it is
 // plausible assembly that computes the wrong thing, which is the exact failure
 // class this engine exists to avoid.
 
@@ -203,7 +203,7 @@ test("supportedPairs advertises only pairs that really translate", () => {
 
 // ── the hardware seam ───────────────────────────────────────────────────────
 
-test("lifter: the Z80 seam is I/O space — exact, not heuristic", () => {
+test("lifter: the Z80 seam is I/O space - exact, not heuristic", () => {
   // Unlike the 6502 (memory-mapped hardware, so the seam is an address range
   // and a judgement call), every in/out is hardware and nothing else is.
   const { ir, seamCount } = liftZ80("\tin a,($bf)\n\tld a,($c000)\n\tout ($be),a");
@@ -215,7 +215,7 @@ test("lifter: the Z80 seam is I/O space — exact, not heuristic", () => {
 test("lifter: counts instructions and anchors an entry label on unlabelled code", () => {
   const r = liftZ80("\tdi\n\tld sp,$dff0\n\tret");
   assert.equal(r.instrCount, 3);
-  assert.ok(r.entry, "an entry anchor is required — the reset vector must land somewhere");
+  assert.ok(r.entry, "an entry anchor is required - the reset vector must land somewhere");
   assert.ok(r.ir.some((n) => n.op === IR.LABEL && n.name === r.entry));
 });
 
@@ -250,7 +250,7 @@ test("e2e: a Z80 routine recompiles to 65816 that asar BUILDS", async () => {
   assert.ok(asar.binary?.length > 0, "asar produced a LoROM image");
 });
 
-test("e2e: a seam-only routine builds — the seam include must not be double-defined", async () => {
+test("e2e: a seam-only routine builds - the seam include must not be double-defined", async () => {
   // The minimal reproduction of the Elabel_redefined bug: one `out` is enough.
   const r = recompile("\tout ($be),a\n\tin a,($bf)\n\tret", { source: "sms", target: "snes" });
   assert.ok(!r.stubbed.includes("Z80_IO_WRITE"), "Z80_IO_WRITE comes from the seam include");
@@ -307,7 +307,7 @@ test("(ix+d) covers the full signed byte range at both extremes", () => {
 });
 
 test("a store through (ix-d) with an immediate handles BOTH the value and the sign", () => {
-  // `ld (ix-5),$42` — real objdump output (dd 36 fb 42).
+  // `ld (ix-5),$42` - real objdump output (dd 36 fb 42).
   const out = joined("ld (ix-5),$42");
   assert.match(out, /lda\s+#\$42/, "the immediate is loaded");
   assert.match(out, /ldy\s+#\$fffb/i, "-5 is $FFFB, not $FB");
@@ -357,7 +357,7 @@ function branchRangeFixture() {
 
 test("a branch whose target is out of short range still assembles", async () => {
   // A Z80 jr/djnz and a 65816 beq/bne share a +/-128 range, so a 1:1 emission
-  // looks safe — but this emitter expands ONE Z80 instruction into MANY (every
+  // looks safe - but this emitter expands ONE Z80 instruction into MANY (every
   // 16-bit pair op is a rep/op/sep sandwich), so a loop that fit in Z80 no
   // longer fits. Measured on real ROMs at -139, -482 and +252: BOTH directions,
   // so it is not an off-by-one on one edge.
@@ -385,7 +385,7 @@ test("a branch whose target is out of short range still assembles", async () => 
 
 test("every conditional branch is emitted as branch-over-long-jump", () => {
   // brl is +/-32767 and stays RELATIVE, so the output remains
-  // position-independent — a jmp to an absolute label would not be.
+  // position-independent - a jmp to an absolute label would not be.
   const { ir } = liftZ80("\tjr z,L001234\n\tjr nz,L005678\n\tdjnz L009999");
   const out = emit65816FromZ80Body(ir);
   assert.match(out, /\bbrl\s+L001234/, "the long jump carries the distance");
@@ -398,7 +398,7 @@ test("every conditional branch is emitted as branch-over-long-jump", () => {
 
 test("a register-indirect ALU source is not read as a LABEL", () => {
   // `absolute()` also accepts the `(LABEL)` spelling, so it matched `(hl)` and
-  // returned the bare text `hl` — emitting `eor hl`, an ALU op against a label
+  // returned the bare text `hl` - emitting `eor hl`, an ALU op against a label
   // named hl that does not exist. asar: Elabel_not_found.
   for (const [src, want] of [["xor (hl)", /eor\s+\[\$06\]/], ["and (hl)", /and\s+\[\$06\]/],
                              ["or (hl)", /ora\s+\[\$06\]/], ["cp (hl)", /cmp\s+\[\$06\]/]]) {

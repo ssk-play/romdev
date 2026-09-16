@@ -1,4 +1,4 @@
-// R43 — Atari Lynx music_demo template: cc65's lynx_snd_play streaming
+// R43 - Atari Lynx music_demo template: cc65's lynx_snd_play streaming
 // music engine wired to a hand-authored bytestream in lynx_music.c.
 
 import { test } from "node:test";
@@ -32,7 +32,7 @@ test("R43 Lynx music_demo: hand-authored bytestream compiles via lynx_snd_play",
 test("R43 Lynx music bytestream is well-formed", async () => {
   const musicC = await readSrc("src/platforms/lynx/lib/c/lynx_music.c");
   // Sanity: demo_music array declared, ends with the SndStop (0) sentinel.
-  // NOTE: deliberately NOT requiring `const` — cc65's lynx_snd_play takes a
+  // NOTE: deliberately NOT requiring `const` - cc65's lynx_snd_play takes a
   // writable pointer, so demo_music must be non-const (the bytes still land
   // in ROM; the driver only reads). See lynx_music.c's declaration comment.
   assert.match(musicC, /unsigned\s+char\s+demo_music\s*\[\s*\]/, "demo_music array missing");

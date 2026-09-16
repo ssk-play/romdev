@@ -1,4 +1,4 @@
-// RGBDS — bundled Game Boy / GBC assembler + linker + fix tool.
+// RGBDS - bundled Game Boy / GBC assembler + linker + fix tool.
 //
 // Pipeline: rgbasm (source .asm → .o object) → rgblink (.o → .gb) →
 // rgbfix (patches header + checksums in-place).
@@ -19,7 +19,7 @@ const __dirname = path.dirname(__filename);
 // RGBDS's WASM ships in romdev-toolchain-rgbds. Resolve each tool's glue from
 // that package; fall back to a local copy under src/ if present (transition /
 // dev). Lazy + memoized per tool: resolve (and possibly throw "not installed")
-// only on the first GB/GBC asm build that uses each tool, not at module load —
+// only on the first GB/GBC asm build that uses each tool, not at module load -
 // so booting the server never touches this package unless RGBDS is actually used.
 const rgbdsGlue = makeGlueResolver({ pkg: "romdev-toolchain-rgbds", localDir: __dirname, label: "RGBDS" });
 
@@ -146,16 +146,16 @@ export async function runRgbfix(args) {
 export async function buildGB(args) {
   // ONE OBJECT PER .asm, exactly like a real GB project's Makefile.
   //
-  // A multi-file rgbds project (`bank0.asm`/`bank1.asm`/... — the shape every
+  // A multi-file rgbds project (`bank0.asm`/`bank1.asm`/... - the shape every
   // published GB disassembly ships) assembles each file to its OWN object and
   // links them together. This used to assemble ONLY `main.asm` and link a
-  // single object, with the other files mounted as `includes` — i.e. reachable
+  // single object, with the other files mounted as `includes` - i.e. reachable
   // via INCLUDE but never assembled, so their sections simply did not exist in
   // the ROM. Callers passing `sources` got a build that silently dropped most
   // of the program.
   //
   // `sources` ({name: contents}) is the multi-file form; `source` is the
-  // single-file one. A file is a translation unit if it ends in .asm/.s —
+  // single-file one. A file is a translation unit if it ends in .asm/.s -
   // anything else (.inc, .rgbinc, charmaps) is an INCLUDE payload and must NOT
   // be assembled on its own.
   const sources = args.sources ?? null;
@@ -165,12 +165,12 @@ export async function buildGB(args) {
     const isTU = (n) => /\.(asm|s)$/i.test(n);
     const units = names.filter(isTU);
     // Everything is visible to every unit (INCLUDE, INCBIN), whether or not it
-    // is itself assembled — that is what `-I /work` means.
+    // is itself assembled - that is what `-I /work` means.
     const allVisible = { ...includes, ...sources };
     if (units.length === 0) {
       return {
         binary: null,
-        log: `no assemblable source among [${names.join(", ")}] — rgbds needs at least one .asm/.s translation unit`,
+        log: `no assemblable source among [${names.join(", ")}] - rgbds needs at least one .asm/.s translation unit`,
         exitCode: 1,
         stage: "rgbasm",
       };

@@ -1,4 +1,4 @@
-/* ── music_demo.c — Game Gear music_demo template ──────────────────
+/* ── music_demo.c - Game Gear music_demo template ──────────────────
  *
  * Plays a hand-authored note table on PSG channel 2 via gg_music, and
  * fires a "pew" sfx tone on PSG channel 0 via gg_sfx when the player
@@ -18,7 +18,7 @@
  * different channels (sfx_tone uses 0/1, sfx_noise uses 3, gg_music
  * owns 2) so they can coexist without stepping on each other.
  *
- * Multi-file project — main.c + the GG runtime + gg_music + gg_sfx.
+ * Multi-file project - main.c + the GG runtime + gg_music + gg_sfx.
  */
 #include "gg_hw.h"
 #include "gg_sfx.h"
@@ -74,17 +74,17 @@ static void draw_bg(void) {
  *   tile 2: solid color 3 (red)
  */
 static const uint8_t sprite_tiles[32 * 3] = {
-  /* tile 0 — white (plane 0 = $FF) */
+  /* tile 0 - white (plane 0 = $FF) */
   0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00,
   0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00,
   0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00,
   0xFF,0x00,0x00,0x00, 0xFF,0x00,0x00,0x00,
-  /* tile 1 — green (plane 1 = $FF) */
+  /* tile 1 - green (plane 1 = $FF) */
   0x00,0xFF,0x00,0x00, 0x00,0xFF,0x00,0x00,
   0x00,0xFF,0x00,0x00, 0x00,0xFF,0x00,0x00,
   0x00,0xFF,0x00,0x00, 0x00,0xFF,0x00,0x00,
   0x00,0xFF,0x00,0x00, 0x00,0xFF,0x00,0x00,
-  /* tile 2 — red (planes 0+1 = $FF, so color 3) */
+  /* tile 2 - red (planes 0+1 = $FF, so color 3) */
   0xFF,0xFF,0x00,0x00, 0xFF,0xFF,0x00,0x00,
   0xFF,0xFF,0x00,0x00, 0xFF,0xFF,0x00,0x00,
   0xFF,0xFF,0x00,0x00, 0xFF,0xFF,0x00,0x00,
@@ -132,7 +132,7 @@ void main(void) {
   for (i = 0; i < 3; i++) {
     gg_sprite_set(i, IND_X0 + i * IND_DX, IND_Y, 0);  /* dim white */
   }
-  /* Playhead — moves above the currently selected song slot. */
+  /* Playhead - moves above the currently selected song slot. */
   gg_sprite_set(3, IND_X0, IND_Y - 16, 1);            /* green dot */
   gg_sat_upload();
   gg_vdp_display_on();

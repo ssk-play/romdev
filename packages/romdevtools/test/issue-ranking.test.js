@@ -22,7 +22,7 @@ test("uint8 loop-bound trap is flagged CRITICAL (it always hangs)", () => {
 });
 
 test("the VRAM byte-copy pattern is never marked critical (conditional)", () => {
-  // dst[i]=src[i] only crashes IF dst is VRAM/__xdata — can't be proven
+  // dst[i]=src[i] only crashes IF dst is VRAM/__xdata - can't be proven
   // statically for a bare unknown ident, so it must NOT cry wolf as critical.
   const src = "void f(void){ for (i = 0; i < n; i++){ a[i] = b[i]; } }";
   const issues = lintSdccSource(src, "main.c", { port: "sm83" });

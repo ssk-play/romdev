@@ -1,4 +1,4 @@
-// decomp-diff.test.js — the comparison engine on synthetic MIPS streams:
+// decomp-diff.test.js - the comparison engine on synthetic MIPS streams:
 // strict equality, the relocation-target trap, register-only vs immediate
 // vs count differences, the documented distance, relocation application
 // (HI16/LO16 carry, R_MIPS_26), objdump parsing, and TU splicing.

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// build-sdk-seeds.mjs — (re)generate the prebuilt SDK "seed" archives + their
+// build-sdk-seeds.mjs - (re)generate the prebuilt SDK "seed" archives + their
 // source-hash files. The seed is what makes the FIRST build of a process fast:
 // the build links it by default instead of recompiling the whole SDK. It is
-// DERIVED from the vendored SDK source (reproducible) — anyone can regenerate
+// DERIVED from the vendored SDK source (reproducible) - anyone can regenerate
 // it here and byte-compare, and `buildSource({rebuildSdk:true})` rebuilds from
 // source on demand. Run after vendoring/updating any SDK source.
 //
@@ -32,7 +32,7 @@ const ROOT = path.resolve(__dirname, "..");
 globalThis.__ROMDEV_SEED_SINK__ = {};
 
 async function gen(label, fn) {
-  process.stdout.write(`seeding ${label} … `);
+  process.stdout.write(`seeding ${label} ... `);
   const r = await fn();
   if (!r.ok) { console.error("FAILED:", r.stage, "\n", (r.log || "").split("\n").slice(-8).join("\n")); process.exit(1); }
   console.log("ok");

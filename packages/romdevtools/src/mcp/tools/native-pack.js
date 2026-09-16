@@ -1,13 +1,13 @@
-// native-pack — the "compile" step for the native-runtime kinds (wasmcart / jsgame).
+// native-pack - the "compile" step for the native-runtime kinds (wasmcart / jsgame).
 //
 // These game artifacts are ZIP archives, so packing a source directory into one is the
-// build verb for them (there is NO compiler here — wasmcart is language-agnostic, bring
+// build verb for them (there is NO compiler here - wasmcart is language-agnostic, bring
 // your own WASM; jsgame is plain JS). romdev just assembles the archive.
 //
-//   .wasc  (wasmcart): zip of { manifest.json, cart.wasm, assets/… }. If the source dir
+//   .wasc  (wasmcart): zip of { manifest.json, cart.wasm, assets/... }. If the source dir
 //           lacks a manifest but has a single .wasm, a minimal manifest is generated.
 //   .jsgame (jsgame):  zip of the game directory as-is (must contain package.json with a
-//           "main", or an index.html / main.js entry — same as rungame expects).
+//           "main", or an index.html / main.js entry - same as rungame expects).
 
 import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -46,7 +46,7 @@ export function packWasc({ source, wasm, assets, outputPath, name, players } = {
     }
     files = collectDir(source);
     if (!files["manifest.json"]) {
-      // No manifest in the dir — synthesize one pointing at the single .wasm present.
+      // No manifest in the dir - synthesize one pointing at the single .wasm present.
       const wasmEntry = Object.keys(files).find((f) => f.endsWith(".wasm"));
       if (!wasmEntry) throw new Error("pack(wasmcart): source dir has no manifest.json and no .wasm to derive one.");
       const manifest = { name: name || path.basename(outputPath, ".wasc"), version: "1.0.0", entry: wasmEntry };
@@ -98,19 +98,19 @@ export function packJsgame({ source, outputPath } = {}) {
 }
 
 /**
- * Register the `pack` tool — the "build" verb for the native-runtime kinds. Packs a
+ * Register the `pack` tool - the "build" verb for the native-runtime kinds. Packs a
  * source directory into a distributable .wasc / .jsgame archive (a zip). NOT a compiler
- * (wasmcart is any-language-to-WASM; jsgame is plain JS) — it just assembles the archive.
+ * (wasmcart is any-language-to-WASM; jsgame is plain JS) - it just assembles the archive.
  */
 export function registerNativePackTools(server, z) {
   server.tool(
     "pack",
     "Package a native-runtime game's source into its distributable archive (the 'build' step " +
-    "for wasmcart/jsgame — a ZIP, NOT a compiler). `target`:\n" +
-    "• 'wasc' (wasmcart) — pass `source` (a dev dir: manifest.json + cart.wasm + assets/) OR " +
+    "for wasmcart/jsgame - a ZIP, NOT a compiler). `target`:\n" +
+    "• 'wasc' (wasmcart) - pass `source` (a dev dir: manifest.json + cart.wasm + assets/) OR " +
     "`wasm` (a single cart .wasm; a minimal manifest is generated, with optional `assets` dir). " +
-    "Writes a .wasc. NOTE: romdev does NOT compile WASM — bring your own (any language → wasm).\n" +
-    "• 'jsgame' (jsgame) — pass `source` (the game dir; must have package.json 'main', index.html, " +
+    "Writes a .wasc. NOTE: romdev does NOT compile WASM - bring your own (any language → wasm).\n" +
+    "• 'jsgame' (jsgame) - pass `source` (the game dir; must have package.json 'main', index.html, " +
     "or main.js). Writes a .jsgame. Pure JS, no build needed beyond the zip.",
     {
       target: z.enum(["wasc", "jsgame"]).describe("wasc = wasmcart .wasc; jsgame = jsgame .jsgame."),

@@ -1,4 +1,4 @@
-// ── hello_sprite.c — Commodore 64 VIC-II sprite + joystick ──────────
+// ── hello_sprite.c - Commodore 64 VIC-II sprite + joystick ──────────
 //
 // One MOB sprite (one of the C64's 8 hardware sprites) driven by the
 // joystick in port 2. The C64 has two joystick ports: port 2 is the
@@ -34,7 +34,7 @@
 #define JOY_RIGHT 0x08
 #define JOY_FIRE  0x10
 
-// 24×21 sprite — a simple filled diamond. Each row is 3 bytes (24 px,
+// 24×21 sprite - a simple filled diamond. Each row is 3 bytes (24 px,
 // 1 bit per pixel = single-color sprite mode).
 static const uint8_t sprite_data[64] = {
   /* row */
@@ -96,7 +96,7 @@ void main(void) {
   POKE(VIC_SPRITE_Y(0), sy);
   POKE(VIC_SPR_ENA, 0x01);  // enable sprite 0 only
 
-  // ── 4. Game loop — joystick 2 moves the sprite ─────────────────────
+  // ── 4. Game loop - joystick 2 moves the sprite ─────────────────────
   for (;;) {
     wait_vblank();
 

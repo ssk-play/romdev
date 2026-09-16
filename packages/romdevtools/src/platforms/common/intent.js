@@ -1,19 +1,19 @@
-// intent.js — R17 intent axis for the asset-pipeline tools.
+// intent.js - R17 intent axis for the asset-pipeline tools.
 //
 // Two values. Required arg on every asset-pipeline tool that touches
 // palettes / quantization / validation:
 //
-//   "homebrew"  — caller is shaping art for a known platform. Color
+//   "homebrew"  - caller is shaping art for a known platform. Color
 //                 defaults, indexed PNG with PLTE, platform-master
 //                 quantization, enforce platform limits, how-to-fix
 //                 error messages.
 //
-//   "rom-hack"  — caller is investigating unknown bytes / cross-
+//   "rom-hack"  - caller is investigating unknown bytes / cross-
 //                 platform forensics. Grayscale defaults, frequency
 //                 quantization (preserve "what's there"), warn-but-
 //                 allow validation, terse byte-level errors.
 //
-// No default — agents pick at every call. The dichotomy is
+// No default - agents pick at every call. The dichotomy is
 // "shaping art for a target" vs "investigating bytes I didn't author."
 
 export const VALID_INTENTS = ["homebrew", "rom-hack"];
@@ -23,15 +23,15 @@ export const VALID_INTENTS = ["homebrew", "rom-hack"];
  * off this object instead of branching on the string everywhere.
  *
  * @typedef {Object} IntentDefaults
- * @property {string} colorMode               — "live-or-platform" | "grayscale"
- * @property {string} quantizeMode            — "platform-master" | "frequency"
- * @property {boolean} autoQuantize           — true under homebrew, false under rom-hack
- * @property {"enforce"|"warn"} validation    — platform-limit policy
- * @property {"how-to-fix"|"terse"} errorTone — how diagnostics are phrased
- * @property {boolean} chrSizeWarnings        — emit "CHR is large / mostly blank" warnings
- * @property {boolean} crossBankWarnings      — emit rom-hack-specific warnings
+ * @property {string} colorMode               - "live-or-platform" | "grayscale"
+ * @property {string} quantizeMode            - "platform-master" | "frequency"
+ * @property {boolean} autoQuantize           - true under homebrew, false under rom-hack
+ * @property {"enforce"|"warn"} validation    - platform-limit policy
+ * @property {"how-to-fix"|"terse"} errorTone - how diagnostics are phrased
+ * @property {boolean} chrSizeWarnings        - emit "CHR is large / mostly blank" warnings
+ * @property {boolean} crossBankWarnings      - emit rom-hack-specific warnings
  *                                              (e.g. "this tile is referenced from PRG via LDA #imm")
- * @property {string} intent                  — echo of the original value
+ * @property {string} intent                  - echo of the original value
  */
 
 /**
@@ -80,14 +80,14 @@ export function resolveIntent(intent) {
 export function intentZod(z) {
   return z.enum(VALID_INTENTS).describe(
     "REQUIRED. Pick your audience: " +
-    "'homebrew' = shaping art for a target platform — color defaults from " +
+    "'homebrew' = shaping art for a target platform - color defaults from " +
     "live emulator or per-platform palette, indexed PNG with PLTE, " +
     "platform-master quantization, enforce platform palette limits, " +
     "how-to-fix error messages. " +
     "'rom-hack' = investigating unknown bytes or doing cross-platform " +
-    "forensics — grayscale defaults, frequency-based quantize (preserve " +
+    "forensics - grayscale defaults, frequency-based quantize (preserve " +
     "what's there), warn-but-allow validation, terse byte-level errors. " +
-    "No default — pick at every call."
+    "No default - pick at every call."
   );
 }
 
@@ -98,8 +98,8 @@ export function intentZod(z) {
  * editor/Lospec/source-side guidance when supplied.
  * Rom-hack → caller cares about the byte-level fact. Strip the hint.
  *
- * @param {string} fact         — the underlying error fact (e.g. "5 colors > 4")
- * @param {string} hint         — homebrew-style "how to fix" guidance
+ * @param {string} fact         - the underlying error fact (e.g. "5 colors > 4")
+ * @param {string} hint         - homebrew-style "how to fix" guidance
  * @param {IntentDefaults} d
  * @returns {string}
  */

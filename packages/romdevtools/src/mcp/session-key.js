@@ -49,7 +49,7 @@ export const CLIENT_SESSION_HEADER = "x-mcp-client-session-id";
  * @param {string} sessionKey
  */
 export function sessionHandleNote(sessionKey) {
-  return `session: ${sessionKey} — this emulator is keyed to your connection; pass session:"${sessionKey}" on later calls to keep it if a call ever says "No ROM loaded" (a replaced connection starts empty).`;
+  return `session: ${sessionKey} - this emulator is keyed to your connection; pass session:"${sessionKey}" on later calls to keep it if a call ever says "No ROM loaded" (a replaced connection starts empty).`;
 }
 
 /**
@@ -110,7 +110,7 @@ export function resolveSessionKey({ meta, headers, transportSessionId, args, soc
   // an ORDINARY TOOL ARGUMENT. Every tool advertises an optional `session`
   // (see v2-adapter.js); the value is resolved HERE, once, before dispatch,
   // so no handler has to know it exists. This is the one form an agent can
-  // actually produce — it cannot set `_meta` or an HTTP header from a tool
+  // actually produce - it cannot set `_meta` or an HTTP header from a tool
   // call, which is why the two branches above were unreachable from Claude
   // Code and every request landed in a freshly minted session.
   const fromArg = args?.[SESSION_ARG];
@@ -151,7 +151,7 @@ export function resolveSessionKey({ meta, headers, transportSessionId, args, soc
  * one twice: every request gets a brand-new empty session. `loadMedia` then
  * honestly reports `loaded:true` (it DID load, into that request's throwaway
  * session), and the very next call lands somewhere else and reports "No ROM
- * loaded" — with `catalog({op:'status'})` showing `loaded:false` alongside
+ * loaded" - with `catalog({op:'status'})` showing `loaded:false` alongside
  * `liveHosts:1`, because the host from the previous request really is still
  * there, just not reachable from here.
  *

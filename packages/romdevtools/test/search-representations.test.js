@@ -1,13 +1,13 @@
 // memory({op:'search'}) fixes from the locate-value skill review:
 //   #1 relative compares ('inc'/'dec'/'changed'/'unchanged') work as the FIRST
-//      searchNext — baselines are recorded at seed time. (Previously the first
+//      searchNext - baselines are recorded at seed time. (Previously the first
 //      relative narrow silently returned 0 candidates; a real session burned
 //      rounds on it and the workaround shipped as skill documentation.)
-//   #2 as:'bcd' — packed-BCD value search (NES-style scores).
-//   #3 as:'digits' — one byte per on-screen digit at ANY constant tile base
+//   #2 as:'bcd' - packed-BCD value search (NES-style scores).
+//   #3 as:'digits' - one byte per on-screen digit at ANY constant tile base
 //      (HUD digit/tile-index buffers), base auto-detected per candidate.
 //   #4 the response notes name real ops (memory({op:'search'}), op:'write'
-//      with hex) — not the dead searchValue/writeMemory({bytes}) forms.
+//      with hex) - not the dead searchValue/writeMemory({bytes}) forms.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

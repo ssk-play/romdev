@@ -1,7 +1,7 @@
-// WasmcartHost — adapts wasmcart's CartHost to the subset of the LibretroHost
+// WasmcartHost - adapts wasmcart's CartHost to the subset of the LibretroHost
 // surface that romdev's shared tools (frame/input/playtest/livestream) drive.
 //
-// wasmcart carts aren't emulated CPUs — they're native WASM game modules that
+// wasmcart carts aren't emulated CPUs - they're native WASM game modules that
 // export wc_render() and draw into a framebuffer. So this host implements the
 // RUN + SEE + DRIVE surface (loadMedia / stepFrames / getFramebuffer / screenshot
 // / setInput / status) but NOT the emulator-only surface (readMemory regions,
@@ -29,11 +29,11 @@ import { RETRO_PIXEL_FORMAT_XRGB8888, ROMDEV_PIXEL_FORMAT_RGBA8888 } from "romde
 // something. wasmcart 0.7.0 makes "GL cart, no context" a load error, and
 // romdev satisfies that by always having a context rather than opting out.
 
-// ONE offscreen WebGL2 context per process, reused across loads — webgl-node
+// ONE offscreen WebGL2 context per process, reused across loads - webgl-node
 // binds a single native EGL context (no destroy API), so per-load creation
 // isn't safe. GL state carries across reloads; carts set their own state.
 // 720p ceiling: readback clamps to the drawing buffer.
-/* MINIMUM offscreen GL size, not a ceiling — _getOffscreenGl() takes the max
+/* MINIMUM offscreen GL size, not a ceiling - _getOffscreenGl() takes the max
  * of this and the cart's own dimensions, so a 1080p cart gets 1080p and a 720p
  * cart is not cropped by a context sized for someone else. */
 const OFFSCREEN_GL_W = 1280, OFFSCREEN_GL_H = 720;
@@ -63,7 +63,7 @@ let _offscreenGlW = 0, _offscreenGlH = 0;
 /* The full createWebGL2Context result, kept for makeCurrent: native-gles is
  * multi-context now (each bezel compositor owns one too), so whoever rendered
  * last owns the current context. A GL cart must claim OURS before its frame
- * or its draws land in someone else's context — which is exactly how one
+ * or its draws land in someone else's context - which is exactly how one
  * session's game ended up inside another session's window. */
 let _offscreenCtx = null;
 
@@ -204,7 +204,7 @@ const WASMCART_FB_FORMAT = RETRO_PIXEL_FORMAT_XRGB8888;
 
 // libretro RETRO_DEVICE_ID_JOYPAD bit → wasmcart pad button field. romdev's
 // setInput speaks the libretro button vocabulary (b,y,select,start,up,down,left,
-// right,a,x,l,r,…); wasmcart pads carry the same conceptual buttons. We translate
+// right,a,x,l,r,...); wasmcart pads carry the same conceptual buttons. We translate
 // the input bitmask/object into the pad object shape CartHost._writePads expects.
 const _JOYPAD = {
   b: 0, y: 1, select: 2, start: 3, up: 4, down: 5, left: 6, right: 7,
@@ -225,7 +225,7 @@ export class WasmcartHost {
     this.state = { lastFrame: null, audioRing: [], lastAudio: null };
     // Per-port pad objects, applied each stepFrames. Pad 0 starts connected
     // and idle so carts that check pad.connected see a controller before the
-    // first setInput — the same contract as a libretro port.
+    // first setInput - the same contract as a libretro port.
     this._inputPorts = [this._padFromInput({})];
     this.status = {
       loaded: false,
@@ -244,7 +244,7 @@ export class WasmcartHost {
     this._gl = null; // live GL context for readback (offscreen or caller-supplied)
     // GL-direct present state. _glCtx is the webgl-node wrapper (the object
     // carrying attachWindow/swapBuffers) and is non-null ONLY for a private,
-    // exclusively-owned context — never for the shared offscreen one.
+    // exclusively-owned context - never for the shared offscreen one.
     this._glCtx = null;
     this._glAttached = false;
     this._glWindowHandle = null;
@@ -263,7 +263,7 @@ export class WasmcartHost {
       hasAudio: true,
       hasSaveData: true,
       // No EMULATED memory regions (there's no CPU/address-space to name), but the
-      // cart runs in real V8 — so we DO expose the WASM linear memory + exports for
+      // cart runs in real V8 - so we DO expose the WASM linear memory + exports for
       // introspection an emulator can't give: peek the actual cart heap, list the
       // module's exported functions/globals. Different axis than emulator regions.
       hasMemoryRegions: false,
@@ -272,10 +272,10 @@ export class WasmcartHost {
       // show the actual draws. 2D carts: false (they never request a context).
       hasGlRendering: !!this._gl,
       // Named debug state (opt-in wasmcart debug ABI). True only when the cart
-      // opted in AND the wasmcart build exposes the reader — feature-detected.
+      // opted in AND the wasmcart build exposes the reader - feature-detected.
       hasDebugState: this.debugSupported(),
       // Cart declares FLAG_DETERMINISTIC (honors seeded replay) AND the
-      // wasmcart build can deliver a seed — feature-detected like debug.
+      // wasmcart build can deliver a seed - feature-detected like debug.
       hasDeterministic: !!this.cart?.info?.hasDeterministic
         && this.cart?.deterministicSeed !== undefined,
       // Frame-stamped wc_log/wc_debug_mark capture (wasmcart 0.5.0+).
@@ -298,11 +298,11 @@ export class WasmcartHost {
 
     this.cart = new CartHost();
     // Deterministic replay (wasmcart 0.5.0+): {seed, stepMs?}. Feature-detect
-    // via the constructor field — an older CartHost would silently ignore the
+    // via the constructor field - an older CartHost would silently ignore the
     // option and hand back a non-deterministic run the caller believes is seeded.
     if (deterministic && this.cart.deterministicSeed === undefined) {
       throw new Error(
-        "deterministic replay needs wasmcart >= 0.5.0 (this install predates wc_set_seed) — reinstall/repin wasmcart."
+        "deterministic replay needs wasmcart >= 0.5.0 (this install predates wc_set_seed) - reinstall/repin wasmcart."
       );
     }
     // Headless GL: hand CartHost a lazy offscreen-context factory. It runs
@@ -376,32 +376,32 @@ export class WasmcartHost {
             _claimCurrent(priv);
             return priv.gl;
           }
-          console.error("[wasmcart] private GL context unavailable — "
+          console.error("[wasmcart] private GL context unavailable - "
             + "falling back to the shared offscreen context (readback present).");
         }
         // Claim the shared context BEFORE the cart's wasm builds anything on
         // it. The private path does this (see presentWindow above); this one
         // did not, so a cart loading here built its FBOs against whatever
-        // context happened to be current — and after a presentWindow load,
+        // context happened to be current - and after a presentWindow load,
         // that is a PRIVATE context belonging to another host. The cart then
         // ran on the shared context with attachments validated against a
         // different one, and only a demanding target notices: 3DreamEngine's
-        // sky job (cubemap/MRT) comes back "the framebuffer is incomplete —
+        // sky job (cubemap/MRT) comes back "the framebuffer is incomplete -
         // the targets must agree on size", while plain 2D canvases complete
         // fine.
         //
         // Why it took four reports to place: the damage lasts EXACTLY ONE
         // LOAD. The next load finds currency already corrected (the first
         // load's own stepFrames/teardown fixes it), so the second measurement
-        // always passes — which is why two people on the same box with the
+        // always passes - which is why two people on the same box with the
         // same cart kept getting opposite answers depending on who measured
         // second. Credit to the MCP client agent for isolating the decay.
         //
         // NOTE: this does NOT reproduce on every client. My curl-driven runs
         // pass with or without this line; theirs fail deterministically 3/3
-        // without it. The call is correct regardless — the shared path should
+        // without it. The call is correct regardless - the shared path should
         // never have relied on another host leaving the right context current
-        // — so it ships on that reasoning, not on a green run of mine.
+        // - so it ships on that reasoning, not on a green run of mine.
         const gl = await _getOffscreenGl(wantW, wantH);
         if (!gl) {
           // webgl-node/native-gles are REQUIRED dependencies, so reaching here
@@ -425,7 +425,7 @@ export class WasmcartHost {
     // guarantees a context instead of opting out of the check.
     // Restore SRAM from the in-process cache, if this same cart path has been
     // loaded (and torn down) before this session. Without this, every
-    // loadMedia started from a zeroed save region — the only way an agent (or
+    // loadMedia started from a zeroed save region - the only way an agent (or
     // a human quitting and reopening the playtest window) restarts a cart, so
     // a cart's save data could never be observed surviving a reload even
     // though the bytes it writes mid-session are real and readable. See
@@ -443,9 +443,9 @@ export class WasmcartHost {
     // or throws, so a loaded GL cart is always really rendering.
     this.status.gl = this.cart.usesGL ? "rendered" : null;
     // Deterministic clock: romdev steps frames, so frame N should be reproducible.
-    // Feature-detect — setFixedStep is a newer CartHost addition; older published
+    // Feature-detect - setFixedStep is a newer CartHost addition; older published
     // versions fall back to wall-clock (still works, just non-deterministic timing).
-    // A deterministic load already engaged its own step (possibly custom) — don't clobber it.
+    // A deterministic load already engaged its own step (possibly custom) - don't clobber it.
     if (typeof this.cart.setFixedStep === "function" && !deterministic) {
       this.cart.setFixedStep(1000 / 60);
     }
@@ -471,7 +471,7 @@ export class WasmcartHost {
     this.stepFrames(1);
     this.status.fbWidth = this.state.lastFrame?.width || 0;
     this.status.fbHeight = this.state.lastFrame?.height || 0;
-    // A cart's display IS its framebuffer (square pixels, no CRT stretch) —
+    // A cart's display IS its framebuffer (square pixels, no CRT stretch) -
     // report the real ratio; a 0 here zero-sizes the playtest window.
     this.status.displayAspect = this.status.fbHeight > 0
       ? this.status.fbWidth / this.status.fbHeight : 0;
@@ -481,7 +481,7 @@ export class WasmcartHost {
   /** Translate romdev's setInput vocabulary into the pad object
    *  CartHost._writePads expects: {connected, buttons: <BUTTON bitmask>,
    *  leftX..rightTrigger}. A pad without `connected` is ZEROED by CartHost,
-   *  so every translated pad is connected — like a libretro port. */
+   *  so every translated pad is connected - like a libretro port. */
   _padFromInput(input) {
     const src = input && typeof input === "object" ? input : {};
     let buttons = 0;
@@ -565,7 +565,7 @@ export class WasmcartHost {
   }
 
   stepFrames(n) {
-    if (!this.cart) throw new Error("no cart loaded — loadMedia first");
+    if (!this.cart) throw new Error("no cart loaded - loadMedia first");
     if (this.status.paused) return 0;
     // Claim OUR context for this burst. native-gles is multi-context (another
     // cart, a bezel compositor, another session), so whoever rendered last
@@ -666,10 +666,10 @@ export class WasmcartHost {
 
   /** Replace state.lastFrame with the GL context's pixels. GL's origin is
    *  bottom-left → rows are flipped; GL targets often leave alpha 0 → forced
-   *  opaque (alpha 0 composites to a black screenshot — the hwRender lesson).
+   *  opaque (alpha 0 composites to a black screenshot - the hwRender lesson).
    *  Readback region = the cart's declared resolution clamped to the context
    *  (viewport and readPixels share the bottom-left origin, so a cart that
-   *  viewports at 0,0 — the norm — is read exactly). */
+   *  viewports at 0,0 - the norm - is read exactly). */
   _readbackGl() {
     const gl = this._gl;
     // Claim our context before reading: this runs on demand (a screenshot, a
@@ -700,7 +700,7 @@ export class WasmcartHost {
 
     // Buffers are RETAINED across frames. At 1080p each of these is 8 MB, so
     // allocating a fresh pair every frame handed the GC 16 MB per frame to
-    // collect — on a 60fps cart that is ~1 GB/s of churn for two buffers
+    // collect - on a 60fps cart that is ~1 GB/s of churn for two buffers
     // whose size only changes when the resolution does.
     if (!this._rbRaw || this._rbRaw.length !== bytes) {
       this._rbRaw = new Uint8Array(bytes);
@@ -713,7 +713,7 @@ export class WasmcartHost {
 
     // Read the cart's REDIRECT FBO, not the default framebuffer. With the
     // context attached to a window the default framebuffer IS the window
-    // surface, whose contents are undefined after a swap — reading it gave a
+    // surface, whose contents are undefined after a swap - reading it gave a
     // pure black screenshot from a window that was visibly showing the game.
     // The redirect FBO always holds the frame the cart drew, so this is
     // correct on both paths (attached and offscreen) rather than a special
@@ -724,7 +724,7 @@ export class WasmcartHost {
     // Older carts (or a 2D cart) have no redirect FBO: read as before.
     if (!readViaFbo) gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, raw);
 
-    // Row flip via TypedArray.set — that is a native memcpy per row, and a
+    // Row flip via TypedArray.set - that is a native memcpy per row, and a
     // hand-written per-word JS loop that fuses the alpha fixup into the same
     // pass measured SLOWER despite touching memory once instead of twice.
     // (Tried it; ~0.4 ms worse at 1080p. Native copy beats saved traffic.)
@@ -785,7 +785,7 @@ export class WasmcartHost {
    * attach the cart renders straight to the window and `presentGl()` swaps.
    * @param {Buffer} handle SDL's native window handle
    * @returns {boolean} false if this host cannot attach (shared context, no
-   *   GL cart, or the bind was refused) — the caller keeps its old path.
+   *   GL cart, or the bind was refused) - the caller keeps its old path.
    */
   attachWindow(handle) {
     if (!this.canAttachWindow() || !handle) return false;
@@ -813,7 +813,7 @@ export class WasmcartHost {
    * `drawingBufferWidth`/`Height` are cached at context creation, so after a
    * resize (or F11 fullscreen) they still report the ORIGINAL size. The
    * present blit sizes its viewport from the caller's rect, but the SURFACE
-   * behind it is still the old one — which is how a resized or fullscreened
+   * behind it is still the old one - which is how a resized or fullscreened
    * window went back to showing a corner of the game.
    *
    * Safe to call on any host (2D cart, no window attached, older webgl-node):
@@ -873,13 +873,13 @@ export class WasmcartHost {
     return true;
   }
 
-  /** Snapshot of the host status (mirrors LibretroHost.getStatus — used by
+  /** Snapshot of the host status (mirrors LibretroHost.getStatus - used by
    *  catalog({op:'status'}), which is host-kind-agnostic). */
   getStatus() {
     return { ...this.status };
   }
 
-  /** FNV-1a hash of the last framebuffer — a cheap "did the frame change"
+  /** FNV-1a hash of the last framebuffer - a cheap "did the frame change"
    *  fingerprint for the regression harness. Strided on large buffers (GL carts
    *  can be 1080p+, ~8 MB) so a checkpoint hash stays fast; the stride is
    *  deterministic so the same frame always hashes the same. Matches
@@ -906,11 +906,11 @@ export class WasmcartHost {
   /** @returns {{width,height,pixels,pitch,format}} the last rendered frame. */
   getFramebuffer() {
     this._syncGl();
-    if (!this.state.lastFrame) throw new Error("no frame produced yet — step frames first");
+    if (!this.state.lastFrame) throw new Error("no frame produced yet - step frames first");
     return this.state.lastFrame;
   }
 
-  /** PNG (base64) of the current frame — same output as LibretroHost.screenshot(). */
+  /** PNG (base64) of the current frame - same output as LibretroHost.screenshot(). */
   screenshot() {
     const f = this.getFramebuffer();
     return framebufferToScreenshot(f.width, f.height, f.pixels, f.pitch, f.format);
@@ -919,7 +919,7 @@ export class WasmcartHost {
   /** Flat RGBA Uint8Array of the current frame (for the livestream/side-by-side). */
   screenshotRgba() {
     const f = this.getFramebuffer();
-    // Key is `rgba` — the LibretroHost contract. It was `pixels` until
+    // Key is `rgba` - the LibretroHost contract. It was `pixels` until
     // 0.106.0, which made frame({op:'verify'}) throw a raw TypeError on
     // every wasmcart cart (first exercised by the openarena GL smoke).
     return { width: f.width, height: f.height,
@@ -934,7 +934,7 @@ export class WasmcartHost {
   /**
    * Overwrite the cart's SRAM equivalent in place (for `state({op:'importSram'})`).
    * Mirrors `getSaveData()`'s pointer/size, via the same raw-heap `writeMemory`
-   * this host already exposes for WASM introspection — there is no named
+   * this host already exposes for WASM introspection - there is no named
    * "save_ram" region on wasmcart, just an offset into the cart's own heap.
    */
   setSaveData(bytes) {
@@ -951,13 +951,13 @@ export class WasmcartHost {
   }
 
   /**
-   * In-PROCESS SRAM cache, keyed by resolved cart path — deliberately NOT a
+   * In-PROCESS SRAM cache, keyed by resolved cart path - deliberately NOT a
    * file written next to the ROM. "Survives a reload within a session" (what
    * the report actually needed: a cart's save data could never be observed
    * surviving the only way an agent restarts a cart, `loadMedia`) doesn't
    * require touching disk, and a `<path>.sav` written unprompted next to
    * whatever was loaded is a real footgun for a shared/read-only/version-
-   * controlled cart directory (romdev's own test fixtures among them — every
+   * controlled cart directory (romdev's own test fixtures among them - every
    * loadMedia of a tracked .wasc would otherwise leave an untracked .sav next
    * to it in the repo on every run). Explicit persistence to disk is still
    * available and unaffected: state({op:'exportSram'/'importSram'}).
@@ -966,7 +966,7 @@ export class WasmcartHost {
   static _sramCache = new Map();
 
   /** Cache key for the currently loaded cart, or null with nothing to key by
-   *  (loaded from bytes — no path to distinguish one cart from another). */
+   *  (loaded from bytes - no path to distinguish one cart from another). */
   _sramCacheKey() {
     const p = this.status.mediaPath;
     return typeof p === "string" && p ? path.resolve(p) : null;
@@ -975,7 +975,7 @@ export class WasmcartHost {
   /**
    * Stash the CURRENTLY loaded cart's SRAM into the in-process cache,
    * best-effort. Called before the cart is torn down (destroy(), or a new
-   * loadMedia replacing it) — the only two moments this host loses the live
+   * loadMedia replacing it) - the only two moments this host loses the live
    * bytes. Silent no-op on a cart with no save region or no path to key by.
    */
   _persistSaveData() {
@@ -986,14 +986,14 @@ export class WasmcartHost {
       const sram = this.cart.getSaveData();
       if (!sram) return; // cart declares no save region
       WasmcartHost._sramCache.set(key, Uint8Array.from(sram));
-    } catch { /* best-effort — never let a save stash break teardown/reload */ }
+    } catch { /* best-effort - never let a save stash break teardown/reload */ }
   }
 
   // ── WASM introspection (the V8-runtime bonus an emulator can't offer) ─────────
   //
   // A wasmcart runs as a real WebAssembly instance in V8, so we can read its actual
   // linear memory and enumerate its exports. This is NOT an emulated address space
-  // with named regions — it's the cart's own heap. `readMemory` therefore takes a
+  // with named regions - it's the cart's own heap. `readMemory` therefore takes a
   // raw byte offset into that heap (no region arg), and `wasmExports` lists what the
   // module exposes.
 
@@ -1008,7 +1008,7 @@ export class WasmcartHost {
    * @returns {Uint8Array} a copy (the heap can move on the next frame).
    */
   readMemory(offset, length) {
-    if (!this.cart?.memory) throw new Error("no cart loaded — loadMedia first");
+    if (!this.cart?.memory) throw new Error("no cart loaded - loadMedia first");
     const heap = new Uint8Array(this.cart.memory.buffer);
     const off = offset >>> 0;
     const end = Math.min(heap.length, off + (length >>> 0));
@@ -1024,7 +1024,7 @@ export class WasmcartHost {
    * heap is real and writable).
    */
   writeMemory(offset, bytes) {
-    if (!this.cart?.memory) throw new Error("no cart loaded — loadMedia first");
+    if (!this.cart?.memory) throw new Error("no cart loaded - loadMedia first");
     const heap = new Uint8Array(this.cart.memory.buffer);
     heap.set(bytes, offset >>> 0);
     return bytes.length;
@@ -1100,20 +1100,20 @@ export class WasmcartHost {
   }
 
   /**
-   * ABI/manifest conformance check — the "won't load / loaded but wrong, why?"
+   * ABI/manifest conformance check - the "won't load / loaded but wrong, why?"
    * verdict an agent can't get from its own source. Format validation against
    * the wasmcart spec, language-agnostic. Returns { conforms, issues[] }, each
    * issue { severity:'error'|'warn', code, message } naming the fix.
    *
    * NOTE: the cart is already LOADED here (CartHost.load ran + validated the ABI
    * version and the required exports enough to init), so this reports the
-   * matches/mismatches a *loaded* cart can still have — a manifest that lies
+   * matches/mismatches a *loaded* cart can still have - a manifest that lies
    * about its resolution, a declared capability with no matching import, an ABI
    * the host tolerated but the manifest misdeclares. A cart that fails to load
    * at all surfaces its error through loadMedia; this is the next layer.
    */
   checkConformance() {
-    if (!this.cart) throw new Error("no cart loaded — loadMedia first");
+    if (!this.cart) throw new Error("no cart loaded - loadMedia first");
     const issues = [];
     const info = this.cart.getInfo() || {};
     const manifest = this.cart.getManifest() || {};
@@ -1125,14 +1125,14 @@ export class WasmcartHost {
     for (const req of ["wc_get_info", "wc_init", "wc_render"]) {
       if (!exportNames.has(req)) {
         issues.push({ severity: "error", code: "missing-export",
-          message: `required export '${req}' is not present — the cart won't run. Export it from your entry translation unit (see include/wc_cart.h).` });
+          message: `required export '${req}' is not present - the cart won't run. Export it from your entry translation unit (see include/wc_cart.h).` });
       }
     }
 
     // 2. Manifest ABI vs the running instance's WCInfo version.
     if (manifest.abi != null && info.version != null && manifest.abi !== info.version) {
       issues.push({ severity: "error", code: "abi-mismatch",
-        message: `manifest declares abi:${manifest.abi} but wc_get_info reports version ${info.version} — align the manifest's abi with WC_ABI_VERSION the cart was built against.` });
+        message: `manifest declares abi:${manifest.abi} but wc_get_info reports version ${info.version} - align the manifest's abi with WC_ABI_VERSION the cart was built against.` });
     }
 
     // 3. Declared resolution vs. what the instance reports (a manifest that lies
@@ -1140,11 +1140,11 @@ export class WasmcartHost {
     for (const [mk, ik] of [["width", "width"], ["height", "height"]]) {
       if (manifest[mk] != null && info[ik] != null && manifest[mk] !== info[ik]) {
         issues.push({ severity: "warn", code: "resolution-mismatch",
-          message: `manifest ${mk}:${manifest[mk]} differs from the running ${ik} ${info[ik]} — the instance's value wins; fix the manifest to match.` });
+          message: `manifest ${mk}:${manifest[mk]} differs from the running ${ik} ${info[ik]} - the instance's value wins; fix the manifest to match.` });
       }
     }
 
-    // 4. Manifest sanity — declared opt-in capabilities that are malformed.
+    // 4. Manifest sanity - declared opt-in capabilities that are malformed.
     //    (Import-vs-declaration cross-checking needs the WASM Module's import
     //    list, which CartHost doesn't retain post-instantiation; deferred to a
     //    WS3 debug-ABI increment rather than guessed here.)
@@ -1154,7 +1154,7 @@ export class WasmcartHost {
     }
     if (manifest.players != null && (!Number.isInteger(manifest.players) || manifest.players < 1 || manifest.players > 4)) {
       issues.push({ severity: "warn", code: "manifest-shape",
-        message: `manifest players:${manifest.players} is out of range — wasmcart supports 1-4 players.` });
+        message: `manifest players:${manifest.players} is out of range - wasmcart supports 1-4 players.` });
     }
 
     // 5. Debug ABI consistency (opt-in). FLAG_DEBUG (1<<5) set but no
@@ -1165,26 +1165,26 @@ export class WasmcartHost {
     const hasDebugExport = exportNames.has("wc_debug_state");
     if (flagDebug && !hasDebugExport) {
       issues.push({ severity: "error", code: "debug-missing-export",
-        message: "WC_FLAG_DEBUG is set but the cart doesn't export wc_debug_state() — add the export (WC_DEBUG_FIELDS) or clear the flag." });
+        message: "WC_FLAG_DEBUG is set but the cart doesn't export wc_debug_state() - add the export (WC_DEBUG_FIELDS) or clear the flag." });
     }
     if (!flagDebug && hasDebugExport) {
       issues.push({ severity: "warn", code: "debug-unflagged",
-        message: "cart exports wc_debug_state() but WC_FLAG_DEBUG isn't set — the host won't read it (default is no debugging). Set the flag or drop the export." });
+        message: "cart exports wc_debug_state() but WC_FLAG_DEBUG isn't set - the host won't read it (default is no debugging). Set the flag or drop the export." });
     }
 
     // 6. Deterministic-replay consistency (opt-in). FLAG_DETERMINISTIC (1<<6)
-    //    declares the cart honors seeded replay — meaningless without the
+    //    declares the cart honors seeded replay - meaningless without the
     //    wc_set_seed export the host delivers the seed through.
     const FLAG_DETERMINISTIC = 1 << 6;
     const flagDet = !!((info.flags ?? 0) & FLAG_DETERMINISTIC);
     const hasSeedExport = exportNames.has("wc_set_seed");
     if (flagDet && !hasSeedExport) {
       issues.push({ severity: "error", code: "deterministic-missing-export",
-        message: "WC_FLAG_DETERMINISTIC is set but the cart doesn't export wc_set_seed() — the host can't seed it, so replay isn't reproducible. Add WC_DETERMINISTIC_RNG (or your own wc_set_seed) or clear the flag." });
+        message: "WC_FLAG_DETERMINISTIC is set but the cart doesn't export wc_set_seed() - the host can't seed it, so replay isn't reproducible. Add WC_DETERMINISTIC_RNG (or your own wc_set_seed) or clear the flag." });
     }
     if (!flagDet && hasSeedExport) {
       issues.push({ severity: "warn", code: "deterministic-unflagged",
-        message: "cart exports wc_set_seed() but WC_FLAG_DETERMINISTIC isn't set — hosts won't seed it (default is a normal run). Set the flag if the cart truly honors seeded replay." });
+        message: "cart exports wc_set_seed() but WC_FLAG_DETERMINISTIC isn't set - hosts won't seed it (default is a normal run). Set the flag if the cart truly honors seeded replay." });
     }
 
     return {
@@ -1206,7 +1206,7 @@ export class WasmcartHost {
   }
 
   destroy() {
-    // The last chance to write SRAM out before this cart's heap goes away —
+    // The last chance to write SRAM out before this cart's heap goes away -
     // must run BEFORE cart.destroy(), which frees the memory getSaveData() reads.
     this._persistSaveData();
     if (this.cart) { try { this.cart.destroy(); } catch { /* ignore */ } }
@@ -1228,7 +1228,7 @@ export class WasmcartHost {
       // and does not fall back to another. The next cart to load on the
       // SHARED offscreen context then made GL calls against a null current
       // context and died with "Cannot read properties of null (reading
-      // '_id')" — so ONE presentWindow load poisoned every later plain load
+      // '_id')" - so ONE presentWindow load poisoned every later plain load
       // in the process. (Found by the MCP client agent screenshotting five
       // shipped carts: 4 of 5 came back black or failed, and the discriminator
       // turned out to be a presentWindow load earlier in the run, not

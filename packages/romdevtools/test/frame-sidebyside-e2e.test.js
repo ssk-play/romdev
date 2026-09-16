@@ -26,7 +26,7 @@ const parse = (r) => JSON.parse(r.content[0].text);
 test("frame sideBySide composites two real cores (NES slot A + GB slot B)", { timeout: 300000 }, async () => {
   const key = "sbs-e2e";
   const root = await mkdtemp(path.join(tmpdir(), "sbs-e2e-"));
-  // Register the real tools on a fake server (no observer middleware needed —
+  // Register the real tools on a fake server (no observer middleware needed -
   // we assert the handler result directly).
   const tools = {};
   const fakeServer = { tool: (name, _d, _s, handler) => { tools[name] = handler; } };
@@ -43,12 +43,12 @@ test("frame sideBySide composites two real cores (NES slot A + GB slot B)", { ti
     await tools.loadMedia({ platform: "nes", path: nesRom });
 
     // safeTool catches the throw and returns a structured error result (the
-    // framework's contract) rather than rejecting — assert on that.
+    // framework's contract) rather than rejecting - assert on that.
     const noB = await tools.frame({ op: "sideBySide", inline: true });
     assert.equal(noB.isError, true, "sideBySide is an error result when slot B is empty");
     assert.match(noB.content[0].text, /slot B/i, "error names slot B and how to load it");
 
-    // Load a GB ROM into slot B (a different core — gambatte).
+    // Load a GB ROM into slot B (a different core - gambatte).
     const gbProj = path.join(root, "gb-default");
     await createProjectImpl({ platform: "gb", name: "gb-default", path: gbProj, template: "default", overwrite: true });
     const gbRom = path.join(root, "b.gb");

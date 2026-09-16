@@ -1,16 +1,16 @@
-; ── racing-data.asm — EMBER CIRCUIT's assembly half ──────────────────────────
+; ── racing-data.asm - EMBER CIRCUIT's assembly half ──────────────────────────
 ;
 ; What lives here (and why it can't live in racing.c):
 ;   1. The Mode 7 HDMA tables, in a RAMSECTION pinned to WRAM BANK $7E.
-;      tcc-65816 puts C globals in bank $7F — but an HDMA channel's A1Bx bank
+;      tcc-65816 puts C globals in bank $7F - but an HDMA channel's A1Bx bank
 ;      byte + the table address must be known exactly, so the tables live here
 ;      where WE pick the bank. racing.c reaches them as plain externs.
-;   2. m7_build — the per-frame matrix-table builder. 168 multiplies per frame
+;   2. m7_build - the per-frame matrix-table builder. 168 multiplies per frame
 ;      is far beyond tcc-compiled C (software 16-bit mul ≈ 200+ cycles); this
 ;      uses the S-CPU's 8x8 hardware multiplier ($4202/$4203 → $4216, 8-cycle
 ;      latency) and finishes in ~30% of a frame.
-;   3. sram_read16/sram_write16 — battery SRAM accessors. SRAM sits at
-;      $70:0000 (declared in hdr.asm — see racing-hdr.asm), reachable only
+;   3. sram_read16/sram_write16 - battery SRAM accessors. SRAM sits at
+;      $70:0000 (declared in hdr.asm - see racing-hdr.asm), reachable only
 ;      with long (24-bit) addressing, which tcc C pointers don't emit.
 ;   4. Font + car sprite tiles (rodata).
 ;
@@ -18,8 +18,8 @@
 
 .include "hdr.asm"
 
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-; The double-buffered HDMA tables. HDMA reads these DURING active display —
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+; The double-buffered HDMA tables. HDMA reads these DURING active display -
 ; rewriting the table the beam is walking shears the ground mid-frame. So:
 ; two copies of each; racing.c builds into the back buffer while HDMA walks
 ; the front, and flips by rewriting A1Tx during vblank.
@@ -33,7 +33,7 @@
 ;
 ; AB/CD layout (matrix channels, transfer mode 3 → $211B,$211B,$211C,$211C):
 ;   [0]    = 56            hold the identity matrix through the mode-1 HUD strip
-;   [1-4]  = A=$0100, B=0  (identity — these lines are text, matrix unused)
+;   [1-4]  = A=$0100, B=0  (identity - these lines are text, matrix unused)
 ;   [5..]  = 84 x { count=2, Alo, Ahi, Blo, Bhi }   ← m7_build rewrites data
 ;   [425]  = 0             terminator
 ; m7_cdN MUST sit exactly 426 bytes after m7_abN: m7_build stores the CD
@@ -68,17 +68,17 @@ telem        dsb 16      ; headless-test telemetry block (see racing.c)
 
 .SECTION ".racing_asm" SUPERFREE
 
-; ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
-; void m7_build(void) — rebuild the BACK buffer's 84 matrix entries + VOFS
+; ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+; void m7_build(void) - rebuild the BACK buffer's 84 matrix entries + VOFS
 ; column from m7_cos/m7_sin/m7_dst/m7_vdst/m7_vstart (racing.c sets all five
 ; first). Per entry: two hardware multiplies
 ;     value = (λ>>3) x |trig|  →  $4216, then >>3 → 8.8 fixed point
 ; λ is 8.8 zoom (so λ>>3 is 5.3, ≤184); trig is 64=1.0 (1.6); the product is
 ; 6.9, and >>3 lands it in the 8.8 the M7x registers expect. Quantizing λ to
-; 8 bits costs ≤3% scale error on the nearest rows — invisible, and it turns
+; 8 bits costs ≤3% scale error on the nearest rows - invisible, and it turns
 ; a 16x16 software multiply into one 8-cycle hardware one.
 ; Matrix written per band:  A = λcosθ   B = -λsinθ   C = λsinθ   D = λcosθ
-; (the standard 2D rotation, scaled per scanline-band — that's all Mode 7 is).
+; (the standard 2D rotation, scaled per scanline-band - that's all Mode 7 is).
 m7_build:
     php
     phb
@@ -116,10 +116,10 @@ m7_build:
     lda.w lam8_tab,y
     sta.l $004202           ; multiplicand
     lda.w m7_cabs
-    sta.l $004203           ; multiplier — starts the 8-cycle multiply
+    sta.l $004203           ; multiplier - starts the 8-cycle multiply
     rep #$20
     nop                     ; rep(3) + nop+nop(4) + lda.l setup ≥ the 8-cycle
-    nop                     ; result latency — NEVER read $4216 sooner
+    nop                     ; result latency - NEVER read $4216 sooner
     lda.l $004216
     lsr a
     lsr a
@@ -153,7 +153,7 @@ m7_build:
     sbc.w m7_ps
     sta.w m7_ps
 @psok:
-    ; store the band's matrix: AB entry data at 1,x — CD twin at +426
+    ; store the band's matrix: AB entry data at 1,x - CD twin at +426
     lda.w m7_pc
     sta.w $0001,x           ; M7A = λcosθ
     sta.w $01AD,x           ; M7D = λcosθ      ($1AD = 429 = 426 + 3)
@@ -189,9 +189,9 @@ m7_build:
     plp
     rtl
 
-; ── HARDWARE IDIOM (load-bearing) — battery SRAM accessors ──────────────────
+; ── HARDWARE IDIOM (load-bearing) - battery SRAM accessors ──────────────────
 ; SRAM is mapped at $70:0000 (LoROM, SRAMSIZE $01 in racing-hdr.asm = 2 KB).
-; Long addressing only — there is no SRAM mirror in the program banks, which
+; Long addressing only - there is no SRAM mirror in the program banks, which
 ; is why these are asm and not C. tcc calling convention: u16 arg at 5,s
 ; (after the 4-byte rtl frame), second arg at 7,s; u16 return in tcc__r0.
 
@@ -544,7 +544,7 @@ palsprite:
 
 tilsprite:
 ; The car, 16x16, as OBJ-page tiles. SNES large (16x16) sprites fetch tiles
-; n, n+1, n+16, n+17 from a 16-tile-wide page — so the four quadrants sit at
+; n, n+1, n+16, n+17 from a 16-tile-wide page - so the four quadrants sit at
 ; page positions 0, 1, 16, 17 with blank tiles padding the rest of each row.
 ; 4bpp: per tile 32 bytes = rows 0-7 plane0/plane1 pairs, then plane2/plane3.
 ; tile 0 - car top-left

@@ -1,4 +1,4 @@
-// workbench.js — the bridge to n64-decomp-workbench.
+// workbench.js - the bridge to n64-decomp-workbench.
 //
 // WHY A BRIDGE AND NOT A REIMPLEMENTATION. romdev's comparator classifies
 // instruction count, stack frame, register substitutions, immediates, branch
@@ -15,7 +15,7 @@
 // `invocation`, `report_schema`, and a `safety` block that says whether it is
 // destructive, touches the network, or spawns an external process. The bridge
 // reads that catalog and refuses anything it has not been told about, so the
-// workbench can grow without romdev being edited — and so a command's own
+// workbench can grow without romdev being edited - and so a command's own
 // safety metadata, not a guess here, decides what is allowed to run.
 //
 // Its exit codes are part of the contract: 0 success, 1 gate/no-result (a real
@@ -72,7 +72,7 @@ export function locateWorkbench() {
   return null;
 }
 
-/** Run one workbench command. Never throws on exit 1 — that is an answer. */
+/** Run one workbench command. Never throws on exit 1 - that is an answer. */
 export async function runWorkbench(args, { cwd, timeoutMs = 600_000, json = true, env: extraEnv } = {}) {
   const loc = locateWorkbench();
   if (!loc) {
@@ -282,7 +282,7 @@ export async function captureSchedulerTrace(project, artifactPath) {
  *
  * Asked of the COMMAND ITSELF via `--help`, not guessed. romdev used to append
  * `--objdump <path>` to every invocation so a project-local binutils would
- * load — correct for `object diagnose`, and fatal for `project show`, which
+ * load - correct for `object diagnose`, and fatal for `project show`, which
  * has no such flag and exits 2. A read-only command must be called only with
  * flags its own schema accepts.
  *
@@ -348,7 +348,7 @@ export async function invokeWorkbench({ group, command, args = [], cwd, timeoutM
     reportSchema: spec.reportSchema ?? null,
     safety: spec.safety ?? null,
     exitCode: r.code, exitMeaning: r.meaning,
-    // Exit 1 is "gate/no-result" — a real answer, not a failure. Reporting it
+    // Exit 1 is "gate/no-result" - a real answer, not a failure. Reporting it
     // as an error is how a legitimate "no" becomes a fake problem.
     ok: r.code === 0 || r.code === 1,
     isGate: r.code === 1,

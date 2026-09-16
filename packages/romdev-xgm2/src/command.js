@@ -1,4 +1,4 @@
-// Port of sgdk.xgm2tool.format.Command — abstract base for VGM/XGM commands.
+// Port of sgdk.xgm2tool.format.Command - abstract base for VGM/XGM commands.
 
 import { getInt8 } from "./util.js";
 

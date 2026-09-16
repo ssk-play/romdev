@@ -1,11 +1,11 @@
-// ── music_demo.c — Commodore 64 SID 3-voice music demo ──────────────
+// ── music_demo.c - Commodore 64 SID 3-voice music demo ──────────────
 //
 // A continuous 3-voice tune on the SID:
 //   voice 0 = melody  (high pulse)
 //   voice 1 = bass    (low  pulse)
 //   voice 2 = harmony (mid  pulse)
 //
-// The note table IS the song — open c64_music.c to read/edit the tune.
+// The note table IS the song - open c64_music.c to read/edit the tune.
 // Chord progression is the classic Am-F-C-G loop with melody variations
 // across 4 verses; the song wraps forever.
 //
@@ -30,7 +30,7 @@
 #define JOY_FIRE 0x10
 
 /* PETSCII screen codes: A-Z = 1-26, space = 32, 0-9 = 48-57.
- * (Different from PETSCII char codes — these are direct screen-RAM
+ * (Different from PETSCII char codes - these are direct screen-RAM
  * indices into the C64 character ROM.) */
 static uint8_t scr_char(char c) {
   if (c >= 'A' && c <= 'Z') return (uint8_t)(c - 'A' + 1);
@@ -95,7 +95,7 @@ int main(void) {
       music_update();
     }
 
-    /* Beat = upper bits of the tick — changes every ~8 frames. */
+    /* Beat = upper bits of the tick - changes every ~8 frames. */
     beat = (uint8_t)(music_tick() >> 3);
     if (beat != prev_beat) {
       prev_beat = beat;

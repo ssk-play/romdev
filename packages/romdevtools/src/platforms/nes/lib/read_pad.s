@@ -1,4 +1,4 @@
-; NES — read controller 1 into the keydown byte.
+; NES - read controller 1 into the keydown byte.
 ;
 ; After calling read_pad, keydown holds the button state:
 ;   bit 7 = A     bit 6 = B     bit 5 = Select  bit 4 = Start
@@ -12,7 +12,7 @@
 ;   keylast: .res 1
 ;   keynew:  .res 1
 ;
-; Uses a counted 8-iteration loop — the seed-bit-through-rol idiom is
+; Uses a counted 8-iteration loop - the seed-bit-through-rol idiom is
 ; fragile and platform-dependent; this is the safe version.
 
 JOY1 = $4016

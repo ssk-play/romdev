@@ -1,7 +1,7 @@
 {
   "name": "romdev-audio-resampler",
   "version": "0.1.0",
-  "description": "WASM+SIMD linear audio resampler (interleaved S16LE stereo) — converts a core's native sample rate (incl. fractional rates like the GameTank ACP's ~13983 Hz) to a fixed device rate, the way a libretro frontend resamples to its output device. Zero deps.",
+  "description": "WASM+SIMD linear audio resampler (interleaved S16LE stereo) - converts a core's native sample rate (incl. fractional rates like the GameTank ACP's ~13983 Hz) to a fixed device rate, the way a libretro frontend resamples to its output device. Zero deps.",
   "type": "module",
   "main": "index.js",
   "exports": {

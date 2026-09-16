@@ -1,7 +1,7 @@
-/* ── puzzle.c — Genesis falling-gem versus puzzle (complete example game) ─────
+/* ── puzzle.c - Genesis falling-gem versus puzzle (complete example game) ─────
  *
- * SHARD SIEGE — a COMPLETE, working game: title screen, 1P MARATHON mode
- * (levels speed the fall as you clear) and 2P SIMULTANEOUS VERSUS mode —
+ * SHARD SIEGE - a COMPLETE, working game: title screen, 1P MARATHON mode
+ * (levels speed the fall as you clear) and 2P SIMULTANEOUS VERSUS mode -
  * two 6x12 wells side by side, P1 on controller 1, P2 on controller 2,
  * both falling at once, where every cascade chain you score lays SIEGE to
  * the other well: garbage rows rise from the bottom of your rival's board.
@@ -13,54 +13,54 @@
  * (horizontal, vertical, or diagonal) clears; survivors fall and cascades
  * chain for multiplied score. First stack to reach the rim loses.
  *
- * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game — even a
+ * THIS FILE IS MEANT TO BE FORKED AND MODIFIED into your own game - even a
  * very different one. The markers tell you what's what:
- *   HARDWARE IDIOM (load-bearing) — dodges a documented Genesis footgun;
+ *   HARDWARE IDIOM (load-bearing) - dodges a documented Genesis footgun;
  *     reshape your gameplay around it (see TROUBLESHOOTING before changing).
- *   GAME LOGIC (clay) — match rules, garbage, tuning, art: reshape freely.
+ *   GAME LOGIC (clay) - match rules, garbage, tuning, art: reshape freely.
  *
  * What depends on what:
- *   genesis_sfx.{h,c} — PSG sound wrapper (tones + noise + a background
- *     melody loop). For full FM music see the xgm2_demo template — PSG keeps
+ *   genesis_sfx.{h,c} - PSG sound wrapper (tones + noise + a background
+ *     melody loop). For full FM music see the xgm2_demo template - PSG keeps
  *     this a single-file game.
- *   rom_header.c (SGDK) — the Sega header at $100. Its 'RA' block at $1B0
+ *   rom_header.c (SGDK) - the Sega header at $100. Its 'RA' block at $1B0
  *     DECLARES the cartridge SRAM that hiscore_load/save below depend on
  *     (see the SRAM idiom). The build assembles it automatically.
  *
- * Frame budget (NTSC, 60 fps) — and a TEACHING POINT vs the NES version of
+ * Frame budget (NTSC, 60 fps) - and a TEACHING POINT vs the NES version of
  * this game (examples/nes/templates/puzzle.c): on the NES, board repaints
  * squeeze through a ~16-entry vblank queue, so a full-board repaint is
  * BUDGETED across 12 frames of dirty-row bitmask tricks. The Genesis has
  * no such famine: each dirty well is mirrored in a RAM buffer and queued
  * as ONE DMA rect (576 bytes); the H40 vblank DMA window moves ~7 KB, so
  * BOTH wells + 6 SAT entries + HUD land in a single vblank with most of
- * the budget unspent. Same genre, two bandwidth worlds — fork accordingly.
+ * the budget unspent. Same genre, two bandwidth worlds - fork accordingly.
  */
 
 #include <genesis.h>
 #include "genesis_sfx.h"
 
-/* The title screen renders this — examples({op:'fork'}) stamps your game's
+/* The title screen renders this - examples({op:'fork'}) stamps your game's
  * name here automatically. Keep it ≤16 chars of A-Z 0-9 space dash. */
 #define GAME_TITLE "SHARD SIEGE"
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * CONTROLLER MAPPING — two layers, both bite:
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * CONTROLLER MAPPING - two layers, both bite:
  *
  *   On the pad: SGDK's JOY_readJoypad(JOY_1/JOY_2) returns BUTTON_A/B/C/
  *   START/UP/DOWN/LEFT/RIGHT as a bitmask. Here A/B cycle the trio's
- *   colours, C hard-drops (thumbs rest on C — give it the decisive action).
+ *   colours, C hard-drops (thumbs rest on C - give it the decisive action).
  *
  *   Driving this game HEADLESSLY through an emulator (libretro/gpgx): the
  *   core maps Genesis A/B/C onto libretro Y/B/A. So setInput({y:true})
  *   presses GENESIS A (rotate/1P-start here), setInput({b:true}) presses
  *   GENESIS B (rotate/2P-select), and setInput({a:true}) presses GENESIS C
- *   (hard drop) — NOT Genesis A. Getting this wrong looks like "the game
+ *   (hard drop) - NOT Genesis A. Getting this wrong looks like "the game
  *   ignores input". START is start.
  */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
- * Board geometry. Cells are 16x16 px (2x2 tiles) — the Genesis 320x224
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
+ * Board geometry. Cells are 16x16 px (2x2 tiles) - the Genesis 320x224
  * screen has room to spare; chunky gems read better than 8-px ones.
  * Tile rows 0-1 sit under the WINDOW HUD; well frames at row 2 and 27. */
 #define GRID_W   6
@@ -73,7 +73,7 @@
 
 #define EMPTY 0               /* cell colours 1..3 = ruby/emerald/sapphire */
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Tile art. Genesis tiles are 4bpp: each u32 row = 8 pixels, one hex
  * nibble per pixel = a colour index into the tile's palette line (0 =
  * transparent). Everything game-side (board, frames, gems, trio sprites)
@@ -82,7 +82,7 @@
  * KEY TRICK: the three gem colours are the SAME 16x16 shape. The four
  * quarter tiles are drawn ONCE with fill nibble 1 (rim 5 / glint 4 shared),
  * and the other two colours are GENERATED at boot by remapping nibble 1 ->
- * 2 / 3 into a RAM buffer before upload — one piece of art, three tiles. */
+ * 2 / 3 into a RAM buffer before upload - one piece of art, three tiles. */
 #define T_FRAME (TILE_USER_INDEX + 0)   /* well border                   */
 #define T_CELL  (TILE_USER_INDEX + 1)   /* empty (recessed) cell quarter */
 #define T_BACK  (TILE_USER_INDEX + 2)   /* plane B cabinet backdrop      */
@@ -105,7 +105,7 @@ static const u32 tile_band[8] = {
     0x33333333, 0x33333333, 0x33333333, 0x33333333,
     0x33333333, 0x33333333, 0x33333333, 0x33333333,
 };
-/* Gem quarters in SPRITE TILE ORDER — Genesis 2x2 sprites take their four
+/* Gem quarters in SPRITE TILE ORDER - Genesis 2x2 sprites take their four
  * tiles COLUMN-MAJOR: base+0 top-left, +1 bottom-left, +2 top-right,
  * +3 bottom-right. The tilemap placement below indexes the same way. */
 static const u32 gem_quarter[4][8] = {
@@ -135,12 +135,12 @@ static void build_gem_tiles(void) {
             }
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ── game state.
- * Boards are PLAIN STATIC ARRAYS — the Genesis has 64 KB of work RAM, so
+/* ── GAME LOGIC (clay - reshape freely) ── game state.
+ * Boards are PLAIN STATIC ARRAYS - the Genesis has 64 KB of work RAM, so
  * none of the NES version's absolute-address scratch-page gymnastics.
  * The hot ones are deliberately NON-static: they then appear in the GNU-ld
  * map (build symbols), so a headless agent can resolve them by name and
- * read/poke live state (symbols -> memory) — same trick as the
+ * read/poke live state (symbols -> memory) - same trick as the
  * two_plane_parallax template's g_player_x. */
 u8  grid[2][GRID_H][GRID_W];       /* the two wells (P2's unused in 1P)  */
 s16 piece_x[2];                    /* falling trio: column 0..5          */
@@ -167,7 +167,7 @@ static u16 rng = 0xACE1;
 #define VS_FALL_DELAY 24           /* 2P: fixed gravity (frames per row) */
 #define GARBAGE_CAP   4            /* max garbage rows per attack        */
 
-/* ── GAME LOGIC (clay) — xorshift16 PRNG (a few 68k instructions) ── */
+/* ── GAME LOGIC (clay) - xorshift16 PRNG (a few 68k instructions) ── */
 static u8 random8(void) {
     u16 r = rng;
     r ^= r << 7;
@@ -177,18 +177,18 @@ static u8 random8(void) {
     return (u8)r;
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * CARTRIDGE SRAM — the Genesis battery-save mechanism, three parts:
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * CARTRIDGE SRAM - the Genesis battery-save mechanism, three parts:
  *
  *   1. The ROM HEADER declares it: bytes $1B0.. hold 'R','A', a type word
- *      ($F820 = battery-backed, byte-wide on ODD addresses — the classic
+ *      ($F820 = battery-backed, byte-wide on ODD addresses - the classic
  *      cart wiring), then start/end addresses $200000/$20FFFF. SGDK's
  *      rom_header.c (assembled into every build) already declares exactly
- *      this — no linker work needed. Emulators allocate the save RAM by
+ *      this - no linker work needed. Emulators allocate the save RAM by
  *      READING THIS HEADER; no 'RA' block = writes to $200000+ go nowhere.
  *   2. The MAPPER GATE: writing 1 to $A130F1 banks SRAM into $200000+,
  *      0 banks the ROM back in. SGDK's SRAM_enable()/SRAM_disable() do
- *      this. ALWAYS disable after access — on carts >2 MB the SRAM window
+ *      this. ALWAYS disable after access - on carts >2 MB the SRAM window
  *      shadows ROM, and leaving it enabled corrupts later ROM fetches.
  *   3. ODD-BYTE ADDRESSING: SRAM_readByte/writeByte(offset) access 68k
  *      address $200001 + offset*2. Headlessly, the emulator's save_ram
@@ -196,12 +196,12 @@ static u8 random8(void) {
  *      save_ram[k*2 + 1] (the even bytes read back $FF).
  *
  * Hi-score record layout (SGDK offsets): 0='H' 1='S' 2=lo 3=hi
- * 4=checksum(lo^hi^$A5). Fresh SRAM is all $FF — the magic+checksum
+ * 4=checksum(lo^hi^$A5). Fresh SRAM is all $FF - the magic+checksum
  * rejects it (and any corruption) so first boot shows 0, not 65535.
  *
  * Emulator note (verified against gpgx): the core sizes its save_ram
  * region by scanning for the last non-$FF byte, so the region reads as
- * EMPTY until the first write below lands — that's why hiscore_init runs
+ * EMPTY until the first write below lands - that's why hiscore_init runs
  * at the very top of main(). Real hardware and .srm-restoring frontends
  * have no such wrinkle. */
 static u16 hiscore_load(void) {
@@ -236,14 +236,14 @@ static void hiscore_init(void) {
     if (hiscore == 0) hiscore_save(0);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * DMA-QUEUED TILEMAP WRITES — the board repaint path, and where the
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * DMA-QUEUED TILEMAP WRITES - the board repaint path, and where the
  * Genesis earns its keep for puzzle games. Each well keeps a full tilemap
  * MIRROR in work RAM (24 tile rows x 12 tile cols = 576 bytes of attrs);
  * when game logic dirties a board we rebuild the mirror and queue it with
  * ONE VDP_setTileMapDataRect(..., DMA_QUEUE) call. SYS_doVBlankProcess
  * flushes the queue during vblank, where VRAM bandwidth lives (~7 KB per
- * H40 vblank — both wells together use 1.2 KB, so a worst-case double
+ * H40 vblank - both wells together use 1.2 KB, so a worst-case double
  * cascade repaints in ONE frame; the NES version budgets the same repaint
  * across 12). Three rules make it safe:
  *   - the mirror buffers are STATIC: the queue reads them AT FLUSH TIME,
@@ -251,9 +251,9 @@ static void hiscore_init(void) {
  *   - everything VRAM-bound in the loop goes through DMA_QUEUE (sprites
  *     too) so writes land in vblank, never mid-scanline;
  *   - the queue holds 80 entries (a rect = one entry per row, so a well
- *     is 24) — flush every frame and you'll never overflow it.
+ *     is 24) - flush every frame and you'll never overflow it.
  * Mid-frame VDP_drawTextBG / VDP_fillTileMapRect port writes (HUD numbers,
- * state-change repaints) are FINE on Genesis — the VDP FIFO absorbs them.
+ * state-change repaints) are FINE on Genesis - the VDP FIFO absorbs them.
  * That freedom is exactly what the NES does not give you. */
 static u16 wellmap[2][GRID_H * 2 * GRID_W * 2];   /* 576 bytes per well */
 
@@ -275,15 +275,15 @@ static void queue_board(u8 p) {
                            GRID_W * 2, GRID_H * 2, GRID_W * 2, DMA_QUEUE);
 }
 
-/* ── HARDWARE IDIOM (load-bearing — reshape gameplay around this; see TROUBLESHOOTING) ──
- * WINDOW-PLANE HUD — the fixed status bar. The window is a third tilemap
- * that REPLACES plane A wherever it's shown and IGNORES ALL SCROLLING —
+/* ── HARDWARE IDIOM (load-bearing - reshape gameplay around this; see TROUBLESHOOTING) ──
+ * WINDOW-PLANE HUD - the fixed status bar. The window is a third tilemap
+ * that REPLACES plane A wherever it's shown and IGNORES ALL SCROLLING -
  * a hardware-fixed HUD with zero per-frame cost. (The NES needs a sprite-0
  * raster trick for this; on Genesis it's one register.)
  * VDP_setWindowOnTop(2) shows it on the top 2 cell rows; text goes in with
  * VDP_drawTextBG(WINDOW, ...). Two footguns:
  *   - The window only lives at screen edges (top/bottom N rows or left/
- *     right N columns) — it cannot float mid-screen.
+ *     right N columns) - it cannot float mid-screen.
  *   - It replaces plane A ONLY: plane B and sprites still render behind/
  *     over it. We paint plane B's top rows with a flat dark band so HUD
  *     text always reads, and the trio sprites never rise above y=24
@@ -292,7 +292,7 @@ static void hud_init(void) {
     VDP_setWindowOnTop(HUD_ROWS);
 }
 
-/* ── GAME LOGIC (clay) — HUD text (window plane, redrawn only on change) ── */
+/* ── GAME LOGIC (clay) - HUD text (window plane, redrawn only on change) ── */
 static void draw_u16(VDPPlane plane, u16 v, u16 x, u16 y) {
     char buf[8];
     uintToStr(v, buf, 5);
@@ -311,7 +311,7 @@ static void draw_hud(void) {
         return;
     }
     /* Entering play from the title leaves the title HUD's glyphs behind
-     * (different column layout) — clear the row before the play layout, or
+     * (different column layout) - clear the row before the play layout, or
      * the leftovers merge into garbage like "HIH0000000". */
     if (hud_dirty_layout) { VDP_clearTextAreaBG(WINDOW, 0, 0, 40, HUD_ROWS); hud_dirty_layout = 0; }
     VDP_drawTextBG(WINDOW, two_player ? "P1" : "SC", 1, 0);
@@ -328,7 +328,7 @@ static void draw_hud(void) {
     }
 }
 
-/* ── GAME LOGIC (clay) — paint the planes ───────────────────────────────────
+/* ── GAME LOGIC (clay) - paint the planes ───────────────────────────────────
  * Plane B (backdrop) is painted ONCE at boot and never touched again.
  * Plane A is repainted on state changes (title text ↔ wells ↔ results);
  * inside the loop only the queued board rects and HUD numbers change. */
@@ -358,7 +358,7 @@ static void paint_play(void) {
     draw_hud();
 }
 
-/* ── GAME LOGIC (clay) — the title screen (text on plane A) ── */
+/* ── GAME LOGIC (clay) - the title screen (text on plane A) ── */
 static void paint_title(void) {
     VDP_clearPlane(BG_A, TRUE);
     VDP_drawTextBG(BG_A, GAME_TITLE, (40 - (sizeof(GAME_TITLE) - 1)) / 2, 8);
@@ -369,7 +369,7 @@ static void paint_title(void) {
     draw_hud();
 }
 
-/* ── GAME LOGIC (clay) — the game-over / results screen ── */
+/* ── GAME LOGIC (clay) - the game-over / results screen ── */
 static void paint_over(u8 loser) {
     VDP_clearPlane(BG_A, TRUE);
     if (two_player)
@@ -387,28 +387,28 @@ static void paint_over(u8 loser) {
     VDP_drawTextBG(BG_A, "START - TITLE", 13, 21);
 }
 
-/* ── GAME LOGIC (clay) — end of game (top-out). `loser` topped out. ── */
+/* ── GAME LOGIC (clay) - end of game (top-out). `loser` topped out. ── */
 static void game_end(u8 loser) {
     u16 best = score[0];
     if (two_player && score[1] > best) best = score[1];
     if (best > hiscore) {
         hiscore = best;
-        hiscore_save(hiscore);   /* battery SRAM — see the SRAM idiom    */
+        hiscore_save(hiscore);   /* battery SRAM - see the SRAM idiom    */
     }
     sfx_noise(20);                                /* game-over rumble    */
     state = ST_OVER;
     board_dirty[0] = board_dirty[1] = 0;   /* plane A is the results
-                                            * screen now — a stale queued
+                                            * screen now - a stale queued
                                             * board rect would stamp gems
                                             * over it */
     prev_pad[0] = 0xFFFF;                  /* require a fresh press      */
     paint_over(loser);
 }
 
-/* ── GAME LOGIC (clay — reshape freely) ──────────────────────────────────────
+/* ── GAME LOGIC (clay - reshape freely) ──────────────────────────────────────
  * Match scan: mark every straight run of 3+ same-coloured gems in all 4
- * directions (a cell can belong to several runs — the mask de-dupes), and
- * return how many cells matched. Runs flat-out on the 68000 — no need to
+ * directions (a cell can belong to several runs - the mask de-dupes), and
+ * return how many cells matched. Runs flat-out on the 68000 - no need to
  * smear it across frames like the cc65 version. */
 static const s8 DIRS4[4][2] = { {0,1}, {1,0}, {1,1}, {1,-1} };
 
@@ -459,7 +459,7 @@ static void apply_gravity(u8 p) {
     }
 }
 
-/* ── GAME LOGIC (clay) — clear matches, drop survivors, chain cascades.
+/* ── GAME LOGIC (clay) - clear matches, drop survivors, chain cascades.
  * Returns the chain depth (0 = the lock matched nothing). */
 static u8 resolve_board(u8 p) {
     u8 n, r, c, chain;
@@ -475,7 +475,7 @@ static u8 resolve_board(u8 p) {
         amt = (u16)n * 10;
         if (chain > 1) amt *= chain;             /* cascades pay multiplied */
         if (score[p] < 65000) score[p] += amt;
-        /* clear chime — pitch rises with chain depth (smaller divider =
+        /* clear chime - pitch rises with chain depth (smaller divider =
          * higher note on the PSG) */
         sfx_tone(0, (u16)(360 - ((u16)chain << 5)), 10);
         apply_gravity(p);
@@ -489,8 +489,8 @@ static u8 resolve_board(u8 p) {
     return chain;
 }
 
-/* ── GAME LOGIC (clay) — VERSUS attack: garbage rows rise from the bottom of
- * the victim's well (random gems with one gap — matchable, so a skilled
+/* ── GAME LOGIC (clay) - VERSUS attack: garbage rows rise from the bottom of
+ * the victim's well (random gems with one gap - matchable, so a skilled
  * victim digs out). The victim's stack rising means the falling trio shifts
  * up one to stay board-aligned; if the top row is already occupied, the
  * victim tops out and loses. ── */
@@ -536,7 +536,7 @@ static void spawn_piece(u8 p) {
     if (!can_place(p, piece_x[p], piece_y[p])) game_end(p);
 }
 
-/* ── GAME LOGIC (clay) — land the trio, resolve, attack, respawn. ── */
+/* ── GAME LOGIC (clay) - land the trio, resolve, attack, respawn. ── */
 static void lock_piece(u8 p) {
     s16 i, y;
     u8 chain;
@@ -556,7 +556,7 @@ static void lock_piece(u8 p) {
     spawn_piece(p);
 }
 
-/* ── GAME LOGIC (clay) — per-player input + gravity. Edge-triggered moves
+/* ── GAME LOGIC (clay) - per-player input + gravity. Edge-triggered moves
  * (one cell per press), held DOWN soft-drops, A/B cycle the trio's colours
  * (the classic trio "rotate"), C hard-drops. P2 reads CONTROLLER 2. ── */
 static void update_player(u8 p) {
@@ -601,9 +601,9 @@ static void update_player(u8 p) {
     }
 }
 
-/* ── GAME LOGIC (clay) — stage this frame's sprites ─────────────────────────
+/* ── GAME LOGIC (clay) - stage this frame's sprites ─────────────────────────
  * Only the falling trios are sprites (locked gems are plane-A tiles): 3
- * SAT slots per player, 16x16 each. Cells above the rim aren't drawn —
+ * SAT slots per player, 16x16 each. Cells above the rim aren't drawn -
  * they'd poke out from under the HUD band. */
 #define HIDE_Y (-32)
 static void stage_sprites(void) {
@@ -622,14 +622,14 @@ static void stage_sprites(void) {
                               TILE_ATTR_FULL(PAL1, 1, 0, 0, T_GEM + (col - 1) * 4));
             else
                 /* Hidden sprites park at y = -32 (above the screen).
-                 * NEVER hide with x = -128..0 — a SAT x of 0 is the VDP's
+                 * NEVER hide with x = -128..0 - a SAT x of 0 is the VDP's
                  * sprite-masking trigger and silently blanks every lower-
                  * priority sprite on those scanlines. */
                 VDP_setSprite(slot, 8, HIDE_Y, SPRITE_SIZE(2, 2),
                               TILE_ATTR_FULL(PAL1, 1, 0, 0, T_GEM));
         }
     }
-    /* ── HARDWARE IDIOM (load-bearing) — CHAIN the sprite list before
+    /* ── HARDWARE IDIOM (load-bearing) - CHAIN the sprite list before
      * uploading. VDP_setSprite does NOT set the SAT link byte, and link 0
      * means "end of list": skip this and the VDP draws sprite 0 only.
      * VDP_linkSprites(0, 6) links slots 0..5; the queued DMA flushes the
@@ -638,7 +638,7 @@ static void stage_sprites(void) {
     VDP_updateSprites(6, DMA_QUEUE);
 }
 
-/* ── GAME LOGIC (clay) — start a run ── */
+/* ── GAME LOGIC (clay) - start a run ── */
 static void start_game(u8 versus) {
     u8 p, r, c;
     two_player = versus;
@@ -670,17 +670,17 @@ int main(bool hard) {
     u16 pad, fresh;
     (void)hard;
 
-    /* SRAM first — before any VDP work. The save file then exists within
+    /* SRAM first - before any VDP work. The save file then exists within
      * the game's first frames of life, which is what lets a frontend (or
      * a headless host) see a non-empty save_ram region as early as
      * possible (see the SRAM idiom note on gpgx's size scan). */
     hiscore_init();
 
-    /* ── HARDWARE IDIOM (load-bearing — see TROUBLESHOOTING) ──
+    /* ── HARDWARE IDIOM (load-bearing - see TROUBLESHOOTING) ──
      * Init order: window size before window text, tiles + palettes before
      * tilemaps that reference them. SGDK's boot already did the dangerous
      * part (VDP regs, Z80, vblank int). No scrolling here, so the scroll
-     * mode stays at its boot default — if you add scrolling, set
+     * mode stays at its boot default - if you add scrolling, set
      * VDP_setScrollingMode FIRST (see the platformer template). */
     hud_init();
 
@@ -717,7 +717,7 @@ int main(bool hard) {
 
     while (TRUE) {
         if (state == ST_TITLE) {
-            /* ── GAME LOGIC (clay) — title: A/C/START = 1P, B = 2P versus ── */
+            /* ── GAME LOGIC (clay) - title: A/C/START = 1P, B = 2P versus ── */
             stage_sprites();
             pad = JOY_readJoypad(JOY_1);
             fresh = pad & ~prev_pad[0];
@@ -748,14 +748,14 @@ int main(bool hard) {
 
         /* ── ST_PLAY ──────────────────────────────────────────────────── */
 
-        /* ── GAME LOGIC (clay — reshape freely) — both players update
+        /* ── GAME LOGIC (clay - reshape freely) - both players update
          * EVERY frame (simultaneous versus, not alternating turns). Any
          * update can end the game, so re-check state between them. */
         update_player(0);
         if (two_player && state == ST_PLAY) update_player(1);
 
         if (state == ST_PLAY) {
-            /* Queue dirty board repaints — see the DMA-queue idiom. */
+            /* Queue dirty board repaints - see the DMA-queue idiom. */
             if (board_dirty[0]) { queue_board(0); board_dirty[0] = 0; }
             if (two_player && board_dirty[1]) { queue_board(1); board_dirty[1] = 0; }
         }

@@ -1,4 +1,4 @@
-// LibretroGL.js — Hardware-rendered libretro core support
+// LibretroGL.js - Hardware-rendered libretro core support
 //
 // Handles RETRO_ENVIRONMENT_SET_HW_RENDER by creating an EGL context via
 // native-gles and providing the three required callbacks:
@@ -16,7 +16,7 @@ import {
 } from './retroConstants.js';
 import { loadNativeGles } from './glOptionalDep.js';
 
-// `native-gles` is an OPTIONAL native dependency — only the HW-render cores
+// `native-gles` is an OPTIONAL native dependency - only the HW-render cores
 // (n64/ps1) need it. It's loaded lazily at setup() so the 14 software-rendered
 // cores and headless installs without the GPU module are completely unaffected.
 let gl = null;
@@ -125,10 +125,10 @@ export class LibretroGL {
     }, 'ii');
 
     // Write our callback pointers into the struct
-    // context_reset at +4 — we'll call the core's context_reset after context creation
+    // context_reset at +4 - we'll call the core's context_reset after context creation
     // For now, store the core's context_reset so we can call it later
     this.contextResetPtr = mod.getValue(dataPtr + 4, 'i32');
-    // We don't write context_reset back — the core already set it.
+    // We don't write context_reset back - the core already set it.
     // We only need to write get_current_framebuffer and get_proc_address.
     mod.setValue(dataPtr + 8, getFBCb, 'i32');
     mod.setValue(dataPtr + 12, getProcCb, 'i32');
@@ -166,7 +166,7 @@ export class LibretroGL {
     }
 
     // Core renders to default FBO (0). We read back from there after retro_run.
-    // The Emscripten GL layer manages its own FBO tracking — we don't create one.
+    // The Emscripten GL layer manages its own FBO tracking - we don't create one.
     this.fbo = 0;
     gl.glViewport(0, 0, width, height);
     console.error(`[libretro-gl] Using default FBO: ${width}x${height}`);
@@ -201,7 +201,7 @@ export class LibretroGL {
       this._glPixels = new Uint8Array(w * h * 4);
     }
 
-    gl.glBindFramebuffer(0x8D40, 0); // GL_FRAMEBUFFER — read from default FBO
+    gl.glBindFramebuffer(0x8D40, 0); // GL_FRAMEBUFFER - read from default FBO
     // x=0,y=0 is the bottom-left of the FBO, which is where the native frame is drawn.
     gl.glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, this._glPixels);
 
@@ -242,10 +242,10 @@ export class LibretroGL {
 
     // PREFERRED: cores built with emscripten's own WebGL layer (GL_ENABLE_GET_PROC_
     // ADDRESS=1, e.g. Flycast) resolve GL through emscripten_GetProcAddress, which
-    // returns a REAL function-table pointer into the WebGL JS implementation —
+    // returns a REAL function-table pointer into the WebGL JS implementation -
     // correct signature, no stub. Use it when the core exports it. (The old
     // native-gles `gl[name]` + addFunction(...,'i') stub path traps the moment the
-    // core calls a multi-arg GL fn through a 0-arg pointer — that's the
+    // core calls a multi-arg GL fn through a 0-arg pointer - that's the
     // context_reset "null function or function signature mismatch".)
     if (typeof mod._emscripten_GetProcAddress === "function") {
       const ptr = mod._emscripten_GetProcAddress(symPtr) >>> 0;
@@ -254,7 +254,7 @@ export class LibretroGL {
     }
 
     // Fallback (native-gles bridge cores, e.g. the glide64 N64 build): the GL fns
-    // are linked directly into the core, so a non-zero "available" marker suffices —
+    // are linked directly into the core, so a non-zero "available" marker suffices -
     // the core calls its own linked function, not this pointer.
     const fn = gl[name];
     if (!fn) {
@@ -273,7 +273,7 @@ export class LibretroGL {
       } catch { /* ignore */ }
     }
     if (this.active) {
-      /* Destroy OUR context specifically — the no-arg form destroys whatever
+      /* Destroy OUR context specifically - the no-arg form destroys whatever
        * is current, which after the multi-context change could be another
        * consumer's live context. */
       gl.destroyContext(this.ctxId || undefined);

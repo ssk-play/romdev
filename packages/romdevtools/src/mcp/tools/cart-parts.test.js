@@ -1,5 +1,5 @@
 // Tests for extractCart + wrapRomFromParts. The round-trip test is the
-// load-bearing one — it would have caught the two NROM-128 bugs
+// load-bearing one - it would have caught the two NROM-128 bugs
 // (off-by-one size, wrong PRG start) by simply asserting the rebuilt ROM
 // is byte-identical to the source. The size-math tests pin the same
 // invariants at the math layer (fast, no WASM), so regressions surface

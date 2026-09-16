@@ -1,4 +1,4 @@
-// jobs.js — bounded candidate search as a cancellable, resumable background
+// jobs.js - bounded candidate search as a cancellable, resumable background
 // job around decomp-permuter. The permuter owns the mutation + scoring loop
 // (it is the community's tool for exactly this); romdev owns the budget, the
 // persistence, the process lifetime and the honest status.
@@ -90,7 +90,7 @@ async function copyFileSafe(src, dst) { const { copyFile } = await import("node:
  * (the RNG seed) or `permuterIndex,rngSeed`. A descriptive string like
  * `i5-schedule-rodata-297` passed argparse (type=str) and then crashed inside
  * the backend AFTER the job directory existed and the process had been
- * spawned — an orphan job and a stack trace instead of an error.
+ * spawned - an orphan job and a stack trace instead of an error.
  *
  * Descriptive labels are genuinely useful, so rather than only refusing them
  * this maps one deterministically onto the backend's integer space: the same
@@ -132,16 +132,16 @@ export async function startSearch({ project, fn, baseCandidateText, timeLimitS =
   //
   // §9: a 300-second, eight-thread search returned no improvement after ~317
   // seconds. A search can only permute a base that COMPILES, and a base that
-  // is already exact needs no search at all — both are answerable in one
+  // is already exact needs no search at all - both are answerable in one
   // compile, before committing minutes of CPU. The caller supplies the check;
   // this refuses to launch when it fails, because "budget exhausted" is a much
   // more expensive way to learn the same thing.
   if (preflight) {
     if (preflight.compileSucceeded === false) {
-      throw Object.assign(new Error(`search preflight FAILED: the base candidate does not compile, so every mutation of it would also fail. Fix the diagnostics first — a search cannot permute a candidate the compiler rejects.${preflight.firstDiagnostic ? ` First error: ${preflight.firstDiagnostic}` : ""}`), { code: "PREFLIGHT_FAILED" });
+      throw Object.assign(new Error(`search preflight FAILED: the base candidate does not compile, so every mutation of it would also fail. Fix the diagnostics first - a search cannot permute a candidate the compiler rejects.${preflight.firstDiagnostic ? ` First error: ${preflight.firstDiagnostic}` : ""}`), { code: "PREFLIGHT_FAILED" });
     }
     if (preflight.exactFunctionMatch === true) {
-      throw Object.assign(new Error("search preflight: the base candidate is ALREADY byte-exact. There is nothing to search for — verify it with decomp({op:'compare'}) and integrate it."), { code: "PREFLIGHT_ALREADY_EXACT" });
+      throw Object.assign(new Error("search preflight: the base candidate is ALREADY byte-exact. There is nothing to search for - verify it with decomp({op:'compare'}) and integrate it."), { code: "PREFLIGHT_ALREADY_EXACT" });
     }
   }
   // VALIDATE BEFORE ANYTHING EXISTS. This throws synchronously, so an invalid
@@ -335,7 +335,7 @@ export async function jobStatus(project, jobId) {
   // kept growing forever: four real jobs that ran 45-210 seconds
   // against minute-scale budgets reported ~9 DAYS, which reads as a runaway
   // permuter rather than a job that finished normally. `endedAt` was already
-  // being recorded a few lines below — and note it is stamped AFTER this line,
+  // being recorded a few lines below - and note it is stamped AFTER this line,
   // so a job detected as finished on THIS call had no endedAt to use yet.
   // Stamp it first, then measure.
   if (!alive && !ownershipUnknown && !rec.endedAt && ["running", "cancelling"].includes(rec.status)) rec.endedAt = exit?.at ?? new Date().toISOString();
@@ -345,7 +345,7 @@ export async function jobStatus(project, jobId) {
     terminationReason: termination?.reason ?? (progress.normalizedZeroNonExact ? "normalized-zero-nonexact-baseline" : null),
     noProgressWatchdog: "process-local; after a server restart only the external total-time budget remains active",
     baseScore: Number.isNaN(baseScore) ? null : baseScore, bestScoreSeen: bestHits.length ? Math.min(...bestHits) : null, improvements: bestHits.length, candidatesWritten: (log.match(/^wrote to /gm) ?? []).length, zeroFound: zero, ...logErrors, best,
-    logTail: log.split("\n").filter(Boolean).slice(-6), note: status === "complete-budget" ? "budget exhausted — NOT a match unless best.score is 0 and compare confirms exact" : status === "complete-zero" ? "the permuter found a zero-score candidate; run decomp({op:'compare'}) on best.path to confirm strict equality" : undefined };
+    logTail: log.split("\n").filter(Boolean).slice(-6), note: status === "complete-budget" ? "budget exhausted - NOT a match unless best.score is 0 and compare confirms exact" : status === "complete-zero" ? "the permuter found a zero-score candidate; run decomp({op:'compare'}) on best.path to confirm strict equality" : undefined };
   if (status !== rec.status || (best && JSON.stringify(best) !== JSON.stringify(rec.best))) {
     rec.status = status; rec.best = best; if (!alive && !ownershipUnknown && !rec.endedAt) rec.endedAt = derived.endedAt ?? new Date().toISOString();
     await atomicJson(path.join(jobDir, "job.json"), rec);
@@ -450,7 +450,7 @@ export async function jobReport(project, jobId, { maxOutputs = 12 } = {}) {
   // §9: a 300s/8-thread run returned no improvement and left an 8-line log.
   // "No improvement" is only actionable if you know what was tried, so the
   // accounting below is read from the backend's own output rather than
-  // inferred. A field the log does not support is reported as null — an
+  // inferred. A field the log does not support is reported as null - an
   // invented count would be worse than an absent one.
   const iterations = Number(/(?:iteration|tried)\s+(\d+)/i.exec(log)?.[1] ?? NaN);
   const compileFails = (log.match(/compile (?:error|failed)/gi) ?? []).length;
@@ -485,8 +485,8 @@ export async function jobReport(project, jobId, { maxOutputs = 12 } = {}) {
     normalizedZeroNonExact: s.normalizedZeroNonExact,
     backend: s.backend, artifacts: { dir: s.dir, permuterDir: s.permuterDir, log: s.log, importLog: s.importLog, base: path.join(s.dir, "base.c") },
     verdict: s.normalizedZeroNonExact ? "scorer blind spot: normalized baseline zero was not exact under romdev; change the measurement/mechanism, not the integration verdict"
-      : s.zeroFound ? "zero score found — run decomp({op:'compare'}) on best.path; the permuter's score is not the strict test" : s.status === "complete-budget" ? "budget exhausted — best is the closest candidate, not a match" : s.status,
-    ...(exhaustedNoImprovement ? { recommendation: `${s.elapsedS}s of ${s.threads}-thread search produced NO improvement over base score ${s.baseScore}. ${permMacros ? "The base has no PERM macros, so this was undirected randomization — it cannot target a specific residual." : ""} Switch mechanism rather than re-running with a larger budget: diagnose the residual (decomp({op:'diagnose'})) to learn which groups exist, then test a bounded set of source levers (decomp({op:'variants'})). Re-running an exhausted undirected search explores the same space again.` } : {}) };
+      : s.zeroFound ? "zero score found - run decomp({op:'compare'}) on best.path; the permuter's score is not the strict test" : s.status === "complete-budget" ? "budget exhausted - best is the closest candidate, not a match" : s.status,
+    ...(exhaustedNoImprovement ? { recommendation: `${s.elapsedS}s of ${s.threads}-thread search produced NO improvement over base score ${s.baseScore}. ${permMacros ? "The base has no PERM macros, so this was undirected randomization - it cannot target a specific residual." : ""} Switch mechanism rather than re-running with a larger budget: diagnose the residual (decomp({op:'diagnose'})) to learn which groups exist, then test a bounded set of source levers (decomp({op:'variants'})). Re-running an exhausted undirected search explores the same space again.` } : {}) };
   const md = [`# search ${jobId}`, ``, `- function: ${s.function.symbol} (${s.function.segment} ${s.function.va})`, `- status: ${s.status} (${s.elapsedS}s of ${s.timeLimitS}s, ${s.threads} threads${s.seed ? ", seed " + s.seed : ""})`, `- base score: ${s.baseScore} → best: ${s.best?.score ?? "none"} (${outputs} candidates written, ${history.length} improvements)`, `- verdict: ${report.verdict}`, `- best candidate: ${s.best?.path ?? "none"}`, ``, `## improvements`, ...history.map((h) => `${h.n}. ${h.previous} → ${h.score}`), ``, `## artifacts`, `- ${s.dir}`, `- ${s.log}`].join("\n");
   await writeFile(path.join(s.dir, "report.json"), JSON.stringify(report, null, 2));
   await writeFile(path.join(s.dir, "report.md"), md);

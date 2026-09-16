@@ -1,6 +1,6 @@
 /* MSX / MSX2 hardware helper library for SDCC (z80, C89).
  *
- * Everything here drives the VDP and PSG through DIRECT Z80 I/O PORTS — no
+ * Everything here drives the VDP and PSG through DIRECT Z80 I/O PORTS - no
  * fragile IX-offset inline asm. Under SDCC's default `--sdcccall 1` the first
  * function argument arrives in registers (NOT on the stack), so the old
  * `ld c,4(ix)` style wrappers read garbage. The direct-port approach below is
@@ -88,7 +88,7 @@ void    msx_vblank_wait(void);
 uint8_t msx_read_joystick(uint8_t stick);
 void    msx_psg_tone(uint8_t chan, uint16_t period, uint8_t vol);
 void    msx_psg_noise(uint8_t chan, uint8_t rate, uint8_t vol); /* vol 0 = off */
-void    msx_music(uint8_t on);   /* background melody on channel C — ON by default; 0 = off */
+void    msx_music(uint8_t on);   /* background melody on channel C - ON by default; 0 = off */
 void    msx_music_tick(void);    /* call once per frame (scaffolds do) */
 void    msx_psg_off(uint8_t chan);
 

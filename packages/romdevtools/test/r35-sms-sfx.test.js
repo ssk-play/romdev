@@ -1,4 +1,4 @@
-// R35 — SMS PSG sound wrapper smoke test.
+// R35 - SMS PSG sound wrapper smoke test.
 //
 // sms_sfx.{h,c} wraps the SN76489 PSG (same chip as Genesis PSG; on SMS
 // accessed via I/O port $7F). 5-function API matching the cross-platform

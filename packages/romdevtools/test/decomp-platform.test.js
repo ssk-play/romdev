@@ -1,4 +1,4 @@
-// decomp-platform.test.js — the per-platform profile behind the decomp path,
+// decomp-platform.test.js - the per-platform profile behind the decomp path,
 // the compile-invocation classifier, endian word reads, and absolute-address
 // decompilation of a synthetic PS-EXE (little-endian MIPS at its t_addr).
 import { test } from "node:test";

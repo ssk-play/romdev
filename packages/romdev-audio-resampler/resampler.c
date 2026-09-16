@@ -1,12 +1,12 @@
-/* ── resampler.c — WASM+SIMD linear resampler for the romdev playtest audio sink ─
+/* ── resampler.c - WASM+SIMD linear resampler for the romdev playtest audio sink ─
  *
  * Resamples interleaved S16 STEREO PCM from a source rate to a device rate.
  *
  * WHY this exists: the libretro CONTRACT is that a core declares its native audio
  * rate in get_system_av_info and emits raw samples at that rate; the FRONTEND is
  * responsible for resampling to the audio device (RetroArch does this in C with a
- * sinc resampler). Every romdev core sits at 31–48 kHz EXCEPT the GameTank ACP at
- * ~13983 Hz — 2.3x lower than the next core. At that rate SDL's fixed device
+ * sinc resampler). Every romdev core sits at 31-48 kHz EXCEPT the GameTank ACP at
+ * ~13983 Hz - 2.3x lower than the next core. At that rate SDL's fixed device
  * buffer (4096 samples ≈ 293 ms) starves between 60 fps ticks that each feed only
  * ~233 samples → clicks and pops. So the playtest sink opens the device at 48 kHz
  * and resamples low-rate cores up to it. Doing that per-frame in JS is wasteful;
@@ -16,7 +16,7 @@
  *
  * Contract:
  *   rs_resample(inPtr, inFrames, outPtr, outCap, srcRate, dstRate) -> outFrames
- *     inPtr  : int16_t* interleaved L,R,L,R… at srcRate (inFrames stereo frames)
+ *     inPtr  : int16_t* interleaved L,R,L,R... at srcRate (inFrames stereo frames)
  *     outPtr : int16_t* interleaved buffer with room for outCap stereo frames
  *     returns the number of stereo frames written (<= outCap).
  * The caller sizes outCap >= ceil(inFrames * dstRate/srcRate) + 1.
@@ -75,7 +75,7 @@ EXPORT int rs_resample(const int16_t *in, int inFrames,
                                   (float)(p2 - i0_2), (float)(p3 - i0_3));
     v128_t inv  = wasm_f32x4_sub(wasm_f32x4_splat(1.0f), frac);
 
-    /* gather the 8 source samples per channel (scalar — no wasm128 gather). */
+    /* gather the 8 source samples per channel (scalar - no wasm128 gather). */
     v128_t l0 = wasm_f32x4_make((float)in[(i0_0*2)],   (float)in[(i0_1*2)],
                                 (float)in[(i0_2*2)],   (float)in[(i0_3*2)]);
     v128_t l1 = wasm_f32x4_make((float)in[(i0_0*2)+2], (float)in[(i0_1*2)+2],

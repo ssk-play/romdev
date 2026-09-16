@@ -1,6 +1,6 @@
-// wasm-inspect — the `wasm` tool: introspection for native-runtime hosts whose
+// wasm-inspect - the `wasm` tool: introspection for native-runtime hosts whose
 // artifact is a real WebAssembly instance (wasmcart today). This is the axis a
-// libretro emulator can't offer — the cart runs in V8, so we can validate its
+// libretro emulator can't offer - the cart runs in V8, so we can validate its
 // ABI/manifest conformance, read the running WCInfo, enumerate exports, and
 // peek/poke the actual cart heap.
 //
@@ -37,28 +37,28 @@ function requireWasmHost(sessionKey) {
 export function registerWasmInspectTools(server, z, sessionKey) {
   server.tool(
     "wasm",
-    "Inspect a WASM-runtime cart (wasmcart) — the introspection an emulator can't give, because the cart is a real " +
+    "Inspect a WASM-runtime cart (wasmcart) - the introspection an emulator can't give, because the cart is a real " +
     "WebAssembly instance in V8. `op`:\n" +
-    "• 'conformance' — the 'won't load / loaded but wrong, WHY?' verdict. Validates the cart against the wasmcart " +
+    "• 'conformance' - the 'won't load / loaded but wrong, WHY?' verdict. Validates the cart against the wasmcart " +
     "spec (required exports wc_get_info/wc_init/wc_render present? manifest abi vs the running instance? declared " +
     "resolution vs actual? manifest shape) → {conforms, issues[]} with each issue naming the fix. The one failure " +
-    "you can't diagnose from your own source (the code compiled; the cart still won't run). Language-agnostic — the " +
+    "you can't diagnose from your own source (the code compiled; the cart still won't run). Language-agnostic - the " +
     "wasmcart analogue of 'is this a valid iNES header'.\n" +
-    "• 'info' — the running instance's WCInfo (abi, width, height, fbPtr, savePtr/saveSize): manifest-vs-reality.\n" +
-    "• 'exports' — the module's exported functions/globals/memory/tables (+ abiComplete): 'did my build produce the " +
+    "• 'info' - the running instance's WCInfo (abi, width, height, fbPtr, savePtr/saveSize): manifest-vs-reality.\n" +
+    "• 'exports' - the module's exported functions/globals/memory/tables (+ abiComplete): 'did my build produce the " +
     "right ABI surface'.\n" +
-    "• 'debugState' — the cart's OPT-IN named debug table (wasmcart debug ABI): the values the cart chose to expose " +
-    "BY NAME (player_x, hp, …), each with type + current value. The source-level view an emulator can't give — reading " +
+    "• 'debugState' - the cart's OPT-IN named debug table (wasmcart debug ABI): the values the cart chose to expose " +
+    "BY NAME (player_x, hp, ...), each with type + current value. The source-level view an emulator can't give - reading " +
     "`player_x` instead of a raw offset. Only present when the cart set WC_FLAG_DEBUG + exports wc_debug_state(); " +
     "otherwise says so.\n" +
-    "• 'read' {name} OR {offset,length} / 'write' {name,value} OR {offset,hex|base64} — with `name`, resolves a debug " +
+    "• 'read' {name} OR {offset,length} / 'write' {name,value} OR {offset,hex|base64} - with `name`, resolves a debug " +
     "field to its offset+type and reads/writes it DECODED (the preferred path when the cart exposes debug state). With " +
     "`offset`, peeks/pokes the RAW heap byte-wise (the fallback: raw offsets are opaque without the debug table, and " +
     "you own the source, so prefer `name`).\n" +
-    "• 'events' — DRAIN the frame-stamped debug event trace: wc_log lines ({frame, text}) and wc_debug_mark(id) " +
+    "• 'events' - DRAIN the frame-stamped debug event trace: wc_log lines ({frame, text}) and wc_debug_mark(id) " +
     "annotations ({frame, id}) the cart emitted since the last drain. The navigable timeline of a run ('level " +
-    "loaded at frame 312') — pull-model, clears on read. wasmcart 0.5.0+.\n" +
-    "• 'save' — the cart's declared save-data bytes (savePtr/saveSize), to assert a game persisted what it should.\n" +
+    "loaded at frame 312') - pull-model, clears on read. wasmcart 0.5.0+.\n" +
+    "• 'save' - the cart's declared save-data bytes (savePtr/saveSize), to assert a game persisted what it should.\n" +
     "REFUSES on an emulator host (use disasm/symbols/memory there).",
     {
       op: z.enum(["conformance", "info", "exports", "debugState", "events", "read", "write", "save"])
@@ -67,8 +67,8 @@ export function registerWasmInspectTools(server, z, sessionKey) {
       value: z.number().optional().describe("op=write: the value to write to the named scalar debug field (use with `name`)."),
       offset: z.number().int().min(0).optional().describe("op=read/write: RAW byte offset into the cart's WASM linear memory (fallback when there's no named field)."),
       length: z.number().int().min(1).optional().describe("op=read: number of bytes to read (default 16)."),
-      hex: z.string().optional().describe("op=write: bytes as hex ('1A2B'; spaces/underscores/$ stripped) — raw-offset write."),
-      base64: z.string().optional().describe("op=write: bytes as base64 (alternative to hex) — raw-offset write."),
+      hex: z.string().optional().describe("op=write: bytes as hex ('1A2B'; spaces/underscores/$ stripped) - raw-offset write."),
+      base64: z.string().optional().describe("op=write: bytes as base64 (alternative to hex) - raw-offset write."),
       inline: z.boolean().default(false).describe(`op=read: for reads >${INLINE_HEX_LIMIT}B, return hex in the response anyway.`),
     },
     safeTool(async ({ op, name, value, offset, length, hex, base64, inline }) => {
@@ -77,13 +77,13 @@ export function registerWasmInspectTools(server, z, sessionKey) {
       if (op === "conformance") {
         return jsonContent({
           ...host.checkConformance(),
-          note: "conforms:false means a `severity:'error'` issue (won't run) — fix those first. warns are cosmetic/latent. Each issue's message names the fix.",
+          note: "conforms:false means a `severity:'error'` issue (won't run) - fix those first. warns are cosmetic/latent. Each issue's message names the fix.",
         });
       }
 
       if (op === "info") {
         const info = host.getInfo();
-        if (!info) throw new Error("wasm({op:'info'}): no WCInfo — is a cart loaded and stepped once?");
+        if (!info) throw new Error("wasm({op:'info'}): no WCInfo - is a cart loaded and stepped once?");
         return jsonContent({ info, manifest: host.getManifest?.() ?? null });
       }
 
@@ -147,7 +147,7 @@ export function registerWasmInspectTools(server, z, sessionKey) {
         if (bytes.length > INLINE_HEX_LIMIT && !inline) {
           return jsonContent({
             offset, length: bytes.length,
-            note: `${bytes.length} bytes exceeds the ${INLINE_HEX_LIMIT}B inline cap — pass inline:true to return the hex anyway.`,
+            note: `${bytes.length} bytes exceeds the ${INLINE_HEX_LIMIT}B inline cap - pass inline:true to return the hex anyway.`,
             wasmMemoryBytes: host.wasmMemorySize(),
           });
         }
@@ -173,7 +173,7 @@ export function registerWasmInspectTools(server, z, sessionKey) {
           hasSaveData: true,
           length: save.length,
           hex: save.length <= INLINE_HEX_LIMIT ? Buffer.from(save).toString("hex") : undefined,
-          ...(save.length > INLINE_HEX_LIMIT ? { note: `${save.length}B save data — too large to inline.` } : {}),
+          ...(save.length > INLINE_HEX_LIMIT ? { note: `${save.length}B save data - too large to inline.` } : {}),
         });
       }
 

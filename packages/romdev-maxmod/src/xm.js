@@ -1,5 +1,5 @@
 /****************************************************************************
- * romdev-maxmod — xm.js
+ * romdev-maxmod - xm.js
  *
  * Faithful pure-JS ESM port of mmutil's xm.c (FastTracker II .XM loader).
  * Original: Copyright (c) 2008, Mukunda Johnson (mukunda@maxmod.org).
@@ -48,7 +48,7 @@ function makeError(code, message) {
 }
 
 // ---------------------------------------------------------------------------
-// Little-endian reader — exact analog of files.c read8/read16/read24/read32
+// Little-endian reader - exact analog of files.c read8/read16/read24/read32
 // plus file_seek_read / file_tell_read / skip8.
 //
 // files.c read8() does fread of one byte; reads past EOF in C leave the
@@ -104,7 +104,7 @@ class Reader {
 }
 
 // ---------------------------------------------------------------------------
-// Module-model factory helpers — these produce the shared shape that the
+// Module-model factory helpers - these produce the shared shape that the
 // mas-emitter (Write_MAS / Write_Instrument / Write_Sample / Write_Pattern)
 // consumes. Field names mirror the mas.h structs exactly so the emitter is
 // format-agnostic across mod/xm/it/s3m.
@@ -254,7 +254,7 @@ function u8c(v) {
 }
 
 // ---------------------------------------------------------------------------
-// Get_XM_Frequency (xm.c) — middle C scaled by relnote semitones + finetune.
+// Get_XM_Frequency (xm.c) - middle C scaled by relnote semitones + finetune.
 //
 //   middle_c = 8363.0;
 //   freq = middle_c * pow(2, (1/12)*rn + (1/(12*128))*ft);
@@ -276,7 +276,7 @@ export function Get_XM_Frequency(relnote, finetune) {
 }
 
 // ---------------------------------------------------------------------------
-// CONV_XM_EFFECT (xm.c) — translate an XM effect (fx,param) into the internal
+// CONV_XM_EFFECT (xm.c) - translate an XM effect (fx,param) into the internal
 // IT-style command set the emitter expects. 'X'-cho where cho=64 maps an ASCII
 // letter to its 1-based command index ('A'-64 == 1, ... 'Z'-64 == 26). The
 // numeric commands 27/28/29/30 are the IT "compatibility / special" set.
@@ -418,7 +418,7 @@ export function CONV_XM_EFFECT(fxIn, paramIn) {
           break;
         case 15: // event
           wfx = 'S'.charCodeAt(0) - cho;
-          // (C source: wpm = wpm; — a no-op, preserved as a comment)
+          // (C source: wpm = wpm; - a no-op, preserved as a comment)
           break;
         case 0: // set filter
           wfx = 0;
@@ -438,7 +438,7 @@ export function CONV_XM_EFFECT(fxIn, paramIn) {
 
     case 16: // Gxx set global volume
       wfx = 'V'.charCodeAt(0) - cho;
-      // (C source: wpm = wpm; — a no-op)
+      // (C source: wpm = wpm; - a no-op)
       break;
 
     case 17: // Hxx global volume slide
@@ -657,7 +657,7 @@ function Load_XM_Instrument(inst, mas, nextSampleRef, r, fixSample) {
           let delta = r.read16();
           if (delta >= 0x8000) delta -= 0x10000;
           // (s16)(delta + sample_old): wrap to signed 16-bit (this wrap is
-          // intentional and load-bearing — matches the C running accumulator).
+          // intentional and load-bearing - matches the C running accumulator).
           let acc = (delta + sample_old) & 0xffff;
           if (acc >= 0x8000) acc -= 0x10000;
           sample_old = acc;
@@ -713,7 +713,7 @@ function Load_XM_Pattern(patt, nchannels, r) {
 
   if (r.read8() !== 0) throw makeError(ERR_UNKNOWNPATTERN, 'unknown pattern packing type');
 
-  // memset(patt,0,...) — emulate by resetting the relevant fields. (patt was
+  // memset(patt,0,...) - emulate by resetting the relevant fields. (patt was
   // freshly created via newPattern(), so cmarks/data are already zero; reset
   // anyway to mirror the C exactly.)
   for (let i = 0; i < patt.data.length; i++) {
@@ -793,7 +793,7 @@ function Load_XM_Pattern(patt, nchannels, r) {
 }
 
 // ---------------------------------------------------------------------------
-// Load_XM (xm.c) — top-level loader. Exposed as parseXm().
+// Load_XM (xm.c) - top-level loader. Exposed as parseXm().
 // ---------------------------------------------------------------------------
 
 /**
@@ -915,7 +915,7 @@ export function parseXm(bytes, options = {}) {
  * Pack a 4-char ASCII string into a little-endian u32, matching how the C
  * multi-char literals ('etxE' etc.) compare against read32(). In C a
  * multi-char constant 'etxE' is big-endian-packed (E is the high byte), and
- * read32() reads bytes E,x,t,e low-to-high — so the comparison holds when we
+ * read32() reads bytes E,x,t,e low-to-high - so the comparison holds when we
  * pack the *file order* string "Exte" little-endian here.
  *
  * @param {string} s exactly 4 ASCII chars in file order

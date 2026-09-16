@@ -1,4 +1,4 @@
-/* MSX sprite_move — a joystick-controlled sprite over a screen-2 TILED background.
+/* MSX sprite_move - a joystick-controlled sprite over a screen-2 TILED background.
  *
  * A checkerboard of two tile patterns fills the whole 32x24 screen-2 name table,
  * and a 16x16 sprite (four 8x8 cells, VDP "size 1 = 16x16") moves over it with the
@@ -17,8 +17,8 @@
 #include "msx_hw.h"
 
 /* ── Background tile patterns (8x8, 1bpp; a bit set = foreground colour) ──────
- * tile 0: a framed block (outline) — reads as a grid cell.
- * tile 1: a small centre dot — the alternating checkerboard cell. */
+ * tile 0: a framed block (outline) - reads as a grid cell.
+ * tile 1: a small centre dot - the alternating checkerboard cell. */
 static const unsigned char TILE_FRAME[8] = {
     0xFF, 0x81, 0x81, 0x81, 0x81, 0x81, 0x81, 0xFF
 };
@@ -54,7 +54,7 @@ static void draw_background(void) {
         /* pattern bytes for tile 0 and tile 1 */
         msx_vram_write((unsigned int)(VRAM_PATTERN + poff +  0), TILE_FRAME, 8);
         msx_vram_write((unsigned int)(VRAM_PATTERN + poff +  8), TILE_DOT,   8);
-        /* colour bytes — 8 rows each, constant per tile */
+        /* colour bytes - 8 rows each, constant per tile */
         msx_fill_vram((unsigned int)(VRAM_COLOR + poff +  0), 8, COL_FRAME);
         msx_fill_vram((unsigned int)(VRAM_COLOR + poff +  8), 8, COL_DOT);
     }

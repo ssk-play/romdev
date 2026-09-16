@@ -1,15 +1,15 @@
-; SNES — populating the OAM sprite table (with the gotchas spelled out).
+; SNES - populating the OAM sprite table (with the gotchas spelled out).
 ;
 ; SNES OAM is 544 bytes split into two regions:
 ;
-;   "low table" — 512 bytes at OAM addresses $00..$1FF.
+;   "low table" - 512 bytes at OAM addresses $00..$1FF.
 ;     128 sprites × 4 bytes each:
 ;       byte 0: X position (low 8 bits)
 ;       byte 1: Y position
 ;       byte 2: tile number (low 8 bits)
 ;       byte 3: vhoopppN   ← V flip, H flip, priority(2), palette(3), name-table bit
 ;
-;   "high table" — 32 bytes at OAM addresses $200..$21F.
+;   "high table" - 32 bytes at OAM addresses $200..$21F.
 ;     Packs 2 bits per sprite × 128 sprites:
 ;       bit 0: X high (extends X to 9 bits, so sprites can wrap to -1..-W)
 ;       bit 1: size   (0 = small per OBSEL, 1 = large per OBSEL)
@@ -17,7 +17,7 @@
 ; **The high-table is the bug magnet.** Writing the low table without
 ; the corresponding hi-table entry means the size bit defaults to
 ; whatever was previously there, AND your sprite's X high bit may be
-; stuck — making sprite 3 appear at X=$1FF (off-screen-right) when you
+; stuck - making sprite 3 appear at X=$1FF (off-screen-right) when you
 ; wrote X=$80 to its low byte. The rom-games agent burned 4 hours on
 ; exactly this in the snes-invaders rebuild.
 ;
@@ -79,7 +79,7 @@ write_sprite:
   eor #$FF                  ; A = inverted mask (clear-this-slot bits)
   and SOFT_OAM_HIGH,y       ; clear this slot's 2 bits
   ; now OR in (x_high | (large_size << 1)), shifted by the original X
-  ; (which we lost when we used X as the shift counter — recompute):
+  ; (which we lost when we used X as the shift counter - recompute):
   ; ... for brevity, assume the caller already shifted (x_high | (sz<<1)) into the
   ; right position and we just OR it here. Real code uses a small table
   ; lookup to avoid the shift loop.

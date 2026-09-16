@@ -1,5 +1,5 @@
-// re-6502-fold.test.js — B1: 6502 idiom-folding post-pass (deterministic half).
-// The 6502's 8-bit ALU lowers to SLEIGH clutter — awkward width types (uint1,
+// re-6502-fold.test.js - B1: 6502 idiom-folding post-pass (deterministic half).
+// The 6502's 8-bit ALU lowers to SLEIGH clutter - awkward width types (uint1,
 // xunknown1), redundant nested width casts ((uint2)(uint1)x), and raw zero-page
 // byte refs (cRAM00fd). The fold rewrites the SAFE, mechanical ones into readable
 // C99 without changing semantics.
@@ -26,7 +26,7 @@ test("B1: SLEIGH width types become C99 stdint", () => {
 });
 
 test("B1: redundant nested width casts collapse", () => {
-  // (uint16_t)(uint8_t)x — the outer widen is noise; keep the inner narrowing.
+  // (uint16_t)(uint8_t)x - the outer widen is noise; keep the inner narrowing.
   const c = "x = *(uint1 *)(uint2)(uint1)(p - 0xb);\n";
   const out = foldSixtyFiveOhTwoIdioms(c, "nes");
   assert.doesNotMatch(out, /\(uint16_t\)\(uint8_t\)/, "the (uint16_t)(uint8_t) pair is gone");
@@ -42,7 +42,7 @@ test("B1: zero-page byte refs are named zp_XX", () => {
 });
 
 test("B1: a non-$00 page RAM ref is NOT treated as zero-page", () => {
-  // $0312 is RAM but not the zero page — leave it alone (the zp labeler only
+  // $0312 is RAM but not the zero page - leave it alone (the zp labeler only
   // matches the RAM00xx form).
   const c = "xRAM0312 = 5;\n";
   const out = foldSixtyFiveOhTwoIdioms(c, "nes");
@@ -50,7 +50,7 @@ test("B1: a non-$00 page RAM ref is NOT treated as zero-page", () => {
 });
 
 test("B1: off-target platforms are a no-op", () => {
-  // GBA (ARM) / Genesis (m68k) don't get the 6502 fold — their decompile is
+  // GBA (ARM) / Genesis (m68k) don't get the 6502 fold - their decompile is
   // already clean C and the SLEIGH width types mean different things.
   const c = "uint1 a; cRAM00fd = a;\n";
   assert.equal(foldSixtyFiveOhTwoIdioms(c, "gba"), c, "gba: untouched");

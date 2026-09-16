@@ -1,4 +1,4 @@
-// plan.js — work selection over the call graph, so related functions are
+// plan.js - work selection over the call graph, so related functions are
 // decompiled together and type information is shared, and so the queue is
 // ordered by expected payoff (code bytes) rather than by "shortest first",
 // which inflates the function count while leaving most bytes untouched.
@@ -26,7 +26,7 @@ export const CALLGRAPH_VERSION = 2;
  * files swapping timestamps, or any compensating pair of changes), carries no
  * path or size information, is blind to a file being replaced by a
  * same-length, same-time variant, and was not tied to the linker map or to the
- * parser version at all — so a graph built by an older romdev stayed "valid"
+ * parser version at all - so a graph built by an older romdev stayed "valid"
  * forever.
  *
  * This hashes the linker map's identity plus every contributing object's path,
@@ -73,7 +73,7 @@ async function sha256File(p) {
 /** Build (and cache, keyed by a content-addressed fingerprint) the static call graph. */
 export async function callGraph(project, { force = false } = {}) {
   const ld = await project.linkerMap();
-  if (!ld) throw Object.assign(new Error("no linker map — build the project first"), { code: "NO_BUILD" });
+  if (!ld) throw Object.assign(new Error("no linker map - build the project first"), { code: "NO_BUILD" });
   const cache = path.join(project.ws, "callgraph.json");
   const objects = [...ld.objects.keys()].filter((o) => o.startsWith(project.m.splat.buildPath + "/" + project.m.splat.srcPath + "/"));
   const fp = await callGraphFingerprint(project, ld, objects);
@@ -198,14 +198,14 @@ export async function planWork(project, { limit = 40, offset = 0, objective = "b
   // Compute the CURRENT dependency hash of every TU that owns a remaining
   // function, so evidence is matched against the source tree as it is now
   // rather than against whichever result file was written most recently.
-  // One hash per TU, not per function — the TUs are far fewer.
+  // One hash per TU, not per function - the TUs are far fewer.
   const currentDependencyHashes = await currentDepHashes(project, asm, g);
   const hints = evidence ?? (await loadCandidateEvidence(project, { currentDependencyHashes }));
   const experiments = await listExperiments(project);
   // PRIOR ART. A queue row showing `attempts: 0` next to 54 drafts on disk is
   // what sent an agent to rebuild a function from scratch that was already one
-  // difference away. Imported research never affects payoff or ranking — it is
-  // a CLAIM, not a measurement — but the row must not imply the work is
+  // difference away. Imported research never affects payoff or ranking - it is
+  // a CLAIM, not a measurement - but the row must not imply the work is
   // untouched when it is not.
   let researchLeads = new Map();
   try { researchLeads = await (await import("./research.js")).researchBySymbol(project); } catch {}
@@ -255,7 +255,7 @@ export async function planWork(project, { limit = 40, offset = 0, objective = "b
         claimedBestDistance: researchLeads.get(n).claimedBestDistance ?? null,
         state: researchLeads.get(n).state,
         note: (h.attempts ?? 0) === 0
-          ? "this row has no API-measured attempt, but prior drafts/notes EXIST on disk — decomp({op:'research', action:'status', symbol}) lists them. Do not treat it as never attempted."
+          ? "this row has no API-measured attempt, but prior drafts/notes EXIST on disk - decomp({op:'research', action:'status', symbol}) lists them. Do not treat it as never attempted."
           : "prior research exists alongside the measured attempts; the numbers in notes are claims until refreshed",
       } } : {}) };
   }).map((r) => {
@@ -289,7 +289,7 @@ export async function planWork(project, { limit = 40, offset = 0, objective = "b
       const seg = byName.get(n).segment;
       return seg ? { symbol: n, segment: seg } : { symbol: n };
     });
-    batches.push({ tu: r.tu, functions: comp, targets, bytes, payoff: comp.reduce((s, n) => s + byName.get(n).payoff, 0), reason: comp.length > 1 ? "call each other inside one TU — decompile together so the shared struct/prototype fixes land once" : "isolated in its TU" });
+    batches.push({ tu: r.tu, functions: comp, targets, bytes, payoff: comp.reduce((s, n) => s + byName.get(n).payoff, 0), reason: comp.length > 1 ? "call each other inside one TU - decompile together so the shared struct/prototype fixes land once" : "isolated in its TU" });
   }
   batches.sort((a, b) => b.payoff - a.payoff);
   // PAGINATION. §10: "selecting the 100 highest-payoff functions cannot
@@ -301,15 +301,15 @@ export async function planWork(project, { limit = 40, offset = 0, objective = "b
     objective, objectiveMeaning: PLAN_OBJECTIVES[objective],
     objectivesAvailable: PLAN_OBJECTIVES,
     page: { offset, limit, returned: page.length, total: rows.length, hasMore: offset + page.length < rows.length,
-      ...(offset + page.length < rows.length ? { nextOffset: offset + page.length, note: `${rows.length - offset - page.length} more function(s) rank below this window. They are NOT excluded from the work, only from this page — raise offset to see them.` } : {}) },
+      ...(offset + page.length < rows.length ? { nextOffset: offset + page.length, note: `${rows.length - offset - page.length} more function(s) rank below this window. They are NOT excluded from the work, only from this page - raise offset to see them.` } : {}) },
     queue: page, batches: batches.slice(0, Math.max(10, Math.ceil(limit / 3))),
     workClasses: { selected: [...wanted], counts: byClass, policy: WORK_CLASS_POLICY,
       allRemainingFunctions: allAsm.length, allRemainingBytes: allAsm.reduce((s, n) => s + (g.sizes[n] ?? 0), 0),
       note: "functionsRemaining/queue cover the SELECTED classes only. Pass workClass:'libultra-known-source' (or includeAllClasses:true) to see the others; `counts` is every class regardless of selection." },
     callGraph: { fingerprint: g.fingerprint, version: g.callgraphVersion, objects: g.objectCount, builtAt: g.builtAt,
       note: "content-addressed over the linker map + every contributing object's path/size/content hash. Pass forceGraph:true to rebuild it." },
-    evidencePolicy: `Ranking uses ONLY evidence whose dependency hash matches the TU's CURRENT hash (${currentDependencyHashes.size} live TU hashes). Attempts measured against a different source tree appear as historicalAttempts/historicalBestDistance and never affect payoff — a stale best that still looks good is what misranks a queue. \`lastCompile\` is the newest compatible attempt, not the last file read.`,
-    scoring: "payoff = bytes × (1 − 0.5 × uncertainty) × (1 + 0.1 × min(typed C neighbours, 5)); uncertainty = 0.5 untried, else lastDistance / instruction count. Static caller counts come from R_MIPS_26 relocations in the built objects; 'unreferenced' means no static jal — a jump-table or function-pointer target, or dead code — NOT proof of unreachability." };
+    evidencePolicy: `Ranking uses ONLY evidence whose dependency hash matches the TU's CURRENT hash (${currentDependencyHashes.size} live TU hashes). Attempts measured against a different source tree appear as historicalAttempts/historicalBestDistance and never affect payoff - a stale best that still looks good is what misranks a queue. \`lastCompile\` is the newest compatible attempt, not the last file read.`,
+    scoring: "payoff = bytes × (1 − 0.5 × uncertainty) × (1 + 0.1 × min(typed C neighbours, 5)); uncertainty = 0.5 untried, else lastDistance / instruction count. Static caller counts come from R_MIPS_26 relocations in the built objects; 'unreferenced' means no static jal - a jump-table or function-pointer target, or dead code - NOT proof of unreachability." };
 }
 
 /**
@@ -414,7 +414,7 @@ export async function loadCandidateEvidence(project, { currentDependencyHashes }
       // Everything else stays VISIBLE but out of the score. A stale best that
       // still looks good is exactly what misranks the queue: on this workspace
       // func_801EB4F4 scored 6.8 from an old header layout while the current
-      // tree gives 82.45 — a 12x misranking that would send a permuter budget
+      // tree gives 82.45 - a 12x misranking that would send a permuter budget
       // at a function that is not close.
       historicalAttempts: historical.reduce((s, g) => s + g.attempts, 0),
       historicalBestDistance: historical.some((g) => g.best != null) ? Math.min(...historical.map((g) => g.best).filter((v) => v != null)) : null,

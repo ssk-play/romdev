@@ -1,4 +1,4 @@
-// SNES (65816) readability floor — regression guard.
+// SNES (65816) readability floor - regression guard.
 //
 // disasm({target:'project'}) on a 65816 cart used to emit byte-exact but 0%
 // READABLE output: every instruction floored to `.byte`. Three compounding bugs:
@@ -13,7 +13,7 @@
 // The fix disassembles each code span INDEPENDENTLY (re-seeding width per span),
 // dumps the gaps as `.byte`, heals each span to byte-exact, and stitches. This
 // suite asserts a mixed code+data 65816 region round-trips byte-exact AND stays
-// readable (well above the old 0% floor) — so the floor can't silently return.
+// readable (well above the old 0% floor) - so the floor can't silently return.
 //
 // The span path + speculative gap recovery is CROSS-SYSTEM: it runs for every
 // cc65-family platform, not just SNES. The 6502 cases at the bottom guard that
@@ -37,7 +37,7 @@ function buildRegion() {
   emit(0x18);             // clc
   emit(0xFB);             // xce           (native mode)
   emit(0xC2, 0x30);       // rep #$30      → A + X/Y 16-bit
-  emit(0xA9, 0x34, 0x12); // lda #$1234    (16-bit immediate — width tracking must catch this)
+  emit(0xA9, 0x34, 0x12); // lda #$1234    (16-bit immediate - width tracking must catch this)
   emit(0xE2, 0x20);       // sep #$20      → A 8-bit again
   emit(0xA9, 0x56);       // lda #$56      (8-bit immediate)
   emit(0xEA);             // nop
@@ -83,9 +83,9 @@ test("SNES 65816: a mixed code+data region reassembles BYTE-EXACT and stays read
   // Readability must clear the old floor by a wide margin. The region is mostly
   // code by line count, so this should be high; assert >50% to catch any
   // regression back toward the `.byte` floor without being brittle.
-  assert.ok(r.readablePercent > 50, `readable ${r.readablePercent}% — regressed toward the 0% floor`);
+  assert.ok(r.readablePercent > 50, `readable ${r.readablePercent}% - regressed toward the 0% floor`);
 
-  // Real instructions must appear as mnemonics, not `.byte` — proving the code
+  // Real instructions must appear as mnemonics, not `.byte` - proving the code
   // spans were disassembled as code (the whole point). The boot sequence and the
   // second span's store are unambiguous.
   assert.match(r.source, /\bsei\b/i, "boot `sei` did not decode as code");
@@ -93,7 +93,7 @@ test("SNES 65816: a mixed code+data region reassembles BYTE-EXACT and stays read
   assert.match(r.source, /\bsta\b.*\$2100/i, "span B `sta $2100` did not decode as code");
 
   // The data blob must stay `.byte` (not mis-decoded as code): its first byte is
-  // 0x03, and the source must carry a `.byte` line — the fix's data/code split.
+  // 0x03, and the source must carry a `.byte` line - the fix's data/code split.
   assert.match(r.source, /\.byte/, "data blob was not emitted as `.byte`");
 });
 
@@ -103,17 +103,17 @@ test("SNES 65816: M/X width is tracked through rep/sep (a 16-bit immediate after
 
   assert.equal(r.ok, true, `expected byte-exact, got note: ${r.note}`);
   // After `rep #$30`, `A9 34 12` is `lda #$1234` (3 bytes, 16-bit A). Without
-  // width tracking da65 decodes `lda #$34` (8-bit) + a spurious op — the exact
+  // width tracking da65 decodes `lda #$34` (8-bit) + a spurious op - the exact
   // desync Jay reported. The 16-bit immediate proves the tracker widened A.
-  assert.match(r.source, /\blda\b\s+#\$1234\b/i, "16-bit `lda #$1234` after `rep #$30` did not decode — width desync regressed");
+  assert.match(r.source, /\blda\b\s+#\$1234\b/i, "16-bit `lda #$1234` after `rep #$30` did not decode - width desync regressed");
   // And after `sep #$20`, the following `lda #$56` must be 8-bit again.
-  assert.match(r.source, /\blda\b\s+#\$56\b/i, "8-bit `lda #$56` after `sep #$20` did not decode — width did not re-narrow");
+  assert.match(r.source, /\blda\b\s+#\$56\b/i, "8-bit `lda #$56` after `sep #$20` did not decode - width did not re-narrow");
 });
 
 test("SNES 65816: width set by a rep SEVERAL instructions back is honored (full dataflow, not just the next op)", async () => {
   // rep #$30 widens A+X; then a run of non-immediate ops; THEN a width-dependent
   // immediate. The rep-only segmenter got the immediate right only if it was the
-  // first thing after the rep — full per-instruction dataflow must carry the
+  // first thing after the rep - full per-instruction dataflow must carry the
   // width across the intervening ops.
   const bytes = [];
   const emit = (...b) => bytes.push(...b);
@@ -121,7 +121,7 @@ test("SNES 65816: width set by a rep SEVERAL instructions back is honored (full 
   emit(0xEA);             // nop
   emit(0xEA);             // nop
   emit(0x18);             // clc
-  emit(0x29, 0xFF, 0x00); // and #$00FF    (16-bit A — width was set 4 ops back)
+  emit(0x29, 0xFF, 0x00); // and #$00FF    (16-bit A - width was set 4 ops back)
   emit(0xA9, 0x34, 0x12); // lda #$1234    (16-bit A)
   emit(0x6B);             // rtl
   while (bytes.length < 0x20) emit(0xEA);
@@ -135,7 +135,7 @@ test("SNES 65816: width set by a rep SEVERAL instructions back is honored (full 
   assert.equal(r.ok, true, `expected byte-exact, got note: ${r.note}`);
   assert.match(r.source, /\band\b\s+#\$00FF\b/i, "16-bit `and #$00FF` (width set several ops earlier) mis-decoded");
   assert.match(r.source, /\blda\b\s+#\$1234\b/i, "16-bit `lda #$1234` mis-decoded");
-  assert.doesNotMatch(r.source, /\bbrk\b/i, "a `brk` misdecode survived — full width dataflow failed");
+  assert.doesNotMatch(r.source, /\bbrk\b/i, "a `brk` misdecode survived - full width dataflow failed");
 });
 
 test("SNES 65816: a span ENTERED in 16-bit mode (no leading rep/sep) infers its entry width", async () => {
@@ -146,7 +146,7 @@ test("SNES 65816: a span ENTERED in 16-bit mode (no leading rep/sep) infers its 
   // and decode `ldx #$0000` correctly.
   const bytes = [];
   const emit = (...b) => bytes.push(...b);
-  emit(0xA2, 0x00, 0x00); // ldx #$0000   (16-bit index — the tell)
+  emit(0xA2, 0x00, 0x00); // ldx #$0000   (16-bit index - the tell)
   emit(0x86, 0x80);       // stx $80
   emit(0x86, 0x82);       // stx $82
   emit(0xE2, 0x10);       // sep #$10     (X→8-bit, so the tail is unambiguous)
@@ -161,8 +161,8 @@ test("SNES 65816: a span ENTERED in 16-bit mode (no leading rep/sep) infers its 
     codeSpans: [{ start: 0, end: bytes.length }],
   });
   assert.equal(r.ok, true, `expected byte-exact, got note: ${r.note}`);
-  assert.match(r.source, /\bldx\b\s+#\$0000\b/i, "16-bit `ldx #$0000` at span entry did not decode — entry-width inference failed");
-  assert.doesNotMatch(r.source, /\bbrk\b/i, "a `brk` misdecode survived — entry width was not inferred");
+  assert.match(r.source, /\bldx\b\s+#\$0000\b/i, "16-bit `ldx #$0000` at span entry did not decode - entry-width inference failed");
+  assert.doesNotMatch(r.source, /\bbrk\b/i, "a `brk` misdecode survived - entry width was not inferred");
 });
 
 test("SNES 65816: a small reachable-code gap between two code spans is recovered (speculative decode)", async () => {
@@ -175,11 +175,11 @@ test("SNES 65816: a small reachable-code gap between two code spans is recovered
   emit(0xE2, 0x20);       // sep #$20
   emit(0x60);             // rts
   const span1End = bytes.length;
-  // GAP — real code, NOT declared (the "missed dispatch loop")
+  // GAP - real code, NOT declared (the "missed dispatch loop")
   const gapStart = bytes.length;
   emit(0xA9, 0x01);       // lda #$01
   emit(0x8D, 0x00, 0x21); // sta $2100
-  emit(0x20); emit(bytes.length + 4 + 3 & 0xFF, 0x80); // jsr (to span2, low bytes approximate — value irrelevant to decode)
+  emit(0x20); emit(bytes.length + 4 + 3 & 0xFF, 0x80); // jsr (to span2, low bytes approximate - value irrelevant to decode)
   emit(0x60);             // rts
   const gapEnd = bytes.length;
   // span 2 (declared code)
@@ -198,7 +198,7 @@ test("SNES 65816: a small reachable-code gap between two code spans is recovered
   void gapStart; void gapEnd;
 
   assert.equal(r.ok, true, `expected byte-exact, got note: ${r.note}`);
-  // The gap's `sta $2100` must appear as an instruction — proof the gap was
+  // The gap's `sta $2100` must appear as an instruction - proof the gap was
   // speculatively decoded and kept (it round-tripped), not dumped as `.byte`.
   assert.match(r.source, /\bsta\b.*\$2100/i, "reachable-code gap was not recovered (still a `.byte` blob)");
 });

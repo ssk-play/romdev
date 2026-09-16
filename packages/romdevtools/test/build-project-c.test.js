@@ -1,4 +1,4 @@
-// build({output:'project'}) — the v0.6.0 feedback #2: a dir-based build for an
+// build({output:'project'}) - the v0.6.0 feedback #2: a dir-based build for an
 // on-disk C/SGDK project, so iterating doesn't re-send the file manifest each
 // call. Previously buildProject was asm/cc65-only ("reads main.asm/main.s").
 // Now it discovers main.c + multi-file C/.h on disk for ANY platform.
@@ -54,7 +54,7 @@ test("build({output:'project'}) builds a cc65 C (NES) project from a dir", { tim
   }
 });
 
-test("build({output:'project'}) still builds an asm (main.s) project — no regression", { timeout: 60000 }, async () => {
+test("build({output:'project'}) still builds an asm (main.s) project - no regression", { timeout: 60000 }, async () => {
   // Minimal NES asm via a chr-ram preset would need a header; use a tiny
   // self-contained main.s for a 6502 target that ca65 accepts. atari2600 is
   // the simplest bare-asm target.
@@ -64,7 +64,7 @@ test("build({output:'project'}) still builds an asm (main.s) project — no regr
   try {
     const r = parse(await buildProjectCore({ path: dir, platform: "atari2600" }));
     // We only assert the entry-point discovery + build wiring ran (ok may be
-    // true or a clean toolchain error) — NOT a hard build success, since a bare
+    // true or a clean toolchain error) - NOT a hard build success, since a bare
     // 2600 kernel needs more. The point is main.s is still recognized.
     assert.ok(r.toolchain || r.stage || r.logTail !== undefined, "asm dir build did not run");
     assert.ok(Array.isArray(r.sourcesBuilt) && r.sourcesBuilt.includes("main.s"),

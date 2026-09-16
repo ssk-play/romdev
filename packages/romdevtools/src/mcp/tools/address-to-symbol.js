@@ -1,4 +1,4 @@
-// addressToSymbol — given a CPU address and a linker map (.map / .sym),
+// addressToSymbol - given a CPU address and a linker map (.map / .sym),
 // return the nearest preceding symbol. Closes the C-debug gap on SDCC
 // (and any other toolchain that emits a .map file).
 //
@@ -60,10 +60,10 @@ function parseLd65Sym(text) {
 }
 
 function parseAuto(text) {
-  // GNU ld map first (its "Linker script and memory map" header is unmistakable —
+  // GNU ld map first (its "Linker script and memory map" header is unmistakable -
   // and its addresses would otherwise be mis-read by the sdld regex), then sdld,
   // then ld65 VICE .sym. This is what gives Genesis/m68k + GBA/ARM a PC→function
-  // path ("cpu({op:'read'}) gave me $01A7 — which C function?").
+  // path ("cpu({op:'read'}) gave me $01A7 - which C function?").
   let entries = isGnuLdMap(text)
     ? parseGnuLdMap(text).map((s) => ({ address: s.address, name: s.name, rawName: s.name }))
     : [];
@@ -101,7 +101,7 @@ function nearestSymbol(entries, pc) {
   };
 }
 
-/** op:'addr' on the `symbols` tool — PC → nearest preceding symbol from a .map/.sym. */
+/** op:'addr' on the `symbols` tool - PC → nearest preceding symbol from a .map/.sym. */
 export async function addressToSymbolCore({ pc, symbolsText, symbolsPath }) {
       let text = symbolsText;
       if (!text && symbolsPath) {

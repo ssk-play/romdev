@@ -1,4 +1,4 @@
-// R31 — SNES SPC700 sound wrapper smoke test.
+// R31 - SNES SPC700 sound wrapper smoke test.
 //
 // Confirms snes_sfx.{h,c} compiles + links against PVSnesLib on the
 // snes-c toolchain. The wrapper uploads a prebuilt apu_blob (SPC700
@@ -49,7 +49,7 @@ int main(void) {
 test("R31 apu_blob.bin exists and is at least driver + sample bank in size", async () => {
   // R31 originally pinned this at exactly 9240 bytes (driver + 2 BRR
   // samples). R46 added a music engine + song table at ARAM $5000,
-  // which pushed the payload well past that — so this is now a lower-
+  // which pushed the payload well past that - so this is now a lower-
   // bound check rather than an equality.
   const apuBlob = await readFile(join(REPO_ROOT, "src/platforms/snes/lib/audio/apu_blob.bin"));
   assert.ok(apuBlob.length >= 9240, `apu_blob.bin shrank below R31 baseline (got ${apuBlob.length})`);

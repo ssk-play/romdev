@@ -6,10 +6,10 @@
 // stub no-ops.
 //
 // SKIP-GUARDED: on a clean clone the wasmcart pin may predate 0.6.0 (the
-// factory contract) and webgl-node may be absent — both degrade to the old
+// factory contract) and webgl-node may be absent - both degrade to the old
 // stub behavior by design, so these tests skip rather than fail there.
 // Fixture: glcart.wasc (from the wasmcart repo, rebuild recipe in its
-// test/fixtures/glcart.c) — clears the GL context to (0.0, 0.5, 1.0) and
+// test/fixtures/glcart.c) - clears the GL context to (0.0, 0.5, 1.0) and
 // also writes one red pixel into its 2D framebuffer (hybrid).
 
 import { test } from "node:test";
@@ -25,7 +25,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const GLCART = path.join(HERE, "fixtures", "glcart.wasc");
 const DBG = path.join(HERE, "fixtures", "dbghello.wasc");
 
-// package.json isn't in wasmcart's exports map — read it next to the entry.
+// package.json isn't in wasmcart's exports map - read it next to the entry.
 const _require = createRequire(import.meta.url);
 const { readFileSync } = await import("node:fs");
 const wcVersion = JSON.parse(readFileSync(
@@ -35,7 +35,7 @@ let glReady = maj > 0 || min >= 6;
 if (glReady) {
   try { await import("webgl-node"); } catch { glReady = false; }
 }
-const GUARD = glReady ? {} : { skip: `wasmcart ${wcVersion.version} < 0.6.0 or webgl-node absent — GL carts run stubbed here (by design)` };
+const GUARD = glReady ? {} : { skip: `wasmcart ${wcVersion.version} < 0.6.0 or webgl-node absent - GL carts run stubbed here (by design)` };
 
 test("GL cart renders REAL pixels headless: screenshot shows the GL clear color", GUARD, async () => {
   if (!(await glStackAvailable())) { console.log("GL stack unusable here; skipping"); return; }
@@ -84,8 +84,8 @@ test("GL frame participates in framebufferHash (regression goldens see GL draws)
 test("screenshotRgba returns `rgba` (the LibretroHost contract) and frame verify runs", async () => {
   if (!(await glStackAvailable())) { console.log("GL stack unusable here; skipping"); return; }
   // Regression (found by the openarena MCP smoke): both native hosts returned
-  // {pixels} where every LibretroHost caller — computeVerify, sideBySide, the
-  // livestream — destructures {rgba}, so frame({op:'verify'}) threw a raw
+  // {pixels} where every LibretroHost caller - computeVerify, sideBySide, the
+  // livestream - destructures {rgba}, so frame({op:'verify'}) threw a raw
   // TypeError on EVERY wasmcart/jsgame session since the hosts were born.
   const host = new WasmcartHost();
   await host.loadMedia({ platform: "wasmcart", path: DBG });

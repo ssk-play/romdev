@@ -1,13 +1,13 @@
 // gpgx core upgrades from a both-consoles sports-title feedback round (LIVE core):
-//   #1 registersAtHit on Genesis — the register file is FROZEN at the hit
+//   #1 registersAtHit on Genesis - the register file is FROZEN at the hit
 //      instant for pc-breaks AND write-watchpoints (pre-fix, gpgx's per-line
 //      scheduler kept running the 68k after a hit, so post-frame register
-//      reads were hundreds of instructions stale — the "2h of wrong-pointer
+//      reads were hundreds of instructions stale - the "2h of wrong-pointer
 //      chases").
 //   #1b the write-watchpoint PC is the EXECUTING instruction's first byte,
 //      not the drifted prefetch PC (the orb-at-$2A7216-reported-as-$2A721C
 //      off-by-one).
-//   #2 cpu call pure mode — romdev_run_pure steps ONLY the 68k: no frame
+//   #2 cpu call pure mode - romdev_run_pure steps ONLY the 68k: no frame
 //      machinery runs, so the game's own VBlank logic can't stomp the driven
 //      routine's output buffer.
 //   #5 a per-platform Genesis memory-read smoke (the "info is not defined"
@@ -22,7 +22,7 @@ import { LibretroHost } from "romdev-core-host/index.js";
 
 // A self-contained Genesis program with KNOWN addresses:
 //   Start ($200): set up registers with sentinel values, then loop:
-//     write_loop ($220): move.b d0,$FF0100 — the watched write, executed with
+//     write_loop ($220): move.b d0,$FF0100 - the watched write, executed with
 //       d0=$2A, a0=$00123456 (values registersAtHit must report exactly)
 //   sub_write ($300): a subroutine for cpu-call: move.b d1,$FF0200 / rts
 const SRC = `
@@ -74,7 +74,7 @@ test("gpgx write-watchpoint: exact instruction PC + frozen registersAtHit", { ti
   }
   host.setWatchpoint(0, false);
   assert.ok(w && w.hits > 0, "watchpoint never fired");
-  // The writing instruction is the move.b at $220 — the EXECUTING instruction's
+  // The writing instruction is the move.b at $220 - the EXECUTING instruction's
   // first byte, not the post-prefetch PC ($226 would be the old off-by-one).
   assert.equal(w.lastPC, 0x220, `write PC must be the move.b at $220, got $${w.lastPC.toString(16)}`);
   assert.equal(w.lastValue, 0x2A);
@@ -117,7 +117,7 @@ test("gpgx cpu call pure: runs the routine with NO frame machinery (framesRun 0)
   const r = host.callSubroutine({
     pc: 0x300,
     regs: { 1: 0x55 },        // d1 = $55
-    sentinelPC: 0x000180,     // unused vector area — never executed otherwise
+    sentinelPC: 0x000180,     // unused vector area - never executed otherwise
     sandbox: false,
     pure: true,
   });
@@ -131,7 +131,7 @@ test("gpgx cpu call pure: runs the routine with NO frame machinery (framesRun 0)
 test("genesis memory read smoke (live host, every basic region path)", { timeout: 120000 }, async () => {
   const host = await liveGenesis();
   // The 0.27.0 "info is not defined" regression broke every region read while
-  // the (fake-host) suite stayed green — this is the live-Genesis smoke.
+  // the (fake-host) suite stayed green - this is the live-Genesis smoke.
   const ram = host.readMemory("system_ram", 0x100, 4);
   assert.equal(ram.length, 4);
   const vram = host.readMemory("video_ram", 0, 16);
