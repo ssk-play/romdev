@@ -330,7 +330,7 @@ function storedKonamiRle(payload) {
 }
 
 /**
- * Sega / Phantasy Star RLE literal escape (SMS/GG): control 0x80|n + n raw
+ * Sega 8-bit RLE literal escape (SMS/GG): control 0x80|n + n raw
  * bytes (n=1..127). Optionally wrap a whole block with the 16-bit size header
  * and the 0x00 terminator. NOTE: a faithful whole-block wrap must emit the
  * payload in the DEINTERLEAVED order the game's routine expects — we emit the
@@ -346,13 +346,13 @@ function storedSegaRle(payload, { wrapBlock = false, interleave = 4 } = {}) {
   }
   if (!wrapBlock) {
     return { bytes: Uint8Array.from(body),
-      note: "Sega/Phantasy Star literal run (0x80|n + n bytes). Not block-wrapped." };
+      note: "Sega 8-bit RLE literal run (0x80|n + n bytes). Not block-wrapped." };
   }
   body.push(0x00);                          // end-of-block terminator
   const count = Math.floor(payload.length / interleave);
   const header = [count & 0xFF, (count >>> 8) & 0xFF];   // 16-bit LE size/interleave
   return { bytes: Uint8Array.from([...header, ...body]),
-    note: `Sega/Phantasy Star block: 16-bit size header (count=${count}, interleave=${interleave}) + literal runs + 0x00 terminator. Payload must already be deinterleaved.` };
+    note: `Sega 8-bit RLE block: 16-bit size header (count=${count}, interleave=${interleave}) + literal runs + 0x00 terminator. Payload must already be deinterleaved.` };
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -374,7 +374,7 @@ const PLATFORM_REGISTRY = {
   gbc:       { forms: gbPointerForms,        verdict: "raw", formats: ["raw"],
                note: "Same as GB." },
   sms:       { forms: smsPointerForms,       verdict: "literal-escape", formats: ["raw", "sega-rle"],
-               note: "4bpp planar tiles often uncompressed. Sega/Phantasy-Star RLE has a clean literal-run escape (0x80|n + n bytes)." },
+               note: "4bpp planar tiles often uncompressed. Sega 8-bit RLE has a clean literal-run escape (0x80|n + n bytes)." },
   gg:        { forms: smsPointerForms,       verdict: "literal-escape", formats: ["raw", "sega-rle"],
                note: "Same as SMS." },
   c64:       { forms: c64PointerForms,       verdict: "raw", formats: ["raw"],

@@ -161,6 +161,12 @@ questions, and running both early is normal.** A good default:
    share the ISA and differ only at the hardware seam). Targets: `snes` (65816) and `genesis`
    (m68k). An unsupported source→target pair is REFUSED rather than emitting text that looks
    like assembly and cannot build. Two things to expect, both by design:
+   - **Bulk IR for a whole cart.** `emit:'ir'` + `allOffsets:true` + `outputPath` writes JSONL
+     (a manifest comes back, never megabytes inline) covering every byte, including instructions
+     that straddle a bank edge (marked `straddlesWindow`). Add **`alignments:'all'`** for a record
+     at EVERY byte offset, not just the linear tiling's instruction starts — what a static
+     recompiler needs, since a computed jump can land mid-instruction. Secondary records overlap
+     by design: assert `offsetsWithRecord == romBytes`, never sum record lengths.
    - **`residue` is the point.** Anything not mechanically translatable is refused and listed,
      never guessed — a wrong guess in a recompiler is a silent miscompile. The common entry is a
      computed jump (`jp (hl)`, `jmp (table,x)`): resolve its arms with
@@ -584,7 +590,7 @@ playbook):
   read-side mirror. `found:false` ⇒ the region is bulk-copied/DMA'd from a SOURCE struct.
 - **Read a register AT an instruction** — `breakpoint({on:'pc', address})` freezes the CPU →
   `cpu({op:'read'})` for the live register file (e.g. a decoder's source pointer);
-  `frame({op:'stepInstruction'})` single-steps (or **`frame({op:'stepInstructions', count})`** to bulk-step N into ONE ordered trace — each step carries `flow` (seq/branch/call/jump/ret) and a true instruction `width` on `flow:'seq'`; pass **`stepFormat:'compact'`** for one string per step (`"$PC flow->$target"`) + a `pcRanges` loop-map with hit counts, ~90% fewer tokens for the "which loop is the CPU in" triage view). The "infer for hours → read it in 3 calls" move.
+  `frame({op:'stepInstruction'})` single-steps (or **`frame({op:'stepInstructions', count})`** to bulk-step N into ONE ordered trace — each step carries `flow` (seq/branch/call/jump/ret) and a true instruction `width` on `flow:'seq'`; pass **`stepFormat:'compact'`** for one string per step (`"$PC flow->$target"`) + a `pcRanges` loop-map with hit counts, ~90% fewer tokens for the "which loop is the CPU in" triage view). The "infer for hours → read it in 3 calls" move. On **banked platforms (SMS/GG)** each step also carries `mapper` (the slot registers), `bank` and `blockId` (`"<bank>:$<pc>"`), read per step so a mid-trace bank switch is visible — a PC alone does not identify an instruction when `$8000` in two banks is different code. A cart that never writes the mapper leaves those registers at power-on RAM values; that is flagged `uninitialised` and no bank is claimed rather than reporting a byte as a bank number.
 - **Discover the unknown routine** — `watch({on:'range'|'pc'})` logs every PC touching a
   region; `watch({on:'dma'})` (Genesis) traces a graphic back to its ROM source offset.
 - **Confirm bytes / classify** — `memory({op:'readCart'})` reads the running program image

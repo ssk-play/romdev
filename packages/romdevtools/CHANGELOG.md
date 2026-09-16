@@ -4,6 +4,87 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 —
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.145.0 — 2026-09-16
+
+SMS/GG recompiler support, driven by a static Z80->WAT client. Their measured
+result on adoption: one 512KB cart went from 1002s to 14.1s and stayed
+byte-exact against the reference core, and their corpus reached 8 carts
+byte-exact with two verifying first try with no recompiler changes.
+
+### IR export refused carts whose bank ends mid-instruction
+
+`emit:'ir'` refused 4 of 7 commercial carts with "decoder did not cover the
+complete bank window ending at N". The window is a SLICING artifact, not a
+decode limit: the decoder was handed exactly one bank's bytes, so an
+instruction whose operands continue past the edge was truncated by objdump
+itself and the completeness check refused the whole cart. A bank ending
+mid-instruction is normal -- 4 of 7 shipped titles do it.
+
+The decoder now gets a 3-byte lookahead so the final instruction decodes whole.
+Records are kept only when they START inside the window, so nothing from the
+next bank is emitted twice and each byte is counted once in the bank it
+physically lives in. A straddling record carries `straddlesWindow:true` with
+`bytesBeyondWindow` and its true `len`.
+
+Found while probing: an opcode in the ROM's FINAL bytes has no operands to read
+and no next bank to take them from. That is undecodable tail data, not a
+decoder failure, and refusing a cart over its last byte would be wrong. Those
+bytes are retained as `decodeStatus:'truncated-at-rom-end'`.
+
+### `alignments:'all'` — a record at every byte offset
+
+`allOffsets:true` gives ONE linear tiling: every byte owned once by the
+instruction containing it. A static recompiler needs the decode STARTING at
+every offset, because a computed jump (`jp (hl)`, an rst table, a RAM-built
+dispatch) can land mid-instruction. Every offset the client's index missed cost
+one `disasm` call, so adopting the IR made a 128KB cart slower than the sweep it
+replaced.
+
+`alignments:'all'` keeps the tiling and appends a decode at each offset the
+tiling did not start an instruction at, marked `alignment:'secondary'`. The
+default is byte-for-byte unchanged.
+
+The implementation matters: one decoder call per offset is ~5ms of subprocess
+overhead, so 131,072 offsets is ~11 minutes -- the same cost from the other
+side. A k=0..7 shifted sweep does not work either; shifted decodes resynchronise
+onto the same boundaries, and on one real bank that left 8,096 offsets
+uncovered. Batching does: each offset contributes a fixed-stride slice of real
+bytes plus `0x00` padding, and since the padding is `nop` an instruction at a
+slice head cannot reach the next slice. 8,192 offsets resolved in one 277ms
+call at a 100% hit rate; 524,288 offsets on a 512KB cart in 7.8s.
+
+Secondary records OVERLAP by design -- alternative readings of the same bytes,
+not additional coverage -- so `coveredBytes` still counts the primary tiling and
+the manifest says not to sum record lengths against `romBytes`.
+
+### Bank state in instruction traces
+
+On a banked cart a PC does not identify an instruction: `$8000` in bank 3 and
+bank 7 are different code. Reading `$FFFC-$FFFF` in a separate call is not
+synchronised to the traced instruction, so the bank read may not be the bank
+that executed -- a correctness problem, not a convenience one.
+
+`frame({op:'stepInstructions'})` on SMS/GG now carries `mapper`, `bank` and
+`blockId` ("<bank>:$<pc>") per step, read per step so a mid-trace bank switch is
+visible. A cart that never writes the mapper leaves those registers at power-on
+RAM values; when no slot holds a plausible bank for the ROM's bank count the
+block is flagged `uninitialised` and NO bank is claimed, because reporting 0xF0
+as "bank 240" would be a confident wrong answer.
+
+### Also
+
+- The manifest said unknown opcodes "are not silently lifted", which reads as
+  `lifted: []`. They carry a single `{op:'refuse'}` node. The safety property
+  held -- no fabricated semantics, empty targets -- but the description did not
+  match the shape, and a consumer emitting these as traps could have keyed on
+  the wrong thing. It now says to key on `decodeStatus`.
+- `disasm.js` declared `fileOffset` TWICE with different meanings; an object
+  literal keeps the last, so the `emit:'ir'` form silently lost its `min(0)`
+  bound and its documentation.
+- A compression helper named a commercial game in three code comments and one
+  user-facing `note` string. Renamed to describe the format ("Sega 8-bit RLE")
+  rather than a title.
+
 ## 0.144.0 — 2026-09-16
 
 The client rejected the 0.143.0 response for claiming completion over work it
