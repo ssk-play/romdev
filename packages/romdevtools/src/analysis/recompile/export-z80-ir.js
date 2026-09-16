@@ -212,10 +212,25 @@ export async function exportZ80IR(args) {
     straddleCount,
     ...(wantAllAlignments ? { alignments: "all", secondaryCount,
       offsetsTotal: rom.length, offsetsWithRecord: instrCount + secondaryCount,
-      ...(unresolvedOffsets ? { unresolvedOffsets,
-        unresolvedNote: "offsets the decoder produced no instruction for, usually because fewer than a full instruction's bytes remain before the end of the ROM. They are reported rather than silently absent." } : {}),
+      // ALWAYS present when alignments:'all' is on, including at zero.
+      //
+      // This was `...(unresolvedOffsets ? {...} : {})`, so the healthy case —
+      // zero unresolved — omitted the field entirely. A caller asserting
+      // `unresolvedOffsets === 0` then read `undefined`, which is falsy in the
+      // same direction as success: a real regression to a nonzero count and an
+      // absent field are indistinguishable to `if (!m.unresolvedOffsets)`. The
+      // note claimed these were "reported rather than silently absent" while
+      // the code made them silently absent. A count a consumer guards on must
+      // be present when it is zero, which is exactly when the guard matters.
+      unresolvedOffsets,
+      ...(unresolvedOffsets ? {
+        unresolvedNote: "offsets the decoder produced no instruction for, usually because fewer than a full instruction's bytes remain before the end of the ROM." } : {}),
       alignmentNote: "every byte offset carries a record. `alignment:'primary'` marks the linear tiling (unchanged from the default export, each byte owned once); `alignment:'secondary'` marks a decode STARTING at an offset the tiling did not begin an instruction at — the mid-instruction entry points a computed jump can land on. Secondary records deliberately overlap: they are alternative readings of the same bytes, not additional coverage, so do NOT sum their lengths against romBytes." } : {}),
-    ...(truncatedTailBytes ? { truncatedTailBytes, truncatedTailNote: `${truncatedTailBytes} byte(s) at the very end of the ROM are an opcode whose operands would run past the file. They are retained as decodeStatus:'truncated-at-rom-end' rather than refusing the export.` } : {}),
+    // Always present, for the same reason as unresolvedOffsets above: a count
+    // a consumer may guard on must exist when it is zero, or a regression to
+    // nonzero is indistinguishable from the field never being there.
+    truncatedTailBytes,
+    ...(truncatedTailBytes ? { truncatedTailNote: `${truncatedTailBytes} byte(s) at the very end of the ROM are an opcode whose operands would run past the file. They are retained as decodeStatus:'truncated-at-rom-end' rather than refusing the export.` } : {}),
     ...(straddleCount ? { straddleNote: `${straddleCount} instruction(s) start in one bank and their operand bytes continue into the next. Their records carry straddlesWindow:true with bytesBeyondWindow. coveredBytes counts each byte once, in the bank it physically lives in.` } : {}), romSha256: createHash("sha256").update(rom).digest("hex"),
     banks: [...new Set(windows.map((w) => w.bank))], windows,
     cycles: CYCLE_PROVENANCE, source: args.platform, sourceIsa: "z80",

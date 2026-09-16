@@ -81,7 +81,10 @@ test("a ROM whose banks end cleanly is unchanged", async () => {
   const m = await run(rom, out);
   assert.equal(m.coveredBytes, m.romBytes);
   assert.equal(m.straddleCount, 0);
-  assert.equal(m.truncatedTailBytes, undefined);
+  // Was `undefined` — which encoded the omit-at-zero bug this suite now
+  // forbids. A clean ROM reports zero truncated tail bytes; it does not omit
+  // the count.
+  assert.equal(m.truncatedTailBytes, 0);
 });
 
 test("a genuine decode gap is still refused", async () => {
@@ -197,4 +200,35 @@ test("an unknown opcode is refused, never given fabricated semantics", async () 
   }
   assert.match(m.note, /never given fabricated semantics/,
     "the manifest must describe what unknown records actually contain");
+});
+
+test("counts a consumer guards on are present AT ZERO, not omitted", async () => {
+  // Reported by a client: `unresolvedOffsets` came back absent where it had
+  // been 0. The emission was `...(unresolvedOffsets ? {...} : {})`, so the
+  // HEALTHY case omitted the field — and an absent field is falsy in the same
+  // direction as success. A caller writing `if (!m.unresolvedOffsets)` cannot
+  // distinguish "zero unresolved" from "this romdev never reports it", which
+  // is exactly the confident-wrong-answer shape.
+  //
+  // The note even claimed they were "reported rather than silently absent"
+  // while the code made them silently absent.
+  const dir = await mkdtemp(path.join(tmpdir(), "romdev-counts-"));
+  const rom = path.join(dir, "t.sms");
+  await writeFile(rom, Buffer.alloc(16384));       // all nop: every count is 0
+
+  const def = await exportZ80IR({ platform: "sms", path: rom, outputPath: path.join(dir, "a.jsonl"), emit: "ir", allOffsets: true });
+  for (const f of ["instrCount", "unknownCount", "coveredBytes", "straddleCount", "truncatedTailBytes"]) {
+    assert.ok(f in def, `'${f}' is absent at zero — a guard on it cannot tell zero from unsupported`);
+  }
+  assert.equal(def.truncatedTailBytes, 0);
+  // unresolvedOffsets belongs to alignments:'all' only; absent in the default
+  // mode is correct, because the mode that produces it did not run.
+  assert.ok(!("unresolvedOffsets" in def), "the default mode should not claim an alignment-only count");
+
+  const all = await exportZ80IR({ platform: "sms", path: rom, outputPath: path.join(dir, "b.jsonl"), emit: "ir", allOffsets: true, alignments: "all" });
+  for (const f of ["secondaryCount", "unresolvedOffsets", "offsetsWithRecord", "offsetsTotal"]) {
+    assert.ok(f in all, `'${f}' is absent at zero under alignments:'all'`);
+  }
+  assert.equal(all.unresolvedOffsets, 0);
+  assert.equal(all.secondaryCount, 0);
 });
