@@ -166,7 +166,20 @@ export function registerLifecycleTools(server, z, sessionKey) {
     // (256×224 after booting). Reporting it here misleads any agent that routes
     // on dimensions, so we omit it until a frame has been stepped and point the
     // caller at stepFrames instead.
-    const framebufferKnown = host.status.frameCount > 0;
+    const framebufferKnown = host.status.frameCount > 0 || host.status.settleFramesUsed > 0;
+    // SETTLE FRAMES ARE REAL EXECUTION. loadMedia runs the core until it emits
+    // its first video_refresh plus a few more (so framebuffer geometry is the
+    // ROM's, not a pre-init default), and deliberately does NOT count them in
+    // frameCount — "the first stepFrames(N) advances the count by exactly N".
+    //
+    // The cost of that is a frameCount of 0 that does NOT mean "nothing has
+    // executed": the game's boot code has already run and written RAM. A client
+    // comparing two slots at offset 0 read the settled values as a hardware
+    // power-on pattern and concluded it was cart-dependent; measured with the
+    // settle loop suppressed, every cart tested reads the SAME byte there and
+    // the differences are entirely what each game had overwritten by then.
+    // Report the count so nobody has to infer it.
+    const settleFrames = host.status.settleFramesUsed || 0;
     const payload = jsonContent({
       loaded: true,
       platform,
@@ -174,6 +187,7 @@ export function registerLifecycleTools(server, z, sessionKey) {
       core: resolved.coreName,
       mediaKind: host.status.mediaKind,
       ...(bytes ? { bytes: bytes.length } : { path: host.status.mediaPath }),
+      ...(settleFrames > 0 ? { settleFrames, settleNote: `The core ran ${settleFrames} warm-up frames during load to resolve real framebuffer geometry. They are NOT counted in frameCount (which stays 0 so your first stepFrames(N) advances it by exactly N), but they ARE real execution: the game's boot code has run and written RAM. Memory read now is post-boot state, not hardware power-on state.` } : {}),
       ...(framebufferKnown
         ? { framebuffer: { width: host.status.fbWidth, height: host.status.fbHeight } }
         : { framebufferNote: "Framebuffer dimensions are unknown until the core runs — call stepFrames first, then getStatus (the pre-boot default does not match the real output resolution)." }),

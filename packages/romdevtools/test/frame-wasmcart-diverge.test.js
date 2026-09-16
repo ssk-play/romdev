@@ -150,3 +150,36 @@ test("frame({op:'step'}) still defaults to slot A", async () => {
     assert.equal(secondary.status.frameCount, beforeB, "slot B must not move");
   } finally { clearHostB(key); clearHost(key); }
 });
+
+// loadMedia runs uncounted warm-up frames to resolve framebuffer geometry, so
+// frameCount:0 does NOT mean "nothing executed" — the game's boot code has run
+// and written RAM. A client read the resulting RAM as a hardware power-on
+// pattern and concluded it was cart-dependent. Measured with the settle loop
+// suppressed, every cart tested reads the SAME byte at system_ram[0]; the
+// apparent split was entirely what each game had overwritten by then.
+test("a frame-0 divergence says an emulator slot is not at hardware power-on", () => {
+  const a = host(), b = host({ wasm: true });
+  b.memory[8] = 9;
+  const r = findDivergence(a, b, opts);
+  assert.equal(r.atFrame, 0);
+  assert.match(r.note, /NOT at hardware power-on/);
+  assert.match(r.note, /settleFrames/);
+  assert.match(r.note, /boot code has already written RAM/);
+});
+
+// The settle disclosure must reach the caller, not just the source comment:
+// loadMedia reports the warm-up frame count it ran, so "frameCount 0" is never
+// the only thing a caller has to go on.
+test("loadMedia discloses the warm-up frames it ran", async () => {
+  const key = "loadmedia-settle-disclosure", tools = {};
+  registerLifecycleTools({ tool: (n, _d, _s, h) => { tools[n] = h; } }, z, key);
+  try {
+    const res = await tools.loadMedia({ platform: "sms", path: process.env.ROMDEV_SMS_ROM ?? "" })
+      .catch((e) => ({ skipped: e })); // no ROM configured -> nothing to assert
+    if (res.skipped || res.isError) return;
+    const out = JSON.parse(res.content[0].text);
+    assert.ok(out.settleFrames > 0, "a libretro load runs warm-up frames and must say so");
+    assert.match(out.settleNote, /NOT counted in frameCount/);
+    assert.match(out.settleNote, /real execution/);
+  } finally { clearHost(key); }
+});

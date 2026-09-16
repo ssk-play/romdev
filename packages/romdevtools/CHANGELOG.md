@@ -4,6 +4,30 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 —
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.148.0 — 2026-09-16
+
+### `loadMedia` discloses the warm-up frames it ran
+
+A libretro load steps the core until it emits its first `video_refresh`, plus a
+few more, so the reported framebuffer geometry is the ROM's and not a pre-init
+default. Those frames are deliberately NOT counted in `frameCount`, so that a
+caller's first `stepFrames(N)` advances the count by exactly `N`.
+
+The cost was a `frameCount: 0` that does not mean "nothing has executed". The
+game's boot code has already run and written RAM. A client reading `system_ram`
+at that point took the values for a hardware power-on pattern, found that four
+carts read `0xA8` at offset 0 and five read `0x00`, and concluded the core had
+a cart-dependent power-on model.
+
+Measured with the settle loop suppressed, all nine carts read the SAME byte
+there. The split was entirely which games had overwritten it within those five
+frames. Nothing was cart-dependent, and nothing was wrong with the core.
+
+`loadMedia` now returns `settleFrames` and a `settleNote` saying the frames are
+real execution and that memory read at this point is post-boot state, not
+power-on state. `findDiverge`'s frame-0 note says the same, since a comparison
+at offset 0 is where this misleads.
+
 ## 0.147.0 — 2026-09-16
 
 ### `frame({op:'step', slot:'b'})` — advance the comparison host
