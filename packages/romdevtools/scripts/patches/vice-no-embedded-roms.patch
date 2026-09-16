@@ -1,0 +1,35 @@
+Disable VICE's embedded ROM set.
+
+vice-libretro compiles Commodore's KERNAL, BASIC and CHARGEN ROMs into the
+core (retrodep/embedded/, gated on USE_EMBEDDED in include/config.h). Those
+ROMs are "Copyright C by Commodore Business Machines" per VICE's own README
+and carry no redistribution grant -- the GPLv2 covers VICE's code, not them.
+A core built with them embedded cannot be redistributed.
+
+VICE supports building without them: retrodep/embedded.h stubs
+embedded_check_file() to 0 and embedded_palette_load() to -1 when
+USE_EMBEDDED is undefined, so sysfile.c falls through to normal file
+loading. The C64 then needs kernal-901227-03.bin, basic-901226-01.bin and
+chargen-901225-01.bin supplied at runtime, which is what upstream VICE
+proper does.
+
+Verified: rebuilt archive has no CBMBASIC signature, no BASIC banner and no
+KERNAL strings; a wasmcart VICE cart with the three ROMs supplied through
+its VFS boots and runs a .prg to gameplay.
+
+diff --git a/include/config.h b/include/config.h
+index 3fb6692..de10621 100644
+--- a/include/config.h
++++ b/include/config.h
+@@ -3,7 +3,10 @@
+ 
+ #include <retro_endianness.h>
+ 
+-#define USE_EMBEDDED 1
++/* USE_EMBEDDED disabled: the embedded set is Commodore-copyrighted
++   KERNAL/BASIC/CHARGEN. VICE stubs embedded_check_file() to 0 when this
++   is off (retrodep/embedded.h), so ROMs load from the filesystem. */
++/* #define USE_EMBEDDED 1 */
+ 
+ #if defined(__WIN32__) 
+ #define WINDOWS_COMPILE

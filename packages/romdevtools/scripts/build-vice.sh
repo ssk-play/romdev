@@ -35,6 +35,22 @@ if [ -f "$PATCH_FILE" ]; then
   fi
 fi
 
+# Drop VICE's embedded ROM set. vice-libretro compiles Commodore's
+# KERNAL/BASIC/CHARGEN into the core; those are "Copyright C by Commodore
+# Business Machines" (VICE's own README) with no redistribution grant, so a
+# core built with them cannot be shipped. VICE stubs the embedded lookups
+# when USE_EMBEDDED is undefined and falls back to loading the ROMs from
+# disk, which is what a cart supplies through its VFS.
+NOEMB_PATCH="$PROJECT_DIR/scripts/patches/vice-no-embedded-roms.patch"
+if [ -f "$NOEMB_PATCH" ]; then
+  if grep -qE '^#define USE_EMBEDDED' include/config.h; then
+    echo "Disabling VICE embedded ROMs..."
+    git apply --recount "$NOEMB_PATCH"
+  else
+    echo "VICE embedded ROMs already disabled — skipping."
+  fi
+fi
+
 # ── romdev shared debug lib (0.80.0) ────────────────────────────────────────
 # The watchpoint/readwatch/range/coverage/pcbreak/watchdog machinery + exports now
 # live in scripts/romdev-debug/romdev_debug.c (shared by all cores). vice's Makefile
