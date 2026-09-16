@@ -28,6 +28,14 @@
 
 /** Branch mnemonics, for telling a branch-lowering residual from an ALU one. */
 const BRANCH_RE = /^(b|beq|bne|blez|bgtz|bltz|bgez|beql|bnel|blezl|bgtzl|bltzl|bgezl|bc1t|bc1f|bc1tl|bc1fl)$/;
+/**
+ * Unconditional transfers. `j`/`jal` carry no registers, so a difference
+ * between two of them is always a changed DESTINATION — a control-flow shape
+ * difference, not an allocator choice. Left out of BRANCH_RE (which gates
+ * register/operand reasoning), these fell through to "unclassified" and told
+ * the caller nothing.
+ */
+const JUMP_RE = /^(j|jal)$/;
 const REG_RE = /\$?\b(zero|at|v[01]|a[0-3]|t[0-9]|s[0-7]|k[01]|gp|sp|fp|ra|f[0-9]+)\b/g;
 
 const regsOf = (ops) => (String(ops ?? "").match(REG_RE) ?? []);
@@ -324,6 +332,15 @@ export function classifyGroup(group, target, candidate) {
       why: "the stack adjustment differs: the frame's size or the set of homes in it is not the same",
       evidence: { target: ta.filter(isFrame).map(key), candidate: ca.filter(isFrame).map(key) },
       phase: "uopt (storage allocation)" };
+  }
+
+  // An unconditional jump whose destination moved: control-flow shape.
+  if (ta.length && ta.every((a) => JUMP_RE.test(a.mnemonic)) && ca.every((b) => JUMP_RE.test(b?.mnemonic))) {
+    return { mechanism: "branch-lowering", confidence: "high",
+      why: "an unconditional jump's DESTINATION differs. There are no registers involved, so this is a control-flow shape difference (a different call target or a differently-placed block), never an allocation choice",
+      evidence: { swapped: false, senseChanged: ta.some((a, k) => a.mnemonic !== ca[k]?.mnemonic), targetChanged: true,
+        target: ta.map(key), candidate: ca.map(key) },
+      phase: "uopt (control flow) — an as1 trace cannot decide this" };
   }
 
   if (ta.length !== ca.length) {

@@ -178,3 +178,29 @@ test("genuinely different mappings stay separate groups", () => {
   assert.ok(mappings.has("s5->s7") && mappings.has("s6->s5"),
     `two distinct mappings were merged: ${[...mappings].join(" | ")}`);
 });
+
+test("an unconditional jump whose destination changed is control flow, not 'unclassified'", () => {
+  // Found by probing after the branch fix: `j`/`jal` carry no registers, so
+  // they fell outside the branch reasoning entirely and returned a shrug.
+  for (const [t, c] of [
+    [ins("j", "0x420"), ins("j", "0x424")],
+    [ins("jal", "func_A"), ins("jal", "func_B")],
+  ]) {
+    const cls = classifyGroup(groupResiduals([t], [c], strictOf([0]))[0], [t], [c]);
+    assert.equal(cls.mechanism, "branch-lowering", `${t.mnemonic} was classified ${cls.mechanism}`);
+    assert.equal(cls.evidence.targetChanged, true);
+    assert.match(cls.why, /never an allocation choice/i);
+  }
+});
+
+test("single-register and zero-compare branches follow the same substitution rule", () => {
+  // bgez/beq-to-zero have one meaningful register, so the two-operand swap
+  // test does not apply to them; they must still read as allocation.
+  for (const [t, c] of [
+    [ins("bgez", "s7,420"), ins("bgez", "s6,420")],
+    [ins("beq", "s7,zero,420"), ins("beq", "s6,zero,420")],
+  ]) {
+    const cls = classifyGroup(groupResiduals([t], [c], strictOf([0]))[0], [t], [c]);
+    assert.equal(cls.mechanism, "register-assignment", `${t.mnemonic} was classified ${cls.mechanism}`);
+  }
+});
