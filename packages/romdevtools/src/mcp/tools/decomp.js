@@ -230,6 +230,39 @@ export function registerDecompTools(server, z, sessionKey) {
             nextStep: `decomp({op:'plan', project:'${m.id}'}) for the payoff-ordered queue, then resolve/generate/compare. Nothing in ${m.root} was modified.`,
           });
         }
+        case "skill": {
+          // A STALE SKILL IS WORSE THAN NO SKILL. An agent reading a
+          // confidently wrong document stops; an agent with no document asks.
+          // The installed skill declared ~14 platforms and never mentioned N64
+          // while the server had full N64 support and a whole decomp domain.
+          const SK = await import("../../decomp/skill-sync.js");
+          const { CAPABILITIES } = await import("../../cores/capabilities.js");
+          const pkgVersion = JSON.parse(await readFile(new URL("../../../package.json", import.meta.url), "utf8")).version;
+          const platforms = Object.keys(CAPABILITIES);
+          const decompPlatforms = platforms.filter((p) => CAPABILITIES[p]?.ops?.decompile || CAPABILITIES[p]?.decomp);
+          // The LIVE op list, read from this tool's own schema, so a skill that
+          // omits a shipped op is detected as stale even when its version
+          // number matches. Hardcoding the list here would drift the same way
+          // the skill did.
+          const server = { version: pkgVersion, platforms, hasDecomp: true, ops: [...DECOMP_OPS] };
+          const status = await SK.skillStatus(server);
+          if (args.action !== "write") {
+            return jsonContent({ ...status, serverPlatforms: platforms.length,
+              preview: "pass action:'write' to regenerate the skill from the live capability manifest (the previous file is backed up first)." });
+          }
+          const content = SK.generateSkill({
+            version: pkgVersion, platforms, decompPlatforms,
+            toolCount: null, ops: [...DECOMP_OPS],
+            domains: [
+              { name: "build + run", description: "compile for a platform, load media, step frames, screenshot, script controller input" },
+              { name: "inspect", description: "memory regions, CPU and sound-chip state, sprites, palettes, tilemaps" },
+              { name: "reverse-engineer", description: "value search, write/read watchpoints, disassembly, control-flow graphs, cross-references, Ghidra pseudocode, live jumptable recovery" },
+              { name: "decomp", description: "matching decompilation against the project's own compiler and build system" },
+              { name: "port engine", description: "static recompilation between consoles (6502 and Z80 sources today)" },
+            ],
+          });
+          return jsonContent({ ...(await SK.writeSkill(content, { targetPath: args.outputPath })), previousStatus: status });
+        }
       }
       if (!args.project) throw Object.assign(new Error(`decomp({op:'${args.op}'}): \`project\` is required (decomp({op:'list'}) shows registered ids).`), { code: "BAD_ARGS" });
       const project = await Project.open(args.project);
@@ -818,39 +851,6 @@ export function registerDecompTools(server, z, sessionKey) {
           // the next agent to files that are gone.
           const { generateHandoff } = await import("../../decomp/handoff.js");
           return jsonContent(await generateHandoff(project, { limit: args.limit ?? 20 }));
-        }
-        case "skill": {
-          // A STALE SKILL IS WORSE THAN NO SKILL. An agent reading a
-          // confidently wrong document stops; an agent with no document asks.
-          // The installed skill declared ~14 platforms and never mentioned N64
-          // while the server had full N64 support and a whole decomp domain.
-          const SK = await import("../../decomp/skill-sync.js");
-          const { CAPABILITIES } = await import("../../cores/capabilities.js");
-          const pkgVersion = JSON.parse(await readFile(new URL("../../../package.json", import.meta.url), "utf8")).version;
-          const platforms = Object.keys(CAPABILITIES);
-          const decompPlatforms = platforms.filter((p) => CAPABILITIES[p]?.ops?.decompile || CAPABILITIES[p]?.decomp);
-          // The LIVE op list, read from this tool's own schema, so a skill that
-          // omits a shipped op is detected as stale even when its version
-          // number matches. Hardcoding the list here would drift the same way
-          // the skill did.
-          const server = { version: pkgVersion, platforms, hasDecomp: true, ops: [...DECOMP_OPS] };
-          const status = await SK.skillStatus(server);
-          if (args.action !== "write") {
-            return jsonContent({ ...status, serverPlatforms: platforms.length,
-              preview: "pass action:'write' to regenerate the skill from the live capability manifest (the previous file is backed up first)." });
-          }
-          const content = SK.generateSkill({
-            version: pkgVersion, platforms, decompPlatforms,
-            toolCount: null, ops: [...DECOMP_OPS],
-            domains: [
-              { name: "build + run", description: "compile for a platform, load media, step frames, screenshot, script controller input" },
-              { name: "inspect", description: "memory regions, CPU and sound-chip state, sprites, palettes, tilemaps" },
-              { name: "reverse-engineer", description: "value search, write/read watchpoints, disassembly, control-flow graphs, cross-references, Ghidra pseudocode, live jumptable recovery" },
-              { name: "decomp", description: "matching decompilation against the project's own compiler and build system" },
-              { name: "port engine", description: "static recompilation between consoles (6502 and Z80 sources today)" },
-            ],
-          });
-          return jsonContent({ ...(await SK.writeSkill(content, { targetPath: args.outputPath })), previousStatus: status });
         }
         case "map": {
           const ld = await project.linkerMap();
