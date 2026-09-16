@@ -3,7 +3,7 @@
 // notes themselves said 'never attempted' while much better older drafts
 // existed."
 //
-// Acceptance: "importing the Wave Race research folder surfaces the older
+// Acceptance: "importing the research folder surfaces the older
 // number-renderer near-match and does not describe the target as never
 // attempted. A stale one-difference result is labeled stale until refreshed.
 // A note claiming exactness cannot override a failed build or differing ROM

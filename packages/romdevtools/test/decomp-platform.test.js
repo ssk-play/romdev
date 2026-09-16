@@ -33,9 +33,9 @@ test("classifyInvocation: asm-processor+IDO form and plain gcc form", () => {
 });
 
 test("readRomHeader: N64 header fields; PS-EXE t_addr/pc0; unknown falls back to endianness", () => {
-  const n64 = Buffer.alloc(0x40); n64.writeUInt32BE(0x80371240, 0); n64.writeUInt32BE(0x80046800, 8); n64.write("WAVE RACE 64", 0x20, "latin1"); n64.write("NWR", 0x3b, "latin1"); n64[0x3e] = 0x45; n64[0x3f] = 1;
+  const n64 = Buffer.alloc(0x40); n64.writeUInt32BE(0x80371240, 0); n64.writeUInt32BE(0x80046800, 8); n64.write("TEST CART 64", 0x20, "latin1"); n64.write("NTC", 0x3b, "latin1"); n64[0x3e] = 0x45; n64[0x3f] = 1;
   const h = readRomHeader(profileFor("n64"), n64);
-  assert.equal(h.header.entry, "0x80046800"); assert.equal(h.header.cartId, "NWR"); assert.equal(h.header.region, "E");
+  assert.equal(h.header.entry, "0x80046800"); assert.equal(h.header.cartId, "NTC"); assert.equal(h.header.region, "E");
   const exe = Buffer.alloc(0x800); exe.write("PS-X EXE", 0, "latin1"); exe.writeUInt32LE(0x80010000, 0x10); exe.writeUInt32LE(0x80010000, 0x18); exe.writeUInt32LE(0x800, 0x1c);
   const p = readRomHeader(profileFor("psx"), exe);
   assert.equal(p.byteOrder, "PS-EXE (little-endian)"); assert.equal(p.header.tAddr, "0x80010000"); assert.equal(p.header.tSize, 0x800);

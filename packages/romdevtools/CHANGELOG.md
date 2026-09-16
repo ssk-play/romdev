@@ -1300,7 +1300,7 @@ romdevtools; the workspace-contract test caught it.
 
 ## 0.130.0 — 2026-08-30
 
-Client feedback from a `find-game-genie` session against a Super Mario Land
+Client feedback from a `find-game-genie` session against a commercial GB
 disassembly (GB/MBC1): three bugs and four token sinks.
 
 ### Fixed — multi-file rgbds builds crashed, and dropped the extra files anyway

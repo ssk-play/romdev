@@ -156,8 +156,8 @@ index 131c841..7d6d948 100644
 + * i.e. DURING display, so a game DMAing new sprite/tile patterns shows one
 + * pattern on line 40 and another on line 120 -- while pce_vdc_vram is a
 + * single post-frame snapshot holding only the final state. Reconstructing
-+ * from that snapshot mis-draws exactly the animated patterns (Cratermaze,
-+ * Bomberman '93: the bad pixels cluster on a handful of sprite patterns).
++ * from that snapshot mis-draws exactly the animated patterns (the bad
++ * pixels cluster on a handful of sprite patterns).
 + *
 + * VRAM cannot be captured per line (263 x 64KB), and it does not need to be:
 + * the resolved line buffer is what the VRAM was FOR. Capturing it follows the

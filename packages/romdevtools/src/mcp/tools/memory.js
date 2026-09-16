@@ -1028,7 +1028,7 @@ export function registerMemoryTools(server, z, sessionKey) {
        * `offset` is intentionally NOT defaulted in the schema (see the note
        * there): the MCP SDK applies zod defaults before the handler runs, so a
        * default made an absent `offset` look like a caller-supplied 0 and this
-       * alias could never fire. Real cost, from a Zelda 1 RE session:
+       * alias could never fire. Real cost, from an NES RE session:
        * `address: 235` ($EB, overworld location) silently read byte 0, both
        * values looked plausible, and several position readings were wrong
        * before it was caught.

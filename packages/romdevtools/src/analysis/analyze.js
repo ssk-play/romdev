@@ -1144,7 +1144,7 @@ export function buildNesBankImage(romBytes, flatVa, bankOverride = null) {
   /* An EXPLICIT bank means the caller handed us a live CPU address, not a
    * rizin flat VA.
    *
-   * Without this, a switchable-mapper address like $AAC5 (MMC1/Zelda) has no
+   * Without this, a switchable-mapper address like $AAC5 (MMC1) has no
    * flat VA to infer from: it falls into the bank-0 arithmetic below, and
    * bank 0 holds $FF filler at that address, so the decompiler dutifully
    * reports "bad instruction data". The bytes it needed were in bank 1.

@@ -143,13 +143,13 @@ index 96dece6..ae7a694 100644
 + * tiles in pixel-perfect positions with the wrong sub-palette. */
 +#define ROMDEV_MEMORY_NES_NTMAP      0x10D
 +/* PER-SCANLINE palette: 240 lines x 32 bytes, captured as each line renders.
-+ * Games change PALRAM mid-frame (Kirby recolours a 32-line band), so a single
++ * Games change PALRAM mid-frame (some recolour a 32-line band), so a single
 + * frame-end read misses colours that are on screen for part of the frame --
 + * they show up as colours present in the core's output and ENTIRELY ABSENT
 + * from a reconstruction. */
 +#define ROMDEV_MEMORY_NES_PALLINES   0x10E
 +/* PER-SCANLINE PPUMASK: 240 bytes, captured as each line renders. Games toggle
-+ * background/sprite enable and the left-column clip MID-FRAME (Kirby disables
++ * background/sprite enable and the left-column clip MID-FRAME (some disable
 + * sprites for part of the frame, so a frame-end read says "sprites off" while
 + * the screen is full of them). A single frame-end sample makes a renderer skip
 + * layers that are genuinely visible. */
@@ -376,7 +376,7 @@ index 96dece6..ae7a694 100644
 +             * flag. RETRO_MEMORY_SAVE_RAM deliberately returns NULL for a
 +             * non-battery cart -- its contract is "bytes to persist to .srm",
 +             * and those are meaningless without a battery. But the WRAM is
-+             * still live and full of game state (Metroid keeps its equipment
++             * still live and full of game state (some keep equipment
 +             * bits, item flags and energy tanks at $6878-$68xx), and the cheat
 +             * engine already gets an unconditional pointer to it via
 +             * FCEU_CheatAddRAM(8, 0x6000, WRAM). This region exposes the same

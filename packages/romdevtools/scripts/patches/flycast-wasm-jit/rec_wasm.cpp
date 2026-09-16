@@ -2004,7 +2004,7 @@ static bool buildBlockModule(WasmModuleBuilder& b, RuntimeBlockInfo* block) {
 	// into the WASM as a constant so the block can check it after each
 	// fallback call and abort if an exception was thrown mid-block.
 	// Without this, post-exception ops execute and corrupt memory state
-	// (the root cause of the Sonic/VT/FMV-cluster blank-canvas bug).
+	// (the root cause of the VT/FMV-cluster blank-canvas bug).
 	u32 excFlagAddr = (u32)(uintptr_t)&g_ifb_exception_pending;
 
 	// Wrap the op sequence + block exit in a block. If a fallback call

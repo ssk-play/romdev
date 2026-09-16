@@ -1082,7 +1082,7 @@ export function registerWatchMemoryTools(server, z, sessionKey) {
           ? "No matching changes in the watched window. "
             // A scheduled press defaults to holdFrames:2 — a TAP. That is far
             // too short for anything with movement or animation (walking one
-            // Zelda screen needs ~60+ frames held), so the run looks like "the
+            // screen-to-screen walk needs ~60+ frames held), so the run looks like "the
             // byte never changes" when really the input never did anything.
             // pressesApplied:N says the press landed; it does NOT say it was
             // held long enough, so name the lever explicitly here.
