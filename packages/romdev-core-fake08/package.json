@@ -1,6 +1,6 @@
 {
   "name": "romdev-core-fake08",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "FAKE-08 libretro core (PICO-8 player) for romdev, bundled as WASM.",
   "type": "module",
   "main": "index.js",

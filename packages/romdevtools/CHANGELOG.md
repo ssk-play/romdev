@@ -4,6 +4,27 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 -
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.149.1 - 2026-09-16
+
+### Version bumps for the punctuation pass
+
+The release audit rewrote non-ASCII punctuation to ASCII across the shipped
+tree, which changed the contents of 31 dependency packages without changing
+their behaviour. `publish-all.mjs` correctly refused to publish: their versions
+already existed on the registry, so consumers would have paired new code with
+the old tarball.
+
+Those 31 are bumped and repinned. All but one are prose-only (README and
+comment text), so they take a PATCH bump. `romdev-platform-gba` takes a MINOR:
+alongside the comment edits its libtonc/libgba SDK seed archives were
+regenerated, because a comment-only edit inside the hashed `sysbase` source
+changed the seed hash and the build correctly refused the stale cache.
+
+`romdev-core-runner` also bumps: it depends on `romdev-core-host`, which went
+to 0.14.0 for the C64 root-ROM installer.
+
+No behaviour change in any of these beyond what 0.149.0 already described.
+
 ## 0.149.0 - 2026-09-16
 
 ### C64 ships free ROMs and boots with zero setup
