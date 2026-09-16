@@ -11,7 +11,7 @@ index 72a9d7c..1406365 100644
 +	 * I.fdout to the file's fd). Only divert to stdout when fdout is the
 +	 * console (1 or unset). write(1,...) under emscripten is line-buffered,
 +	 * so partial flushes at the 64KB cons boundary don't inject a stray
-+	 * newline mid-token — which a per-chunk Module.print would. */
++	 * newline mid-token - which a per-chunk Module.print would. */
 +	if (I.fdout > 1) {
 +		rz_xwrite(I.fdout, buf, len);
 +	} else {

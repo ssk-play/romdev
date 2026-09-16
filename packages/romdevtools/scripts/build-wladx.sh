@@ -3,7 +3,7 @@
 #
 # Two-stage build:
 #   1. NATIVE build of the WLA-DX project. We need this for its host-side
-#      "instruction table generator" — a small program that consumes
+#      "instruction table generator" - a small program that consumes
 #      i65816.c and emits t65816.c, which the assembler links against.
 #      Under emcmake this generator builds as WASM and can't be exec'd
 #      during the rest of the build.

@@ -7,7 +7,7 @@ require_cmd git
 require_cmd make
 
 # Upstream pin lives in scripts/versions.json (toolchains.cc65). The pin is the
-# post-V2.19 commit cc3c40c — that's the first commit to add the W65C02 CPU the
+# post-V2.19 commit cc3c40c - that's the first commit to add the W65C02 CPU the
 # GameTank SDK targets, so it (not the V2.19 tag) is what we build and ship.
 CC65_DIR="$BUILD_DIR/cc65/src"
 # The built WASM + share tree ship in the romdev-toolchain-cc65 binary package
@@ -24,7 +24,7 @@ cd "$CC65_DIR"
 
 # Apply the reproducible-debug-info patch (deterministic object files: pinned
 # mtimes + basenamed source paths + fixed OPT_DATETIME, so a native and a WASM
-# build of the same input produce byte-identical .o — see the patch header and
+# build of the same input produce byte-identical .o - see the patch header and
 # scripts/patches/README.md). Reset the touched files so a re-run re-applies
 # cleanly; skip if the sentinel (GetSourceDateEpoch) is already present.
 git checkout -- src/ca65/filetab.c src/ca65/main.c src/cc65/input.c \
@@ -69,7 +69,7 @@ done
 echo "Building 6502 runtime libraries (native cc65 tools)..."
 make clean -C src
 make -j"$(nproc)"
-# Build the runtime libs for ALL targets explicitly — a bare `make` builds the
+# Build the runtime libs for ALL targets explicitly - a bare `make` builds the
 # tools but does NOT reliably produce every target's lib (that's why an earlier
 # build shipped only 5 of the ~25 target libs, breaking PCE + Atari 5200/8-bit
 # at link). `make lib` walks libsrc/Makefile's full TARGETS list (incl. pce,

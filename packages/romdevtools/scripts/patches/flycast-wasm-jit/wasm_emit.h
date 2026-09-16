@@ -1,4 +1,4 @@
-// wasm_emit.h — SHIL → WASM instruction emitters for Flycast JIT
+// wasm_emit.h - SHIL → WASM instruction emitters for Flycast JIT
 //
 // Translates individual SHIL IR opcodes into WASM instructions using
 // WasmModuleBuilder. Operates on Sh4Context in shared linear memory.
@@ -37,7 +37,7 @@ namespace ctx_off {
 
 // Local variable indices in the compiled WASM function
 // Local 0 = ctx_ptr (function parameter)
-// Local 1 = ram_base (function parameter — heap offset of Dreamcast main RAM)
+// Local 1 = ram_base (function parameter - heap offset of Dreamcast main RAM)
 // Locals 2-6 = scratch i32 (for intermediate values)
 // Local 7+ = register cache i32s
 // After all i32s = 1 i64 scratch (for dual-output ops like adc/mul_u64)
@@ -51,7 +51,7 @@ constexpr u32 LOCAL_TMP5 = 6;
 constexpr u32 LOCAL_FIXED_I32_COUNT = 5;  // TMP through TMP5
 
 // ============================================================
-// Register Cache — maps Sh4Context offsets to WASM locals
+// Register Cache - maps Sh4Context offsets to WASM locals
 // ============================================================
 // Caches frequently-used integer registers in WASM locals instead
 // of loading/storing from linear memory every op. V8 maps locals
@@ -262,7 +262,7 @@ static inline void emitReloadAll(WasmModuleBuilder& b, RegCache& cache) {
 // Emit a complete SHIL op. Returns true if handled, false if
 // fallback is needed.
 // ============================================================
-// FLY_FORCE_FALLBACK_MASK — compile-time bitmask for differential debugging.
+// FLY_FORCE_FALLBACK_MASK - compile-time bitmask for differential debugging.
 // Each bit forces a whole category of SHIL ops to fall back to the shil_fb
 // import path instead of being natively emitted. Used to binary-search
 // which native-emit category contains a correctness bug on games that run
@@ -279,7 +279,7 @@ static inline void emitReloadAll(WasmModuleBuilder& b, RegCache& cache) {
 //   bit 6 = READM       (shop_readm only)
 //   bit 7 = CONTROL     (jdyn, jcond)
 //   bit 8 = SYSTEM      (sync_sr, sync_fpscr, pref, ifb, illegal, swaplb, xtrct)
-//   bit 9 = WRITEM      (shop_writem only) — split out from bit 6 to
+//   bit 9 = WRITEM      (shop_writem only) - split out from bit 6 to
 //                        bisect the MEMORY category which contains the
 //                        bug breaking Sonic
 //
@@ -302,7 +302,7 @@ static inline void emitReloadAll(WasmModuleBuilder& b, RegCache& cache) {
 // Step 6 confirmed: 0x1F7 → RENDERING. COMPARE alone is also fine.
 // Surprise: all four integer sub-categories work INDIVIDUALLY native,
 // but 0x1F0 (all four together) breaks. It's a multi-category
-// interaction — likely a register-cache / T-flag-visibility bug that
+// interaction - likely a register-cache / T-flag-visibility bug that
 // only manifests when two specific categories emit natively in the
 // same block and share a register.
 // Step 7 confirmed: 0x1F6 → RENDERING. ALU+COMPARE pair not the culprit.
@@ -316,7 +316,7 @@ static inline void emitReloadAll(WasmModuleBuilder& b, RegCache& cache) {
 // Step 12 confirmed: 0x1F2 → RENDERING. ALU+CARRY+COMPARE triple fine.
 // Step 13 confirmed: 0x1F1 → RENDERING. All three triples work.
 // Step 14 re-verify confirmed: 0x1F0 → RENDERING. Earlier BLANK result
-//                    was flaky — the bug is NOT in the integer half at
+//                    was flaky - the bug is NOT in the integer half at
 //                    all. Every integer mask is fine.
 // Step 15 confirmed: 0x00F → BLANK. Bug is in bits 4-8 half (FPU,
 //                    CONVERT, MEMORY, CONTROL, SYSTEM). Integer half
@@ -342,7 +342,7 @@ static inline void emitReloadAll(WasmModuleBuilder& b, RegCache& cache) {
 //   SHIL lowering or the fallback interpreter.
 // - Binary search showed readm native emission has SOMETHING wrong
 //   (0x3BF "readm native only" → BLANK) but patching readm to always
-//   take the slow path did NOT fix Sonic — meaning there are
+//   take the slow path did NOT fix Sonic - meaning there are
 //   additional native-emit bugs interacting. The combinatorial search
 //   hit non-determinism on some masks which made single-run results
 //   unreliable.
@@ -399,7 +399,7 @@ static u32 flyOpCategoryBit(u32 op) {
 	case shop_ifb: case shop_illegal: case shop_swaplb: case shop_xtrct:
 		return 1u << 8;
 	default:
-		return 0;  // unknown / not classified — never force fallback
+		return 0;  // unknown / not classified - never force fallback
 	}
 }
 #endif
@@ -409,7 +409,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 #if FLY_FORCE_FALLBACK_MASK != 0
 	// Diagnostic: force this op's whole category to fall back to shil_fb
 	// so the block uses the interpreter path for this op instead of native
-	// WASM emission. Categories are the coarsest possible split — the
+	// WASM emission. Categories are the coarsest possible split - the
 	// intent is binary search, not fine-grained control.
 	if ((FLY_FORCE_FALLBACK_MASK) & flyOpCategoryBit((u32)op.op))
 		return false;
@@ -937,7 +937,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 
 	case shop_cvt_i2f_n:
 	case shop_cvt_i2f_z:
-		// rd(f32) = (float)(s32)rs1 — i32 source cached, f32 dest not
+		// rd(f32) = (float)(s32)rs1 - i32 source cached, f32 dest not
 		b.op_local_get(LOCAL_CTX);
 		emitLoadParamCached(b, op.rs1, cache);
 		b.op_f32_convert_i32_s();
@@ -990,7 +990,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 	case shop_fipr: {
 		// 4-element dot product: rd = sum(rs1[i] * rs2[i]) for i=0..3
 		// Uses f64 accumulation to match reference interpreter (sh4_fpu.cpp)
-		// and shil_canonical.h — prevents 3D geometry drift from f32 rounding.
+		// and shil_canonical.h - prevents 3D geometry drift from f32 rounding.
 		u32 off1 = op.rs1.reg_offset(), off2 = op.rs2.reg_offset();
 		b.op_local_get(LOCAL_CTX);  // base for store
 		// Element 0: (f64)rs1[0] * (f64)rs2[0]
@@ -1138,7 +1138,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 
 	case shop_shld: {
 		// Variable shift left/right (unsigned) depending on sign of rs2
-		// FIX: i32.sub operand order — push 0 first, then shift, so sub = 0-shift = -shift
+		// FIX: i32.sub operand order - push 0 first, then shift, so sub = 0-shift = -shift
 		emitPreStore(b, op.rd, cache);
 		emitLoadParamCached(b, op.rs2, cache);  // shift amount
 		b.op_i32_const(0);
@@ -1176,7 +1176,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 
 	case shop_shad: {
 		// Variable arithmetic shift depending on sign of rs2
-		// FIX: i32.sub operand order — push 0 first, then shift, so sub = 0-shift = -shift
+		// FIX: i32.sub operand order - push 0 first, then shift, so sub = 0-shift = -shift
 		emitPreStore(b, op.rd, cache);
 		emitLoadParamCached(b, op.rs2, cache);
 		b.op_i32_const(0);
@@ -1548,7 +1548,7 @@ static bool emitShilOp(WasmModuleBuilder& b, const shil_opcode& op,
 
 	case shop_div1:
 		// Touches sr.Q/sr.M (bits 8/9 of sr.status) with a read-modify-write
-		// the register cache also mirrors — left on the fallback path.
+		// the register cache also mirrors - left on the fallback path.
 		return false;
 
 	// ---- System ops that need fallback (flush+reload around call) ----
@@ -1626,7 +1626,7 @@ static void emitBlockExit(WasmModuleBuilder& b, RuntimeBlockInfo* block, const R
 		break;
 
 	case BET_CLS_Dynamic: {
-		// ctx.pc = jdyn — read from cached local if available
+		// ctx.pc = jdyn - read from cached local if available
 		b.op_local_get(LOCAL_CTX);
 		s32 jdynLocal = cache.getLocal(ctx_off::JDYN);
 		if (jdynLocal >= 0) {

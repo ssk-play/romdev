@@ -33,7 +33,7 @@ fi
 cd "$MCPP_SRC_DIR"
 
 # Configure for "standalone-mode" build: a normal CLI binary. Disable
-# library mode (--enable-mcpplib) — we want a callMain-able executable.
+# library mode (--enable-mcpplib) - we want a callMain-able executable.
 # Use the i686 host trick from the sdcc build to satisfy autoconf cross-
 # compile detection without running probe binaries.
 echo "Configuring mcpp under emconfigure ..."

@@ -1,7 +1,7 @@
 name: lint
 
-# Static-analysis gate over romdev's own JavaScript. The full test suite —
-# including the core-booting, ROM-building parts — runs in test.yml, which
+# Static-analysis gate over romdev's own JavaScript. The full test suite -
+# including the core-booting, ROM-building parts - runs in test.yml, which
 # fills the gitignored wasm payloads from the published npm tarballs. Lint
 # stays its own fast job so a style break is visible in seconds, not after a
 # 450MB payload fetch.
@@ -28,7 +28,7 @@ jobs:
       # --ignore-scripts skips romdevtools' postinstall (it expects bundled wasm,
       # absent in CI). We DO install workspace deps (not --workspaces=false) so
       # the pure-JS tests get romdevtools' runtime deps (zod, pngjs). The core/
-      # toolchain packages resolve from npm but stay light here — their wasm only
+      # toolchain packages resolve from npm but stay light here - their wasm only
       # arrives via the skipped postinstall, which the pure-JS tests don't need.
       - name: Install deps
         run: npm ci --ignore-scripts

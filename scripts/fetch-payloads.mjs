@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// fetch-payloads.mjs — fill a clean checkout's gitignored payloads from npm.
+// fetch-payloads.mjs - fill a clean checkout's gitignored payloads from npm.
 //
-// The binary packages (romdev-core-*, romdev-toolchain-*, …) gitignore their
+// The binary packages (romdev-core-*, romdev-toolchain-*, ...) gitignore their
 // wasm/share payloads: too big for git, built out of band, shipped to npm via
 // each package's `files` allowlist. A fresh `git clone` therefore has the full
-// SOURCE tree but none of the artifacts, and the test suite — which boots
-// cores and builds real ROMs — cannot run. CI used to cope by hand-picking a
+// SOURCE tree but none of the artifacts, and the test suite - which boots
+// cores and builds real ROMs - cannot run. CI used to cope by hand-picking a
 // list of "pure JS" test files, and the list went stale the day it was
 // written.
 //
@@ -13,7 +13,7 @@
 // version pinned in the tree (a unit test asserts romdevtools' dependency pins
 // equal the in-tree versions, so tree and npm agree by construction) and
 // copies in ONLY the files the checkout is missing. Tracked sources always win
-// — a tarball can never overwrite the code under test — and the payloads land
+// - a tarball can never overwrite the code under test - and the payloads land
 // exactly where the workspace resolver already looks for them.
 //
 // A package whose in-tree version is not on npm (mid-development bump) is a
@@ -64,7 +64,7 @@ for (const name of readdirSync(PKGS).sort()) {
   // romdevtools is the package under test: all of its runtime artifacts
   // resolve from the satellite packages (import.meta.resolve with a dev-dir
   // fallback), its own tarball ships only tracked source, and its version
-  // legitimately runs AHEAD of npm between publishes — fetching it would both
+  // legitimately runs AHEAD of npm between publishes - fetching it would both
   // fail spuriously and risk testing published code instead of the checkout.
   if (meta.name === "romdevtools") continue;
 
@@ -108,7 +108,7 @@ for (const name of readdirSync(PKGS).sort()) {
 }
 
 if (failures.length) {
-  console.error("\nUnpublished in-tree versions — the suite would run against a half-empty tree:");
+  console.error("\nUnpublished in-tree versions - the suite would run against a half-empty tree:");
   for (const f of failures) console.error(`  ${f}`);
   console.error("Publish them, or pass --allow-missing to proceed without.");
   process.exit(1);

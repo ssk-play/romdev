@@ -116,7 +116,7 @@ void IRApplyRounding(MIPSState *mips) {
 	if (fcr1Bits) {
 		int rmode = fcr1Bits & 3;
 		bool ftz = (fcr1Bits & 0x01000000) != 0;
-// romdev: emscripten has no MXCSR (_mm_getcsr/_mm_setcsr) — WASM FP is fixed round-to-
+// romdev: emscripten has no MXCSR (_mm_getcsr/_mm_setcsr) - WASM FP is fixed round-to-
 // nearest. Skip host-rounding-mode replication (minor accuracy detail, not correctness).
 #if PPSSPP_ARCH(SSE2) && !defined(__EMSCRIPTEN__)
 		u32 csr = _mm_getcsr() & ~0x6000;

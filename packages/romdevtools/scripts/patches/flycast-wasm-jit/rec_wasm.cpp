@@ -1,4 +1,4 @@
-// rec_wasm.cpp — WASM JIT backend for Flycast SH4 dynarec
+// rec_wasm.cpp - WASM JIT backend for Flycast SH4 dynarec
 //
 // Phase 2: Compiles SHIL basic blocks into WebAssembly functions at runtime.
 // Each block becomes a WASM module with one exported function that:
@@ -44,7 +44,7 @@
 #include "fly_instrument.h"
 
 // Set to 1 to force C++ SHIL interpreter dispatch (diagnostic, bypasses
-// WASM blocks). Required for EXECUTOR_MODE 0-5 and 7 to do anything —
+// WASM blocks). Required for EXECUTOR_MODE 0-5 and 7 to do anything -
 // otherwise the mainloop takes the WASM JIT dispatch path and
 // cpp_execute_block is never called. Set to 0 for normal production.
 //
@@ -56,7 +56,7 @@
 //       interpreter, compares ctx, logs [SHADOW-JIT] MISMATCH with
 //       block PC + SHIL op dump for the first 10 hits. This is the
 //       primary tool for finding native-emit bugs at the subsystem
-//       level — the actual methodology the project switched to.
+//       level - the actual methodology the project switched to.
 #ifndef FORCE_CPP_DISPATCH
 #define FORCE_CPP_DISPATCH 0
 #endif
@@ -181,7 +181,7 @@ static int prof_report_frames = 0;         // mainloop calls since last report
 // Each compiled WASM block is registered in Emscripten's
 // __indirect_function_table. The dispatch table maps PC hashes
 // to table indices. c_dispatch_loop uses call_indirect to call
-// blocks entirely within WASM — no JS in the hot path.
+// blocks entirely within WASM - no JS in the hot path.
 #define JIT_TABLE_SIZE (1 << 20)  // 1M entries (~4MB)
 #define JIT_TABLE_MASK (JIT_TABLE_SIZE - 1)
 static u32 jit_dispatch_table[JIT_TABLE_SIZE];  // PC hash → table index (0 = miss)
@@ -190,7 +190,7 @@ static u32 jit_dispatch_hash[JIT_TABLE_SIZE];  // PC hash → FNV-1a of the bloc
 static u32 jit_dispatch_size[JIT_TABLE_SIZE];  // PC hash → guest code size the hash covers
 // PERF: the guest-RAM address of the block's code, resolved ONCE at compile
 // time. The dispatch loop used to recompute phys = vaddr & 0x1FFFFFFF, test the
-// area, and re-derive &mem_b[phys & RAM_MASK] on every single dispatch — all of
+// area, and re-derive &mem_b[phys & RAM_MASK] on every single dispatch - all of
 // it invariant for a given block. nullptr = ROM/BIOS (immutable, skip the SMC
 // check entirely).
 static const u8* jit_dispatch_ptr[JIT_TABLE_SIZE];
@@ -215,11 +215,11 @@ static inline u32 blockCodeHash(u32 vaddr, u32 codeSize) {
 	if ((phys >> 26) != 3) return 0;           // ROM/BIOS: immutable
 	if (codeSize == 0 || codeSize > 4096) codeSize = 2;
 	// PERF: this runs on EVERY dispatch of EVERY RAM block, and heavy titles
-	// execute ~600k blocks/frame — measured at ~22% of frame time when it was
+	// execute ~600k blocks/frame - measured at ~22% of frame time when it was
 	// three scattered byte-pair reads plus four FNV rounds. Cut to TWO aligned
 	// 32-bit loads (first and last dword of the block) mixed with the size.
 	// Unaligned-safe via memcpy, which the compiler folds to a single load.
-	// Detection strength is unchanged for the case this exists to catch —
+	// Detection strength is unchanged for the case this exists to catch -
 	// whole-routine replacement by the DC boot loader alters the tail dword.
 	const u8* p = &mem_b[phys & RAM_MASK];
 	u32 a, z;
@@ -234,7 +234,7 @@ static int g_dispatch_result = 0;    // 0=timeslice, 1=miss, 3=interrupt
 static u32 g_dispatch_miss_pc = 0;
 
 // ============================================================
-// Memory access cycle penalties — approximates Sh4Cycles
+// Memory access cycle penalties - approximates Sh4Cycles
 // ============================================================
 // The SH4 interpreter charges dynamic cycle penalties for memory accesses
 // via Sh4Cycles::addReadAccessCycles/addWriteAccessCycles (called from
@@ -256,7 +256,7 @@ static u32 g_dispatch_miss_pc = 0;
 // Penalty values are internal (200 MHz) cycles, matching Sh4Cycles
 // formula: readExternalAccessCycles(addr, size) * 2 * cpuRatio.
 // For cached RAM, we use a low average to model the cache hit rate.
-// Memory cycle penalties — DISABLED
+// Memory cycle penalties - DISABLED
 // Shadow comparison proved: SHIL ops produce identical register state to ref.
 // The only divergence is cycle_counter. The x64 JIT charges only guest_cycles
 // (no extra memory penalties) and works correctly. We do the same.
@@ -324,7 +324,7 @@ void EMSCRIPTEN_KEEPALIVE wasm_exec_ifb(u32 opcode, u32 pc) {
 // Forward declaration needed for per-op tracing diagnostic
 extern u32 g_wasm_block_count;
 
-// Runtime SHIL op interpreter — executes a single SHIL op by reading
+// Runtime SHIL op interpreter - executes a single SHIL op by reading
 // register values from Sh4Context, performing the operation, and writing
 // results back. Used for ops that the WASM emitter doesn't handle natively.
 __attribute__((used, retain, visibility("default"))) u32 g_shil_fb_call_count = 0; // externed by flycast-debug.c for perf profiling; retain so archive LTO cannot internalize it
@@ -776,7 +776,7 @@ void EMSCRIPTEN_KEEPALIVE wasm_exec_shil_fb(u32 block_vaddr, u32 op_index) {
 	}
 	case shop_illegal: {
 		// Raise the SH4 illegal-instruction exception. Previously fell through
-		// to the `default` case which was a silent no-op — the SH4 never saw
+		// to the `default` case which was a silent no-op - the SH4 never saw
 		// the exception, reg_nextpc stayed stale, and the same illegal PC was
 		// dispatched again every iteration (measured: 4 M no-op spirals/sec on
 		// Virtua Tennis). Mirrors the canonical shop_illegal defined in
@@ -843,7 +843,7 @@ void EMSCRIPTEN_KEEPALIVE wasm_exec_shil_fb(u32 block_vaddr, u32 op_index) {
 		writeF32(op.rd, (float)(s32)readI32(op.rs1));
 		break;
 	case shop_div1: {
-		// SH4 DIV1 — single-step division (matches shil_canonical.h exactly)
+		// SH4 DIV1 - single-step division (matches shil_canonical.h exactly)
 		u32 a = readI32(op.rs1);
 		s32 b = (s32)readI32(op.rs2);
 		u32 T = readI32(op.rs3);
@@ -899,7 +899,7 @@ void EMSCRIPTEN_KEEPALIVE wasm_exec_shil_fb(u32 block_vaddr, u32 op_index) {
 		break;
 	}
 	default:
-		// Unknown op — emit a health-critical event (M1: observation only).
+		// Unknown op - emit a health-critical event (M1: observation only).
 		// M4: should halt the mainloop cleanly instead of silently continuing.
 		// Any occurrence of this event sets the session's health verdict to RED
 		// and inhibits perf interpretation in the report generator.
@@ -947,12 +947,12 @@ void EMSCRIPTEN_KEEPALIVE wasm_exec_shil_fb(u32 block_vaddr, u32 op_index) {
 } // extern "C"
 
 // ============================================================
-// Per-instruction block executor — executes raw SH4 instructions
+// Per-instruction block executor - executes raw SH4 instructions
 // Uses OpPtr directly (same as interpreter), but in block batches.
 // Follows PC after each instruction to handle branches properly
 // (branch handlers execute delay slot internally via executeDelaySlot).
 // ============================================================
-// Forward declaration — defined later but needed by ref_execute_block
+// Forward declaration - defined later but needed by ref_execute_block
 extern u32 g_wasm_block_count;
 
 // EXECUTOR_MODE must be defined BEFORE ref_execute_block so that
@@ -962,7 +962,7 @@ extern u32 g_wasm_block_count;
 // EXECUTOR_MODE:
 //   6 = pure WASM JIT (normal production)
 //   5 = SHIL-vs-ref shadow (finds SHIL interpreter bugs)
-//   7 = JIT-vs-ref shadow (finds WASM native-emit bugs) — primary
+//   7 = JIT-vs-ref shadow (finds WASM native-emit bugs) - primary
 //       diagnostic tool for the systematic methodology. Logs
 //       [SHADOW-JIT] MISMATCH lines with exact divergence info.
 //
@@ -974,7 +974,7 @@ extern u32 g_wasm_block_count;
 
 // Reference executor: per-instruction via OpPtr
 // Per-instruction cycle counting (1 per instruction executed)
-// Does NOT follow branches within blocks — exits at first branch
+// Does NOT follow branches within blocks - exits at first branch
 // to match JIT dispatch model
 static u32 ref_call_count = 0;
 static void ref_execute_block(RuntimeBlockInfo* block) {
@@ -995,7 +995,7 @@ static void ref_execute_block(RuntimeBlockInfo* block) {
 		}
 		actual_iters++;
 		OpPtr[op](&ctx, op);
-		// Per-instruction cycle charging — only active in mode 0 (pure ref).
+		// Per-instruction cycle charging - only active in mode 0 (pure ref).
 		// EXECUTOR_MODE is defined above this function.
 #if EXECUTOR_MODE == 0
 		ctx.cycle_counter -= 1;
@@ -1052,7 +1052,7 @@ static void applyBlockExitCpp(RuntimeBlockInfo* block) {
 	// for BET_StaticIntr/BET_DynamicIntr (rec_x64.cpp), and the interpreter does
 	// `if (UpdateSR()) UpdateINTC();` (sh4_opcodes.cpp).
 	//
-	// The dispatch loop happens to reach the same state for NATIVE blocks — the
+	// The dispatch loop happens to reach the same state for NATIVE blocks - the
 	// sync_sr fallback calls UpdateSR() -> SRdecode() -> recalc_pending_itrs(),
 	// and the loop tests ctx.interrupt_pend after every block. But the C++/SHIL
 	// execution sites (the two dispatch-miss handlers) run a block and fall
@@ -1245,7 +1245,7 @@ static void cpp_execute_block(RuntimeBlockInfo* block) {
 			}
 #endif
 			// Use SHIL's result for continued execution (since we're running in SHIL mode)
-			// Do NOT restore ref — this is SHIL execution with periodic checks
+			// Do NOT restore ref - this is SHIL execution with periodic checks
 		} else {
 			// Pure SHIL (majority of blocks)
 			int cc_pre = ctx.cycle_counter;
@@ -1494,7 +1494,7 @@ static void cpp_execute_block(RuntimeBlockInfo* block) {
 		u32 ram_ptr = (u32)(uintptr_t)&mem_b[0];
 		int trap = wasm_execute_block(block->vaddr, ctx_ptr, ram_ptr);
 		if (trap) {
-			// WASM trapped — fallback to C++ for this block
+			// WASM trapped - fallback to C++ for this block
 			ctx.cycle_counter -= block->guest_cycles;
 			for (u32 i = 0; i < block->oplist.size(); i++)
 				wasm_exec_shil_fb(block->vaddr, i);
@@ -1513,7 +1513,7 @@ static void cpp_execute_block(RuntimeBlockInfo* block) {
 	// buggy native-emit code at subsystem level.
 	//
 	// Execution continues with REF's state (known-correct) so later
-	// blocks start from a clean baseline — this keeps the game
+	// blocks start from a clean baseline - this keeps the game
 	// progressing past already-found bugs instead of cascading every
 	// divergence into garbage.
 	//
@@ -1630,7 +1630,7 @@ static void cpp_execute_block(RuntimeBlockInfo* block) {
 						diff_name, diff_idx, jit_v, ref_v,
 						(u32)block->oplist.size());
 
-					// Dump SHIL op list for the first 10 mismatches —
+					// Dump SHIL op list for the first 10 mismatches -
 					// the actual culprit is usually one of these ops.
 					if (jit_ref_mismatch_count <= 10) {
 						for (u32 i = 0; i < block->oplist.size() && i < 40; i++) {
@@ -1655,7 +1655,7 @@ static void cpp_execute_block(RuntimeBlockInfo* block) {
 		// ctx is now the REF result (correct). Continue execution from here.
 	}
 #else
-	// SHIL executor — charge guest_cycles upfront, forced reset after.
+	// SHIL executor - charge guest_cycles upfront, forced reset after.
 	{
 		int cc_pre = ctx.cycle_counter;
 		ctx.cycle_counter -= block->guest_cycles;
@@ -1699,7 +1699,7 @@ EM_JS(int, wasm_compile_block, (const u8* bytesPtr, u32 len, u32 block_pc), {
 		// After resolution, Module._fn IS wasmExports["xx"] (a raw WebAssembly.Function),
 		// so V8 can do direct WASM->WASM cross-module calls.
 		if (!Module._jitImportsResolved) {
-			// Force thunk resolution — reads from addr 0 (BIOS ROM, harmless)
+			// Force thunk resolution - reads from addr 0 (BIOS ROM, harmless)
 			Module._wasm_mem_read8(0);
 			Module._wasm_mem_read16(0);
 			Module._wasm_mem_read32(0);
@@ -1786,7 +1786,7 @@ EM_JS(int, wasm_has_block, (u32 block_pc), {
 
 EM_JS(void, wasm_clear_cache, (), {
 	Module._wasmBlockCache = {};
-	// Reset table allocation — old entries become unreachable
+	// Reset table allocation - old entries become unreachable
 	Module._jitTableBase = 0;
 	Module._jitNextIdx = 0;
 });
@@ -1814,7 +1814,7 @@ EM_JS(int, wasm_prof_exec_count, (), {
 });
 
 // C dispatch loop: runs compiled WASM blocks via call_indirect.
-// Blocks stay entirely within WASM — no JS in the hot path.
+// Blocks stay entirely within WASM - no JS in the hot path.
 // Returns number of blocks executed. g_dispatch_result indicates exit reason:
 //   0 = timeslice complete (cycle_counter <= 0)
 //   1 = cache miss (g_dispatch_miss_pc = PC needing compilation)
@@ -1868,14 +1868,14 @@ static int c_dispatch_loop(u32 ctx_ptr, u32 ram_base) {
 					if (blk_it != blockByVaddr.end())
 						blockByVaddr.erase(blk_it);
 					wasm_remove_block(pc);
-					g_dispatch_result = 1;  // miss — recompile
+					g_dispatch_result = 1;  // miss - recompile
 					g_dispatch_miss_pc = pc;
 					return blocks_run;
 				}
 			}
 		}
 
-		// Cast table index to function pointer — Emscripten compiles
+		// Cast table index to function pointer - Emscripten compiles
 		// this to call_indirect, staying entirely within WASM.
 		block_fn_t fn = (block_fn_t)(uintptr_t)table_idx;
 		fn(ctx_ptr, ram_base);
@@ -1910,11 +1910,11 @@ static int c_dispatch_loop(u32, u32) { return 0; }
 // Build a complete WASM module for one compiled block
 // ============================================================
 
-// Forward declaration — defined below after block module builder.
+// Forward declaration - defined below after block module builder.
 static void emitFlushAllUnconditional(WasmModuleBuilder& b, const RegCache& cache);
 
 static bool buildBlockModule(WasmModuleBuilder& b, RuntimeBlockInfo* block) {
-	// Pre-scan for register usage — allocate WASM locals for cached regs
+	// Pre-scan for register usage - allocate WASM locals for cached regs
 	RegCache cache;
 	cache.scanBlock(block);
 
@@ -1936,9 +1936,9 @@ static bool buildBlockModule(WasmModuleBuilder& b, RuntimeBlockInfo* block) {
 	b.emitHeader();
 
 	// Type section: 3 function signatures
-	// Type 0: (i32, i32) -> void — block function (ctx_ptr, ram_base)
-	// Type 1: (i32) -> i32       — read8/16/32
-	// Type 2: (i32, i32) -> void — write8/16/32, ifb, shil_fb
+	// Type 0: (i32, i32) -> void - block function (ctx_ptr, ram_base)
+	// Type 1: (i32) -> i32       - read8/16/32
+	// Type 2: (i32, i32) -> void - write8/16/32, ifb, shil_fb
 	b.emitTypeSection(3);
 	{
 		u8 p0[] = { WASM_TYPE_I32, WASM_TYPE_I32 };
@@ -2010,7 +2010,7 @@ static bool buildBlockModule(WasmModuleBuilder& b, RuntimeBlockInfo* block) {
 	// Wrap the op sequence + block exit in a block. If a fallback call
 	// sets g_ifb_exception_pending, br $body skips remaining ops and the
 	// unconditional flush after the block writes all cached regs safely.
-	b.op_block();  // $body — br(0) exits to after the block
+	b.op_block();  // $body - br(0) exits to after the block
 
 	// Emit each SHIL op with register cache
 	for (u32 i = 0; i < block->oplist.size(); i++) {
@@ -2019,7 +2019,7 @@ static bool buildBlockModule(WasmModuleBuilder& b, RuntimeBlockInfo* block) {
 #ifndef JIT_PROD_BUILD
 			prof_fallback_ops_compiled++;
 #endif
-			// Unhandled op — flush, call fallback, reload
+			// Unhandled op - flush, call fallback, reload
 			emitFlushAll(b, cache);
 			b.op_i32_const((s32)block->vaddr);
 			b.op_i32_const((s32)i);
@@ -2027,7 +2027,7 @@ static bool buildBlockModule(WasmModuleBuilder& b, RuntimeBlockInfo* block) {
 			emitReloadAll(b, cache);
 
 			// Check if the fallback set g_ifb_exception_pending.
-			// If so, abort the rest of the block — remaining ops must
+			// If so, abort the rest of the block - remaining ops must
 			// NOT execute (they'd write to wrong memory addresses since
 			// the SH4 state is now in exception-handler mode).
 			b.op_i32_const((s32)excFlagAddr);
@@ -2114,12 +2114,12 @@ static std::vector<RuntimeBlockInfo*> discoverChain(RuntimeBlockInfo* entry) {
 
 	// BFS over BranchBlock (taken target) of every block already in the
 	// chain. Accepts BET_CLS_Static (single target) and BET_CLS_COND
-	// (taken target only — fall-through exits the module). Rejects dynamic
+	// (taken target only - fall-through exits the module). Rejects dynamic
 	// branches and StaticIntr. Bounded by MULTIBLOCK_MAX.
 	//
 	// Conservative variant: we do NOT chain the COND fall-through path.
 	// buildMultiBlockModule's "both targets in chain" routing variant routes
-	// based on a runtime ctx.pc comparison with an else-fallthrough — if a
+	// based on a runtime ctx.pc comparison with an else-fallthrough - if a
 	// SHIL fallback or exception sets ctx.pc to an unexpected value, the
 	// else path silently executes the wrong block and poisons SH4 state.
 	// The "branch target in chain" variant has an explicit pc equality check
@@ -2127,7 +2127,7 @@ static std::vector<RuntimeBlockInfo*> discoverChain(RuntimeBlockInfo* entry) {
 	// target avoids the buggy variant entirely.
 	//
 	// Previous linear discover accepted only BET_CLS_Static which is ~5 %
-	// of Shenmue blocks — the rest end in conditional branches, so chains
+	// of Shenmue blocks - the rest end in conditional branches, so chains
 	// never formed and every block ran as a standalone WebAssembly.Module.
 	// Allowing COND's taken path recovers the common hot loop pattern.
 	// Follow BOTH edges of a conditional now that buildMultiBlockModule checks
@@ -2140,7 +2140,7 @@ static std::vector<RuntimeBlockInfo*> discoverChain(RuntimeBlockInfo* entry) {
 		if (bcls != BET_CLS_Static && bcls != BET_CLS_COND) continue;
 		if (current->BlockType == BET_StaticIntr) continue;
 
-		// Follow BOTH edges of a conditional — taken target AND fall-through.
+		// Follow BOTH edges of a conditional - taken target AND fall-through.
 		// Taken-only left mean chain length at ~1.15-1.2, i.e. ~85% of modules
 		// were a single block, which is why per-dispatch overhead dominated.
 		//
@@ -2149,7 +2149,7 @@ static std::vector<RuntimeBlockInfo*> discoverChain(RuntimeBlockInfo* entry) {
 		// slot runs, and its exit reads jdyn back. Every block in a chain
 		// shares ONE cached jdyn local, so chaining both edges of a delayed
 		// conditional lets a later block's jcond clobber an earlier one's
-		// pending condition — the earlier exit then branches on the wrong
+		// pending condition - the earlier exit then branches on the wrong
 		// value. Caught as a single sr.T divergence in a 5-block chain by the
 		// chain-vs-reference differential; excluding has_jcond takes
 		// multi-block divergences to zero across three discs.
@@ -2161,7 +2161,7 @@ static std::vector<RuntimeBlockInfo*> discoverChain(RuntimeBlockInfo* entry) {
 		for (u32 t = 0; t < ntargets && (int)chain.size() < MULTIBLOCK_MAX; t++) {
 			u32 target = targets[t];
 			if (target == 0xFFFFFFFF || target == 0) continue;
-			if (target == entry->vaddr) continue;  // self-loop — outer dispatch handles it
+			if (target == entry->vaddr) continue;  // self-loop - outer dispatch handles it
 
 			bool dup = false;
 			for (auto* b : chain) {
@@ -2196,7 +2196,7 @@ static std::vector<RuntimeBlockInfo*> discoverChain(RuntimeBlockInfo* entry) {
 // for ifb/shil_fb fallbacks works correctly.
 static bool buildMultiBlockModule(WasmModuleBuilder& b,
                                    const std::vector<RuntimeBlockInfo*>& chain) {
-	// Exception-abort address — same constant as in buildBlockModule.
+	// Exception-abort address - same constant as in buildBlockModule.
 	u32 excFlagAddr = (u32)(uintptr_t)&g_ifb_exception_pending;
 
 	// Unified register cache across all blocks
@@ -2268,8 +2268,8 @@ static bool buildMultiBlockModule(WasmModuleBuilder& b,
 	b.op_i32_const(0);
 	b.op_local_set(LOCAL_NEXT_IDX);
 
-	b.op_block();  // $exit — br(2) from if body, br(1) from loop body
-	b.op_loop();   // $dispatch — br(1) from if body, br(0) from loop body
+	b.op_block();  // $exit - br(2) from if body, br(1) from loop body
+	b.op_loop();   // $dispatch - br(1) from if body, br(0) from loop body
 
 	// --- Cycle counter check ---
 	b.op_local_get(LOCAL_CTX);
@@ -2306,7 +2306,7 @@ static bool buildMultiBlockModule(WasmModuleBuilder& b,
 				b.op_i32_load16_u(0);
 				b.op_i32_const((s32)(u32)expectedOp);
 				b.op_i32_ne();
-				b.op_br_if(2);  // br $exit — SMC detected
+				b.op_br_if(2);  // br $exit - SMC detected
 			}
 		}
 
@@ -2376,7 +2376,7 @@ static bool buildMultiBlockModule(WasmModuleBuilder& b,
 				//
 				// Each arm is checked against ctx.pc EXPLICITLY. The previous
 				// version tested only BranchBlock and used a bare `else` for
-				// the fall-through — so if a SHIL fallback or an exception left
+				// the fall-through - so if a SHIL fallback or an exception left
 				// ctx.pc at some third value, that else silently ran the
 				// fall-through block and poisoned SH-4 state. That hazard is
 				// why chaining refused to follow fall-through paths at all,
@@ -2402,7 +2402,7 @@ static bool buildMultiBlockModule(WasmModuleBuilder& b,
 				b.op_local_set(LOCAL_NEXT_IDX);
 				b.op_br(2);  // br $dispatch
 				b.op_end();
-				b.op_br(2);  // br $exit — pc matched neither, let outer dispatch handle it
+				b.op_br(2);  // br $exit - pc matched neither, let outer dispatch handle it
 			} else if (branchTarget != pcToIdx.end()) {
 				// Only branch target in chain
 				b.op_local_get(LOCAL_CTX);
@@ -2469,7 +2469,7 @@ public:
 	void init(Sh4Context& ctx, Sh4CodeBuffer& buf) override
 	{
 #if defined(__EMSCRIPTEN__) && !defined(JIT_PROD_BUILD)
-		EM_ASM({ console.log('[rec_wasm] WasmDynarec::init() — Phase 2 WASM JIT'); });
+		EM_ASM({ console.log('[rec_wasm] WasmDynarec::init() - Phase 2 WASM JIT'); });
 #endif
 		fly_init();
 		sh4ctx = &ctx;
@@ -2548,7 +2548,7 @@ public:
 		        chainLen);
 
 		if (table_idx > 0) {
-			// Store in dispatch table — (pc>>1)&MASK handles address aliasing
+			// Store in dispatch table - (pc>>1)&MASK handles address aliasing
 			u32 key = (block->vaddr >> 1) & JIT_TABLE_MASK;
 			jit_dispatch_table[key] = (u32)table_idx;
 			jit_dispatch_pc[key] = block->vaddr;
@@ -2588,7 +2588,7 @@ public:
 		u32 fly_frame_idx = s_fly_frame_idx++;
 		FLY_EVT(FLY_EVT_FRAME_BEGIN, fly_frame_idx, 0, 0, 0);
 
-		// (per-frame cache flush removed — stale block theory disproven)
+		// (per-frame cache flush removed - stale block theory disproven)
 
 #if defined(__EMSCRIPTEN__)
 		static int mainloop_count = 0;
@@ -2602,16 +2602,16 @@ public:
 		u32 interpExecs = 0;
 		u32 timeslices = 0;
 		u32 compilesThisFrame = 0;
-		// Dispatch stats — hoisted out of JIT_PROD_BUILD gate so fly_instrument
-		// can emit them. These are per-frame u32 counters — trivial cost.
+		// Dispatch stats - hoisted out of JIT_PROD_BUILD gate so fly_instrument
+		// can emit them. These are per-frame u32 counters - trivial cost.
 		u32 exit_ts_total = 0, exit_miss_total = 0, exit_int_total = 0;
 		u32 miss_had_block = 0;
 		u32 dispatch_zero_blocks = 0;
 		double compileTimeThisFrame = 0;
 		// Compile budget: was 8 ms (~130 compiles). Scene transitions need
-		// 500–1000 new blocks; exhausting the budget sent the mainloop into
+		// 500-1000 new blocks; exhausting the budget sent the mainloop into
 		// single-instruction interp fallback (measured 7.3M interp ops in a
-		// single 375 ms frame). Raised to 50 ms — a single transition frame
+		// single 375 ms frame). Raised to 50 ms - a single transition frame
 		// may spike to ~50 ms, but every following frame stays cached and
 		// clean instead of the multi-second interp spiral. Max frame cost
 		// is strictly better than the alternative.
@@ -2644,7 +2644,7 @@ public:
 							it = blockByVaddr.find(pc);
 						}
 						if (it == blockByVaddr.end()) {
-							// Can't find/compile block — interpret one instruction
+							// Can't find/compile block - interpret one instruction
 							sh4ctx->pc = pc + 2;
 							u16 rawOp = IReadMem16(pc);
 							if (sh4ctx->sr.FD == 1 && OpDesc[rawOp]->IsFloatingPoint())
@@ -2959,7 +2959,7 @@ public:
 								blockExecs++;
 								g_wasm_block_count++;
 								// Recompile to restore dispatch table entry.
-								// rdv_FailedToFindBlock() does `Sh4cntx.pc = pc` (driver.cpp) —
+								// rdv_FailedToFindBlock() does `Sh4cntx.pc = pc` (driver.cpp) -
 								// every other backend calls it BEFORE running the block and then
 								// jumps to the code it returns. We call it AFTER having already
 								// executed the block via SHIL, so it REWINDS pc to the block we
@@ -2977,14 +2977,14 @@ public:
 									compileTimeThisFrame += (emscripten_get_now() - t0);
 								}
 							} else if (compileTimeThisFrame < COMPILE_TIME_BUDGET_MS) {
-								// Block not compiled yet — compile it
+								// Block not compiled yet - compile it
 								double t0 = emscripten_get_now();
 								rdv_FailedToFindBlock(miss_pc);
 								compilesThisFrame++;
 								it = blockByVaddr.find(miss_pc);
 								compileTimeThisFrame += (emscripten_get_now() - t0);
 								if (it != blockByVaddr.end()) {
-									// Compiled — execute via SHIL interpreter
+									// Compiled - execute via SHIL interpreter
 									RuntimeBlockInfo* block = it->second;
 									sh4ctx->cycle_counter -= block->guest_cycles;
 									sh4ctx->pc = miss_pc;
@@ -2999,7 +2999,7 @@ public:
 									blockExecs++;
 									g_wasm_block_count++;
 								} else {
-									// Compilation failed — interpret one instruction
+									// Compilation failed - interpret one instruction
 									sh4ctx->pc = miss_pc + 2;
 									u16 rawOp = IReadMem16(miss_pc);
 									if (sh4ctx->sr.FD == 1 && OpDesc[rawOp]->IsFloatingPoint())
@@ -3009,7 +3009,7 @@ public:
 									interpExecs++;
 								}
 							} else {
-								// Over compile budget — interpret one instruction.
+								// Over compile budget - interpret one instruction.
 								// Block will be compiled next frame when budget resets.
 								sh4ctx->pc = miss_pc + 2;
 								u16 rawOp = IReadMem16(miss_pc);
@@ -3061,12 +3061,12 @@ public:
 					// Invalidate the block at current PC and fall back to interpreter.
 					u32 trap_pc = sh4ctx->pc;
 					u32 trap_key = (trap_pc >> 1) & JIT_TABLE_MASK;
-					// ALWAYS log traps (even in prod) — critical for debugging
+					// ALWAYS log traps (even in prod) - critical for debugging
 					static u32 trap_log_count = 0;
 					trap_log_count++;
 					if (trap_log_count <= 100) {
 						EM_ASM({ console.error('[JIT-TRAP #' + $0 + '] pc=0x' + ($1>>>0).toString(16) +
-							' key=' + $2 + ' — invalidating block, falling back to interpreter'); },
+							' key=' + $2 + ' - invalidating block, falling back to interpreter'); },
 							trap_log_count, trap_pc, trap_key);
 					} else if (trap_log_count == 101) {
 						EM_ASM({ console.error('[JIT-TRAP] suppressing further trap logs (100+ traps!)'); });
@@ -3101,7 +3101,7 @@ public:
 			}
 		} while (sh4ctx->CpuRunning);
 
-		// Per-frame dispatch stats — critical for distinguishing hash-collision
+		// Per-frame dispatch stats - critical for distinguishing hash-collision
 		// thrash (miss_had_block high) from cold compile (compilesThisFrame high).
 		FLY_EVT(FLY_EVT_FRAME_STATS,
 		        miss_had_block,
@@ -3129,7 +3129,7 @@ public:
 			prof_report_frames++;
 		}
 
-		// Profiling dump — every 120 mainloop calls (~2-4s depending on multi-frame)
+		// Profiling dump - every 120 mainloop calls (~2-4s depending on multi-frame)
 		if (mainloop_count % 120 == 1 && prof_report_frames > 0) {
 			int n = prof_report_frames;
 			double total = prof_wall_ms;
@@ -3303,7 +3303,7 @@ public:
 		static u32 reset_counter = 0;
 		reset_counter++;
 		u32 blocks_evicted = (u32)blockByVaddr.size();
-		// Pass current SH4 PC in `d` slot — identifies the trigger (magic PCs
+		// Pass current SH4 PC in `d` slot - identifies the trigger (magic PCs
 		// 0x8c0000e0 / 0xac010000 / 0xac008300 are known reset triggers in
 		// compilePC, other PCs mean some other path hit reset).
 		u32 trigger_pc = sh4ctx ? sh4ctx->pc : 0;

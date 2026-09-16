@@ -1,4 +1,4 @@
-// wasm_test_shil_ops.h — Layer 1 SHIL op unit test harness
+// wasm_test_shil_ops.h - Layer 1 SHIL op unit test harness
 //
 // Validates every natively-emitted SHIL op by comparing the WASM JIT path
 // against the C++ fallback interpreter (wasm_exec_shil_fb). Both paths are
@@ -8,7 +8,7 @@
 // buildBlockModule, blockByVaddr, wasm_compile_block, wasm_execute_block,
 // wasm_exec_shil_fb, g_ifb_exception_pending).
 //
-// Gated with #ifndef JIT_PROD_BUILD — excluded from production builds.
+// Gated with #ifndef JIT_PROD_BUILD - excluded from production builds.
 //
 // Entry point: shil_op_test_harness() returns number of failures (0 = all pass).
 
@@ -26,7 +26,7 @@
 // Test infrastructure
 // ============================================================
 
-// Fake vaddr space for test blocks — 0xDEAD0000+ avoids real SH4 addresses
+// Fake vaddr space for test blocks - 0xDEAD0000+ avoids real SH4 addresses
 static u32 g_test_vaddr_counter = 0xDEAD0000;
 
 // Scratch RAM offset for memory tests. At end of 16MB DC main RAM.
@@ -283,7 +283,7 @@ static const char* cmpReg(const char* name, u32 wasm_val, u32 fb_val,
     u32 fv = *(u32*)f.scratch_ram; \
     return cmpReg("ram[0:4]", wv, fv, ow, of); }
 
-// Setup helpers — set GPRs by index
+// Setup helpers - set GPRs by index
 static void setR(Sh4Context& ctx, int idx, u32 val) { ctx.r[idx] = val; }
 static void setFR(Sh4Context& ctx, int idx, float val) {
     ctx.fr[idx] = val;
@@ -1169,7 +1169,7 @@ static int shil_op_test_harness() {
         if (!wasm_ok) {
 #if defined(__EMSCRIPTEN__) && !defined(JIT_PROD_BUILD)
             EM_ASM({ console.log('[SHIL-TEST] SKIP ' + UTF8ToString($0) + '/' +
-                UTF8ToString($1) + ' — WASM compile/exec failed'); },
+                UTF8ToString($1) + ' - WASM compile/exec failed'); },
                 tc.op_name, tc.test_name);
 #endif
             destroySyntheticBlock(block);

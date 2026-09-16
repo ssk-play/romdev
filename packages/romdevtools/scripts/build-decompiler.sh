@@ -3,18 +3,18 @@
 # WASM + compile SLEIGH processor specs for all 14 retro CPUs.
 #
 # Two artifact kinds, both shipped via romdev-analysis-decompiler:
-#   - decompile.{js,wasm}  — Ghidra's standalone decompiler REPL (raw_arch +
+#   - decompile.{js,wasm}  - Ghidra's standalone decompiler REPL (raw_arch +
 #     SLEIGH, NO libbfd, NO rizin), driven one-shot via stdin commands.
-#   - sleigh/*.sla + .ldefs/.pspec/.cspec — compiled processor tables.
+#   - sleigh/*.sla + .ldefs/.pspec/.cspec - compiled processor tables.
 #
 # Source provenance (fetch-on-demand, never vendored; only the built .wasm/.sla
 # ship). All pinned in versions.json under `analysis`:
 #   - Ghidra decompiler C++ + stock 6502/65c02/z80/ARM/68000 specs: via rz-ghidra
 #     (its `ghidra/ghidra` submodule). Apache-2.0 (Ghidra) / LGPL-3.0 (rz-ghidra
-#     build glue — only Ghidra's own C++ is linked into the shipped binary).
+#     build glue - only Ghidra's own C++ is linked into the shipped binary).
 #   - SM83 (GB): Gekkio/GhidraBoy, Apache-2.0.
 #   - 65816 (SNES): joshleaves/ghidra-snes, MIT.
-#   - HuC6280 (PCE): TiCoKH/Ghidra_HuC6280 — Apache-2.0 by derivation from
+#   - HuC6280 (PCE): TiCoKH/Ghidra_HuC6280 - Apache-2.0 by derivation from
 #     Ghidra's own 6502 spec (see NOTICE + versions.json licenseNote).
 #
 # Native `sleighc` is a build-time codegen tool (compiles .slaspec→.sla on the
@@ -68,10 +68,10 @@ compile_sla "$PROC/6502/data/languages/65c02.slaspec"  65c02
 compile_sla "$PROC/Z80/data/languages/z80.slaspec"     z80
 compile_sla "$PROC/ARM/data/languages/ARM4t_le.slaspec" ARM4t_le
 compile_sla "$PROC/68000/data/languages/68040.slaspec" 68040
-# MIPS — both endians (N64 R4300 = big, PS1 R3000 = little), 32-bit code variant.
+# MIPS - both endians (N64 R4300 = big, PS1 R3000 = little), 32-bit code variant.
 compile_sla "$PROC/MIPS/data/languages/mips32be.slaspec" mips32be
 compile_sla "$PROC/MIPS/data/languages/mips32le.slaspec" mips32le
-# SuperH SH-4 (Dreamcast) — little-endian 32-bit.
+# SuperH SH-4 (Dreamcast) - little-endian 32-bit.
 compile_sla "$PROC/SuperH4/data/languages/SuperH4_le.slaspec" SuperH4_le
 # external (community specs)
 compile_sla "$GHIDRABOY/data/languages/sm83.slaspec"   sm83

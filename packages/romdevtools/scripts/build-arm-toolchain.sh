@@ -26,7 +26,7 @@
 #   --with-float=soft    (no FPU)
 #   --with-tune=arm7tdmi
 #
-# Host deps (Debian/Ubuntu) — same as m68k, no extras:
+# Host deps (Debian/Ubuntu) - same as m68k, no extras:
 #   apt-get install gawk texinfo libgmp-dev libmpfr-dev libmpc-dev libisl-dev
 #
 # Build is ~30-60 minutes on a modern multi-core box. ~5 GB disk used.
@@ -93,7 +93,7 @@ if [ ! -x "$PREFIX/bin/$TARGET-as" ]; then
 fi
 export PATH="$PREFIX/bin:$PATH"
 
-# ── 2. gcc stage 1 — C-only, no libc yet (newlib not built yet) ──
+# ── 2. gcc stage 1 - C-only, no libc yet (newlib not built yet) ──
 if [ ! -x "$PREFIX/bin/$TARGET-gcc" ]; then
   cd "$ROOT"
   mkdir -p build-gcc
@@ -120,7 +120,7 @@ if [ ! -x "$PREFIX/bin/$TARGET-gcc" ]; then
   make install-gcc
 fi
 
-# ── 3. newlib — target libc built using arm-none-eabi-gcc ──
+# ── 3. newlib - target libc built using arm-none-eabi-gcc ──
 if [ ! -f "$PREFIX/$TARGET/lib/libc.a" ]; then
   cd "$ROOT"
   mkdir -p build-newlib
@@ -146,7 +146,7 @@ if [ ! -f "$PREFIX/$TARGET/lib/libc.a" ]; then
   make install
 fi
 
-# ── 4. gcc stage 2 — libgcc + crtbegin/crtend against newlib ──
+# ── 4. gcc stage 2 - libgcc + crtbegin/crtend against newlib ──
 if [ ! -f "$PREFIX/lib/gcc/$TARGET/$GCC_VER/libgcc.a" ]; then
   cd "$ROOT/build-gcc"
   make -j"$NCPU" all-target-libgcc

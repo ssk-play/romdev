@@ -6,7 +6,7 @@
 # compiles cc1, m68k-elf-as, m68k-elf-ld to WASM via emcc. STAGE 3 builds
 # SGDK against this toolchain and ships the resulting libmd.a.
 #
-# Why a native build first: emscripten can't bootstrap gcc directly — gcc's
+# Why a native build first: emscripten can't bootstrap gcc directly - gcc's
 # build system relies on running its in-progress xgcc (newly-built native
 # gcc) to build libgcc + crtbegin/crtend for the target. That binary needs
 # to be executable on the host machine. So we build the toolchain natively
@@ -19,7 +19,7 @@
 #   gcc       14.2.0     (Aug 2024)
 #   newlib    4.4.0      (Dec 2023)
 #
-# Host deps (Debian/Ubuntu) — see BUILDING.md "Host dependencies":
+# Host deps (Debian/Ubuntu) - see BUILDING.md "Host dependencies":
 #   apt-get install gawk texinfo libgmp-dev libmpfr-dev libmpc-dev libisl-dev
 #
 # Build is ~30-60 minutes on a modern multi-core box. ~5 GB disk used.
@@ -92,7 +92,7 @@ if [ ! -x "$PREFIX/bin/$TARGET-as" ]; then
 fi
 export PATH="$PREFIX/bin:$PATH"
 
-# ── 2. gcc stage 1 — C-only, no libc yet (newlib not built yet) ──
+# ── 2. gcc stage 1 - C-only, no libc yet (newlib not built yet) ──
 if [ ! -x "$PREFIX/bin/$TARGET-gcc" ]; then
   cd "$ROOT"
   mkdir -p build-gcc
@@ -117,7 +117,7 @@ if [ ! -x "$PREFIX/bin/$TARGET-gcc" ]; then
   make install-gcc
 fi
 
-# ── 3. newlib — target libc built using m68k-elf-gcc ──
+# ── 3. newlib - target libc built using m68k-elf-gcc ──
 if [ ! -f "$PREFIX/$TARGET/lib/libc.a" ]; then
   cd "$ROOT"
   mkdir -p build-newlib
@@ -138,7 +138,7 @@ if [ ! -f "$PREFIX/$TARGET/lib/libc.a" ]; then
   make install
 fi
 
-# ── 4. gcc stage 2 — libgcc + crtbegin/crtend against newlib ──
+# ── 4. gcc stage 2 - libgcc + crtbegin/crtend against newlib ──
 if [ ! -f "$PREFIX/lib/gcc/$TARGET/$GCC_VER/libgcc.a" ]; then
   cd "$ROOT/build-gcc"
   make -j"$NCPU" all-target-libgcc

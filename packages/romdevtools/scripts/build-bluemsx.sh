@@ -3,10 +3,10 @@
 # BIOS) so cartridge homebrew boots with no proprietary ROM.
 #
 # Applies two patches:
-#  1. bluemsx-emscripten-build.patch — REQUIRED. Makefile -fno-common + clang
+#  1. bluemsx-emscripten-build.patch - REQUIRED. Makefile -fno-common + clang
 #     warning relaxations (see the patch header; -fno-common is the non-obvious
-#     fix — -fcommon makes blueMSX's tentative symbols vanish under wasm-ld).
-#  2. bluemsx-romdev-memory-regions.patch — OPTIONAL during bring-up (exposes
+#     fix - -fcommon makes blueMSX's tentative symbols vanish under wasm-ld).
+#  2. bluemsx-romdev-memory-regions.patch - OPTIONAL during bring-up (exposes
 #     VRAM/VDP regs/palette/AY8910/z80 + findWriter for the inspect tools).
 #
 # Output: src/cores/wasm/bluemsx_libretro.{js,wasm} and the C-BIOS roms into the
@@ -50,7 +50,7 @@ if [ -n "${REGION_REL:-}" ] && [ -f "$REGION_PATCH" ]; then
     echo "WARNING: region patch failed to apply; building without it." >&2
   fi
 else
-  echo "No region patch yet — building stock blueMSX (+ build fix)."
+  echo "No region patch yet - building stock blueMSX (+ build fix)."
 fi
 
 # ── romdev shared debug lib (0.80.0) ─ stage romdev_debug.h at the root (on the
@@ -76,7 +76,7 @@ OBJS=$(find . -name "*.o" | tr '\n' ' ')
 WP_EXPORTS=""
 grep -rq "romdev_watchpoint_get" libretro.c Src/ "$DIR/romdev_debug.c" 2>/dev/null && WP_EXPORTS='"_romdev_watchpoint_set","_romdev_watchpoint_set_cond","_romdev_watchpoint_get",'
 # PC breakpoint + read watchpoint (Z80 execute/read hooks in Src/Z80/R800.c,
-# exports in libretro.c) — drive runUntilPC / runUntilRead / stepInstruction.
+# exports in libretro.c) - drive runUntilPC / runUntilRead / stepInstruction.
 BP_EXPORTS=""
 grep -rq "romdev_pcbreak_get" libretro.c Src/ "$DIR/romdev_debug.c" 2>/dev/null && BP_EXPORTS='"_romdev_pcbreak_set","_romdev_pcbreak_get","_romdev_readwatch_set","_romdev_readwatch_get",'
 # Instruction WATCHDOG (force-stop a runaway callSubroutine so it can't hang the
@@ -109,7 +109,7 @@ ls -lh "$OUT/bluemsx_libretro."{js,wasm}
 # blueMSX-libretro already SHIPS the C-BIOS machine tree under its
 # system/bluemsx/Machines/<name>/ (cbios_*.rom + a config.ini per machine). The
 # host points blueMSX's system dir at our bios/ and mirrors it into the wasm FS,
-# so we need the full `Machines/<machine> - C-BIOS/` tree (NOT loose roms) — the
+# so we need the full `Machines/<machine> - C-BIOS/` tree (NOT loose roms) - the
 # core fopen()s `<systemDir>/Machines/<machineName>/cbios_*.rom` + config.ini.
 # The Machines tree (~260KB) boots plain cartridges. The Databases tree is
 # ALSO required: blueMSX picks a cartridge's MAPPER by looking the ROM up in

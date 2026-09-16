@@ -39,7 +39,7 @@ index 15c6d12..83f1144 100644
 +/* rom-dev-mcp extension: 2600-specific region IDs above libretro standard.
 + * Exposes TIA + 6502 state for inspectSprites/Palette/getCPUState/etc.
 + * The 128B RIOT RAM already comes through RETRO_MEMORY_SYSTEM_RAM. */
-+#define ROMDEV_MEMORY_A26_TIA_REGS  0x160  /* 32B TIA snapshot — see TIA::snapshot */
++#define ROMDEV_MEMORY_A26_TIA_REGS  0x160  /* 32B TIA snapshot - see TIA::snapshot */
 +#define ROMDEV_MEMORY_A26_CPU_REGS  0x161  /* 7B 6502 snapshot */
 +
 +static uInt8 romdev_a26_tia_buf[32];
@@ -131,7 +131,7 @@ index 9dfde89..bb297f3 100644
 + * romdev_debug.c; the execute() dispatch hook below calls romdev_on_dispatch and,
 + * on a freeze, sets StopExecutionBit so M6502::execute returns and the frame ends
 + * EXACTLY at the break PC (the same mechanism stella's own debugger uses to break
-+ * mid-frame — TIA::update leaves myPartialFrameFlag true + endFrame() runs, so
++ * mid-frame - TIA::update leaves myPartialFrameFlag true + endFrame() runs, so
 + * retro_run returns instead of hanging). */
 +
  bool M6502::execute(uInt32 number)
@@ -149,7 +149,7 @@ index 9dfde89..bb297f3 100644
 +        break;
 +      }
 +
-+      // PC is the first byte of the instruction about to dispatch — latch it for the
++      // PC is the first byte of the instruction about to dispatch - latch it for the
 +      // peek/poke watch hooks, then ask the shared lib whether to FREEZE (coverage +
 +      // watchdog + pc-break/single-step live in romdev_debug.c). On a freeze: snapshot
 +      // (kind 2=watchdog else 1=pc-break/step) + set StopExecutionBit so the frame
@@ -186,7 +186,7 @@ index 79b50ee..f9460d3 100644
 +      out[6] = SP;
 +    }
 +
-+    /* rom-dev-mcp RE round 2: register read/write (the inverse of snapshot —
++    /* rom-dev-mcp RE round 2: register read/write (the inverse of snapshot -
 +     * powers setRegister / callSubroutine). 6502 reg-id convention (STABLE across
 +     * all cores): 0=A, 1=X, 2=Y, 3=P(status), 4=SP, 16=PC. PS()/PS(uInt8) are the
 +     * status get/set; A/X/Y/SP/PC are private so this method (a class member)
@@ -239,7 +239,7 @@ index 5a5fe5b..7ba0f1a 100644
 +     *   19 HMP0       20 HMP1       21 HMM0      22 HMM1     23 HMBL
 +     *   24 VDELP0     25 VDELP1     26 VDELBL
 +     *   27 AUDC0      28 AUDC1      29 AUDF0     30 AUDF1
-+     *   31 AUDV0+AUDV1 (high nibble | low nibble — both fit) */
++     *   31 AUDV0+AUDV1 (high nibble | low nibble - both fit) */
 +    void snapshot(uInt8* out) const {
 +      out[0]  = myVSYNC;
 +      out[1]  = myVBLANK;

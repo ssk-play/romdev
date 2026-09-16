@@ -19,7 +19,7 @@ import { resolveCore } from "../src/cores/registry.js";
 test("playtestCheckpointPath: next to the ROM for a real file; temp for in-memory", () => {
   const onDisk = playtestCheckpointPath("sess1", "/games/homebrew.nes");
   assert.equal(onDisk, path.join("/games", "homebrew.playtest-autosave.state"));
-  // in-memory / base64 load (mediaPath is "<…>") → a stable per-session temp file
+  // in-memory / base64 load (mediaPath is "<...>") → a stable per-session temp file
   const inMem = playtestCheckpointPath("sess-2/weird:chars", "<memory>");
   assert.ok(inMem.startsWith(os.tmpdir()));
   assert.match(inMem, /romdev-playtest-sess-2_weird_chars\.autosave\.state$/);

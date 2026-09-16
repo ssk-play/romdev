@@ -20,7 +20,7 @@ import {
   FamiTrackerParseError,
 } from '../src/parse-txt.js';
 
-// Optional local fixtures (not in the repo — real FamiTracker exports on the
+// Optional local fixtures (not in the repo - real FamiTracker exports on the
 // dev's disk). Override with FAMITONE_TEST_FIXTURES; tests skip when absent.
 const FIXTURES = process.env.FAMITONE_TEST_FIXTURES
   || join(homedir(), 'romdev-music-port-src/famitone2d/TESTS/');

@@ -16,12 +16,12 @@
 #
 # Output:
 #   packages/romdev-platform-gba/share/gba/lib/libgba/libgba.a       (~200 KB target archive)
-#   packages/romdev-platform-gba/share/gba/lib/libgba/include/...    (headers — gba.h, etc.)
+#   packages/romdev-platform-gba/share/gba/lib/libgba/include/...    (headers - gba.h, etc.)
 #   packages/romdev-platform-gba/share/gba/lib/libgba/crt0.s         (cart startup code)
 #   packages/romdev-platform-gba/share/gba/lib/libgba/lnkscript      (linker script)
 #   packages/romdev-platform-gba/share/gba/lib/libgba/LICENSE        (zlib license)
 #
-# Prereq: stage 1 (build-arm-toolchain.sh) must have completed —
+# Prereq: stage 1 (build-arm-toolchain.sh) must have completed -
 # we use that as the cross-toolchain for libgba's native target build.
 set -euo pipefail
 . "$(dirname "$0")/_lib.sh"
@@ -33,7 +33,7 @@ OUT="$PROJECT_DIR/../romdev-platform-gba/share/gba/lib/libgba"
 NCPU="$(nproc)"
 
 if [ ! -x "$NATIVE_PREFIX/bin/$TARGET-gcc" ]; then
-  echo "Stage 1 not done — run build-arm-toolchain.sh first." >&2
+  echo "Stage 1 not done - run build-arm-toolchain.sh first." >&2
   exit 1
 fi
 
@@ -59,7 +59,7 @@ cd "libgba-$LIBGBA_VER"
 # libgba's Makefile expects BOTH DEVKITPRO and DEVKITARM env vars.
 # DEVKITPRO is the umbrella tree (contains libgba's own sub-dir + tools);
 # DEVKITARM points at the cross-toolchain root (with bin/arm-none-eabi-gcc).
-# We fake both by pointing at our build/arm-toolchain/install/ — same
+# We fake both by pointing at our build/arm-toolchain/install/ - same
 # bin/ layout as devkitARM expects.
 export DEVKITPRO="$NATIVE_PREFIX"
 export DEVKITARM="$NATIVE_PREFIX"
@@ -72,7 +72,7 @@ export PATH="$NATIVE_PREFIX/bin:$PATH"
 # the $(PREFIX) shim) + ARCH (-mthumb -mthumb-interwork). Anything
 # else is a fallback safety net.
 # ─────────────────────────────────────────────────────────────────────
-# IMPORTANT — libgba feature trade-off documented here so anyone
+# IMPORTANT - libgba feature trade-off documented here so anyone
 # reading the script knows EXACTLY what's missing and why.
 # ─────────────────────────────────────────────────────────────────────
 #
@@ -88,7 +88,7 @@ export PATH="$NATIVE_PREFIX/bin:$PATH"
 # scope for getting GBA C builds working at all.
 #
 # Trade-off: we EXCLUDE console.c from libgba.a. Everything else in
-# the SDK works — sprites, backgrounds, sound, input, interrupts,
+# the SDK works - sprites, backgrounds, sound, input, interrupts,
 # DMA, BIOS calls, palettes, the BoyScout 2D library, the disc_io
 # layer. The ONLY thing missing is `iprintf`-style debug output.
 #
@@ -113,7 +113,7 @@ if [ -f "$CONSOLE_C" ] || [ -f "$DATA_FNT" ]; then
   echo "⚠️  EXCLUDING libgba's console.c (and its amiga.fnt font data)"
   echo ""
   echo "    iprintf-style stdio debug output WILL NOT WORK with the"
-  echo "    libgba.a this script produces. This is deliberate — see"
+  echo "    libgba.a this script produces. This is deliberate - see"
   echo "    the long comment above this block in build-libgba.sh."
   echo ""
   echo "    If you need iprintf, install devkitPro natively and use"
@@ -122,7 +122,7 @@ if [ -f "$CONSOLE_C" ] || [ -f "$DATA_FNT" ]; then
   echo "    on top of libgba's VRAM helpers (~30 lines of C)."
   echo "─────────────────────────────────────────────────────────────────"
   echo ""
-  # Move out of the source dir entirely — libgba's Makefile globs
+  # Move out of the source dir entirely - libgba's Makefile globs
   # data/*.* and src/*.c so a rename suffix like .excluded still gets
   # picked up. Stash under a sibling dir we control.
   mkdir -p "$SRC_DIR/libgba-excluded"
@@ -154,7 +154,7 @@ GBAR
   echo "Synthesized minimal gba_rules at $GBA_RULES"
 fi
 
-# Build. libgba's Makefile is straightforward — it iterates source
+# Build. libgba's Makefile is straightforward - it iterates source
 # files and emits libgba.a in lib/.
 make -j"$NCPU"
 
@@ -169,7 +169,7 @@ cp lib/libgba.a "$OUT/libgba.a"
 mkdir -p "$OUT/include"
 cp -r include/* "$OUT/include/"
 
-# crt0 + linker script — these live under the source tree, NOT
+# crt0 + linker script - these live under the source tree, NOT
 # under libgba. We need the canonical devkitARM crt0.s for GBA;
 # devkitPro ships it separately in the gba-tools / gba-elf-binutils
 # packages. For our purposes a minimal crt0 we write ourselves is

@@ -37,7 +37,7 @@ cd "$SRC_DIR"
 # GCC 15 defaults to C23, where `static_assert` is a keyword; binutils 2.42's
 # opcodes/mips-formats.h uses `static_assert` as an identifier (typedef name).
 # Force gnu11 for the HOST-compiler builds so it parses. (Doesn't affect the
-# generated MIPS code — only how the toolchain itself is compiled.)
+# generated MIPS code - only how the toolchain itself is compiled.)
 export CFLAGS="-std=gnu11 ${CFLAGS:-}"
 export CXXFLAGS="-std=gnu++11 ${CXXFLAGS:-}"
 
@@ -85,7 +85,7 @@ fi
 # newlib 4.4.0's libgloss/mips board-support uses pre-C23 idioms (implicit
 # function decls, int↔pointer assignments) that GCC 14+/C23 treats as ERRORS.
 # Demote them to warnings for the TARGET compiler so libc/libm build. (We don't
-# ship libgloss's board glue — libdragon/PSn00bSDK provide their own crt0.)
+# ship libgloss's board glue - libdragon/PSn00bSDK provide their own crt0.)
 # -ffile-prefix-map: newlib's assert() strings bake __FILE__ into .rodata, so
 # without this the BUILDER'S absolute source path ships inside libc.a. Rewrite
 # it to a stable prefix that carries no information about this machine.

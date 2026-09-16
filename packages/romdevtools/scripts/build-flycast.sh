@@ -32,11 +32,11 @@ if ! grep -q "romdev: emscripten" shell/cmake/DetectArchitecture.cmake; then
   perl -0pi -e 's/(if \(CMAKE_OSX_ARCHITECTURES\)\n    set\(ARCHITECTURE "\$\{CMAKE_OSX_ARCHITECTURES\}"\)\n    return\(\)\nendif\(\))/$1\n\n# romdev: emscripten\/WASM has no JIT.\nif (EMSCRIPTEN)\n    set(ARCHITECTURE "wasm")\n    return()\nendif()/' shell/cmake/DetectArchitecture.cmake
 fi
 # 2. build.h: CPU_GENERIC for emscripten. DEFAULT = the WASM SH-4 RECOMPILER
-#    (core/rec-wasm/rec_wasm.cpp) — this is what romdev-core-flycast 0.3.0+ ships,
+#    (core/rec-wasm/rec_wasm.cpp) - this is what romdev-core-flycast 0.3.0+ ships,
 #    so a plain `bash build-flycast.sh` reproduces the PUBLISHED core. ~70-160fps on
 #    commercial discs vs ~16fps interpreted; AICA (ARM7+DSP) stays interpreted.
 #    Set ROMDEV_FLYCAST_INTERP=1 to build the SH-4 interpreter (TARGET_NO_REC)
-#    instead — slower but the simplest reference when bisecting a suspected JIT bug.
+#    instead - slower but the simplest reference when bisecting a suspected JIT bug.
 #
 #    History: the "native-emit bugs hang the boot" claim that kept the JIT
 #    opt-in through 0.2.0 was WRONG on both counts. The boot hang was a
@@ -46,7 +46,7 @@ fi
 #    handler called rdv_FailedToFindBlock() AFTER running the block, rewinding pc.
 #    See internal-romdev/FLYCAST_WASM_JIT_RESUME.md for the full story.
 #
-# Single source of truth for the rec mode — every check below reads FLYCAST_JIT.
+# Single source of truth for the rec mode - every check below reads FLYCAST_JIT.
 FLYCAST_JIT=1
 if [ "${ROMDEV_FLYCAST_INTERP:-0}" = "1" ]; then
   FLYCAST_JIT=0
@@ -64,7 +64,7 @@ if ! grep -q "CPU_GENERIC" core/build.h; then
   sed -i 's/#define CPU_X64      0x20000004/#define CPU_X64      0x20000004\n#define CPU_GENERIC  0x20000005/' core/build.h
   perl -0pi -e "s/(#if defined\\(__x86_64__\\) \\|\\| defined\\(_M_X64\\))/#if defined(__EMSCRIPTEN__)\\n\\t#define HOST_CPU CPU_GENERIC\\n${FLYCAST_REC_DEFINES}\\n#elif defined(__x86_64__) || defined(_M_X64)/" core/build.h
 fi
-# Re-assert the rec mode EVERY run — the block above is apply-once, so switching
+# Re-assert the rec mode EVERY run - the block above is apply-once, so switching
 # interpreter <-> JIT on an existing tree would otherwise silently keep the stale
 # mode (a "JIT" build with TARGET_NO_REC compiles rec_wasm.cpp to a 333-byte
 # empty object and the link dies on the _wasm_* exports).
@@ -113,7 +113,7 @@ grep -q "romdev/WASM (single-threaded" core/util/periodic_thread.h || \
 grep -q "romdev/WASM: single-threaded build" shell/libretro/option.cpp || \
   sed -i 's/Option<bool> ThreadedRendering(CORE_OPTION_NAME "_threaded_rendering", true);/#if defined(__EMSCRIPTEN__) \/* romdev\/WASM: single-threaded build *\/\nOption<bool> ThreadedRendering(CORE_OPTION_NAME "_threaded_rendering", false);\n#else\nOption<bool> ThreadedRendering(CORE_OPTION_NAME "_threaded_rendering", true);\n#endif/' shell/libretro/option.cpp
 
-# CPU runs on the worker thread when ThreadedRendering is on — but our pthread no-op
+# CPU runs on the worker thread when ThreadedRendering is on - but our pthread no-op
 # means that worker never runs (CPU never steps). Force it OFF at runtime (the option
 # default isn't enough; the host's option value may not reach update_variables in time).
 grep -q "romdev force single-thread" shell/libretro/libretro.cpp || \
@@ -121,7 +121,7 @@ grep -q "romdev force single-thread" shell/libretro/libretro.cpp || \
 
 # HLE BIOS (reios) must be ON: only the reios path loads a raw homebrew .elf. We never
 # ship a real dc_boot.bin, and the "(Restart Required)" option is latched at retro_init
-# before the host can set it — so default it true in the source.
+# before the host can set it - so default it true in the source.
 grep -q "romdev/WASM: we never ship" shell/libretro/option.cpp || \
   perl -0pi -e 's/Option<bool> UseReios\(CORE_OPTION_NAME "_hle_bios"\);/#if defined(__EMSCRIPTEN__) \/* romdev\/WASM: we never ship a real dc_boot.bin *\/\nOption<bool> UseReios(CORE_OPTION_NAME "_hle_bios", true);\n#else\nOption<bool> UseReios(CORE_OPTION_NAME "_hle_bios");\n#endif/' shell/libretro/option.cpp
 
@@ -132,7 +132,7 @@ grep -q "romdev/WASM: we never ship" shell/libretro/option.cpp || \
 #    ALWAYS applied (not JIT-gated) so an interpreter build can be measured against a
 #    JIT build with the same instrument; the cost is one emscripten_get_now() pair per
 #    AICA sample tick / per rendered frame. The matching _romdev_*_prof_ms entries are
-#    in BASE_EXPORTS below — if you drop these patches, drop those too, or the link
+#    in BASE_EXPORTS below - if you drop these patches, drop those too, or the link
 #    silently omits them (ERROR_ON_UNDEFINED_SYMBOLS=0) and the host sees no export.
 grep -q "romdev_aica_prof_ms" core/hw/aica/aica.cpp || \
   perl -0pi -e 's/(static int AicaUpdate\(int tag, int cycles, int jitter, void \*arg\)\n\{\n)(\targm::run\(1\);|\tarm::run\(1\);)/#include <emscripten.h>\ndouble g_aica_prof_ms = 0.0;\nextern "C" EMSCRIPTEN_KEEPALIVE double romdev_aica_prof_ms(int reset){ double v=g_aica_prof_ms; if(reset) g_aica_prof_ms=0.0; return v; }\n\n$1\tdouble _t0 = emscripten_get_now();\n$2\n\tg_aica_prof_ms += emscripten_get_now() - _t0;/' core/hw/aica/aica.cpp

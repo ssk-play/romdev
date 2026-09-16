@@ -23,7 +23,7 @@ index 589d4f2..0c1f2b8 100644
  EXPORT size_t retro_get_memory_size(unsigned id)
  {
 +    if (id == RETRO_MEMORY_SYSTEM_RAM && _memory != nullptr) {
-+        return 0x10000; // 64KB — the full PICO-8 address space
++        return 0x10000; // 64KB - the full PICO-8 address space
 +    }
      return 0;
  }

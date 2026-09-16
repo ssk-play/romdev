@@ -43,7 +43,7 @@ index aa43b2f..3c69389 100644
  void S9xMainLoop (void)
  {
 +	/* romdev: once a breakpoint/watchdog hit has frozen this CPU, KEEP it
-+	 * frozen — the host re-enters S9xMainLoop on the next frame, which would
++	 * frozen - the host re-enters S9xMainLoop on the next frame, which would
 +	 * resume execution and drift the register file away from the hit. The
 +	 * host clears the hit (pcbreak_get clearHit / pcbreak_set) to resume. */
 +	if (romdev_is_frozen())
@@ -75,7 +75,7 @@ index aa43b2f..3c69389 100644
  		}
  
 +		/* romdev (0.80.0): PBPC is the first byte of the instruction about to dispatch
-+		 * — latch it for the 65816 mid-instruction R/W hooks, then ask the shared lib
++		 * - latch it for the 65816 mid-instruction R/W hooks, then ask the shared lib
 +		 * whether to FREEZE (coverage + watchdog + pc-break/single-step live in
 +		 * romdev_debug.c). On a freeze, snapshot the 65816 registers (kind 2=watchdog
 +		 * else 1=pc-break/step) and break out of S9xMainLoop leaving PBPC on the
@@ -114,7 +114,7 @@ index ec55ea9..a73af88 100644
 +
 +/* Canonicalize a SNES bus address: the low 8 KB of WRAM is MIRRORED into banks
 + * $00-$3F and $80-$BF at $0000-$1FFF, so the CPU issues a stack/zero-page access
-+ * as e.g. $00:0039 while the "real" WRAM address is $7E0039 — match both. The
++ * as e.g. $00:0039 while the "real" WRAM address is $7E0039 - match both. The
 + * shared lib compares raw addresses, so we canonicalize BEFORE calling it (both
 + * the watched address (set by the host as $7Exxxx) and the live access). */
 +static inline unsigned int romdev_wp_canon(unsigned int a)
@@ -126,8 +126,8 @@ index ec55ea9..a73af88 100644
 +	return a;
 +}
 +/* The hooks record the EXECUTING instruction's first byte (romdev_snes_instr_pc,
-+ * latched at dispatch in S9xMainLoop) — NOT the live PBPC, which has advanced past
-+ * the operands by write time — and the shared lib reports a hit (return 1) so we
++ * latched at dispatch in S9xMainLoop) - NOT the live PBPC, which has advanced past
++ * the operands by write time - and the shared lib reports a hit (return 1) so we
 + * freeze a full register snapshot (the live file keeps moving afterward).
 + * Call sites pass only pure expressions (Address, Byte, word>>8), so naming the
 + * macro args twice is safe (no double-eval side effects, unlike the gpgx z80). */
@@ -144,7 +144,7 @@ index ec55ea9..a73af88 100644
 +			romdev_snes_snap(4); \
 +	} while (0)
 +
-+/* ---- romdev RANGE watch — folded into on_write/on_read now (no-op kept so the
++/* ---- romdev RANGE watch - folded into on_write/on_read now (no-op kept so the
 + * existing call sites need no edits). The shared lib's range logic runs inside
 + * romdev_on_write/on_read above; addresses arrive already WRAM-canonicalized. */
 +#define ROMDEV_RANGE_SNES(addr, val, w) do { (void)(addr); (void)(val); (void)(w); } while (0)
@@ -175,7 +175,7 @@ index ec55ea9..a73af88 100644
  	{
  		word = READ_WORD(GetAddress + (Address & 0xffff));
 +		/* romdev read watch: this fast path reads both bytes directly via
-+		 * READ_WORD, bypassing S9xGetByte's wrapper — check both here. */
++		 * READ_WORD, bypassing S9xGetByte's wrapper - check both here. */
 +		ROMDEV_RD_SNES(Address, word);
 +		ROMDEV_RD_SNES(Address + 1, word >> 8);
 +		ROMDEV_RANGE_SNES(Address, word, 0);
@@ -327,7 +327,7 @@ index d381c61..63b284f 100644
 +extern "C" {
 +#include "romdev_debug.h"
 +
-+/* romdev VRAM-port copy trace (hooks in ppu.h's REGISTER_2118/2119 family —
++/* romdev VRAM-port copy trace (hooks in ppu.h's REGISTER_2118/2119 family -
 + * CPU port writes AND the DMA path both land there). set(lo,hi,enabled) arms
 + * a VRAM byte-address window + clears the ring; get drains [vaddr,pc,val]
 + * triples, out2 = [totalSeen, stored]. */
@@ -376,7 +376,7 @@ index d381c61..63b284f 100644
 + * Returns 0 on success, -1 on an unknown id.
 + *
 + * IMPORTANT (PC): the 65816 main loop fetches opcodes via CPU.PCBase[PCw], so a
-+ * bare Registers.PBPC = value would NOT redirect execution — the stale fetch
++ * bare Registers.PBPC = value would NOT redirect execution - the stale fetch
 + * pointer would keep running the old code. S9xSetPCBase(addr) sets PBPC AND
 + * ShiftedPB/MemSpeed AND recomputes CPU.PCBase, so a set PC actually executes
 + * (this is what callSubroutine relies on). Same call cpu.cpp / snapshot.cpp use
@@ -414,12 +414,12 @@ index d381c61..63b284f 100644
 +}
 +
 +/* rom-dev-mcp extension: custom memory region IDs above libretro standard.
-+ * Mirrors the fceumm patch — lets the host inspect SNES OAM/CGRAM/ARAM
++ * Mirrors the fceumm patch - lets the host inspect SNES OAM/CGRAM/ARAM
 + * directly instead of parsing freeze-state blobs. */
 +#define ROMDEV_MEMORY_SNES_OAM    0x110  /* 544B PPU.OAMData (512 low + 32 high) */
 +#define ROMDEV_MEMORY_SNES_CGRAM  0x111  /* 512B PPU.CGDATA (256 × uint16) */
 +#define ROMDEV_MEMORY_SNES_ARAM   0x112  /* 64KB SPC700 RAM */
-+#define ROMDEV_MEMORY_SNES_FILLRAM 0x113 /* 32KB Memory.FillRAM — PPU/DMA registers shadow */
++#define ROMDEV_MEMORY_SNES_FILLRAM 0x113 /* 32KB Memory.FillRAM - PPU/DMA registers shadow */
 +/* Resolved-frame capture (gfx.cpp): the FINAL composed RGB565 lines (color
 + * math, windows, brightness, mode 7 all baked) + per-line register state. */
 +#define ROMDEV_MEMORY_SNES_LINEPIX   0x1B0  /* 480*512 u16 LE RGB565, displayed rows */
@@ -536,7 +536,7 @@ index d381c61..63b284f 100644
 +            size = 64 * 1024;
 +            break;
 +        case ROMDEV_MEMORY_SNES_FILLRAM:
-+            size = 0x8000;     /* 32KB — PPU/DMA register shadow at $00:2000+ */
++            size = 0x8000;     /* 32KB - PPU/DMA register shadow at $00:2000+ */
 +            break;
 +        case ROMDEV_MEMORY_SNES_LINEPIX:
 +            size = 480 * 512 * 2;
@@ -612,7 +612,7 @@ index f5b0e0a..e34c413 100644
  
 +/* romdev VRAM-port COPY TRACE (state + exports in libretro.cpp): log every
 + * write landing in a watched VRAM byte-address window with the EXECUTING
-+ * instruction's PC — during DMA that PC is the instruction that triggered
++ * instruction's PC - during DMA that PC is the instruction that triggered
 + * MDMAEN, which is exactly the "which routine uploads this graphic?" answer.
 + * Hooked in all six 2118/2119 variants (CPU port writes AND the DMA path go
 + * through these). */

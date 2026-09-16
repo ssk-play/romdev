@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Build the FAKE-08 libretro core → WASM (retroemu ES6 factory). FAKE-08 is an
-# open-source (MIT) PICO-8 *player* by jtothebell — a clean-room reimplementation,
+# open-source (MIT) PICO-8 *player* by jtothebell - a clean-room reimplementation,
 # NOT Lexaloffle's PICO-8, and it needs NO BIOS. It runs .p8 (Lua source carts) and
 # .p8.png (carts embedded in a label PNG). PICO-8 is a Lua VM (128×128, 16-color,
-# 6 buttons) — no real CPU — so this core ships run/see/drive only; NO romdev_debug
+# 6 buttons) - no real CPU - so this core ships run/see/drive only; NO romdev_debug
 # hooks (nothing to watchpoint), and the .p8 Lua source IS the "disassembly".
 #
 # Output: src/cores/wasm/fake08_libretro.{js,wasm} + the romdev-core-fake08 package.
@@ -28,7 +28,7 @@ OUT="$PROJECT_DIR/src/cores/wasm"
 
 fetch_pinned cores.fake08 "$FAKE08_DIR"
 
-# ── pin the submodules (z8lua etc.) — fetch_pinned() doesn't recurse ──
+# ── pin the submodules (z8lua etc.) - fetch_pinned() doesn't recurse ──
 # Read each submodule path→commit from versions.json and check it out exactly.
 cd "$FAKE08_DIR"
 git submodule update --init --recursive --depth 1 2>/dev/null || git submodule update --init --recursive
@@ -68,7 +68,7 @@ git checkout -- source/vm.cpp 2>/dev/null || true
 if git apply --check "$INPUT_PATCH" 2>/dev/null; then
   git apply "$INPUT_PATCH"
   echo "romdev: applied $INPUT_PATCH"
-elif grep -q "fall through — deliver real input this frame" source/vm.cpp; then
+elif grep -q "fall through - deliver real input this frame" source/vm.cpp; then
   echo "romdev: input-resume fix already present; skipping."
 else
   echo "FATAL: fake08 input-resume patch failed to apply and sentinel not present." >&2
@@ -79,7 +79,7 @@ cd "$FAKE08_DIR/platform/libretro"
 
 # ── build the objects with longjmp + exceptions support (the gotcha) ──
 # EMCC_CFLAGS is appended by emcc/em++ to EVERY compile → the Makefile's own
-# INCFLAGS (-Isource -Ilibs/z8lua …) stay intact (unlike a bare CFLAGS= override).
+# INCFLAGS (-Isource -Ilibs/z8lua ...) stay intact (unlike a bare CFLAGS= override).
 export EMCC_CFLAGS="-sSUPPORT_LONGJMP=emscripten -fexceptions"
 emmake make platform=emscripten clean >/dev/null 2>&1 || true
 # The Makefile's final .bc link fails on --no-undefined (wasm-ld rejects it); we only

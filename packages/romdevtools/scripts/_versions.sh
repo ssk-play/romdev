@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Reads scripts/versions.json — the single source of truth for every upstream
+# Reads scripts/versions.json - the single source of truth for every upstream
 # pin. Build scripts source this instead of hardcoding URLs/refs/versions.
 #
 # Uses `node` (guaranteed in the emsdk build image AND on the dev box) so the
-# loader behaves identically locally and in Docker — no jq dependency.
+# loader behaves identically locally and in Docker - no jq dependency.
 #
 # Helpers (all take a dotted path into versions.json, e.g. cores.fceumm):
 #   pin_url <path>      -> upstream url
@@ -14,9 +14,9 @@
 #   pin_get <path> <k>  -> any field by key
 #
 # Plus:
-#   fetch_pinned <path> <dest>          — shallow-fetch a git upstream at its
+#   fetch_pinned <path> <dest>          - shallow-fetch a git upstream at its
 #                                         exact pinned commit (reproducible).
-#   fetch_pinned_tarball <path> <dest>  — download a pinned tarball URL and
+#   fetch_pinned_tarball <path> <dest>  - download a pinned tarball URL and
 #                                         verify its sha256 (for kind:"tarball").
 
 _VERSIONS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -63,7 +63,7 @@ fetch_pinned() {
   fi
   case "$commit" in
     UNVERIFIED-*)
-      echo "Error: '$keypath' commit is '$commit' — resolve a real pin in versions.json before building." >&2
+      echo "Error: '$keypath' commit is '$commit' - resolve a real pin in versions.json before building." >&2
       exit 1 ;;
   esac
   echo "Fetching $url @ $commit -> $dst"
@@ -86,7 +86,7 @@ fetch_pinned() {
 # fetch_pinned_tarball <dotted.path> <dest-tarball>
 # Downloads the pinned tarball URL to <dest-tarball> and verifies its sha256
 # against versions.json. For upstreams that only serve a rolling "latest"
-# tarball (no versioned URL), the sha256 IS the pin — a mismatch means upstream
+# tarball (no versioned URL), the sha256 IS the pin - a mismatch means upstream
 # moved and must be reviewed as a deliberate bump. First build records the sha
 # (prints it so it can be pasted into versions.json) instead of failing.
 # Use for kind:"tarball" entries; fetch_pinned (git) is for kind:"git".

@@ -90,7 +90,7 @@ if [ ! -f "$ROOT/build-wasm-gcc/gcc/cc1.wasm" ]; then
     --disable-bootstrap --without-headers --with-newlib \
     --with-gmp="$WASM_PREFIX" --with-mpfr="$WASM_PREFIX" \
     --with-mpc="$WASM_PREFIX" --with-isl="$WASM_PREFIX" --with-system-zlib
-  # Build JUST cc1 (the C frontend we need), NOT all-gcc — the aux tools
+  # Build JUST cc1 (the C frontend we need), NOT all-gcc - the aux tools
   # (gcov-tool, lto-plugin) reference ftw/liblto_plugin.so that emscripten lacks
   # and abort the whole all-gcc target. cc1 is self-contained.
   #
@@ -99,19 +99,19 @@ if [ ! -f "$ROOT/build-wasm-gcc/gcc/cc1.wasm" ]; then
   #     `all-build` builds those (build-x86_64-linux-gnu/{libiberty,libcpp}).
   #   - HOST-side (WASM) support libs cc1 links against: ../libcpp/libcpp.a,
   #     ../libiberty/libiberty.a, ../libdecnumber, ../libbacktrace. The gcc top
-  #     makefile configures these HOST dirs lazily — `make cc1` from gcc/ does NOT
+  #     makefile configures these HOST dirs lazily - `make cc1` from gcc/ does NOT
   #     trigger their *configure*, so we must configure+build them explicitly via
   #     the top-level all-<dir> targets FIRST (configure-<dir> alone is a no-op stub;
   #     all-<dir> depends on configure-<dir> and actually runs it).
   emmake make -j"$NCPU" all-build
   emmake make -j"$NCPU" all-libcpp all-libiberty all-libdecnumber all-libbacktrace
   emmake make -j"$NCPU" configure-gcc
-  # cc1: gcc/Makefile sets CC_FOR_BUILD=$(CC) — and emconfigure made $(CC)=emcc, so the
-  # BUILD-side gen tools (genchecksum/genhooks/genmodes/…) would be built+linked as WASM
+  # cc1: gcc/Makefile sets CC_FOR_BUILD=$(CC) - and emconfigure made $(CC)=emcc, so the
+  # BUILD-side gen tools (genchecksum/genhooks/genmodes/...) would be built+linked as WASM
   # and fail (they must RUN natively during the build to GENERATE cc1's sources). Force
   # the build-tool compiler back to the native host gcc/g++ so the gen tools are native
   # while cc1 itself still cross-compiles to WASM via $(CC)=emcc for non-build objects.
-  # Only override the build-tool COMPILER (CC/CXX_FOR_BUILD); do NOT clear BUILD_*FLAGS —
+  # Only override the build-tool COMPILER (CC/CXX_FOR_BUILD); do NOT clear BUILD_*FLAGS -
   # the gen tools need the version -D defines (BASEVER/DEVPHASE/DATESTAMP) the Makefile
   # injects via BUILD_CPPFLAGS, and clearing them breaks genversion/genchecksum.
   ( cd gcc && emmake make -j"$NCPU" cc1 \
@@ -119,7 +119,7 @@ if [ ! -f "$ROOT/build-wasm-gcc/gcc/cc1.wasm" ]; then
 fi
 
 # ── 3. binutils as WASM ─────────────────────────────────────────────
-# binutils has its OWN libiberty/strsignal.c — patch it too (same psignal fix).
+# binutils has its OWN libiberty/strsignal.c - patch it too (same psignal fix).
 if ! grep -q "romdev: emscripten libc provides psignal" "$SRC_DIR/binutils-$BINUTILS_VER/libiberty/strsignal.c"; then
   sed -i 's/#ifndef HAVE_PSIGNAL/#if 0 \/* romdev: emscripten libc provides psignal *\//' \
     "$SRC_DIR/binutils-$BINUTILS_VER/libiberty/strsignal.c"
@@ -139,7 +139,7 @@ fi
 
 # ── 4. Wrap + stage ─────────────────────────────────────────────────
 # Each tool is RE-LINKED through its own Makefile with the MODULARIZE/EXPORT_ES6
-# knobs injected via LDFLAGS — NOT `emcc <built>` directly, because the tool's
+# knobs injected via LDFLAGS - NOT `emcc <built>` directly, because the tool's
 # object list (libbackend.a + the per-language objects for cc1, etc.) is known
 # only to the Makefile. Output goes straight to the staging dir.
 KNOBS_BASE="-O2 -g0 -s MODULARIZE=1 -s EXPORT_ES6=1 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=268435456 -s EXIT_RUNTIME=1 -s INVOKE_RUN=0 -s ENVIRONMENT=node -s EXPORTED_RUNTIME_METHODS=callMain,FS"

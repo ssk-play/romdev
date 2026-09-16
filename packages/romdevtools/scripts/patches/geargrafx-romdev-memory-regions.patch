@@ -14,7 +14,7 @@ index 131c841..7d6d948 100644
 +#include "romdev_debug.h"
 +unsigned int romdev_huc_instr_pc = 0xFFFFFFFF;
 +
-+/* romdev VRAM-port copy trace (hook in huc6270_inline.h's ProcessVramWrite —
++/* romdev VRAM-port copy trace (hook in huc6270_inline.h's ProcessVramWrite -
 + * the CPU's VWR data-port path). vaddr is the HuC6270 VRAM WORD address.
 + * set(lo,hi,enabled) arms + clears; get drains [vaddr,pc,val] triples,
 + * out2 = [totalSeen, stored]. */
@@ -561,7 +561,7 @@ index 3caa541..0b7c484 100644
                  }
              }
 +
-+            if (romdev_is_frozen())   /* romdev PC breakpoint — end the frame here */
++            if (romdev_is_frozen())   /* romdev PC breakpoint - end the frame here */
 +                stop = true;
          }
          while (!stop);
@@ -571,7 +571,7 @@ index 3caa541..0b7c484 100644
              if (ClockHardware<is_cdrom, is_sgx>(remaining_cycles))
                  stop = true;
 +
-+            if (romdev_is_frozen())   /* romdev PC breakpoint — end the frame here */
++            if (romdev_is_frozen())   /* romdev PC breakpoint - end the frame here */
 +                stop = true;
          }
          while (!stop);
@@ -813,7 +813,7 @@ index 018fd86..d0d943d 100644
              false);
          m_vram[m_register[HUC6270_REG_MAWR] & 0x7FFF] = m_register[HUC6270_REG_VWR];
 +        {
-+            /* romdev VRAM-port copy trace — log {vram word addr, executing
++            /* romdev VRAM-port copy trace - log {vram word addr, executing
 +             * instruction PC, low byte} when the write lands in the watched
 +             * window. State + exports in the libretro glue; extern "C" decls
 +             * at the top of this header. */
@@ -863,7 +863,7 @@ index c2e449d..c8e06a6 100644
 +        return 0;
 +    }
 +
-+    /* m_PC is the first byte of the instruction about to dispatch — latch it for the
++    /* m_PC is the first byte of the instruction about to dispatch - latch it for the
 +     * Memory::Read/Write watch hooks, then ask the shared lib whether to FREEZE
 +     * (coverage + watchdog + pc-break/single-step live in romdev_debug.c). On a
 +     * freeze: snapshot (kind 2=watchdog else 1=pc-break/step) + return 0 cycles

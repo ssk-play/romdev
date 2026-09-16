@@ -65,7 +65,7 @@ EM_WRAP_FLAGS=(
   -s INVOKE_RUN=0
   -s "EXPORTED_RUNTIME_METHODS=[\"callMain\",\"FS\"]"
   # Strip DWARF debug info from the relinked wasm. emcc defaults to -O0, which
-  # PRESERVES the debug sections carried in the input bitcode — for cc1 that's
+  # PRESERVES the debug sections carried in the input bitcode - for cc1 that's
   # ~95MB of .debug_*/name (the artifact ballooned to 136MB). -g0 drops it,
   # taking cc1-arm.wasm to ~38MB (code+data only). A shipped compiler doesn't
   # need DWARF; the source is available for anyone who wants to debug a build.

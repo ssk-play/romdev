@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// check-wasm.mjs — prepublish guard for the binary packages.
+// check-wasm.mjs - prepublish guard for the binary packages.
 //
 // The wasm/glue blobs are NOT committed to git; they only exist as built files
 // in a working tree. `npm pack`/`npm publish` reads the working tree, so a
-// publish from a machine that HAS the built wasm is correct — but a publish
+// publish from a machine that HAS the built wasm is correct - but a publish
 // from a fresh `git clone` (e.g. a CI runner) would ship empty `wasm/` dirs =
 // broken packages users can't run. This guard runs from each binary package's
 // `prepublishOnly` and ABORTS the publish if the wasm looks missing/stubbed.
@@ -37,7 +37,7 @@ const pkgName = (() => {
 })();
 
 function fail(msg) {
-  console.error(`\n✖ check-wasm: ${pkgName} — ${msg}`);
+  console.error(`\n✖ check-wasm: ${pkgName} - ${msg}`);
   console.error("  Refusing to publish a package with missing/stub wasm.");
   console.error("  Build the wasm first (see packages/romdevtools/scripts/build-*.sh)");
   console.error("  and publish from a working tree that has the built artifacts.\n");
@@ -64,4 +64,4 @@ if (tooSmall.length) {
   fail(`these wasm files look like stubs / empties:\n    ${tooSmall.join("\n    ")}`);
 }
 
-console.log(`✓ check-wasm: ${pkgName} — ${files.length} wasm file(s) present and non-stub`);
+console.log(`✓ check-wasm: ${pkgName} - ${files.length} wasm file(s) present and non-stub`);

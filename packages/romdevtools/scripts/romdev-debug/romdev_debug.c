@@ -1,4 +1,4 @@
-/* romdev_debug.c — the shared debug machinery for ALL romdev cores. See
+/* romdev_debug.c - the shared debug machinery for ALL romdev cores. See
  * romdev_debug.h for the contract. This file owns the ~70% that used to be
  * copy-pasted into every core's patch: the watchpoint/read-watch/range/coverage
  * state + rings, the pcbreak/watchdog/single-step logic, the register-snapshot

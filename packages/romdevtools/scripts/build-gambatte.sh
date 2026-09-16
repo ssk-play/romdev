@@ -66,7 +66,7 @@ emmake make -f Makefile.libretro platform=emscripten clean >/dev/null 2>&1 || tr
 # archive from a prior build can survive and shadow the fresh one (find -quit
 # picks .a before .bc). Drop stale archives so only this build's output remains.
 find . -maxdepth 2 -name "*_libretro_emscripten.a" -delete 2>/dev/null || true
-# Inject the romdev_debug.h include via INCFLAGS_PLATFORM — the Makefile's designated
+# Inject the romdev_debug.h include via INCFLAGS_PLATFORM - the Makefile's designated
 # extension point (it's `+=`'d into INCFLAGS, so it ADDS to the core's own -I dirs
 # instead of clobbering them like a bare CFLAGS= would).
 emmake make -f Makefile.libretro platform=emscripten -j"$(nproc)" \
@@ -84,7 +84,7 @@ fi
 
 # gambatte's archive references libretro-common helpers (filestream,
 # string_trim, etc) but doesn't bundle their .o files. Compile the
-# subset we need and add to the archive — same pattern as fceumm.
+# subset we need and add to the archive - same pattern as fceumm.
 LIBRETRO_COMMON=""
 for dir in "libretro-common" "src/libretro-common" "libgambatte/libretro-common" "libgambatte/libretro/libretro-common"; do
   if [ -d "$GAMBATTE_DIR/$dir" ]; then LIBRETRO_COMMON="$GAMBATTE_DIR/$dir"; break; fi

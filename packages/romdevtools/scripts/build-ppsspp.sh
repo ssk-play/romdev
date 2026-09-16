@@ -3,13 +3,13 @@
 #
 # The PSP GE renders on the REAL GPU through native-gles: PPSSPP's GLES2 backend draws to
 # WebGL2 (the same renderer it uses on Android), the host owns the EGL pbuffer via
-# native-gles, and we glReadPixels the frame back — the same GPU path as glide64-N64 /
+# native-gles, and we glReadPixels the frame back - the same GPU path as glide64-N64 /
 # beetle-PS1 / flycast-DC. PPSSPP is full HLE: NO Sony firmware (it bundles its own open
 # Roboto font replacement). Interpreter-only under WASM (no native JIT), which is fine for
 # build/boot/screenshot/inspect.
 #
 # PPSSPP is a large C++ codebase with many git submodules and was written assuming a native
-# (x86/ARM) target — emscripten defines __i386__ for its SSE→WASM-SIMD emulation, which trips
+# (x86/ARM) target - emscripten defines __i386__ for its SSE→WASM-SIMD emulation, which trips
 # a pile of "this is x86" codepaths that emit inline asm / x86-only intrinsics WASM can't
 # build. This script clones + inits the needed submodules and applies the emscripten patches.
 set -euo pipefail
@@ -29,7 +29,7 @@ fi
 cd "$SRC"
 
 # Submodules the libretro emscripten build actually compiles from (NOT ffmpeg/pspautotests/
-# SDL/MoltenVK/freetype/nanosvg/etc. — those aren't in the emscripten source set).
+# SDL/MoltenVK/freetype/nanosvg/etc. - those aren't in the emscripten source set).
 for sub in libretro/libretro-common ext/armips ext/glslang ext/SPIRV-Cross ext/rapidjson \
            ext/zstd ext/cpu_features ext/snappy ext/discord-rpc ext/miniupnp ext/lua \
            ext/libchdr ext/rcheevos ext/OpenXR-SDK ext/aemu_postoffice; do
@@ -40,7 +40,7 @@ done
 
 # ── emscripten/WASM patches (each fixes an x86-assumption that breaks under wasm) ──
 
-# (1) Drop the x86 SSE compile flags from the emscripten target's PLATCFLAGS? NO — keep them.
+# (1) Drop the x86 SSE compile flags from the emscripten target's PLATCFLAGS? NO - keep them.
 #     PPSSPP relies on emscripten's SSE→WASM-SIMD emulation, so -msse3/-mssse3/-msse4.1 stay.
 #     The breakage is specific intrinsics emscripten does NOT emulate; patched at the source.
 
@@ -50,10 +50,10 @@ done
 #     come from ia32intrin.h).
 F=Common/CommonFuncs.h
 if ! grep -q "romdev:" "$F"; then
-  perl -0pi -e 's{#elif \(PPSSPP_ARCH\(X86\) \|\| PPSSPP_ARCH\(AMD64\)\)\n#include <x86intrin\.h>}{#elif defined(__EMSCRIPTEN__)\n// romdev: <x86intrin.h> pulls ia32intrin.h (readeflags/crc32/rdtsc — no WASM lowering).\n#include <immintrin.h>\n#elif (PPSSPP_ARCH(X86) || PPSSPP_ARCH(AMD64))\n#include <x86intrin.h>}' "$F"
+  perl -0pi -e 's{#elif \(PPSSPP_ARCH\(X86\) \|\| PPSSPP_ARCH\(AMD64\)\)\n#include <x86intrin\.h>}{#elif defined(__EMSCRIPTEN__)\n// romdev: <x86intrin.h> pulls ia32intrin.h (readeflags/crc32/rdtsc - no WASM lowering).\n#include <immintrin.h>\n#elif (PPSSPP_ARCH(X86) || PPSSPP_ARCH(AMD64))\n#include <x86intrin.h>}' "$F"
   perl -0pi -e 's{#elif \(PPSSPP_ARCH\(X86\) \|\| PPSSPP_ARCH\(AMD64\)\)\n\treturn __rold\(x, shift\);}{#elif (PPSSPP_ARCH(X86) || PPSSPP_ARCH(AMD64)) \&\& !defined(__EMSCRIPTEN__)\n\treturn __rold(x, shift);}' "$F"
   perl -0pi -e 's{#elif \(PPSSPP_ARCH\(X86\) \|\| PPSSPP_ARCH\(AMD64\)\)\n\treturn __rord\(x, shift\);}{#elif (PPSSPP_ARCH(X86) || PPSSPP_ARCH(AMD64)) \&\& !defined(__EMSCRIPTEN__)\n\treturn __rord(x, shift);}' "$F"
-  # the first guarded block at the top of the file (line ~33) — also exclude emscripten.
+  # the first guarded block at the top of the file (line ~33) - also exclude emscripten.
   perl -0pi -e 's{#if \(PPSSPP_ARCH\(X86\) \|\| PPSSPP_ARCH\(AMD64\)\)(\n#include <nmmintrin\.h>)}{#if (PPSSPP_ARCH(X86) || PPSSPP_ARCH(AMD64)) \&\& !defined(__EMSCRIPTEN__)$1}' "$F" 2>/dev/null || true
 fi
 
@@ -91,14 +91,14 @@ cd "$SRC/libretro"
 emmake make platform=emscripten clean >/dev/null 2>&1 || true
 emmake make platform=emscripten -j"$(nproc)"
 
-# ── link ALL .o directly (NOT the .bc archive — the archive route drops GL objects so the
+# ── link ALL .o directly (NOT the .bc archive - the archive route drops GL objects so the
 #    core never calls SET_HW_RENDER). Exclude armips' precompiled MIPS test fixtures. ──
 OBJ_FILES=$(find "$SRC" -name "*.o" | grep -vE "/Tests/|/test/|/tests/|object_code" | tr '\n' ' ')
 EXPORTED='["_retro_api_version","_retro_init","_retro_deinit","_retro_set_environment","_retro_set_video_refresh","_retro_set_audio_sample","_retro_set_audio_sample_batch","_retro_set_input_poll","_retro_set_input_state","_retro_get_system_info","_retro_get_system_av_info","_retro_load_game","_retro_unload_game","_retro_run","_retro_reset","_retro_serialize_size","_retro_serialize","_retro_unserialize","_retro_cheat_reset","_retro_cheat_set","_retro_get_memory_data","_retro_get_memory_size","_retro_get_region","_retro_set_controller_port_device","_malloc","_free","_emscripten_GetProcAddress"]'
 EXPORTED_RT='["ccall","cwrap","addFunction","removeFunction","HEAPU8","HEAPU16","HEAPU32","HEAP16","HEAP32","HEAPF32","UTF8ToString","stringToUTF8","lengthBytesUTF8","getValue","setValue","FS","dynCall","GL"]'
 
 # PSP wants big memory (32MB main + upscale buffers); -pthread with a real pool (PPSSPP is
-# heavily threaded — POOL_SIZE=0 aborts on the first thread spawn). GL knobs identical to the
+# heavily threaded - POOL_SIZE=0 aborts on the first thread spawn). GL knobs identical to the
 # other 3D cores: -lGL + GL_ENABLE_GET_PROC_ADDRESS + "GL" in EXPORTED_RUNTIME_METHODS.
 emcc $OBJ_FILES -O3 -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 \
   -s "EXPORT_NAME=create_ppsspp" -s "ENVIRONMENT=node,web" -s ALLOW_MEMORY_GROWTH=1 \

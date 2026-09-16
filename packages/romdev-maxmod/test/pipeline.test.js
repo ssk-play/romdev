@@ -1,13 +1,13 @@
 // End-to-end pipeline tests: soundbankFromModule() must be BYTE-IDENTICAL to
-// the REAL devkitPro mmutil (with FixSample ACTIVE — the GBA sample fixer that
+// the REAL devkitPro mmutil (with FixSample ACTIVE - the GBA sample fixer that
 // down-converts to 8-bit, trims post-loop data, and unrolls short loops up to
 // GBA_MIN_LOOP_SIZE=512). The reference .bin files here were produced by the
 // stock mmutil 1.10.x C source (NOT the FixSample-stubbed build used by
 // mas.test.js):
 //
-//   chiptune_xm.bin        — mmutil chiptune.xm        (MOD_CHIPTUNE)
-//   serializer_mod_fixed.bin — mmutil serializer.mod   (MOD_SERIALIZER)
-//   sample_it_fixed.bin    — mmutil sample.it          (MOD_SAMPLE)
+//   chiptune_xm.bin        - mmutil chiptune.xm        (MOD_CHIPTUNE)
+//   serializer_mod_fixed.bin - mmutil serializer.mod   (MOD_SERIALIZER)
+//   sample_it_fixed.bin    - mmutil sample.it          (MOD_SAMPLE)
 //
 // This is the path real consumers use, and the one that regressed (the GBA
 // FixSample loop-unroll was never wired, so looped samples were emitted at

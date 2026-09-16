@@ -3,7 +3,7 @@
 #
 # The PS1 GPU renders on the REAL GPU through native-gles: beetle's GLES3 hardware
 # renderer (rhi_lib_gl) draws to WebGL2, the host owns the EGL pbuffer via native-gles,
-# and we glReadPixels the frame back — the same GPU path as glide64-N64 + Flycast-DC.
+# and we glReadPixels the frame back - the same GPU path as glide64-N64 + Flycast-DC.
 # OpenBIOS (PCSX-Redux, MIT, region-free) is EMBEDDED in the core source, so there is no
 # copyrighted Sony firmware to ship and no BIOS file to supply.
 set -euo pipefail
@@ -23,9 +23,9 @@ cd "$SRC"
 # ── romdev debug exports (cpuState + audioDebug) ──────────────────────────────
 # cpuState: R3000A register snapshot appended to cpu.c (GPR/BACKED_PC macros in scope).
 # audioDebug: SPU register block appended to spu.c (the static raw `regs` mirror in
-# scope — we read regs.Regs[] directly, NOT SPU_Read, since SPU_Read quantizes the
+# scope - we read regs.Regs[] directly, NOT SPU_Read, since SPU_Read quantizes the
 # volume/sweep registers). Both idempotent. They light up cpu({op:'read'}) +
-# audioDebug({op:'inspect',chip:'spu'}) with zero host changes — the host's
+# audioDebug({op:'inspect',chip:'spu'}) with zero host changes - the host's
 # *Supported() checks just probe for the exports.
 CPU_C="mednafen/psx/cpu.c"
 if ! grep -q "romdev_mips_regs_get" "$CPU_C"; then
@@ -96,7 +96,7 @@ done
 
 # Always refresh the SHARED debug lib (the fresh-tree block above only runs once; a
 # rebuilt tree would otherwise link the old lib and the linker would miss any export
-# added since — 0.13.0's romdev_covbits_*).
+# added since - 0.13.0's romdev_covbits_*).
 RDBG_SRC="$(cd "$SCRIPT_DIR/romdev-debug" && pwd)"
 cp "$RDBG_SRC/romdev_debug.h" mednafen/psx/romdev_debug.h
 cp "$RDBG_SRC/romdev_debug.c" mednafen/psx/romdev_debug.c
@@ -104,7 +104,7 @@ rm -f mednafen/psx/romdev_debug.o
 # Compile the shared romdev_debug.c (the make picks up cpu.c's appended shim itself).
 emcc -O3 -flto -c mednafen/psx/romdev_debug.c -o mednafen/psx/romdev_debug.o $INCLUDES $DEFINES
 
-# Link ALL .o directly (not via the .bc archive — the archive route drops the GLSM/GL
+# Link ALL .o directly (not via the .bc archive - the archive route drops the GLSM/GL
 # objects so the core never calls SET_HW_RENDER, same lesson as N64). The GL knobs
 # (-lGL + GL_ENABLE_GET_PROC_ADDRESS + "GL" in EXPORTED_RUNTIME_METHODS) make Emscripten
 # emit Module["GL"]=GL so the returned module exposes the GL context the host drives.

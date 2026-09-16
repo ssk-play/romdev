@@ -6,7 +6,7 @@ index e3d9c40..a708e8c 100644
  #include "Cartridge.h"
  #include "Tia.h"
  #include "Riot.h"
-+#include "Sally.h"   /* for sally_pc (the 6502 PC) — romdev watchpoint */
++#include "Sally.h"   /* for sally_pc (the 6502 PC) - romdev watchpoint */
 +
 +/* romdev (0.80.0): the watch/range/coverage machinery + state live in the shared
 + * romdev_debug.c. Memory.c keeps only the 6502 memory_Read/Write hooks (which call
@@ -529,12 +529,12 @@ index 40100a7..e0dc573 100644
 +uint16_t prosystem_frequency     = 60;
 +uint16_t prosystem_scanlines     = 262;
 +
-+/* romdev PC breakpoint hit flag — set by the execute hook in core/Sally.c when
++/* romdev PC breakpoint hit flag - set by the execute hook in core/Sally.c when
 + * the CPU reaches the breakpoint PC. On a hit sally_ExecuteInstruction returns
 + * WITHOUT advancing PC or consuming cycles, so the per-frame cycle loops below
 + * would spin forever; we must drain the budget and break out so retro_run still
 + * returns this frame (leaving it incomplete = infinite hang). */
-+#include "romdev_debug.h"   /* romdev (0.80.0): romdev_is_frozen() — the shared freeze flag */
++#include "romdev_debug.h"   /* romdev (0.80.0): romdev_is_frozen() - the shared freeze flag */
 +
 +void prosystem_Reset(void)
 +{
@@ -930,7 +930,7 @@ index 398c38f..f7ac495 100644
     sally_pc.w = 0;
  }
  
-+/* romdev at-hit REGISTER SNAPSHOT (Sally 6502) — per-core. Fills the shared
++/* romdev at-hit REGISTER SNAPSHOT (Sally 6502) - per-core. Fills the shared
 + * romdev_snap_regs[] in the romdev_getreg regId order: [0]=A [1]=X [2]=Y [3]=P
 + * [4]=S [16]=PC of the EXECUTING instruction [18]=S. The memory_Read/Write watch
 + * hooks (Memory.c) + the dispatch hook call this when the shared lib reports a hit. */
@@ -955,11 +955,11 @@ index 398c38f..f7ac495 100644
 +   if (romdev_is_frozen())
 +      return 0;
 +
-+   /* sally_pc.w is the first byte of the instruction about to dispatch — latch it
++   /* sally_pc.w is the first byte of the instruction about to dispatch - latch it
 +    * for the Sally memory_Read/Write watch hooks, then ask the shared lib whether
 +    * to FREEZE (coverage + watchdog + pc-break/single-step live in romdev_debug.c).
 +    * On a freeze: snapshot (kind 2=watchdog else 1=pc-break/step) and return 0 cycles
-+    * WITHOUT executing — PC left un-advanced; the per-frame loop drains its budget on
++    * WITHOUT executing - PC left un-advanced; the per-frame loop drains its budget on
 +    * the hit flag so retro_run still returns. */
 +   romdev_sally_instr_pc = (unsigned int)sally_pc.w;
 +
@@ -1050,7 +1050,7 @@ index 3e4dbdb..8e0683d 100644
 +/* rom-dev-mcp extension: custom region IDs above libretro standard.
 + * Lets the host inspect 7800 CPU state for the getCPUState tool.
 + * MARIA / TIA / ROM are all reachable via system_ram (memory_ram is the
-+ * full 64KB 6502 address space — MARIA at $20-$3F, TIA audio at $15-$1A,
++ * full 64KB 6502 address space - MARIA at $20-$3F, TIA audio at $15-$1A,
 + * RIOT-side at $280-$2FF, RAM at $1800-$27FF, ROM at $4000-$FFFF). */
 +#define ROMDEV_MEMORY_A78_CPU_REGS 0x150  /* 7-byte 6502 snapshot */
 +

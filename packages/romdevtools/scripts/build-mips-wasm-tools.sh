@@ -90,14 +90,14 @@ if [ ! -f "$ROOT/build-wasm-gcc/gcc/cc1.wasm" ]; then
     --disable-bootstrap --without-headers --with-newlib \
     --with-gmp="$WASM_PREFIX" --with-mpfr="$WASM_PREFIX" \
     --with-mpc="$WASM_PREFIX" --with-isl="$WASM_PREFIX" --with-system-zlib
-  # Build JUST cc1 (the C frontend we need), NOT all-gcc — the aux tools
+  # Build JUST cc1 (the C frontend we need), NOT all-gcc - the aux tools
   # (gcov-tool, lto-plugin) reference ftw/liblto_plugin.so that emscripten lacks
   # and abort the whole all-gcc target. cc1 is self-contained.
   ( cd gcc && emmake make -j"$NCPU" cc1 )
 fi
 
 # ── 3. binutils as WASM ─────────────────────────────────────────────
-# binutils has its OWN libiberty/strsignal.c — patch it too (same psignal fix).
+# binutils has its OWN libiberty/strsignal.c - patch it too (same psignal fix).
 if ! grep -q "romdev: emscripten libc provides psignal" "$SRC_DIR/binutils-$BINUTILS_VER/libiberty/strsignal.c"; then
   sed -i 's/#ifndef HAVE_PSIGNAL/#if 0 \/* romdev: emscripten libc provides psignal *\//' \
     "$SRC_DIR/binutils-$BINUTILS_VER/libiberty/strsignal.c"
@@ -117,7 +117,7 @@ fi
 
 # ── 4. Wrap + stage ─────────────────────────────────────────────────
 # Each tool is RE-LINKED through its own Makefile with the MODULARIZE/EXPORT_ES6
-# knobs injected via LDFLAGS — NOT `emcc <built>` directly, because the tool's
+# knobs injected via LDFLAGS - NOT `emcc <built>` directly, because the tool's
 # object list (libbackend.a + the per-language objects for cc1, etc.) is known
 # only to the Makefile. Output goes straight to the staging dir.
 KNOBS_BASE="-O2 -g0 -s MODULARIZE=1 -s EXPORT_ES6=1 -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=268435456 -s EXIT_RUNTIME=1 -s INVOKE_RUN=0 -s ENVIRONMENT=node -s EXPORTED_RUNTIME_METHODS=callMain,FS"

@@ -11,7 +11,7 @@ OUT="$PROJECT_DIR/src/toolchains/vasm68k/wasm"
 mkdir -p "$BUILD_DIR/vasm"
 cd "$BUILD_DIR/vasm"
 if [ ! -d "$VASM_DIR" ]; then
-  # vasm is a rolling-release tarball (no versioned URL) — fetch_pinned_tarball
+  # vasm is a rolling-release tarball (no versioned URL) - fetch_pinned_tarball
   # pulls the pinned URL and verifies sha256 (the only drift detector upstream
   # gives us). See versions.json toolchains.vasm68k.
   fetch_pinned_tarball toolchains.vasm68k vasm.tar.gz

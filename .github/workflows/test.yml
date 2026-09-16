@@ -10,7 +10,7 @@ name: test
 # ROMs runs the same way it does on a dev box.
 #
 # This supersedes lint.yml's hand-picked "pure JS tests" list, which went
-# stale the day it was written — the test that caught a real regression in the
+# stale the day it was written - the test that caught a real regression in the
 # NROM decompile path was pure JS and never on it.
 #
 # ONE fixture a clean checkout genuinely cannot have: test/roms/nestest.nes is
@@ -19,13 +19,13 @@ name: test
 # instead of failing with an opaque `loaded: undefined` that reads like a
 # broken core. A CI run is therefore honestly green on everything it can run
 # and names what it could not. A dev box that has the ROM runs those same
-# tests for real — verified both ways: 45 pass / 0 skip with it, 30 pass /
+# tests for real - verified both ways: 45 pass / 0 skip with it, 30 pass /
 # 15 skip / 0 fail without.
 #
 # Sharp edge, deliberate: a commit whose dependency pins reference versions
 # not yet on npm (the short window between push and publish-all) fails the
-# install or the payload fetch. That red is honest — it means the release is
-# half out — and it turns green the moment the publish lands.
+# install or the payload fetch. That red is honest - it means the release is
+# half out - and it turns green the moment the publish lands.
 
 on:
   push:
@@ -90,13 +90,13 @@ jobs:
             echo "- **GL-dependent tests: SKIPPED.** \`ROMDEV_NO_GL=1\` is set because"
             echo "  runners have no GPU device nodes and native EGL init *blocks* there."
             echo "  The wasmcart GL-direct present path (\`presentWindow:true\`, letterbox,"
-            echo "  capture parity, surface resize) has **no automated coverage on CI** —"
+            echo "  capture parity, surface resize) has **no automated coverage on CI** -"
             echo "  it is verified only on a GPU box or against a real cart."
             echo "- \`test/roms/nestest.nes\` is commercial content and ships in no tarball,"
             echo "  so the tests needing it skip themselves by design."
             echo
             echo "Total skipped in this run: **${skipped}**"
             echo
-            echo "A green check here means everything runnable passed — not that"
+            echo "A green check here means everything runnable passed - not that"
             echo "everything was run."
           } >> "$GITHUB_STEP_SUMMARY"

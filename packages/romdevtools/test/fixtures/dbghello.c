@@ -1,5 +1,5 @@
 /*
- * dbghello — the hello 2D cart with the wasmcart debug ABI opted in:
+ * dbghello - the hello 2D cart with the wasmcart debug ABI opted in:
  * WC_DEBUG_FIELDS(player_x, player_y, red_color) + WC_FLAG_DEBUG.
  * The REAL-cart fixture for input + named-debug-state tests (the mock hosts
  * in regression.test.js cover edge cases; this covers the actual ABI).
@@ -35,7 +35,7 @@ static wc_pad_t pads[4];
 // Time
 static wc_time_t time_info;
 
-// Save blob (64 bytes — just a play counter)
+// Save blob (64 bytes - just a play counter)
 #define SAVE_SIZE 64
 static uint8_t save_data[SAVE_SIZE];
 

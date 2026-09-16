@@ -181,8 +181,8 @@ index 82bd2fb..588884b 100644
 +/* ---------------------------------------------------------------------------
 + * romdev: C64 keyboard + joyport injection for headless automation.
 + *
-+ * Many C64 games (and cracktros) need KEYBOARD input — F1 to pick 1 player,
-+ * RUN/STOP, SPACE/RETURN at setup screens — before joystick gameplay begins;
++ * Many C64 games (and cracktros) need KEYBOARD input - F1 to pick 1 player,
++ * RUN/STOP, SPACE/RETURN at setup screens - before joystick gameplay begins;
 + * joystick-only input can't get past them. These export an automation path
 + * the romdev host calls directly (no on-screen virtual keyboard, no host
 + * keymap): drive the C64 8x8 key matrix, feed a string into the kernal
@@ -273,7 +273,7 @@ index 82bd2fb..588884b 100644
 +/* R60: snapshot the CIA register block into a private buffer instead of
 + * returning a direct pointer to machine_context.cia{1,2}->c_cia. The
 + * direct-pointer return that lived here pre-R60 worked, but it leaked an
-+ * upstream-struct-layout dependency — if VICE ever reshuffled the cia_context
++ * upstream-struct-layout dependency - if VICE ever reshuffled the cia_context
 + * struct, the 16-byte read shape stayed the same but the bytes you got back
 + * could shift. Snapshot copying eliminates that risk for ~16 byte-reads of
 + * cost per call, which is noise.
@@ -346,13 +346,13 @@ index a109492..820245f 100644
              profiling_clock_start = CLK;
  #endif
  
-+            /* romdev INTERRUPT BLOCK — the pure-call primitive. While set,
++            /* romdev INTERRUPT BLOCK - the pure-call primitive. While set,
 +             * IRQ/NMI dispatch is suppressed (lines stay pending), so a
 +             * callSubroutine-driven routine cannot be hijacked by the KERNAL
-+             * jiffy IRQ / raster handlers — the frame logic that stomps
++             * jiffy IRQ / raster handlers - the frame logic that stomps
 +             * output buffers (and the IRQ-loader poison on packed C64
 +             * software). VIC-II badlines still steal cycles normally. Main
-+             * CPU only (gated by ROMDEV_PCBREAK like the other romdev hooks —
++             * CPU only (gated by ROMDEV_PCBREAK like the other romdev hooks -
 +             * the drive CPU includes this file too). */
 +#ifdef ROMDEV_PCBREAK
 +            if (!romdev_irq_block) {
@@ -380,12 +380,12 @@ index a109492..820245f 100644
 +            return;
 +        }
 +
-+        /* reg_pc is the first byte of the instruction about to dispatch — latch it
++        /* reg_pc is the first byte of the instruction about to dispatch - latch it
 +         * for the 6510 STORE/LOAD watch hooks, then ask the shared lib whether to
 +         * FREEZE (coverage + watchdog + pc-break/single-step live in romdev_debug.c).
 +         * On a freeze: snapshot (kind 2=watchdog else 1=pc-break/step), clear
 +         * retro_renderloop so retro_run's frame loop ends, and RETURN without
-+         * fetching/executing — reg_pc left un-advanced on the break instruction. */
++         * fetching/executing - reg_pc left un-advanced on the break instruction. */
 +        romdev_6510_instr_pc = (unsigned int)reg_pc;
 +
 +        if (romdev_on_dispatch((unsigned int)reg_pc)) {
@@ -467,7 +467,7 @@ index 14cf0b1..d7b5e6e 100644
 +
 +/* romdev at-hit REGISTER SNAPSHOT (6510). The mainloop keeps running after a
 + * watchpoint hit (and re-enters after a pc-break frame ends), so the live
-+ * register shadows drift past the hit — these are frozen copies captured at
++ * register shadows drift past the hit - these are frozen copies captured at
 + * the hit instant. Layout = the romdev_getreg regId order: [0]=A [1]=X [2]=Y
 + * [3]=P [4]=SP [16]=PC of the EXECUTING instruction's first byte [18]=SP.
 + * kind: 1=pc-break/step, 2=watchdog, 3=write-watch, 4=read-watch. */

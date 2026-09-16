@@ -4,7 +4,7 @@
 # The RDP is rendered on the REAL GPU through native-gles: glide64 (the GL HLE
 # renderer) translates the game's RDP display-lists to GLES2/WebGL2, the host owns
 # the EGL pbuffer via native-gles, and we glReadPixels the frame back (same path as
-# Flycast's PowerVR2). NO software RDP (angrylion) — that was the old headless build.
+# Flycast's PowerVR2). NO software RDP (angrylion) - that was the old headless build.
 #
 # Exports: the cheat interface + romdev's R4300 register snapshot + the live-debug
 # set + the N64 AI register reader. Output: src/cores/wasm/parallel_n64_libretro.{js,wasm}.
@@ -34,7 +34,7 @@ cd "$SRC"
 
 # Emscripten Makefile compatibility (upstream visibility flags + GLSM signature).
 grep -q "fno-common" Makefile 2>/dev/null || { sed -i 's/-fvisibility=hidden//g; s/-fvisibility-inlines-hidden//g' Makefile; }
-# glsm.c's rglBlendFuncSeparate is defined 2-arg but DECLARED 4-arg in glsmsym.h — an
+# glsm.c's rglBlendFuncSeparate is defined 2-arg but DECLARED 4-arg in glsmsym.h - an
 # upstream mismatch that only bites once glsm.c actually compiles (GL on). Fix both the
 # signature AND the body (the 2-arg body referenced sfactor/dfactor).
 if grep -q "rglBlendFuncSeparate(GLenum sfactor, GLenum dfactor)" libretro-common/glsm/glsm.c 2>/dev/null; then
@@ -63,7 +63,7 @@ if [ ! -f mupen64plus-core/src/r4300/romdev_n64_debug.c ]; then
   perl -0pi -e 's/void pure_interpreter\(void\)\n\{/extern int romdev_n64_step(unsigned int);\nextern int stop;\nvoid pure_interpreter(void)\n{/ unless /romdev_n64_step/' mupen64plus-core/src/r4300/pure_interp.c
   perl -0pi -e 's/     InterpretOpcode\(\);\n   \}/     if (romdev_n64_step(PC->addr)) { romdev_n64_yield(); break; }\n     InterpretOpcode();\n   }/ unless /romdev_n64_step\(PC/' mupen64plus-core/src/r4300/pure_interp.c
 # 0.138.0: a PC-break / single-step hit must YIELD to the frontend (co_switch back to
-# retro_run, exactly what the VI frame-end does), not `stop = 1` — that ended the
+# retro_run, exactly what the VI frame-end does), not `stop = 1` - that ended the
 # emulation thread, so every later retro_run ran nothing: the break "hit" once and the
 # machine froze forever (single-step returned no PC after the first step). The
 # instruction at the break executes when the host resumes, i.e. "stopped AT pc".

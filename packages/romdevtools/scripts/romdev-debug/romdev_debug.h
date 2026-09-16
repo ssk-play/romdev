@@ -1,9 +1,9 @@
-/* romdev_debug.h — the shared debug ABI for ALL romdev emulator cores.
+/* romdev_debug.h - the shared debug ABI for ALL romdev emulator cores.
  *
  * WHY THIS EXISTS: every core used to inline ~700 lines of identical bookkeeping
  * (watchpoint table, coverage ring + dedup, range/read buffers, register-snapshot
  * packing, pcbreak/watchdog state, the EMSCRIPTEN_KEEPALIVE exports). That was ~70%
- * copy-paste across 17 cores — an N-way edit for every change and a silent-drift
+ * copy-paste across 17 cores - an N-way edit for every change and a silent-drift
  * risk vs the host. This file + romdev_debug.c own that shared 70% in ONE place.
  *
  * THE SPLIT:
@@ -15,7 +15,7 @@
  *     romdev_snap_regs[] from its CPU struct on a hit. That's the ~30% that is
  *     genuinely per-core (different register structs, different bus tap points).
  *
- * THE HOST CONTRACT (LibretroHost.js feature-detects these by symbol name — a core
+ * THE HOST CONTRACT (LibretroHost.js feature-detects these by symbol name - a core
  * lights up a tool the instant it exports the matching function): the exports below
  * MUST keep their signatures + out[] packing. The conformance test
  * (test/romdev-debug-abi.test.js) probes each migrated core's wasm for this set.
@@ -37,7 +37,7 @@ extern "C" {
 #define ROMDEV_SNAP_WORDS 21     /* regsnap_get out: [kind, count(19), regs0..18] */
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * PART 1 — exports the HOST calls (the ABI). Implemented in romdev_debug.c.
+ * PART 1 - exports the HOST calls (the ABI). Implemented in romdev_debug.c.
  *   `out` buffers are caller-allocated; the packing is fixed (see each comment).
  * ═════════════════════════════════════════════════════════════════════════ */
 
@@ -54,7 +54,7 @@ void romdev_readwatch_get(unsigned *out, int clearHits);
 
 /* ── Game Genie / cheat value-override ──────────────────────────────────────────
  * A memory-read substitution device, exactly like a hardware Game Genie: when the CPU
- * reads `addr`, the substitute `value` is returned instead of the real byte — optionally
+ * reads `addr`, the substitute `value` is returned instead of the real byte - optionally
  * only when the real byte equals `compare` (the "compare" codes that survive bank
  * switching). Up to ROMDEV_CHEAT_SLOTS active codes. The core's MemoryRead calls
  * romdev_cheat_read(addr, realByte) and returns whatever it gives back.
@@ -74,7 +74,7 @@ void romdev_cheat_get(int slot, unsigned *out);
 unsigned char romdev_cheat_read(unsigned addr, unsigned char realByte);
 
 /* Range watch: log {pc,addr,val} for every R/W in [lo,hi] (mode 1=read 2=write 3=both).
- * get fills `out` with INTERLEAVED triples [pc0,addr0,val0, pc1,addr1,val1, …] up to
+ * get fills `out` with INTERLEAVED triples [pc0,addr0,val0, pc1,addr1,val1, ...] up to
  * `max` events (returns the count); out2 (if non-null) gets [total, stored]. */
 void romdev_range_set(unsigned lo, unsigned hi, int mode, int enabled);
 unsigned romdev_range_get(unsigned *out, unsigned max, unsigned *out2);
@@ -113,33 +113,33 @@ void romdev_regsnap_get(unsigned *out, int clear);
 void romdev_irqblock_set(int on);
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * PART 2 — what the CORE calls (the hook surface). Implemented in romdev_debug.c;
+ * PART 2 - what the CORE calls (the hook surface). Implemented in romdev_debug.c;
  *   the core invokes these from its bus taps + dispatch loop. This is the seam
  *   that replaces every core's hand-rolled ROMDEV_WP_CHECK/RANGE/COV macros.
  * ═════════════════════════════════════════════════════════════════════════ */
 
 /* Call on every memory WRITE the core performs.
- *   addr   — the bus address written
- *   oldv   — the value at addr BEFORE the write (only needed when a watchpoint
+ *   addr   - the bus address written
+ *   oldv   - the value at addr BEFORE the write (only needed when a watchpoint
  *            condition is armed; pass 0 if you don't have it cheaply and no cond
- *            is set — romdev_wp_wants_old() tells you if it's needed)
- *   newv   — the value being written
- *   pc     — the live PC of the executing instruction
- *   rom_off— active-bank ROM offset for `pc`, or 0xFFFFFFFF if N/A
+ *            is set - romdev_wp_wants_old() tells you if it's needed)
+ *   newv   - the value being written
+ *   pc     - the live PC of the executing instruction
+ *   rom_off- active-bank ROM offset for `pc`, or 0xFFFFFFFF if N/A
  * Drives the write-watchpoint + the range-watch (write side).
- * RETURNS 1 if a write-watchpoint just HIT — the core should then take its register
+ * RETURNS 1 if a write-watchpoint just HIT - the core should then take its register
  * snapshot (fill romdev_snap_regs[] from its live CPU state + set romdev_snap_kind=3),
  * since only the core knows its register layout. Returns 0 otherwise. */
 int romdev_on_write(unsigned addr, unsigned char oldv, unsigned char newv,
                     unsigned pc, unsigned rom_off);
 
 /* Call on every memory READ. Drives the read-watchpoint + range-watch (read side).
- * RETURNS 1 if a read-watchpoint just HIT — core takes its snapshot (kind=4). */
+ * RETURNS 1 if a read-watchpoint just HIT - core takes its snapshot (kind=4). */
 int romdev_on_read(unsigned addr, unsigned char val, unsigned pc);
 
 /* Call once per instruction dispatch with the live PC. Drives coverage + the PC
  * breakpoint/watchdog. Returns 1 if the CPU should FREEZE (a pcbreak/watchdog hit
- * or single-step) — the core must then drain its cycle budget + return without
+ * or single-step) - the core must then drain its cycle budget + return without
  * executing, and stay frozen until the host clears the hit. Returns 0 to run normally.
  * When it returns 1, romdev_pc_hit_kind() says WHY (for the snapshot kind). */
 int romdev_on_dispatch(unsigned pc);
@@ -149,22 +149,22 @@ int romdev_on_dispatch(unsigned pc);
 int romdev_pc_hit_kind(void);
 
 /* True while the CPU is frozen on a pcbreak/watchdog hit (until the host clears it).
- * A core checks this at the top of its run loop to STAY frozen — re-entering the loop
+ * A core checks this at the top of its run loop to STAY frozen - re-entering the loop
  * would resume execution and drift the registers away from the hit instant. */
 int romdev_is_frozen(void);
 
-/* True when an armed write-watchpoint condition needs the pre-write value — lets a
+/* True when an armed write-watchpoint condition needs the pre-write value - lets a
  * core skip the (sometimes costly) old-value read on the hot path when no cond is set. */
 int romdev_wp_wants_old(void);
 
 /* True when ANY debug feature is armed (watchpoint / read-watch / range / coverage /
  * pc-break / single-step / watchdog / freeze). A core with a stock tight run loop uses
- * this to bypass all the per-instruction hooks when nothing is armed — zero overhead on
+ * this to bypass all the per-instruction hooks when nothing is armed - zero overhead on
  * the hot path. Equivalent to OR-ing every enabled flag. */
 int romdev_any_armed(void);
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * PART 3 — the snapshot buffer the core's per-CPU snapshot shim fills on a hit.
+ * PART 3 - the snapshot buffer the core's per-CPU snapshot shim fills on a hit.
  *   On a watchpoint/pcbreak hit the core calls its own romdev_<cpu>_snap(kind)
  *   which writes romdev_snap_regs[0]=kind and [1..] = its registers, then the host
  *   reads them via romdev_regsnap_get. Declared here so both sides agree on layout.

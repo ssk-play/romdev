@@ -636,7 +636,7 @@ index 8e5400d..120d425 100644
 +                                      romdev_oldv, value);
 +            }
 +            {
-+                /* romdev VRAM-port copy trace — log {vram addr, executing
++                /* romdev VRAM-port copy trace - log {vram addr, executing
 +                 * instruction PC, value} when the write lands in the watched
 +                 * window (state + exports in libretro.c; PC latch in R800.c). */
 +                extern unsigned int romdev_vw_lo, romdev_vw_hi;
@@ -712,7 +712,7 @@ index cc6cbf5..3e94c51 100644
  int vdpRegisterDaConverter(VdpDaCallbacks* callbacks, void* ref, VideoMode videoModeMask);
  void vdpUnregisterDaConverter(int vdpDaHandle);
  
-+/* romdev memory-region accessors — return live pointers into the active VDP
++/* romdev memory-region accessors - return live pointers into the active VDP
 + * singleton so the libretro wrapper can expose VRAM/regs/status/palette to
 + * romdev's inspect tools. NULL/0 before the VDP is created. */
 +unsigned char* vdpRomdevGetVram(void);
@@ -764,7 +764,7 @@ index e3dd190..ceea6b9 100644
 + * + the readMem/writeMem watch hooks. */
 +#include "romdev_debug.h"
 +
-+/* romdev at-hit REGISTER SNAPSHOT (Z80/R800) — per-core. Fills the shared
++/* romdev at-hit REGISTER SNAPSHOT (Z80/R800) - per-core. Fills the shared
 + * romdev_snap_regs[] in the romdev_getreg regId order (A,F,B,C,D,E,H,L,IX,IY,
 + * PC,SP). The dispatch + WP/RD hooks call this when the shared lib reports a hit. */
 +unsigned int  romdev_z80_instr_pc = 0xFFFFFFFF;
@@ -837,7 +837,7 @@ index e3dd190..ceea6b9 100644
  void r800Execute(R800* r800) {
      static SystemTime lastRefreshTime = 0;
 +    /* romdev: once a breakpoint/watchdog hit has frozen this CPU, KEEP it
-+     * frozen — re-entry would resume execution and drift the registers away
++     * frozen - re-entry would resume execution and drift the registers away
 +     * from the hit. terminate ends the frame the same way the fire path does;
 +     * the host clears the hit to resume. */
 +    if (romdev_is_frozen()) {
@@ -852,7 +852,7 @@ index e3dd190..ceea6b9 100644
  #endif
  
 +        /* romdev: PC right now is the first byte of the instruction about to
-+         * be dispatched — latch it for the mid-instruction hooks (readMem/
++         * be dispatched - latch it for the mid-instruction hooks (readMem/
 +         * writeMem watchpoints see an operand-advanced PC). */
 +        ROMDEV_DISPATCH(r800);
 +
@@ -872,7 +872,7 @@ index e3dd190..ceea6b9 100644
  void r800ExecuteUntil(R800* r800, UInt32 endTime) {
      static SystemTime lastRefreshTime = 0;
  
-+    /* romdev: frozen after a hit — consume the time slice without executing
++    /* romdev: frozen after a hit - consume the time slice without executing
 +     * (mirror of the r800Execute guard; keeps the board loop advancing). */
 +    if (romdev_is_frozen()) {
 +        r800->systemTime = endTime;
@@ -887,7 +887,7 @@ index e3dd190..ceea6b9 100644
  #endif
  
 +        /* romdev: PC right now is the first byte of the instruction about to
-+         * be dispatched — latch it for the mid-instruction hooks (readMem/
++         * be dispatched - latch it for the mid-instruction hooks (readMem/
 +         * writeMem watchpoints see an operand-advanced PC). */
 +        ROMDEV_DISPATCH(r800);
 +
@@ -1042,7 +1042,7 @@ index f583a99..feea65b 100644
 +   return n;
 +}
 +
-+/* register read/write — the inverse of getCPUState, used by the host's
++/* register read/write - the inverse of getCPUState, used by the host's
 + * callSubroutine / decompressWith (set args + PC=entry, push a sentinel return,
 + * run to it, capture the output). Z80 reg-id convention (STABLE across all cores
 + * so the host passes the same ids): 0=A 1=F 2=B 3=C 4=D 5=E 6=H 7=L 8=IX 9=IY

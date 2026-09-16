@@ -2,11 +2,11 @@
 # Build tcc-65816 (TinyCC fork for the WDC 65816 / SNES) → WASM.
 #
 # What ships: tcc816.wasm + tcc816.js that compile C source to wla-dx
-# assembly for the 65816 CPU. tcc-65816 doesn't assemble or link — that
+# assembly for the 65816 CPU. tcc-65816 doesn't assemble or link - that
 # pipeline needs the companion wla-65816 + wlalink (build-wladx.sh,
 # pending). End-to-end SNES C builds via tcc require all three.
 #
-# Source: github.com/alekmaul/tcc — a maintained PVSnesLib fork of
+# Source: github.com/alekmaul/tcc - a maintained PVSnesLib fork of
 # Fabrice Bellard's TinyCC (~19k lines of C). Builds clean with emcc
 # in one pass; no fork(), no GMP/MPFR, no host bootstrap.
 set -euo pipefail

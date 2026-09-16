@@ -38,7 +38,7 @@ test("dasm.wasm assembles a minimal 2600 program (raw 4KB)", async () => {
   assert.equal(result.exitCode, 0, "expected exit 0, log:\n" + result.log);
   assert.ok(result.binary, "expected a binary, log:\n" + result.log);
   // f3 is true raw output, no address header.
-  assert.equal(result.binary.length, 4096, "expected 4096 bytes for ORG $F000–$FFFF");
+  assert.equal(result.binary.length, 4096, "expected 4096 bytes for ORG $F000-$FFFF");
   // Last 4 bytes are the reset vector → points to $F000 (little-endian).
   const lastFour = result.binary.slice(-4);
   assert.equal(lastFour[0], 0x00);

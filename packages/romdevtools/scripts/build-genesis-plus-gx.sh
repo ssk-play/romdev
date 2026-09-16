@@ -2,7 +2,7 @@
 # Build genesis-plus-gx libretro core → WASM, with romdev's custom
 # memory region patch applied. Exposes Genesis VDP CRAM/VSRAM/VDP regs,
 # Z80 RAM, M68K CPU struct, YM2612 + PSG snapshot blobs via
-# retro_get_memory_data — feeds inspectSprites/inspectPalette/
+# retro_get_memory_data - feeds inspectSprites/inspectPalette/
 # getCPUState/getYm2612State/getPsgState on the JS side.
 #
 # Output: src/cores/wasm/genesis_plus_gx_libretro.{js,wasm}.

@@ -1,5 +1,5 @@
 // romdev live-debug instrumentation for the GameTank core (W65C02S main CPU).
-// Appended to src/libretro.cpp by the romdev build (build-gametank.sh) — it sees
+// Appended to src/libretro.cpp by the romdev build (build-gametank.sh) - it sees
 // cpu_core (the main mos6502*) + system_state + AudioCoprocessor. A thin shim over
 // the SHARED romdev_debug.{h,c} (the same lib every romdev core links): watchpoints,
 // read/range/coverage watch, PC breakpoints, the instruction watchdog, the at-hit
@@ -11,7 +11,7 @@ extern "C" {
 
 extern mos6502 *cpu_core;
 
-// romdev at-hit register snapshot (6502) — fills the shared romdev_snap_regs[] in
+// romdev at-hit register snapshot (6502) - fills the shared romdev_snap_regs[] in
 // the regId order the host's getRegSnapshot reads: [0]=A [1]=X [2]=Y [3]=P [4]=SP
 // [16]=PC. A FUNCTION so the C hook call sites can invoke it.
 extern "C" unsigned int romdev_gametank_instr_pc = 0xFFFFFFFFu;
@@ -46,7 +46,7 @@ extern "C" void romdev_gametank_read(unsigned int address, unsigned int value) {
         romdev_gametank_snap(4);
 }
 
-// mos6502 Run() dispatch → romdev_gametank_step(pc). Returns 1 to FREEZE — the
+// mos6502 Run() dispatch → romdev_gametank_step(pc). Returns 1 to FREEZE - the
 // caller sets cpu_core->freeze (the Run loop's existing freeze check halts with
 // pc un-advanced). Asks the shared lib (coverage + watchdog + pc-break/step).
 extern "C" int romdev_gametank_step(unsigned int pc) {
@@ -58,7 +58,7 @@ extern "C" int romdev_gametank_step(unsigned int pc) {
     return 0;
 }
 
-// setReg/getReg — go through the live mos6502 register file (regId: 0=A 1=X 2=Y
+// setReg/getReg - go through the live mos6502 register file (regId: 0=A 1=X 2=Y
 // 3=P 4=SP 16=PC). The shared lib provides the watch/break machinery + regsnap_get;
 // these per-core accessors are the only extra surface a 6502 core adds.
 extern "C" int romdev_setreg(int regId, unsigned int value) {

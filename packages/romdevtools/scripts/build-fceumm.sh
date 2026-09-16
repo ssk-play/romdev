@@ -18,9 +18,9 @@ OUT="$PROJECT_DIR/src/cores/wasm"
 fetch_pinned cores.fceumm "$FCEUMM_DIR"
 
 cd "$FCEUMM_DIR"
-# Reset the files the patch touches — libretro.c (memory regions + watchpoint
+# Reset the files the patch touches - libretro.c (memory regions + watchpoint
 # exports), sound.c (drop `static` on the APU register holders), and x6502.c
-# (the write-watchpoint hook + state) — so a clean re-apply always works.
+# (the write-watchpoint hook + state) - so a clean re-apply always works.
 # pputile.h is patched too (the per-pixel bgpix capture). Leaving it out made
 # the re-apply fail with "patch failed to apply and sentinel not present",
 # because the tree was half-reset: ppu.c reverted while pputile.h stayed patched.
@@ -44,7 +44,7 @@ cd "$FCEUMM_DIR"
 
 # ── romdev shared debug lib (0.80.0) ────────────────────────────────────────
 # Stage romdev_debug.{h,c} into the tree so x6502.c/libretro.c's #include resolves,
-# inject the include via INCFLAGS_PLATFORM (the Makefile's append-safe hook — a bare
+# inject the include via INCFLAGS_PLATFORM (the Makefile's append-safe hook - a bare
 # CFLAGS= clobbers fceumm's own -I dirs), and compile+archive the .c into the link.
 RDBG_SRC="$PROJECT_DIR/scripts/romdev-debug"
 cp "$RDBG_SRC/romdev_debug.h" "$RDBG_SRC/romdev_debug.c" "$FCEUMM_DIR/src/"
@@ -72,7 +72,7 @@ fi
 
 # fceumm archive references libretro-common's vfs / strlcpy / pathname
 # helpers (used by palette.c, file.c, etc.) but doesn't bundle their
-# .o files. Compile the subset we need and add to the archive — same
+# .o files. Compile the subset we need and add to the archive - same
 # pattern used in build-genesis-plus-gx.sh.
 LIBRETRO_COMMON=""
 for dir in "libretro-common" "src/libretro-common" "src/drivers/libretro/libretro-common"; do

@@ -4,7 +4,7 @@
  * whole 160x144 screen from PPU state in Lua and is scored exact-match
  * against gambatte's own framebuffer.
  *
- * THE BOUNDARY (project Rule 1): this captures TIMING-resolved INPUTS —
+ * THE BOUNDARY (project Rule 1): this captures TIMING-resolved INPUTS -
  * which tile entry, which palette, which layer, at the moment the core
  * committed the pixel. It must NOT capture composition results or final
  * RGB. Compositing and bgr15->RGB are the reconstruction's job; capturing
@@ -13,7 +13,7 @@
  *
  * Everything here is written from the emit sites in video/ppu.cpp, indexed
  * by the WRITE CURSOR (`dst - fbline`), never recomputed from tile
- * arithmetic — cursor-is-truth, the other NES lesson.
+ * arithmetic - cursor-is-truth, the other NES lesson.
  *
  * Single-threaded core, plain file-scope arrays, no allocation.
  */
@@ -62,14 +62,14 @@ extern unsigned char romdev_gb_sprpix[ROMDEV_GB_PIX];
 extern unsigned char romdev_gb_lineregs[ROMDEV_GB_H * ROMDEV_GB_LINEREG_STRIDE];
 
 /* gb_palline: per line, the ACTIVE translated palettes as bgr15 VALUES
- * (not RGB — Rule 1 keeps colour math in Lua): 32 BG + 32 OBJ entries,
+ * (not RGB - Rule 1 keeps colour math in Lua): 32 BG + 32 OBJ entries,
  * little-endian u16 each. Absorbs colorization, CRAM writes and mid-frame
  * palette swaps at line granularity.
  */
 #define ROMDEV_GB_PALLINE_STRIDE 128
 extern unsigned char romdev_gb_palline[ROMDEV_GB_H * ROMDEV_GB_PALLINE_STRIDE];
 
-/* Per-pixel bgr15 VALUES actually in force at emit — rung 4, absorbs
+/* Per-pixel bgr15 VALUES actually in force at emit - rung 4, absorbs
  * mid-LINE palette writes (DMG raster BGP tricks) that palline misses by
  * one line. Values, never post-colour-math RGB.
  */
@@ -98,7 +98,7 @@ void romdev_gbcap_palette_snapshot(int cgbMode,
  * in the same u16 slots; the renderer distinguishes by the cgb flag in
  * gb_lineregs[9].
  * NOTE the boundary: these are palette VALUES the core resolved, not
- * composited pixels — the reconstruction still decides what shows. */
+ * composited pixels - the reconstruction still decides what shows. */
 void romdev_gbcap_palette_snapshot_dmg(const unsigned char *bgpData,
                                        const unsigned char *objpData,
                                        const unsigned short *dmgColorsRgb,
@@ -160,7 +160,7 @@ void romdev_gbcap_palette_snapshot(int cgbMode,
 	} else {
 		/* DMG: BGP/OBP0/OBP1 remap 4 of the 12 colorization base colours.
 		 * dmgColorsGBC is 12 bgr15 LE pairs: [0..3] BG, [4..7] OBJ0,
-		 * [8..11] OBJ1 — the same grouping LCD::refreshPalettes uses when it
+		 * [8..11] OBJ1 - the same grouping LCD::refreshPalettes uses when it
 		 * builds dmgColorsRgb32_ and hands slices to setDmgPalette. */
 		unsigned const bgp  = bgpData[0];
 		unsigned const obp0 = objpData[0];

@@ -3,7 +3,7 @@
 # gcc toolchain components (cc1, arm-none-eabi-as, arm-none-eabi-ld,
 # arm-none-eabi-objcopy) to WASM via emcc.
 #
-# Prereq: stage 1 (build-arm-toolchain.sh) must have completed — this
+# Prereq: stage 1 (build-arm-toolchain.sh) must have completed - this
 # script reuses the same upstream gcc/binutils source trees plus the
 # stage-1 native artifacts that gcc's build needs to bootstrap.
 #
@@ -21,11 +21,11 @@
 #
 # Build flow:
 #   1. Build WASM versions of gcc's prereq libs (GMP, MPFR, MPC, ISL) via emconfigure.
-#      These are SHARED with the m68k WASM build — same versions, same prefix
+#      These are SHARED with the m68k WASM build - same versions, same prefix
 #      conceptually, but we keep them under the arm-toolchain tree to be self-contained.
 #   2. Configure gcc with --host=wasm32-unknown-emscripten + our WASM prereqs.
 #   3. Patch libiberty/config.h to set HAVE_PSIGNAL=1 (same as m68k R20 fix).
-#   4. emmake make cc1 (NOT all-gcc — gcov-tool needs ftw() which
+#   4. emmake make cc1 (NOT all-gcc - gcov-tool needs ftw() which
 #      emscripten libc lacks; building cc1 directly skips it).
 #   5. emmake make for binutils → as.wasm, ld.wasm, objcopy.wasm.
 #   6. emcc-wrap each WASM binary with MODULARIZE / EXPORT_NAME /
@@ -50,7 +50,7 @@ NCPU="$(nproc)"
 TARGET=arm-none-eabi
 
 if [ ! -x "$NATIVE_PREFIX/bin/$TARGET-gcc" ]; then
-  echo "Stage 1 not done — run build-arm-toolchain.sh first." >&2
+  echo "Stage 1 not done - run build-arm-toolchain.sh first." >&2
   exit 1
 fi
 
@@ -73,7 +73,7 @@ for tarball in \
   fn="${tarball##*/}"
   if [ ! -f "$fn" ]; then
     # Reuse the m68k-toolchain's already-downloaded tarballs if present
-    # (they're identical files — same upstream URLs).
+    # (they're identical files - same upstream URLs).
     M68K_SHARED="$BUILD_DIR/m68k-toolchain/src/$fn"
     if [ -f "$M68K_SHARED" ]; then
       ln -sf "$M68K_SHARED" "$fn"
@@ -88,7 +88,7 @@ done
 [ ! -d "isl-$ISL_VER" ]   && tar xf "isl-$ISL_VER.tar.bz2"
 
 # ── 2. Build each prereq to WASM ────────────────────────────────────
-# GMP — base arbitrary-precision integer math.
+# GMP - base arbitrary-precision integer math.
 if [ ! -f "$WASM_PREFIX/lib/libgmp.a" ]; then
   cd "$ROOT"; mkdir -p build-wasm-gmp; cd build-wasm-gmp
   emconfigure "../src/gmp-$GMP_VER/configure" \
@@ -100,7 +100,7 @@ if [ ! -f "$WASM_PREFIX/lib/libgmp.a" ]; then
   emmake make install
 fi
 
-# MPFR — depends on GMP.
+# MPFR - depends on GMP.
 if [ ! -f "$WASM_PREFIX/lib/libmpfr.a" ]; then
   cd "$ROOT"; mkdir -p build-wasm-mpfr; cd build-wasm-mpfr
   emconfigure "../src/mpfr-$MPFR_VER/configure" \
@@ -168,7 +168,7 @@ if [ ! -f "$ROOT/build-wasm-gcc/gcc/cc1" ]; then
   emmake make -j"$NCPU" configure-build-libiberty configure-libiberty
 
   # R20 fix carries over: libiberty's psignal fallback signature
-  # clashes with emscripten's signal.h. Patch libiberty/config.h —
+  # clashes with emscripten's signal.h. Patch libiberty/config.h -
   # plus the pic/ and noasan/ build variants since libiberty
   # rebuilds those separately.
   for cfg in libiberty/config.h libiberty/pic/config.h libiberty/noasan/config.h; do
@@ -184,7 +184,7 @@ if [ ! -f "$ROOT/build-wasm-gcc/gcc/cc1" ]; then
   # CRITICAL: override CC_FOR_BUILD + CXX_FOR_BUILD to NATIVE gcc/g++.
   # Without this override the gcc/Makefile sets CC_FOR_BUILD = $(CC)
   # = emcc, then tries to link build-time tools (genmodes, genhooks)
-  # with wasm-ld against the NATIVE libiberty.a — fails with
+  # with wasm-ld against the NATIVE libiberty.a - fails with
   # "undefined symbol: xmalloc" etc. because the native .o archive
   # isn't WASM-compatible.
   #
@@ -223,7 +223,7 @@ if [ ! -f "$ROOT/build-wasm-binutils/gas/as-new" ]; then
       --disable-multilib --with-cpu=arm7tdmi
   fi
 
-  # Same psignal patch — binutils has its own libiberty tree with
+  # Same psignal patch - binutils has its own libiberty tree with
   # its own config.h. Run configure-libiberty first so config.h
   # exists, then patch, then full build. Patch all variant config.h
   # files (libiberty itself, plus pic/ and noasan/ if they exist).
@@ -257,17 +257,17 @@ fi
 wrap_tool() {
   local in_bin="$1"        # absolute path to the emcc-produced binary
   local out_name="$2"      # logical name (used for EXPORT_NAME + .mjs/.wasm)
-  local export_name="$3"   # createXxx — the JS factory name
+  local export_name="$3"   # createXxx - the JS factory name
 
   echo "Wrapping $in_bin → $OUT/$out_name.{mjs,wasm}"
 
   # Strategy: emcc takes the LLVM IR/bitcode embedded in the binary and
   # re-links with our flags. We do this via emcc <in_bin> -o out.mjs.
-  # For cc1 (big — 100+ MB of IR) we need ALLOW_MEMORY_GROWTH +
+  # For cc1 (big - 100+ MB of IR) we need ALLOW_MEMORY_GROWTH +
   # INITIAL_MEMORY=128MB; smaller binutils tools tolerate the default but
   # we set them anyway for consistency.
   # EM_WRAP_FLAGS (_lib.sh) carries the shared gcc-family relink knobs
-  # (MODULARIZE/EXPORT_ES6/128MB heap/EXIT_RUNTIME=1/…); only the per-tool
+  # (MODULARIZE/EXPORT_ES6/128MB heap/EXIT_RUNTIME=1/...); only the per-tool
   # factory name stays inline here.
   emcc "$in_bin" \
     -o "$OUT/$out_name.mjs" \

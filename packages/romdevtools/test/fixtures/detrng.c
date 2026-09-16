@@ -1,5 +1,5 @@
 /*
- * detrng — deterministic-replay + debug-events fixture cart.
+ * detrng - deterministic-replay + debug-events fixture cart.
  * Exercises WC_DETERMINISTIC_RNG (wc_set_seed/wc_rand), WC_DEBUG_FIELDS,
  * and wc_debug_mark. Renders RNG noise so determinism (or its absence)
  * is visible in the framebuffer hash.
@@ -68,7 +68,7 @@ void wc_render(void) {
     if (pad->buttons & WC_BTN_RIGHT) player_x += 2;
     if (player_x > WIDTH - 8) player_x = WIDTH - 8;
 
-    /* RNG noise field — every pixel consumes the stream, so two runs with the
+    /* RNG noise field - every pixel consumes the stream, so two runs with the
        same seed hash identically and different seeds diverge on frame 1. */
     for (int i = 0; i < WIDTH * HEIGHT; i++) {
         framebuffer[i] = wc_rand() & 0x00FFFFFF;

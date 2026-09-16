@@ -33,7 +33,7 @@ cp s32core_libretro.js "$OUT/s32core_libretro.js"
 cp s32core_libretro.wasm "$OUT/s32core_libretro.wasm"
 echo "s32core_libretro staged at $OUT"
 
-# ALSO stage into the binary package — that is what actually SHIPS.
+# ALSO stage into the binary package - that is what actually SHIPS.
 # `src/cores/wasm/` is gitignored build-staging: a core that lands only there
 # works on the build machine and nowhere else. Every other core resolves
 # through its romdev-core-* package (see registry.js resolveCore), so miss this

@@ -7,18 +7,18 @@
 # libtonc is the de-facto GBA C library aligned with the Tonc tutorial
 # (https://gbadev.net/tonc/), which is THE GBA C corpus the LLM has
 # been trained on. Picking libtonc means agent-generated code is
-# already idiomatic — `tte_write`, `tonccpy`, `REG_DISPCNT`, etc.
+# already idiomatic - `tte_write`, `tonccpy`, `REG_DISPCNT`, etc.
 # match what the tutorial teaches.
 #
 # Compared to libgba (R24):
 #   - MIT license vs LGPL-w/-static-exception (simpler)
 #   - TTE (Tonc Text Engine) provides iprintf-style stdio routing
 #     through the tile system WITHOUT needing devkitPro libsysbase
-#     (the libgba console.c blocker — R27 deferred work).
+#     (the libgba console.c blocker - R27 deferred work).
 #   - Bundles tonccpy/toncset (VRAM-safe 16/32-bit memcpy/memset),
 #     a quality-of-life win every libgba project re-implements.
 #
-# Pinned to devkitPro/libtonc v1.4.5 (Aug 2020 last release — stable,
+# Pinned to devkitPro/libtonc v1.4.5 (Aug 2020 last release - stable,
 # feature-complete). The gbadev-org/libtonc fork has more recent
 # commits (2026-04 CI tweaks) but no tagged releases; we go with the
 # devkitPro tag for reproducibility. If we hit a bug only fixed in
@@ -35,7 +35,7 @@ OUT="$PROJECT_DIR/../romdev-platform-gba/share/gba/lib/libtonc"
 NCPU="$(nproc)"
 
 if [ ! -x "$NATIVE_PREFIX/bin/$TARGET-gcc" ]; then
-  echo "Stage 1 not done — run build-arm-toolchain.sh first." >&2
+  echo "Stage 1 not done - run build-arm-toolchain.sh first." >&2
   exit 1
 fi
 
@@ -57,19 +57,19 @@ fi
 cd "libtonc-$LIBTONC_VER"
 
 # ─────────────────────────────────────────────────────────────────────
-# Exclude tte_iohook.c — it's the OPTIONAL libsysbase bridge that
+# Exclude tte_iohook.c - it's the OPTIONAL libsysbase bridge that
 # routes `iprintf`/`printf` through TTE. Depends on devkitPro's
 # extended <sys/iosupport.h> with `_COND_T` thread-cond types that
 # vanilla newlib doesn't have.
 #
 # The REST of TTE (tte_init_se, tte_init_chr4c, tte_write, etc.)
-# does NOT depend on iohook — `tte_write("hello")` works perfectly
+# does NOT depend on iohook - `tte_write("hello")` works perfectly
 # without iprintf. We lose `iprintf("score: %d", x)` → tile-text
 # auto-routing; we keep the canonical TTE API and the explicit
 # `tte_printf` path (which doesn't go through libsysbase).
 #
 # Per the R27 + R28 plan: the canonical Tonc tutorial code uses
-# `tte_write` and `tte_printf` directly, not iprintf — so this
+# `tte_write` and `tte_printf` directly, not iprintf - so this
 # exclusion has a much smaller user impact than the libgba console.c
 # exclusion did.
 #
@@ -146,7 +146,7 @@ elif [ -f COPYING ];     then cp COPYING     "$OUT/LICENSE"
 fi
 
 # Reuse the libgba crt0 + linker script + crt*.o objects since
-# they're devkitARM-canonical and library-agnostic — both libgba and
+# they're devkitARM-canonical and library-agnostic - both libgba and
 # libtonc plug into the same startup. If libgba isn't built yet,
 # symlink would break; we duplicate-copy from libgba/'s already-staged
 # files when present.

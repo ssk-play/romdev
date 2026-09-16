@@ -3,8 +3,8 @@
 #
 # `libres.h` + `libres.s` are GENERATED ARTIFACTS produced by SGDK's resource
 # compiler (rescomp) from libres.res + its source PNGs/bin. They're vendored
-# (committed) because rescomp is a Java tool — porting it to WASM is out of
-# scope — but they are fully reproducible from the visible source here:
+# (committed) because rescomp is a Java tool - porting it to WASM is out of
+# scope - but they are fully reproducible from the visible source here:
 #
 #   res/libres.res            the resource manifest
 #   res/image/font_default.png  the 8x8 system font

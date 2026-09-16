@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build-maxmod.sh — fetch maxmod source + assemble libmm.a for arm-none-eabi.
+# build-maxmod.sh - fetch maxmod source + assemble libmm.a for arm-none-eabi.
 #
 # Maxmod is the canonical GBA/DS music+sound library. The GBA build is
 # 7 pure-assembly source files; no C compiler involvement, no
@@ -15,7 +15,7 @@
 # To rebuild: ./scripts/build-maxmod.sh
 
 # Shared helpers: PROJECT_DIR, BUILD_DIR, require_cmd, and fetch_pinned (reads
-# scripts/versions.json — maxmod/mmutil are pinned under toolchains.*).
+# scripts/versions.json - maxmod/mmutil are pinned under toolchains.*).
 . "$(dirname "$0")/_lib.sh"
 require_cmd gcc
 require_cmd git
@@ -29,13 +29,13 @@ mkdir -p "$MAXMOD_BUILD" "$DEST_DIR"
 # Fetch source (pinned to exact commits in versions.json) --------------------
 fetch_pinned toolchains.maxmod "$MAXMOD_BUILD/src"
 
-# mmutil — host-side tool that converts .xm/.mod/.it/.s3m modules into the
+# mmutil - host-side tool that converts .xm/.mod/.it/.s3m modules into the
 # binary soundbank format that the runtime expects. Built as a regular
 # Linux ELF for now (not WASM); future R-round could re-port if cross-
 # platform-host support is needed.
 if [ ! -d "$MAXMOD_BUILD/mmutil-src" ]; then
     fetch_pinned toolchains.mmutil "$MAXMOD_BUILD/mmutil-src"
-    # mmutil pre-dates C99 stdbool — patch the local typedef to avoid
+    # mmutil pre-dates C99 stdbool - patch the local typedef to avoid
     # collision with modern compilers.
     sed -i 's|typedef unsigned char bool;|#include <stdbool.h>|' "$MAXMOD_BUILD/mmutil-src/source/deftypes.h"
 fi
@@ -59,7 +59,7 @@ if [ ! -x "$GCC" ]; then
 fi
 
 # Assemble each .s file. Maxmod source uses C-preprocessor-style #include
-# for its macro .inc files (devkitPro convention) — we have to drive
+# for its macro .inc files (devkitPro convention) - we have to drive
 # the build through gcc-as (with -x assembler-with-cpp) so the
 # preprocessor runs first.
 OBJS=()

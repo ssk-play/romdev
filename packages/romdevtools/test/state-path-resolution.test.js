@@ -24,7 +24,7 @@ test("absolute path is used as-is (ROM dir irrelevant)", () => {
   assert.equal(resolveStatePath("/tmp/x.state", host), "/tmp/x.state");
 });
 
-test("base64-loaded ROM (<memory…>) falls back to CWD-resolution", () => {
+test("base64-loaded ROM (<memory...>) falls back to CWD-resolution", () => {
   const host = hostWithRom("<memory.nes>");
   assert.equal(resolveStatePath("x.state", host), path.resolve("x.state"));
 });

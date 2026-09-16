@@ -3,16 +3,16 @@
 # Node target. Single-threaded, static arch plugins, MODULARIZE glue driven
 # one-shot via callMain ("rizin -q -c '<cmds>' rom") by the worker pool.
 #
-# Recipe derived from rzwasi (https://github.com/IndAlok/rzwasi, LGPL-3.0) —
-# thread stubs, libzip/sys/cons emscripten fixes — adapted for Node/ESM and
+# Recipe derived from rzwasi (https://github.com/IndAlok/rzwasi, LGPL-3.0) -
+# thread stubs, libzip/sys/cons emscripten fixes - adapted for Node/ESM and
 # frozen into two committed patches (see scripts/patches/README.md):
-#   rizin-romdev-emscripten.patch  — rizin tree (threads, cons, sys, meson.build)
-#   rizin-libzip-emscripten.patch  — libzip meson subproject (applied post-download)
+#   rizin-romdev-emscripten.patch  - rizin tree (threads, cons, sys, meson.build)
+#   rizin-libzip-emscripten.patch  - libzip meson subproject (applied post-download)
 #
 # Known-good output (rizin v0.8.2, emcc 4.0.18): rizin.wasm ~30MB. Verified:
 # iNES autodetect, full analysis (aaa → 210 fns on a real NES ROM), axtj, agf
 # json, arch plugins 6502/z80/gb/arm/m68k/snes(65816)/spc700. NOTE: plugin-LISTING
-# commands (`La`, `e asm.arch=??`) trap on a fn-pointer signature mismatch —
+# commands (`La`, `e asm.arch=??`) trap on a fn-pointer signature mismatch -
 # do not use them from the JS wrapper; everything on the analysis path works.
 #
 # Output: staged at src/analysis/wasm/rizin.{js,wasm}, shipped via
@@ -32,7 +32,7 @@ STAGE="$PROJECT_DIR/src/analysis/wasm"
 OUT="$PROJECT_DIR/../romdev-analysis/wasm"
 
 # meson: use a system meson if present, else run the pinned standalone tarball
-# (meson is pure python — no install step needed).
+# (meson is pure python - no install step needed).
 if command -v meson >/dev/null 2>&1; then
   MESON=(meson)
 else

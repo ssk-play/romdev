@@ -1,4 +1,4 @@
-// wasm_module_builder.h — WASM binary format builder for Flycast JIT
+// wasm_module_builder.h - WASM binary format builder for Flycast JIT
 //
 // Builds valid WebAssembly modules byte-by-byte. No external dependencies.
 // Used by rec_wasm.cpp to compile SH4 basic blocks into WASM functions.
@@ -410,7 +410,7 @@ public:
 	void op_i64_extend_i32_s()   { emitByte(wop::i64_extend_i32_s); }
 	void op_i64_extend_i32_u()   { emitByte(wop::i64_extend_i32_u); }
 
-	// Double (f64) ops — used for fipr/ftrv double-precision accumulation
+	// Double (f64) ops - used for fipr/ftrv double-precision accumulation
 	void op_f64_add()            { emitByte(wop::f64_add); }
 	void op_f64_mul()            { emitByte(wop::f64_mul); }
 	void op_f64_promote_f32()    { emitByte(wop::f64_promote_f32); }

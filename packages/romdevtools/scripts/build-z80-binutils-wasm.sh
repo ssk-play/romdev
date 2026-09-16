@@ -2,7 +2,7 @@
 # Build the z80-elf GNU binutils (as / ld / objcopy / objdump) as WASM.
 #
 # This one binutils target serves BOTH the plain Z80 (SMS / Game Gear / MSX) AND
-# the Game Boy CPU (SM83 / LR35902) — select per-call with `-m z80` / `-m gbz80`
+# the Game Boy CPU (SM83 / LR35902) - select per-call with `-m z80` / `-m gbz80`
 # (objdump) or `-march=z80` / `-march=gbz80` (as). These are the native tools the
 # romdev disassembly stack uses end to end (replacing the deleted hand-rolled JS
 # z80dasm / sm83dasm):
@@ -31,7 +31,7 @@ SRC="${BINUTILS_SRC:?set BINUTILS_SRC to the binutils-2.42 source dir}"
 mkdir -p "$BUILD"; cd "$BUILD"
 
 if [ ! -f Makefile ]; then
-  # EXACT recipe the m68k/arm binutils builds use — just the z80-elf target.
+  # EXACT recipe the m68k/arm binutils builds use - just the z80-elf target.
   # Build EVERYTHING (gas + ld + binutils); the earlier --disable-gas path is
   # what triggered the liblto_plugin / "instruction set" friction. Plain make.
   emconfigure "$SRC/configure" \
@@ -44,7 +44,7 @@ fi
 # libiberty/strsignal.c redefines psignal, which NEWER emscripten's signal.h now
 # declares → "conflicting types for 'psignal'". Mark it present so libiberty
 # skips its own definition. (config.h is created by the libiberty SUBDIR
-# configure during make, not the top configure — so this must run AFTER at least
+# configure during make, not the top configure - so this must run AFTER at least
 # one make pass has created it. Re-running the script applies it then resumes.)
 patch_psignal() {
   if [ -f libiberty/config.h ] && ! grep -q '#define HAVE_PSIGNAL 1' libiberty/config.h; then
@@ -62,7 +62,7 @@ if ! emmake make -j"$(nproc)" 2>/dev/null; then
 fi
 
 # Re-link each tool as a MODULARIZE / EXPORT_ES6 factory and stage it. The glue
-# embeds ONE literal "<tool>.wasm" reference — rename it to the package basename
+# embeds ONE literal "<tool>.wasm" reference - rename it to the package basename
 # so locateFile resolves next to the staged .mjs.
 NCPU="$(nproc)"
 wrap_tool() {

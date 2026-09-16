@@ -1274,7 +1274,7 @@ skip:
 
 	void ReplaceFunctions() {
 		// Don't install replacement "emuhack" opcodes when replacements are disabled. They target
-		// the JIT; under the pure interpreter (no JIT — the emscripten libretro build) a hit emuhack
+		// the JIT; under the pure interpreter (no JIT - the emscripten libretro build) a hit emuhack
 		// has no saved original to restore, so Int_Emuhack derails the game's control flow → hang.
 		// With this gate the interpreter runs the real, unmodified MIPS code.
 		if (!g_Config.bFuncReplacements) {

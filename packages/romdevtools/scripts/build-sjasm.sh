@@ -6,13 +6,13 @@
 # embeds that blob as a byte array, which gcc compiles into the ROM. Both are
 # small, dependency-free C/C++ shipped in SGDK's tools/. Building them to WASM
 # lets romdev compile SGDK's sound drivers FROM SOURCE instead of linking a
-# prebuilt libmd.a — no opaque blobs.
+# prebuilt libmd.a - no opaque blobs.
 #
 # Output:
 #   ../romdev-toolchain-m68k-gcc/wasm/sjasm.{js,wasm}
 #   ../romdev-toolchain-m68k-gcc/wasm/bintos.{js,wasm}
 #
-# Upstream pinned in scripts/versions.json (toolchains.sgdk — sjasm + bintos
+# Upstream pinned in scripts/versions.json (toolchains.sgdk - sjasm + bintos
 # live in the SGDK repo under tools/).
 set -euo pipefail
 . "$(dirname "$0")/_lib.sh"

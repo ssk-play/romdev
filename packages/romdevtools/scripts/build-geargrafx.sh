@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build Geargrafx (PC Engine / TurboGrafx-16) libretro core → WASM. C++ core, so
-# the emcc link keeps exception support. PCE carts boot directly — no BIOS.
+# the emcc link keeps exception support. PCE carts boot directly - no BIOS.
 #
 # A romdev memory-region/watchpoint patch is applied IF present (exposes the
 # HuC6270 VRAM/SATB, HuC6260 palette, HuC6280 CPU + PSG state, VDC regs, and the
@@ -34,7 +34,7 @@ if [ -n "${PATCH_REL:-}" ] && [ -f "$PATCH_FILE" ]; then
   # src/huc6260_inline.h (the per-scanline pce_vce_pallines capture plus the
   # pce_vce_xofflines/srclines placement capture, both at end-of-line),
   # src/huc6260.cpp (the dot-stamped pce_paldeltas palette write log) and
-  # — so a clean re-apply always works. EVERY file the patch
+  # - so a clean re-apply always works. EVERY file the patch
   # touches must be listed: one missing entry makes the second build in a row
   # fail to apply, and the script then silently builds a STOCK core.
   git checkout -- platforms/libretro/libretro.cpp \
@@ -49,7 +49,7 @@ if [ -n "${PATCH_REL:-}" ] && [ -f "$PATCH_FILE" ]; then
     echo "WARNING: region patch failed to apply; building STOCK core." >&2
   fi
 else
-  echo "No region patch yet — building stock geargrafx."
+  echo "No region patch yet - building stock geargrafx."
 fi
 
 # ── romdev shared debug lib (0.80.0) ─ stage romdev_debug.h into src/ (already on

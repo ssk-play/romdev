@@ -1,4 +1,4 @@
-# glstress — a GL fixture with the three properties glcart.wasc lacks
+# glstress - a GL fixture with the three properties glcart.wasc lacks
 
 Built to the shape the romdev dev asked for:
 
@@ -20,8 +20,8 @@ Read `wasm({op:'debugState'})`:
 
 | field   | meaning |
 |---------|---------|
-| `score` | **ok** — 1 only when every stage completed this frame |
-| `aux`   | **stages** — bitfield, so a failure names WHICH stage died |
+| `score` | **ok** - 1 only when every stage completed this frame |
+| `aux`   | **stages** - bitfield, so a failure names WHICH stage died |
 
     stage 1  clear + scissor        bit 1
     stage 2  background fill        bit 2
@@ -49,5 +49,5 @@ passes. This is what made the dev and the client disagree for four rounds.
 the casualties, which is exactly the attachment-validation failure the fix
 addresses.
 
-For comparison, `glcart.wasc` passes 3/3 with the fix removed — it is
+For comparison, `glcart.wasc` passes 3/3 with the fix removed - it is
 64x64 and builds no MRT, so it never reaches the check.

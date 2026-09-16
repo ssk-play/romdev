@@ -1,4 +1,4 @@
-// romdev-xgm2 — VGM → XGM2 conversion structure tests. Validates the output
+// romdev-xgm2 - VGM → XGM2 conversion structure tests. Validates the output
 // against the SGDK bin/xgm2.txt format spec. (A full "does the Z80 driver play
 // it" check lives in the romdev-mcp integration test, which builds a Genesis ROM
 // that XGM2_play()s the blob and runs it in gpgx.)
@@ -13,8 +13,8 @@ import { vgmToXgm2, vgmToXgm2C } from "../src/index.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Self-contained fixture (691B, copied from SGDK's demo.vgm). The old
 // cross-package reach-in (packages/romdev/src/platforms/genesis/lib/...)
-// died TWICE without these tests noticing — the romdev→romdevtools rename,
-// then the 0.95.0 share-tree move to romdev-toolchain-m68k-gcc — because
+// died TWICE without these tests noticing - the romdev→romdevtools rename,
+// then the 0.95.0 share-tree move to romdev-toolchain-m68k-gcc - because
 // `npm test --workspaces` failures hid behind the last workspace's summary.
 const DEMO_VGM = join(__dirname, "fixtures", "demo.vgm");
 

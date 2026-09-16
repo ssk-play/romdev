@@ -1,5 +1,5 @@
 // romdev: neutralize ALL worker threads for the single-threaded Flycast WASM build.
-// pthread_create "succeeds" (returns 0) but spawns NOTHING — std::thread's ctor
+// pthread_create "succeeds" (returns 0) but spawns NOTHING - std::thread's ctor
 // doesn't throw (no abort in flycast's -fno-exceptions code), and join/detach are
 // no-ops. The async/worker threads (achievements/http/network/audio) never run;
 // emulation is synchronous on retro_run (ThreadedRendering defaulted false). This is

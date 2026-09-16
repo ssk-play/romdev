@@ -28,7 +28,7 @@ if [ -f "$PATCH_FILE" ]; then
   # Normalize CRLF → LF on the file(s) we patch.
   sed -i 's/\r$//' libretro/libretro-core.c vice/src/maincpu.c vice/src/6510core.c || true
   if grep -q 'ROMDEV_MEMORY_C64' libretro/libretro-core.c; then
-    echo "romdev patch already applied — skipping."
+    echo "romdev patch already applied - skipping."
   else
     echo "Applying romdev memory-region patch..."
     git apply --recount "$PATCH_FILE"
@@ -47,7 +47,7 @@ if [ -f "$NOEMB_PATCH" ]; then
     echo "Disabling VICE embedded ROMs..."
     git apply --recount "$NOEMB_PATCH"
   else
-    echo "VICE embedded ROMs already disabled — skipping."
+    echo "VICE embedded ROMs already disabled - skipping."
   fi
 fi
 
@@ -55,7 +55,7 @@ fi
 # The watchpoint/readwatch/range/coverage/pcbreak/watchdog machinery + exports now
 # live in scripts/romdev-debug/romdev_debug.c (shared by all cores). vice's Makefile
 # has no append-safe include hook, so stage romdev_debug.h next to BOTH files that
-# #include it (maincpu.c in vice/src/, libretro-core.c in libretro/) — the quote-
+# #include it (maincpu.c in vice/src/, libretro-core.c in libretro/) - the quote-
 # include then resolves relative to each source. The per-core patch keeps the 6510
 # STORE/LOAD hooks + setReg/getReg + the C64 disk/keyboard/joyport + memory regions.
 RDBG_SRC="$PROJECT_DIR/scripts/romdev-debug"

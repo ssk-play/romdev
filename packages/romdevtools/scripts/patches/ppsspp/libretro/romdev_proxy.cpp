@@ -1,4 +1,4 @@
-// romdev_proxy.cpp — run the PPSSPP core on a dedicated "app thread" so the JS main thread
+// romdev_proxy.cpp - run the PPSSPP core on a dedicated "app thread" so the JS main thread
 // stays a pure message pump and PPSSPP's worker threads never deadlock proxying back to it.
 //
 // THE PROBLEM: PPSSPP (with -pthread) has worker threads (GL/IO/audio) that make calls
@@ -9,7 +9,7 @@
 // THE FIX: an explicit "app thread" (a pthread we spawn). The host calls the romdev_proxied_*
 // wrappers from the JS main thread; each proxies the real retro_* call onto the app thread via
 // emscripten_proxy_sync. While the JS main thread waits inside proxy_sync it STILL services
-// incoming proxied calls from PPSSPP's workers (validated by PoC) — so no deadlock. PPSSPP's
+// incoming proxied calls from PPSSPP's workers (validated by PoC) - so no deadlock. PPSSPP's
 // native threading stays fully intact; ZERO thread-elimination hacks. The GL context is created
 // + used + read back all on the app thread (retro_load_game/run/readback all proxy there).
 //
@@ -49,7 +49,7 @@ static volatile int g_app_ready = 0;
 // ── libretro callback trampolines ──
 // The core (running on the app thread) invokes these. They proxy to the MAIN thread to run the
 // real JS callback (which touches host JS state). The main thread is blocked in
-// emscripten_proxy_sync(load_game/run) but pumps its own queue while waiting — validated — so
+// emscripten_proxy_sync(load_game/run) but pumps its own queue while waiting - validated - so
 // the round-trip completes without deadlock. The host installs the JS impls as Module fns.
 struct EnvArgs { unsigned cmd; void *data; int ret; };
 static void env_on_main(void *p) {
@@ -119,14 +119,14 @@ static void romdev_log_cb(int level, const char *fmt, ...) {
 EMSCRIPTEN_KEEPALIVE void *romdev_log_cb_ptr(void) { return (void *)romdev_log_cb; }
 
 // Fire the core's context_reset (read from the hw_render struct at SET_HW_RENDER) ON THE APP
-// THREAD, where the GL context lives — so PPSSPP (re)builds its GL resources against our surface.
+// THREAD, where the GL context lives - so PPSSPP (re)builds its GL resources against our surface.
 // The host passes the pointer (it read it during SET_HW_RENDER on the main side).
 typedef void (*ctx_reset_fn)(void);
 static ctx_reset_fn g_ctx_reset = nullptr;
 static void run_ctx_reset(void *p) {
   (void)p;
   // Make the EMSCRIPTEN GL context (Module.GL → GLctx, which PPSSPP's GL calls go through) current
-  // before context_reset — it creates the DrawContext + GL render manager via GLctx. native-gles
+  // before context_reset - it creates the DrawContext + GL render manager via GLctx. native-gles
   // makeCurrent alone isn't enough (PPSSPP renders through GLctx, not the raw binding).
   EM_ASM({
     if (Module['romdev_nativeGles']) Module['romdev_nativeGles'].makeCurrent();
@@ -154,10 +154,10 @@ EMSCRIPTEN_KEEPALIVE void romdev_register_callbacks(void) {
 // The app thread: park forever executing proxied work (live runtime keeps it + the runtime alive).
 static void *app_thread_main(void *arg) {
   (void)arg;
-  // Do NOT set g_app_ready here — it would be true before the runtime's event loop (below) is
+  // Do NOT set g_app_ready here - it would be true before the runtime's event loop (below) is
   // actually pumping the proxy queue, so a proxied call from main would sit unprocessed and a
   // proxy_sync would hang main forever. Instead the host pings via romdev_app_ping (proxied), and
-  // ping_on_app sets g_app_ready — which only runs once the queue is being serviced.
+  // ping_on_app sets g_app_ready - which only runs once the queue is being serviced.
   emscripten_exit_with_live_runtime();
   return nullptr;
 }
@@ -198,7 +198,7 @@ EMSCRIPTEN_KEEPALIVE void romdev_app_fs_write(const char *path, const unsigned c
   emscripten_proxy_sync(g_q, g_app_thread, fs_write_on_app, &a);
 }
 
-// Proxied retro_init — runs the core's init on the app thread (after callbacks are registered).
+// Proxied retro_init - runs the core's init on the app thread (after callbacks are registered).
 void retro_init(void);
 static void run_init(void *p) { (void)p; retro_init(); }
 EMSCRIPTEN_KEEPALIVE void romdev_proxied_init(void) {
@@ -214,7 +214,7 @@ EMSCRIPTEN_KEEPALIVE void romdev_proxied_register_callbacks(void) {
 EMSCRIPTEN_KEEPALIVE int romdev_app_ready(void) { return g_app_ready; }
 
 // ── ASYNC load_game + run ──
-// Critical: emscripten_proxy_ASYNC (not sync) so the JS MAIN thread is NOT blocked — its event
+// Critical: emscripten_proxy_ASYNC (not sync) so the JS MAIN thread is NOT blocked - its event
 // loop keeps turning, which is what services PPSSPP's worker-thread operations (pooled-Worker
 // grabs, postMessage wakeups, futex). A blocking proxy_sync freezes main's event loop → the
 // core's threads can't be scheduled → deadlock. The host kicks the async op then polls the done
@@ -238,11 +238,11 @@ EMSCRIPTEN_KEEPALIVE int romdev_proxied_run_state(void) { return g_run_state; }
 
 // The host's async poll loop calls this each tick (on the MAIN thread) to execute any callbacks
 // the app thread proxied back to main. With async load/run, main isn't blocked in proxy_sync (so
-// it doesn't auto-pump), so we pump explicitly — while still yielding to the JS event loop
+// it doesn't auto-pump), so we pump explicitly - while still yielding to the JS event loop
 // between pumps (so emscripten can service the app thread's pooled-Worker grabs / postMessage).
 // Drain the main thread's proxy queue. Guard against re-entry: a proxied task can itself end up
 // here (emscripten may pump while a task runs), and nesting emscripten_proxy_execute_queue blows
-// the JS stack. The flag makes a nested call a no-op — the outer drain finishes the work.
+// the JS stack. The flag makes a nested call a no-op - the outer drain finishes the work.
 static volatile int g_pumping = 0;
 EMSCRIPTEN_KEEPALIVE void romdev_pump_main_queue(void) {
   if (g_pumping) return;
@@ -265,7 +265,7 @@ EMSCRIPTEN_KEEPALIVE void romdev_proxied_run(void) {
 }
 
 // retro_get_system_av_info + retro_set_controller_port_device read/touch core state that lives on
-// the app thread — proxy them there (a direct main-thread call wedges).
+// the app thread - proxy them there (a direct main-thread call wedges).
 void retro_get_system_av_info(void *info);
 struct AvArgs { void *info; };
 static void run_av_info(void *p) { retro_get_system_av_info(((AvArgs *)p)->info); }
@@ -308,7 +308,7 @@ EMSCRIPTEN_KEEPALIVE void romdev_proxied_call(void *fnPtr) {
 // GL setup needs an async import() on the app thread; a spin-wait would block the app thread's
 // event loop and the import would never resolve. So use emscripten_proxy_sync_with_ctx: the
 // proxied fn kicks off the async import and stashes the proxying ctx; the async JS calls
-// romdev_gl_setup_finish(ctx, ok) when done, which marks the task finished — only THEN does the
+// romdev_gl_setup_finish(ctx, ok) when done, which marks the task finished - only THEN does the
 // host's proxy_sync return. The host thread (blocked in proxy_sync) keeps pumping its own queue.
 static volatile int g_gl_setup_result = 0;
 static int g_gl_w = 480, g_gl_h = 272;
@@ -365,7 +365,7 @@ static void gl_setup_async(void *p) {
         var webglNode = await import("webgl-node");
         // webgl-node.createWebGL2Context creates the shared EGL surface (native-gles + webgl-node
         // render into the same surface the readback reads). Don't also call
-        // nativeGles.createContext — that makes a SECOND context and segfaults.
+        // nativeGles.createContext - that makes a SECOND context and segfaults.
         var ctxPair = webglNode.createWebGL2Context(w, h);
         var canvas = ctxPair.canvas;
         canvas.getContextSafariWebGL2Fixed = canvas.getContext;

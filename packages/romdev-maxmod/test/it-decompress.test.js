@@ -4,7 +4,7 @@
 // validates the (far more subtle) IT214 decompressor with a synthetic but
 // VALID compressed bitstream. The encoder below emits every value at full
 // width (nbits+1 bits, top bit clear) so the decoder takes its method-3
-// pass-through path and integrates the deltas — exercising the 8-bit and
+// pass-through path and integrates the deltas - exercising the 8-bit and
 // 16-bit integrators and the it215 (cmwt==0x215) double-integration.
 //
 // The expected checksums were captured from the ORIGINAL mmutil C
@@ -14,7 +14,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Load_IT_Sample_CMP } from '../src/it.js';
 
-// xorshift32 — identical to the reference encoder used to generate expectations
+// xorshift32 - identical to the reference encoder used to generate expectations
 function makeRng(seed) {
   let s = seed >>> 0 || 1;
   return () => {

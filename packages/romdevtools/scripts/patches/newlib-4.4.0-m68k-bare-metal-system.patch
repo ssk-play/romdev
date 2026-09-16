@@ -4,7 +4,7 @@ which produces a contradiction: HAVE_SYSTEM tells stdlib/system.c to
 call _system(), while MISSING_SYSCALL_NAMES strips the prototype, so
 the build fails with "implicit declaration of '_system'". On a bare-
 metal Genesis target there is no OS-level system() call, so NO_EXEC is
-the correct semantic — system() returns ENOSYS, no syscall referenced.
+the correct semantic - system() returns ENOSYS, no syscall referenced.
 
 Also add -DABORT_PROVIDED so newlib doesn't link an unused abort
 implementation that would pull in libgloss syscalls we also don't have.

@@ -1,12 +1,12 @@
-// fly_instrument.h — unified instrumentation ring buffer for Flycast WASM JIT
+// fly_instrument.h - unified instrumentation ring buffer for Flycast WASM JIT
 //
 // Single-header library. One TU must define FLY_INSTRUMENT_IMPL before #include
 // to pull in the implementation (pointer definitions + fly_init + exports).
 //
 // Build modes:
-//   FLY_INSTRUMENT_RELEASE   — all emits compile to nothing. Zero overhead.
-//   FLY_INSTRUMENT_PROFILE   — every event recorded, no sampling.
-//   (default)                — FLY_INSTRUMENT_DEV: ring buffer live, sampling TBD.
+//   FLY_INSTRUMENT_RELEASE   - all emits compile to nothing. Zero overhead.
+//   FLY_INSTRUMENT_PROFILE   - every event recorded, no sampling.
+//   (default)                - FLY_INSTRUMENT_DEV: ring buffer live, sampling TBD.
 //
 // Wire format v1: 1 MiB ring, 64 B header + 32 768 × 32 B events. Single-producer,
 // single-consumer (JS drain), lock-free via monotonic head/tail counters.
@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 // ---------------------------------------------------------------------------
-// Wire format constants — DO NOT change without bumping FLY_RING_VERSION
+// Wire format constants - DO NOT change without bumping FLY_RING_VERSION
 // ---------------------------------------------------------------------------
 
 #define FLY_RING_MAGIC     0x464C5952u   // 'FLYR'
@@ -131,7 +131,7 @@ static inline void fly_emit(u32 type, u32 a, u32 b, u32 c, u32 d) {
     // Overwrite-oldest policy: always write, count drops when the ring is
     // full. The consumer (JS drain) is responsible for advancing `tail`;
     // if it can't keep up, oldest events get lapped and `drops` increments.
-    // Single-writer invariant preserved — only this producer touches `head`
+    // Single-writer invariant preserved - only this producer touches `head`
     // and `drops`.
     if ((head - tail) >= (u64)r->capacity_evts) {
         r->drops++;

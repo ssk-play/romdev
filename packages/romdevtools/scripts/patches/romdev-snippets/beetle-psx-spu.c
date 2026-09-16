@@ -4,7 +4,7 @@
  * EXPORTED_FUNCTIONS so LTO keeps it.
  *
  * Reads the RAW register store (regs.Regs[], updated on every SPU_Write) rather
- * than SPU_Read() — SPU_Read returns *processed* values for the volume/sweep
+ * than SPU_Read() - SPU_Read returns *processed* values for the volume/sweep
  * registers (it quantizes main/voice volume through the sweep envelope, so a
  * write of 0x3FFF reads back as e.g. 0x3800). audioDebug wants the register the
  * program actually wrote, so we mirror regs.Regs directly.

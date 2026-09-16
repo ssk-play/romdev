@@ -15,7 +15,7 @@ index 36112a5..36e101e 100644
 +#include "romdev_debug.h"
 +
 +
-+/* First byte address of the instruction each CPU is currently executing —
++/* First byte address of the instruction each CPU is currently executing -
 + * REG_PC/PC drift past operands during decode, so mid-instruction hooks (the
 + * write/read watchpoints) must report THIS, not the live PC. (Separate per CPU:
 + * on Genesis the sound Z80 runs concurrently with the m68k.) */
@@ -32,7 +32,7 @@ index 36112a5..36e101e 100644
 +   romdev_snap_kind = kind;
 +}
 +
-+/* Pure-CPU run for callSubroutine: step ONLY the m68k — none of the per-frame
++/* Pure-CPU run for callSubroutine: step ONLY the m68k - none of the per-frame
 + * system machinery (VDP line processing, Z80 co-scheduling, interrupt raising)
 + * advances, so a driven routine's output buffer can't be stomped by the game's
 + * own VBlank logic running "concurrently" (the cpu({op:'call'}) poisoning a
@@ -77,7 +77,7 @@ index 36112a5..36e101e 100644
  
    while (m68k.cycles < cycles)
    {
-+    /* romdev (0.80.0): REG_PC is the first byte of the instruction about to dispatch —
++    /* romdev (0.80.0): REG_PC is the first byte of the instruction about to dispatch -
 +     * latch it for the m68k mid-instruction R/W hooks, then ask the shared lib whether
 +     * to FREEZE (coverage + watchdog + pc-break/single-step live in romdev_debug.c). */
 +    romdev_m68k_instr_pc = REG_PC;
@@ -116,9 +116,9 @@ index b702173..56e7e74 100644
 +/* romdev (0.80.0): the m68k read/write hooks call the shared romdev_debug.c.
 + * ROMDEV_WP_M68K is the WRITE hook (watchpoint + range-write); ROMDEV_RD_M68K the
 + * READ hook (read-watch + range-read). The shared lib reports a hit (return 1) and the
-+ * m68k takes its register snapshot — romdev_m68k_snap fills romdev_snap_regs[] with the
++ * m68k takes its register snapshot - romdev_m68k_snap fills romdev_snap_regs[] with the
 + * m68k layout (D0-D7,A0-A7,PC,SR,SP). The PC reported is romdev_m68k_instr_pc (the
-+ * EXECUTING instruction's first byte, latched at dispatch — REG_PC has prefetched
++ * EXECUTING instruction's first byte, latched at dispatch - REG_PC has prefetched
 + * past the operands by write time). ROMDEV_RANGE_M68K is folded into on_write/on_read
 + * now, so it's a no-op kept so the existing call sites need no edits. */
 +extern unsigned int  romdev_m68k_instr_pc;
@@ -223,7 +223,7 @@ index bd454f6..146c282 100644
 +
 +/* romdev VRAM-port COPY TRACE (state + exports in libretro.c): log every
 + * data-port write landing in a watched VRAM address window with the EXECUTING
-+ * instruction's PC — the CPU-port complement of the existing DMA watch. The
++ * instruction's PC - the CPU-port complement of the existing DMA watch. The
 + * active CPU decides which latched PC applies (m68k on MD, Z80 on SMS/GG). */
 +extern unsigned int romdev_vw_lo, romdev_vw_hi;
 +extern int          romdev_vw_enabled;
@@ -243,7 +243,7 @@ index bd454f6..146c282 100644
  
 +/* romdev VDP-DMA log (discovery): record every mem->VDP DMA as
 + * {vramDest, source, length, code}. The agent filters by VRAM dest to answer
-+ * "which DMA wrote the tile at VRAM 0xNNNN and where from?" — the targeted
++ * "which DMA wrote the tile at VRAM 0xNNNN and where from?" - the targeted
 + * version of traceVramSource. Genesis-only (VDP DMA is a Genesis concept).
 + * Ring buffer; host drains it. dma_code records the VDP code reg (low bits pick
 + * VRAM/CRAM/VSRAM) so the host can tell a VRAM upload from a palette DMA. */
@@ -10420,11 +10420,11 @@ index 74d5053..e5e925d 100644
  void (*z80_writeport)(unsigned int port, unsigned char data);
  unsigned char (*z80_readport)(unsigned int port);
  
-+/* romdev (0.80.0): the z80 debug hooks call the SHARED romdev_debug.c — the SAME
++/* romdev (0.80.0): the z80 debug hooks call the SHARED romdev_debug.c - the SAME
 + * machinery + state the m68k path uses. On SMS/GG the Z80 is the active CPU; on
 + * Genesis it's the sound CPU running concurrently with the m68k. Either way both
 + * CPUs feed one shared debug state (one watchpoint, one cov ring, one pc-break), as
-+ * before — m68kcpu.c used to DEFINE the globals + z80.c externed them; now both just
++ * before - m68kcpu.c used to DEFINE the globals + z80.c externed them; now both just
 + * call romdev_on_dispatch / romdev_on_write / romdev_on_read. The z80 register
 + * snapshot (romdev_z80_snap) is per-core; romdev_z80_instr_pc is in m68kcpu.c. */
 +#include "romdev_debug.h"
@@ -10438,7 +10438,7 @@ index 74d5053..e5e925d 100644
   * Read a byte from given memory location
   ***************************************************************/
 -#define RM(addr) z80_readmem(addr)
-+/* romdev (0.80.0): the z80 at-hit register SNAPSHOT — per-core (z80 register layout
++/* romdev (0.80.0): the z80 at-hit register SNAPSHOT - per-core (z80 register layout
 + * in the romdev_getreg_z80 regId order: A,F,B,C,D,E,H,L at 0-7, IX/IY at 8-9,
 + * [16]=PC of the EXECUTING instruction, [18]=SP). Fills the shared romdev_snap_regs[].
 + * The read/write hooks (RM/WM) below feed the shared romdev_on_read/on_write and take
@@ -10470,7 +10470,7 @@ index 74d5053..e5e925d 100644
   ***************************************************************/
 -#define WM(addr,value) z80_writemem(addr,value)
 +/* WM must be a FUNCTION, not a macro: many call sites pass side-effecting args
-+ * (e.g. WM(HL, RLC(RM(HL))) — the value reads memory AND mutates the carry flag),
++ * (e.g. WM(HL, RLC(RM(HL))) - the value reads memory AND mutates the carry flag),
 + * so a macro that names `value` twice would double-evaluate them and corrupt the
 + * z80 (this exact bug stuck the SMS/GG crt0 gsinit loop). The romdev write hook
 + * lives inside so the addr/value are each evaluated exactly once at the call. */
@@ -10490,7 +10490,7 @@ index 74d5053..e5e925d 100644
   * Run until given cycle count 
   ****************************************************************************/
 +/* Pure-CPU run for callSubroutine (mirror of romdev_m68k_run_pure in
-+ * m68kcpu.c): step ONLY the Z80 — no VDP line processing or interrupt raising
++ * m68kcpu.c): step ONLY the Z80 - no VDP line processing or interrupt raising
 + * advances, so a driven routine can't be stomped by the game's frame logic.
 + * Cycle counter restored afterward; register/RAM effects kept. */
 +void romdev_z80_run_pure(unsigned int budget_cycles)
@@ -10503,7 +10503,7 @@ index 74d5053..e5e925d 100644
  void z80_run(unsigned int cycles)
  {
 +  /* romdev: once a breakpoint/watchdog hit has frozen this CPU, KEEP it frozen
-+   * for the remainder of the frame (mirror of the m68k_run guard — the per-
++   * for the remainder of the frame (mirror of the m68k_run guard - the per-
 +   * line scheduler re-enters z80_run and would otherwise drift the register
 +   * file past the hit). The host clears the hit to resume. */
 +  if (romdev_is_frozen())
@@ -10514,7 +10514,7 @@ index 74d5053..e5e925d 100644
 +
    while( Z80.cycles < cycles )
    {
-+    /* romdev (0.80.0): PC is the first byte of the instruction about to dispatch —
++    /* romdev (0.80.0): PC is the first byte of the instruction about to dispatch -
 +     * latch it for the z80 mid-instruction R/W hooks, then ask the shared lib whether
 +     * to FREEZE (coverage + watchdog + pc-break/single-step live in romdev_debug.c).
 +     * On a freeze, take the z80 snapshot + consume the frame so z80_run returns and the
@@ -18313,21 +18313,21 @@ index 798c6cc..18d5ea1 100644
 + * stay here. The m68k snapshot is in m68kcpu.c, the z80 snapshot in z80.c. */
 +#include "romdev_debug.h"
 +
-+/* romdev register read/write — the inverse of getCPUState, used by the host's
++/* romdev register read/write - the inverse of getCPUState, used by the host's
 + * callSubroutine / decompressWith (set args + PC=entry, push a sentinel return,
 + * run to it, capture the output). gpgx emulates TWO CPUs: the m68k (Genesis) and
 + * the Z80 (SMS/GG/Mark III). We dispatch on the loaded system: `system_hw`
 + * (declared in system.h via shared.h) carries SYSTEM_MD/SYSTEM_PBC for Genesis
 + * and SYSTEM_SMS/SYSTEM_GG/etc for the 8-bit machines. The idiom used throughout
 + * this file is `(system_hw & SYSTEM_PBC) == SYSTEM_MD` for "this is a Genesis/MD"
-+ * — its negation selects the Z80 systems (same dispatch getCPUState mirrors when
++ * - its negation selects the Z80 systems (same dispatch getCPUState mirrors when
 + * it reads SMS_Z80_REGS vs GENESIS_M68K).
 + *
 + * reg-id conventions (STABLE per CPU, the host passes the same ids per platform):
 + *   m68k:  0..7 = D0..D7, 8..15 = A0..A7, 16 = PC, 17 = SR, 18 = SP.
 + *   Z80:   0=A 1=F 2=B 3=C 4=D 5=E 6=H 7=L 8=IX 9=IY 16=PC 18=SP.
 + * Returns 0 on success, -1 on an unknown id. The Z80 register file is the live
-+ * `Z80` global (Z80_Regs; PAIR unions — .b.h/.b.l byte access, .w.l word). */
++ * `Z80` global (Z80_Regs; PAIR unions - .b.h/.b.l byte access, .w.l word). */
 +extern void m68k_set_reg(m68k_register_t reg, unsigned int value);
 +extern unsigned int m68k_get_reg(m68k_register_t reg);
 +
@@ -18397,7 +18397,7 @@ index 798c6cc..18d5ea1 100644
 +}
 +
 +
-+/* romdev VRAM-port copy trace (hooks in vdp_ctrl.c's data-port write paths —
++/* romdev VRAM-port copy trace (hooks in vdp_ctrl.c's data-port write paths -
 + * the CPU-port complement of romdev_dmawatch). set(lo,hi,enabled) arms a VRAM
 + * byte-address window + clears the ring; get drains [vaddr,pc,val] triples,
 + * out2 = [totalSeen, stored]. */
@@ -18443,7 +18443,7 @@ index 798c6cc..18d5ea1 100644
 +}
 +
 +/* Pure-CPU run for callSubroutine: advance ONLY the active CPU by up to
-+ * `budget_cycles` — no VDP line processing, no co-CPU, no interrupt sources.
++ * `budget_cycles` - no VDP line processing, no co-CPU, no interrupt sources.
 + * The armed pc-break sentinel / instruction watchdog still fire inside the
 + * run loop; the host polls romdev_pcbreak_get between chunks. Implemented in
 + * the CPU cores (cycle counters are restored there so frame scheduling is
@@ -18458,7 +18458,7 @@ index 798c6cc..18d5ea1 100644
 +      romdev_m68k_run_pure(budget_cycles);
 +}
 +
-+/* romdev VDP-DMA log (discovery, Genesis-only) — record every mem->VDP DMA
++/* romdev VDP-DMA log (discovery, Genesis-only) - record every mem->VDP DMA
 + * {vramDest, romSource, lengthWords, vdpCode}; the host filters by VRAM dest. */
 +extern unsigned int romdev_dma_enabled;
 +extern unsigned int romdev_dma_dest[], romdev_dma_src[], romdev_dma_len[], romdev_dma_code[];

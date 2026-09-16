@@ -1,22 +1,22 @@
-// Tests for src/mas.js — the MAS / GBA-sample / MSL-soundbank SERIALIZER.
+// Tests for src/mas.js - the MAS / GBA-sample / MSL-soundbank SERIALIZER.
 //
 // Reference outputs (serializer_*.bin / serializer_*.h) were produced by the
 // ORIGINAL devkitPro mmutil C (1.10.x) compiled with FixSample() stubbed to a
-// no-op — so the C serializer consumes the SAME raw parser output our JS
+// no-op - so the C serializer consumes the SAME raw parser output our JS
 // parsers (it.js/mod.js) produce (no sample-fixup divergence). The JS pipeline
 // here parses the identical fixtures and emits the soundbank via
 // writeSoundbank(); we assert the result is BYTE-FOR-BYTE identical to the C
 // soundbank .bin and the generated .h header.
 //
 // Coverage across these fixtures spans every serializer branch:
-//   serializer_it.{bin,h}  — sample.it + effects.it: 2 modules, 6 unique
+//   serializer_it.{bin,h}  - sample.it + effects.it: 2 modules, 6 unique
 //       samples, instrument-mode (FULL 240-byte notemap), instrument
 //       envelopes, IT pattern compression + Mark_Patterns, MSL dedup pool.
-//   serializer_mod.{bin,h} — serializer.mod: single module, single-sample
+//   serializer_mod.{bin,h} - serializer.mod: single module, single-sample
 //       notemap FAST PATH (0x8000|idx), a LOOPED sample (4-byte loop-restart
 //       tail) and an UNLOOPED sample (0x80×4 tail), a pattern-break (Dxx) that
 //       drives Mark_Patterns, run-length suppression, and the Cxx volume path.
-//   (constructed)          — a standalone WAV/SFX sample via MSL_AddSample
+//   (constructed)          - a standalone WAV/SFX sample via MSL_AddSample
 //       (no dedup) producing an SFX_ #define, pooled before module samples.
 
 import { test } from 'node:test';

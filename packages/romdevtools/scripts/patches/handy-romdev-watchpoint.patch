@@ -7,7 +7,7 @@ index ad4efd7..dd3488f 100644
  }
  
 +/* romdev (0.80.0): the PC-breakpoint/watchdog hit flag is now PRIVATE to the shared
-+ * romdev_debug.c — read it via the romdev_is_frozen() accessor (declared in
++ * romdev_debug.c - read it via the romdev_is_frozen() accessor (declared in
 + * romdev_debug.h, included via c65c02.h) so retro_run's frame loop can end the frame
 + * on a hit. (The old raw `extern romdev_pc_hit` symbol no longer exists.) */
 +extern "C" int romdev_is_frozen(void);
@@ -41,7 +41,7 @@ index ad4efd7..dd3488f 100644
 + * with C linkage; the CPU_POKE hook in lynx/c65c02.h records mPC when a watched
 + * address is written. Exported for the host. */
 +extern "C" {
-+/* romdev at-hit register snapshot — see c65c02.h for layout. The snap is a
++/* romdev at-hit register snapshot - see c65c02.h for layout. The snap is a
 + * FUNCTION (not a macro) so the hooks can call it from expression contexts. */
 +/* romdev (0.80.0): the watch/pcbreak/watchdog/range/coverage/irqblock STATE + the
 + * romdev_*_set/get exports all live in the shared romdev_debug.c now. libretro.cpp keeps
@@ -49,7 +49,7 @@ index ad4efd7..dd3488f 100644
 + * dispatch + CPU_PEEK/POKE hooks in c65c02.h call it), the shared snap-buffer fill, and
 + * setReg/getReg (which go through the C65C02 register file, not the shared buffer). */
 +unsigned int  romdev_65c02_instr_pc = 0xFFFFFFFF;
-+/* romdev 65C02 register snapshot — fills the SHARED romdev_snap_regs[]/romdev_snap_kind
++/* romdev 65C02 register snapshot - fills the SHARED romdev_snap_regs[]/romdev_snap_kind
 + * (declared in romdev_debug.h) at a hit. Layout matches the host's getRegSnapshot:
 + * [0]=A [1]=X [2]=Y [3]=P [4]=SP [16]=PC. A FUNCTION (not a macro) so the c65c02.h hooks
 + * can call it from expression contexts. */
@@ -112,10 +112,10 @@ index ad4efd7..dd3488f 100644
 + *          ($FC00-$FCFF: sprite engine regs) + Mikey ($FD00-$FDFF: LCD control,
 + *          audio at $FD20-$FD3F, palette at $FDA0-$FDBF). The CPU registers and
 + *          this HW window are SYNTHESIZED into static buffers per call because
-+ *          the chips' fields are private — Peek is the sanctioned public read
++ *          the chips' fields are private - Peek is the sanctioned public read
 + *          path and is side-effect-free for these register addresses.
-+ * Lynx sprites have NO fixed OAM — they are SCB linked lists walked from a RAM
-+ * address — so there is no sprite region; inspectSprites must walk SCBs over the
++ * Lynx sprites have NO fixed OAM - they are SCB linked lists walked from a RAM
++ * address - so there is no sprite region; inspectSprites must walk SCBs over the
 + * already-exported SYSTEM_RAM. */
 +#define ROMDEV_REGION_LYNX_CPU_REGS 0x190u
 +#define ROMDEV_REGION_LYNX_HW_REGS  0x191u
@@ -177,8 +177,8 @@ index 0fdea74..116fc7a 100644
 +/* romdev instruction-level write watchpoint (Lynx 65C02). The CPU_POKE macro is
 + * the central write path; mPC is the live program counter. Records the writing
 + * PC when a watched address is written. State has C linkage so libretro.cpp can
-+ * extern + export it. (The 65C02 addresses a flat 64KB space — no ROM banking
-+ * to disambiguate — so PC alone is unambiguous; no bank field.) */
++ * extern + export it. (The 65C02 addresses a flat 64KB space - no ROM banking
++ * to disambiguate - so PC alone is unambiguous; no bank field.) */
 +#ifdef __cplusplus
 +extern "C" {
 +#endif
@@ -197,12 +197,12 @@ index 0fdea74..116fc7a 100644
 + * Written as an expression (comma operator) because CPU_PEEK is used in
 + * expression context (e.g. mOperand=CPU_PEEK(...)). */
 +#define ROMDEV_65C02_SNAP(kind_) romdev_65c02_snap((unsigned int)(mA & 0xFF), (unsigned int)(mX & 0xFF), (unsigned int)(mY & 0xFF), (unsigned int)(PS() & 0xFF), (unsigned int)(mSP & 0xFF), (kind_))
-+/* romdev (0.80.0): the READ hook → shared on_read. CRITICAL — the underlying read
++/* romdev (0.80.0): the READ hook → shared on_read. CRITICAL - the underlying read
 + * (mSystem.Peek_CPU on a HARDWARE register at m>=0xfc00) can have SIDE EFFECTS (clears
 + * a status bit / advances a FIFO), so it MUST be evaluated EXACTLY ONCE. A GCC
-+ * statement-expression reads it into a temp, passes that to on_read, and yields it —
++ * statement-expression reads it into a temp, passes that to on_read, and yields it -
 + * no double-read. (The first cut re-evaluated the read 2-3× via the comma-operator
-+ * form, which silently corrupted I/O state and derailed the CPU — the Lynx never
++ * form, which silently corrupted I/O state and derailed the CPU - the Lynx never
 + * reached its main loop.) */
 +#define ROMDEV_RD_HOOK(m,rd)	({ unsigned int romdev_m=(unsigned int)(m); unsigned char romdev_v=(unsigned char)(rd); if(romdev_on_read(romdev_m, romdev_v, romdev_65c02_instr_pc)) ROMDEV_65C02_SNAP(4); romdev_v; })
 +
@@ -232,11 +232,11 @@ index 0fdea74..116fc7a 100644
 +          * hit to resume). */
 +         if(romdev_is_frozen()) return;
 +
-+         /* mPC is the first byte of the instruction about to dispatch — latch it for
++         /* mPC is the first byte of the instruction about to dispatch - latch it for
 +          * the CPU_POKE / ROMDEV_RD_HOOK watch hooks, then ask the shared lib whether
 +          * to FREEZE (coverage + watchdog + pc-break/single-step live in romdev_debug.c).
 +          * On a freeze: snapshot (kind 2=watchdog else 1=pc-break/step) and RETURN
-+          * WITHOUT executing — mPC left un-incremented; the libretro frame loop sees
++          * WITHOUT executing - mPC left un-incremented; the libretro frame loop sees
 +          * the hit flag and consumes the rest of the frame so retro_run returns. */
 +         romdev_65c02_instr_pc = (unsigned int)mPC;
 +

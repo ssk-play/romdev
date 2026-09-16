@@ -35,11 +35,11 @@ index 15b042c..7d21ba0 100644
 +extern "C" {
 +#include "romdev_debug.h"
 +
-+/* romdev register read/write — the inverse of getCPUState (callSubroutine /
++/* romdev register read/write - the inverse of getCPUState (callSubroutine /
 + * setRegister). SM83 reg-id convention (STABLE across cores): 0=A 1=F 2=B 3=C
 + * 4=D 5=E 6=H 7=L 16=PC 18=SP. Returns 0 on success, -1 on an unknown id.
 + * The setreg of PC writes pc_ (the field CPU::process loads into its `pc` local),
-+ * so it takes effect on the next run — see CPU::romdev_setReg for the gotcha. */
++ * so it takes effect on the next run - see CPU::romdev_setReg for the gotcha. */
 +int romdev_setreg(int regId, unsigned value) {
 +   return gb.romdev_setReg(regId, value);
 +}
@@ -65,7 +65,7 @@ index 15b042c..7d21ba0 100644
 +
 +/* romdev: the GB redraw capture planes. Defined in exactly one TU here.
 + * The header wraps its own declarations in extern "C", so this include must
-+ * stay at file scope — nesting it in another extern "C" block gives the
++ * stay at file scope - nesting it in another extern "C" block gives the
 + * arrays C linkage that ppu.cpp (C++) cannot resolve. */
 +#define ROMDEV_GBCAP_IMPL
 +#include "romdev_gbcap.h"
@@ -149,7 +149,7 @@ index 15b042c..7d21ba0 100644
 +    * never draws reads as invalid rather than keeping last frame's data.
 +    *
 +    * ORDERING TRAP: the blank-frame flag is set by LCD::updateScreen, which
-+    * runs inside the blit event DURING gb.runFor() below — i.e. after this
++    * runs inside the blit event DURING gb.runFor() below - i.e. after this
 +    * clear. Clearing here is therefore correct; clearing anywhere later (or
 +    * after runFor) erases the flag the same frame it was set, and a blanked
 +    * frame then renders as the last live picture instead of the solid fill.
@@ -174,11 +174,11 @@ index 0fb6199..7de286d 100644
 +/* romdev (0.80.0): all the watchpoint/readwatch/range/coverage/pcbreak/watchdog
 + * STATE + machinery now lives in the shared romdev_debug.c. cpu.cpp keeps only the
 + * GB-specific bits: the live-PC latch the hooks pass in, and the at-hit register
-+ * snapshot (the sm83 register layout — genuinely per-core). The WRITE/READ macros
++ * snapshot (the sm83 register layout - genuinely per-core). The WRITE/READ macros
 + * below call romdev_on_write/on_read/on_dispatch from the shared lib. */
 +extern "C" {
 +#include "romdev_debug.h"
-+/* romdev_gb_instr_pc — the address of the currently-executing instruction, latched
++/* romdev_gb_instr_pc - the address of the currently-executing instruction, latched
 + * at dispatch in CPU::process; the hooks stamp it as the writer/reader PC. */
 +unsigned romdev_gb_instr_pc = 0xFFFFFFFF;
 +/* at-hit REGISTER SNAPSHOT (sm83). The CPU state lives in LOCALS inside CPU::process;
@@ -196,18 +196,18 @@ index 0fb6199..7de286d 100644
  }
  
 +#ifdef __LIBRETRO__
-+/* rom-dev-mcp RE round 2 — register read/write by romdev reg-id. SM83 convention
++/* rom-dev-mcp RE round 2 - register read/write by romdev reg-id. SM83 convention
 + * (STABLE across cores): 0=A 1=F 2=B 3=C 4=D 5=E 6=H 7=L 16=PC 18=SP.
 + *
 + * The setreg-of-PC GOTCHA: CPU::process() copies pc_ into a LOCAL `pc` at the top
 + * of its outer loop and only writes it back to pc_ on exit. So to make a setreg of
 + * PC actually take on the NEXT process() call, we must write pc_ (the field
-+ * process loads), NOT a stale local — which is what we do here. A (a_) is the same
++ * process loads), NOT a stale local - which is what we do here. A (a_) is the same
 + * shape: process copies a_ into a local `a` at entry and writes it back on exit, so
 + * we write a_. sp/b/c/d/e/h/l are plain members read directly each instruction.
 + * The flags live split across hf1/hf2/zf/cf; we synthesize F with the file-local
 + * toF() (read) and decompose with zfFromF/hf2FromF/cfFromF (write), exactly like
-+ * saveState/loadState — so a getReg after a setReg of F round-trips. */
++ * saveState/loadState - so a getReg after a setReg of F round-trips. */
 +int CPU::romdev_setReg(int regId, unsigned value) {
 +	switch (regId) {
 +	case 0:  a_ = value & 0xFF; return 0;                 /* A  → a_ (process loads this at entry) */
@@ -254,7 +254,7 @@ index 0fb6199..7de286d 100644
  #define hl() ( h << 8 | l )
  
 -#define READ(dest, addr) do { (dest) = mem_.read(addr, cycleCounter); cycleCounter += 4; } while (0)
-+/* Capture the at-hit register snapshot from CPU::process's LOCALS (a/b/c/…/sp
++/* Capture the at-hit register snapshot from CPU::process's LOCALS (a/b/c/.../sp
 + * are locals there; this macro only expands in that scope). PC reported is the
 + * EXECUTING instruction's first byte (romdev_gb_instr_pc, latched at dispatch),
 + * not the operand-advanced live pc. */
@@ -271,14 +271,14 @@ index 0fb6199..7de286d 100644
 +		romdev_snap_kind = (kind_); \
 +	} while (0)
 +
-+/* romdev READ watchpoint check — runs AFTER the data read so it captures the
++/* romdev READ watchpoint check - runs AFTER the data read so it captures the
 + * value actually returned. Mirror of ROMDEV_WP_CHECK; hooked into the data-read
 + * macros below. PC_READ (instruction/operand fetch) is deliberately NOT hooked. */
 +/* romdev (0.80.0 shared lib): the read/write/range bookkeeping now lives in
-+ * romdev_debug.c — these macros just feed it the gambatte-specific bits (the live
++ * romdev_debug.c - these macros just feed it the gambatte-specific bits (the live
 + * sm83 PC + the active-bank ROM offset) and take the per-CPU register snapshot when
 + * the shared lib reports a hit. ROMDEV_GB_SNAP fills romdev_snap_regs[] (the GB
-+ * register layout — genuinely per-core). See scripts/romdev-debug/romdev_debug.h. */
++ * register layout - genuinely per-core). See scripts/romdev-debug/romdev_debug.h. */
 +#define ROMDEV_RD_CHECK(a, d) do { \
 +		if (romdev_on_read((unsigned)(a), (unsigned char)(d), romdev_gb_instr_pc)) { ROMDEV_GB_SNAP(4); } \
 +	} while (0)
@@ -303,11 +303,11 @@ index 0fb6199..7de286d 100644
  	mem_.updateInput();
  
 +	/* romdev: once a breakpoint/watchdog hit has frozen this CPU, KEEP it
-+	 * frozen — the libretro glue re-enters process() until the frame ends,
++	 * frozen - the libretro glue re-enters process() until the frame ends,
 +	 * which would resume execution and drift the registers away from the hit.
 +	 * The host clears the hit (pcbreak_get clearHit / pcbreak_set) to resume. */
 +	/* CONSUME the requested cycle budget (advance the clock without executing)
-+	 * so runFor still reports progress — an instant return makes the glue's
++	 * so runFor still reports progress - an instant return makes the glue's
 +	 * sample loop spin forever (the same hang the fire path's comment warns
 +	 * about). */
 +	if (romdev_is_frozen()) {
@@ -323,9 +323,9 @@ index 0fb6199..7de286d 100644
  			}
  		} else while (cycleCounter < mem_.nextEventTime()) {
 +				/* romdev (0.80.0): pc right now is the first byte of the instruction
-+				 * about to dispatch — latch it for the mid-instruction R/W hooks (the
++				 * about to dispatch - latch it for the mid-instruction R/W hooks (the
 +				 * WRITE/READ watchpoints see an operand-advanced pc). Then ask the
-+				 * shared lib (romdev_debug.c) whether this dispatch should FREEZE —
++				 * shared lib (romdev_debug.c) whether this dispatch should FREEZE -
 +				 * coverage logging + watchdog + pc-break/single-step all live there now. */
 +				romdev_gb_instr_pc = pc;
 +
@@ -334,7 +334,7 @@ index 0fb6199..7de286d 100644
 +					 * shared lib reports (2=watchdog, else 1=pc-break/step), then FREEZE:
 +					 * save the CPU epilogue with `pc` UNCHANGED (so getCPUState reads the
 +					 * break PC) but CONSUME the remaining cycle budget so the libretro frame
-+					 * loop COMPLETES this frame — else process() returns with cycleCounter <
++					 * loop COMPLETES this frame - else process() returns with cycleCounter <
 +					 * endtime and retro_run re-calls runFor forever (hang). Instruction NOT run. */
 +					ROMDEV_GB_SNAP(romdev_pc_hit_kind() == 2 ? 2 : 1);
 +					pc_ = pc;
@@ -373,7 +373,7 @@ index 76c29de..29d01ca 100644
 +    *  12:   ime    (0/1)
 +    *  13:   halt   (0/1)
 +    *  14-17: reserved (zero)
-+    * gambatte stores flags split across hf1/hf2/zf/cf — synthesize the
++    * gambatte stores flags split across hf1/hf2/zf/cf - synthesize the
 +    * standard SM83 F register from them. zf is INVERTED: zf=0 means
 +    * Z bit is set. */
 +   void cpu_snapshot(unsigned char *out) const {
@@ -399,7 +399,7 @@ index 76c29de..29d01ca 100644
 +    * SM83 reg-id convention (STABLE across cores): 0=A 1=F 2=B 3=C 4=D 5=E 6=H
 +    * 7=L 16=PC 18=SP. The setreg of PC writes pc_ (the field CPU::process loads
 +    * into its `pc` local at the top of the outer loop) and SP writes the `sp`
-+    * member; A writes a_ (the field process loads into its `a` local at entry) —
++    * member; A writes a_ (the field process loads into its `a` local at entry) -
 +    * so a setreg taken BEFORE the next process() actually sticks. Returns 0 on
 +    * success, -1 on an unknown id. */
 +   int      romdev_setReg(int regId, unsigned value);
@@ -425,12 +425,12 @@ index c8790fc..5028a98 100644
  		}
  
 -		if (ime()) {
-+		/* romdev INTERRUPT BLOCK — the pure-call primitive. While set, IRQ
++		/* romdev INTERRUPT BLOCK - the pure-call primitive. While set, IRQ
 +		 * SERVICE is suppressed (pending flags stay pending in IF), so a
 +		 * routine driven by callSubroutine cannot be hijacked by the game's
-+		 * own VBlank/timer handlers — the frame logic that stomps output
++		 * own VBlank/timer handlers - the frame logic that stomps output
 +		 * buffers. Video/timers keep running; only the dispatch is gated.
-+		 * (Declared extern "C" at file scope above — block-scope linkage
++		 * (Declared extern "C" at file scope above - block-scope linkage
 +		 * specs are illegal and namespace scope would mangle.) */
 +		if (ime() && !romdev_irq_block) {
  			unsigned const pendingIrqs = intreq_.pendingIrqs();
@@ -536,7 +536,7 @@ index a997aad..89c05de 100644
  void LCD::refreshPalettes()
  {
 +   /* romdev: mirror the ACTIVE palette as bgr15 VALUES into the current
-+    * line's slot. Values, not RGB — colour math stays in the reconstruction
++    * line's slot. Values, not RGB - colour math stays in the reconstruction
 +    * (Rule 1). Called on every palette write, so a mid-frame change lands on
 +    * the line where it took effect. */
     if (ppu_.cgb() && !ppu_.inDmgMode())
@@ -555,7 +555,7 @@ index a997aad..89c05de 100644
 +    * is a runtime OPTION (correction on/off, fast/gold-standard, dark
 +    * filter), and the gold-standard path is float std::pow that a Lua
 +    * reconstruction cannot reproduce bit-exactly. The emulator owns the
-+    * palette — the NES `palo` lesson — so the bezel must read the active
++    * palette - the NES `palo` lesson - so the bezel must read the active
 +    * table, not re-derive it.
 +    *
 +    * Rule 1 still holds: these are palette VALUES, not composited pixels.
@@ -575,7 +575,7 @@ index 7516ba1..94ccb70 100644
                 doCgbColorChange(dmgColorsGBC_, dmgColorsRgb32_, index, data);
 +            /* romdev: a CRAM write updates ONE entry in place and never calls
 +             * refreshPalettes(), so without this the capture misses every
-+             * mid-frame palette change — including HDMA-driven ones, which
++             * mid-frame palette change - including HDMA-driven ones, which
 +             * some CGB games use for the whole picture. */
 +            romdev_publishPalettes(false);
           }
@@ -613,7 +613,7 @@ index 5d36a9d..e16cd95 100644
  #include "savestate.h"
 +/* romdev: per-pixel capture planes for the universal GB redraw bezel.
 + * Captures timing-resolved INPUTS at each emit site (entry, palette, layer),
-+ * never composited results — see romdev_gbcap.h. */
++ * never composited results - see romdev_gbcap.h. */
 +#include "romdev_gbcap.h"
  #include <algorithm>
  #include <cstring>
@@ -896,7 +896,7 @@ index 5d36a9d..e16cd95 100644
  		p_.framebuf.setFbline(p_.lyCounter.ly());
 +		/* romdev: sample the per-line register file once per line, at the
 +		 * first update that touches it. The `written` flag in byte 15 makes
-+		 * this idempotent — update() runs many times per line (every register
++		 * this idempotent - update() runs many times per line (every register
 +		 * write forces one), and the LINE START values are what the
 +		 * reconstruction needs. */
 +		{
@@ -957,8 +957,8 @@ index 02c140e..5c131a2 100644
           clear(ppu_.frameBuf().fb(), color, ppu_.frameBuf().pitch());
 +         /* romdev: a blanked frame is a whole-screen solid fill, not drawn
 +          * pixels. Flag it (and record the fill VALUE) so the bezel renders
-+          * the fill instead of the last live frame — the NES stale-row trap. */
-+         /* The ACTUAL fill the core just wrote — not a guessed constant.
++          * the fill instead of the last live frame - the NES stale-row trap. */
++         /* The ACTUAL fill the core just wrote - not a guessed constant.
 +          * Hardcoding 0x7FFF/0 put BLACK on DMG blank frames where gambatte
 +          * writes dmgColorsRgb32_[0] (white); 10 carts in the full-corpus
 +          * sweep were solid-white frames scoring 0.000%. */

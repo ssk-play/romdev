@@ -41,18 +41,18 @@ fi
 perl -0pi -e 's/(void MemoryWrite\(uint16_t address, uint8_t value\) \{)/extern "C" void romdev_gametank_write(unsigned int,unsigned int);\n$1\n    romdev_gametank_write(address, value);/ unless /romdev_gametank_write\(address, value\);/' src/libretro.cpp
 # read-watch + Game Genie: replace MemoryRead's one-line body so it reads the real byte,
 # runs the observe hook (read-watch), then applies the cheat SUBSTITUTION (romdev_cheat_read
-# from the shared lib — hardware-faithful: address match → return the substitute byte, with
+# from the shared lib - hardware-faithful: address match → return the substitute byte, with
 # optional compare-against-original) and returns whatever it gives back.
 perl -0pi -e 's/uint8_t MemoryRead\(uint16_t address\) \{\n    return MemoryReadResolve\(address, true\);\n\}/extern "C" void romdev_gametank_read(unsigned int,unsigned int);\nextern "C" unsigned char romdev_cheat_read(unsigned int,unsigned char);\nuint8_t MemoryRead(uint16_t address) {\n    uint8_t romdev_v = MemoryReadResolve(address, true);\n    romdev_gametank_read(address, romdev_v);\n    return romdev_cheat_read(address & 0xFFFF, romdev_v);\n}/ unless /romdev_gametank_read\(address/' src/libretro.cpp
 
 # pc-break + coverage + watchdog: in the mos6502 Run() loop, right before the
-# opcode fetch (pc is the instruction about to execute). On a hit, set freeze —
+# opcode fetch (pc is the instruction about to execute). On a hit, set freeze -
 # the loop's existing `if(freeze){ --pc; ... break; }` halts cleanly. The forward
 # decl goes at FILE scope (extern "C" can't be a block-scope linkage spec in C++).
 perl -0pi -e 's/(#include "mos6502.h"\n)/$1\nextern "C" int romdev_gametank_step(unsigned int pc);\n/ unless /romdev_gametank_step/' vendor/mos6502/mos6502.cpp
 perl -0pi -e 's/(\n\t\t\/\/ fetch\n)/\n\t\tif (romdev_gametank_step(pc)) { freeze = true; }\n$1/ unless /romdev_gametank_step\(pc\)/' vendor/mos6502/mos6502.cpp
 
-# per-frame UNFREEZE: mos6502::Run() begins with `if(freeze) return;` — that's how
+# per-frame UNFREEZE: mos6502::Run() begins with `if(freeze) return;` - that's how
 # the dispatch breakpoint halts cleanly. But cpu->freeze is a STICKY CPU field that
 # nothing resets, so a single dispatch hit (or a stale pc_hit carried across a
 # loadMedia in the same WASM instance) wedges the CPU FOREVER: the NMI + page-flip
@@ -76,7 +76,7 @@ ROMDEV_EXPORTS='"_romdev_watchpoint_set","_romdev_watchpoint_set_cond","_romdev_
 
 # Step 1: compile the core objects via the Makefile's retroemu target (with
 # romdev_debug.c added to SOURCES). The Makefile's EM_EXPORTS only lists the
-# retro_* fns, so its link drops the romdev_* symbols — we re-link in step 2.
+# retro_* fns, so its link drops the romdev_* symbols - we re-link in step 2.
 emmake make platform=retroemu clean >/dev/null 2>&1 || true
 emmake make platform=retroemu -j"$(nproc)" \
   SOURCES="src/libretro.cpp src/palette_libretro.cpp vendor/blitter.cpp vendor/audio_coprocessor.cpp vendor/emulator_config.cpp vendor/timekeeper.cpp vendor/mos6502/mos6502.cpp romdev_debug.c" \

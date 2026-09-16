@@ -1,4 +1,4 @@
-/* romdev live-debug instrumentation for N64 (R4300) — 0.80.0: now a THIN per-core
+/* romdev live-debug instrumentation for N64 (R4300) - 0.80.0: now a THIN per-core
    shim over the shared romdev_debug.c (the same lib the 10 classic cores link). All
    the watchpoint/readwatch/range/coverage/pcbreak/watchdog state + the host-probed
    romdev_* exports live in the shared lib; this file keeps only the R4300 register
@@ -12,10 +12,10 @@
 
 extern int64_t reg[32], hi, lo;
 struct precomp_instr; extern struct precomp_instr *PC;
-/* precomp_instr's first field is uint32_t addr — read it via a cast */
+/* precomp_instr's first field is uint32_t addr - read it via a cast */
 static uint32_t cur_pc(void){ return PC ? *(uint32_t*)PC : 0; }
 
-/* romdev at-hit register snapshot (R4300) — per-core. Fills the shared
+/* romdev at-hit register snapshot (R4300) - per-core. Fills the shared
    romdev_snap_regs[] in the romdev_getreg regId order the host's getRegSnapshot
    reads: [0]=v0 [1..4]=a0-a3 [5..8]=t0-t3 [9..12]=s0-s3 [13]=sp [14]=ra [15]=gp
    [16]=fp [17]=lo [18]=pc(low32). The shared lib packs out[1]=19 + out[2..20]. */
@@ -34,7 +34,7 @@ static void romdev_n64_snap(int kind){
    romdev_snap_kind=kind;
 }
 
-/* RDRAM mirror canon — match the physical window so a host-set $00xxxxxx watch
+/* RDRAM mirror canon - match the physical window so a host-set $00xxxxxx watch
    catches the mirrored access (and vice versa). */
 #define ROMDEV_N64_CANON(x) ((uint32_t)((x) & 0x7FFFFF))
 

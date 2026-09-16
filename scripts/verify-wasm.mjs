@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// verify-wasm.mjs — fail loudly if a publishable package is missing its wasm.
+// verify-wasm.mjs - fail loudly if a publishable package is missing its wasm.
 //
 // The .wasm artifacts are gitignored (too big for git; built/staged out of
 // band) and shipped to npm via each package's `files` allowlist. That split is
 // correct, but it has one sharp edge: publishing from a tree where the wasm was
 // never built (fresh clone, wrong branch, a `clean` that wiped wasm/) would
-// ship a package with EMPTY wasm dirs — it installs fine and breaks at runtime.
+// ship a package with EMPTY wasm dirs - it installs fine and breaks at runtime.
 // This guard makes that impossible: it runs as each wasm package's
 // `prepublishOnly` AND as a preflight in publish-all.mjs.
 //
@@ -48,13 +48,13 @@ function checkPackage(pkgDir) {
     const p = path.join(wasmDir, w);
     const size = statSync(p).size;
     if (size < MIN_WASM_BYTES) {
-      problems.push(`${name}: ${w} is only ${size} bytes — looks like a stub/truncated file, not a real wasm module`);
+      problems.push(`${name}: ${w} is only ${size} bytes - looks like a stub/truncated file, not a real wasm module`);
       continue;
     }
     // Verify the wasm magic so a renamed text/pointer file can't sneak through.
     const fd = readFileSync(p, { encoding: null });
     if (fd.length < 8 || fd.readUInt32LE(0) !== 0x6d736100) {
-      problems.push(`${name}: ${w} does not start with the wasm magic (\\0asm) — corrupt or wrong file`);
+      problems.push(`${name}: ${w} does not start with the wasm magic (\\0asm) - corrupt or wrong file`);
     }
   }
   return problems;
@@ -81,7 +81,7 @@ if (args[0] === "--all") {
 
 const allProblems = pkgDirs.flatMap(checkPackage);
 if (allProblems.length) {
-  console.error("✗ wasm verification FAILED — refusing to publish:\n");
+  console.error("✗ wasm verification FAILED - refusing to publish:\n");
   for (const p of allProblems) console.error("  - " + p);
   console.error("\nBuild/stage the wasm (see scripts/build-*.sh) and re-run.");
   process.exit(1);

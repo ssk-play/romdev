@@ -1,11 +1,11 @@
-romdev — third-party component inventory
+romdev - third-party component inventory
 ========================================
 
-TL;DR — Games you build with romdev are YOURS, including to sell commercially.
+TL;DR - Games you build with romdev are YOURS, including to sell commercially.
 A built ROM contains only your code + permissive runtime libraries, compiled by
 toolchains with runtime exceptions. The non-commercial caveat below applies ONLY
 to redistributing the romdev tool bundle (which contains two non-commercial
-emulator cores) — never to the games you make with it.
+emulator cores) - never to the games you make with it.
 
 romdev's own code is MIT (see LICENSE). It bundles and redistributes
 third-party emulator cores, compiler toolchains, and game runtime libraries,
@@ -17,11 +17,11 @@ Two kinds of bundled component, governed differently:
     compilers carry a RUNTIME EXCEPTION: the license of the compiler does NOT
     extend to its output. A game compiled with GPL gcc/cc65/sdcc is the
     author's own work, freely licensable. The GPL obligation falls on US (we
-    redistribute the compiler binary) — satisfied by shipping the build recipe
+    redistribute the compiler binary) - satisfied by shipping the build recipe
     + pinned upstream source so anyone can reproduce the binary (see
     packages/romdev/scripts/ and BUILDING.md).
 
-  • EMULATOR CORES never touch the user's ROM — they are a dev instrument
+  • EMULATOR CORES never touch the user's ROM - they are a dev instrument
     (run + observe). Their license governs only OUR redistribution of the core
     binary. Most are GPL (OSI open source, source available upstream). Two are
     NON-COMMERCIAL (see below), which is why romdev as a whole is distributed
@@ -37,7 +37,7 @@ NON-COMMERCIAL COMPONENTS (why romdev is "free for non-commercial use")
 These two cores are under custom NON-COMMERCIAL licenses. They forbid
 commercial redistribution of the core, so a distribution of romdev that
 bundles them is free for non-commercial use and is not labeled OSI open
-source. (Your code is MIT; your built games are unencumbered — this affects
+source. (Your code is MIT; your built games are unencumbered - this affects
 only redistribution of these emulator binaries.)
 
   snes9x            SNES core           non-commercial (snes9x license)
@@ -56,7 +56,7 @@ Emulator cores
   prosystem         Atari 7800          GPL-2.0
   handy             Atari Lynx          zlib
 
-Compiler toolchains  (runtime exception — does not encumber compiled ROMs)
+Compiler toolchains  (runtime exception - does not encumber compiled ROMs)
 --------------------------------------------------------------------------
   cc65              NES/C64/2600/7800/Lynx   zlib
   sdcc              GB/GBC/SMS/GG            GPL-2.0 (runtime libs: GPL + linking exception)

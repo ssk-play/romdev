@@ -1,12 +1,12 @@
-// Tests for src/it.js — the Impulse Tracker (.IT) parser.
+// Tests for src/it.js - the Impulse Tracker (.IT) parser.
 //
 // Reference values below were captured from the ORIGINAL mmutil C parser
 // (devkitPro mmutil 1.10.1, it.c) compiled and run on the same fixtures, with
 // FixSample() stubbed so we compare the raw parser output. The fixtures are
 // real .it modules (from the pvsneslib SNES audio examples).
 //
-//   sample.it  — instrument-mode IT, 1 sample (16-bit signed, fmt=3, looped)
-//   effects.it — instrument-mode IT, 5 samples (16-bit signed, fmt=3)
+//   sample.it  - instrument-mode IT, 1 sample (16-bit signed, fmt=3, looped)
+//   effects.it - instrument-mode IT, 5 samples (16-bit signed, fmt=3)
 //
 // We assert: header fields, instrument/envelope decode, sample headers, and
 // FNV-style checksums over the fully decoded PCM and pattern data, so a
@@ -107,7 +107,7 @@ test('parseIt: sample.it header + instrument + sample + patterns', () => {
   assert.equal(patternDataHash(m.patterns[1]), 1193563349n);
 });
 
-test('parseIt: effects.it — 16-bit uncompressed PCM decode (C reference checksums)', () => {
+test('parseIt: effects.it - 16-bit uncompressed PCM decode (C reference checksums)', () => {
   const m = parseIt(load('effects.it'));
   assert.equal(m.samp_count, 5);
   assert.equal(m.patt_count, 2);

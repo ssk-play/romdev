@@ -8,10 +8,10 @@
  * CPU_RunReal dispatch loop). Main RAM is 2 MB mirrored → mask before the shared compare.
  *
  * NOTE: the WASM build sets HAVE_LIGHTREC=0, so CPU_RunReal (the interpreter) is the
- * live CPU path — the dispatch hook fires every instruction. */
+ * live CPU path - the dispatch hook fires every instruction. */
 #include "romdev_debug.h"
 
-/* romdev at-hit register snapshot (R3000A) — per-core. Fills the shared
+/* romdev at-hit register snapshot (R3000A) - per-core. Fills the shared
  * romdev_snap_regs[] in the romdev_getreg regId order the host's getRegSnapshot reads:
  * [0]=v0 [1..4]=a0-a3 [5..8]=t0-t3 [9..12]=s0-s3 [13]=sp [14]=ra [15]=gp [16]=fp
  * [17]=lo [18]=pc. (o32 MIPS: v0=2, a0-a3=4-7, t0-t3=8-11, s0-s3=16-19, gp=28, sp=29,
@@ -33,7 +33,7 @@ static void romdev_beetle_snap(int kind){
 
 /* The hook sees the RAW address the instruction used (the WriteMemory_u8/16/32 hook is at
  * the function top, BEFORE mednafen masks the segment), so it's the same virtual address
- * the host arms via setWatchpoint(0x80xxxxxx) / watchRange — pass it through unmasked so
+ * the host arms via setWatchpoint(0x80xxxxxx) / watchRange - pass it through unmasked so
  * the shared lib's exact-address compare matches. (R3000 KUSEG/KSEG0/KSEG1 alias the same
  * RAM; the user arms whichever segment their code uses.) */
 

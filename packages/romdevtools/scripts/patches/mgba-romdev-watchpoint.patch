@@ -13,7 +13,7 @@ index 0b92d7f..14b729c 100644
 + *
 + * PC convention: we compare against the RAW gprs[ARM_PC] as the executing
 + * instruction sees it (= instr_addr + 2*instrLen, the classic ARM pipeline PC),
-+ * the same value the write watchpoint reports — so findWriter feeds straight into
++ * the same value the write watchpoint reports - so findWriter feeds straight into
 + * runUntilPC. On a freeze we DO NOT execute (PC frozen) and must let the libretro
 + * frame loop COMPLETE (romdev_end_frame below) or it re-calls the CPU forever. */
 +#include "romdev_debug.h"
@@ -30,11 +30,11 @@ index 0b92d7f..14b729c 100644
 + * mTimingCurrentTime() == masterCycles + cpu->cycles, and _GBACoreRunFrame's
 + * outer loop exits when (currentTime - startCycle) >= one frame. So bumping
 + * cpu->cycles by a full frame makes that time guard trip the instant ARMRunLoop
-+ * returns — the frame loop ends and retro_run returns.
++ * returns - the frame loop ends and retro_run returns.
 + *
 + * CRITICAL: we deliberately DO NOT call cpu->irqh.processEvents() here. That
 + * handler flushes pending timing events, and the GBA VBlank that fires raises an
-+ * IRQ (ARMRaiseIRQ) which REWRITES gprs[ARM_PC] to the IRQ vector (0x18) — i.e.
++ * IRQ (ARMRaiseIRQ) which REWRITES gprs[ARM_PC] to the IRQ vector (0x18) - i.e.
 + * it would un-freeze the breakpoint PC. By only advancing the relative cycle
 + * counter we leave the entire CPU state (PC, mode, banked regs) untouched at the
 + * breakpoint, so gba_cpu_regs / getCPUState read the exact frozen PC. The
@@ -49,7 +49,7 @@ index 0b92d7f..14b729c 100644
 + * moving after a hit (the next frame resumes the CPU), so the hooks freeze a
 + * copy at the hit instant. Layout = the romdev ARM regId order: [0..15] =
 + * r0..r15 raw (15 = the pipeline fetch PC), [16] = CPSR, plus two extras:
-+ * [17] = the EXECUTING instruction's pipeline PC (gprs[PC]+width at dispatch —
++ * [17] = the EXECUTING instruction's pipeline PC (gprs[PC]+width at dispatch -
 + * the SAME convention romdev_pc_addr uses, so it cross-references directly),
 + * [18] = r13/SP (uniform SP slot across cores). kind: 1=pc-break/step,
 + * 2=watchdog, 3=write-watch, 4=read-watch. */
@@ -77,7 +77,7 @@ index 0b92d7f..14b729c 100644
 +	return 0;
 +}
 +
-+/* romdev register read/write (ARM7TDMI) — the inverse of getCPUState, used by the
++/* romdev register read/write (ARM7TDMI) - the inverse of getCPUState, used by the
 + * host's setRegister / callSubroutine. romdev ARM reg-id convention (STABLE):
 + * 0..15 = r0..r15 (so 13=SP/r13, 14=LR/r14, 15=PC/r15), 16 = CPSR. Maps onto
 + * mgba's cpu->gprs[n] and cpu->cpsr.packed. Defined here (not libretro.c) so the
@@ -99,7 +99,7 @@ index 0b92d7f..14b729c 100644
 +		cpu->gprs[regId] = (int32_t) value;
 +		return 0;
 +	}
-+	if (regId == 15) {            /* r15 / PC — reload the pipeline so it executes */
++	if (regId == 15) {            /* r15 / PC - reload the pipeline so it executes */
 +		cpu->gprs[ARM_PC] = (int32_t) value;
 +		if (cpu->executionMode == MODE_THUMB) {
 +			cpu->cycles += ThumbWritePC(cpu);
@@ -132,9 +132,9 @@ index 0b92d7f..14b729c 100644
  	cpu->irqh.reset(cpu);
  }
  
-+/* romdev INTERRUPT BLOCK — the pure-call primitive. While set, IRQ delivery
++/* romdev INTERRUPT BLOCK - the pure-call primitive. While set, IRQ delivery
 + * to the ARM is suppressed (IF/IE flags stay pending), so a routine driven by
-+ * callSubroutine cannot be hijacked by the game's own VBlank handlers — the
++ * callSubroutine cannot be hijacked by the game's own VBlank handlers - the
 + * frame logic that stomps output buffers. Video/timers keep running; only the
 + * CPU's IRQ ENTRY is gated. (SWI is NOT gated: a driven routine may
 + * legitimately call BIOS functions.) romdev_irq_block now lives in the shared lib;
@@ -171,7 +171,7 @@ index 0b92d7f..14b729c 100644
  
  void ARMRunLoop(struct ARMCore* cpu) {
 +	/* romdev: once a breakpoint/watchdog hit has frozen this CPU, KEEP it
-+	 * frozen — re-entry would resume execution and drift the register file
++	 * frozen - re-entry would resume execution and drift the register file
 +	 * away from the hit. The host clears the hit to resume. */
 +	if (romdev_is_frozen()) {
 +		romdev_end_frame(cpu);
@@ -182,7 +182,7 @@ index 0b92d7f..14b729c 100644
 +	 * (no PC breakpoint, no single-step, no coverage log, no watchdog, no
 +	 * write/read/range watch), run the stock tight loops untouched (zero
 +	 * overhead on the hot path). The memory watches gate the fast path too
-+	 * because their hooks report romdev_arm_instr_pc — the executing
++	 * because their hooks report romdev_arm_instr_pc - the executing
 +	 * instruction's pipeline PC, latched per-dispatch in the HOOKED loop below
 +	 * (the fast loop doesn't latch, so a watch armed during the fast path
 +	 * would report a stale PC and a stale register snapshot). */
@@ -202,7 +202,7 @@ index 0b92d7f..14b729c 100644
 +
 +	/* romdev breakpoint-armed path. Before each step, `gprs[ARM_PC]` points one
 +	 * instruction-word ahead of the prefetched (about-to-execute) instruction,
-+	 * so the in-execution raw PC == gprs[ARM_PC] + WORD_SIZE — the same value the
++	 * so the in-execution raw PC == gprs[ARM_PC] + WORD_SIZE - the same value the
 +	 * write watchpoint reports. On a hit we DO NOT step (PC frozen at the
 +	 * breakpoint) and end the frame so retro_run returns; the host then disarms.
 +	 * If a hit was already latched (host hasn't disarmed yet), end the frame
@@ -215,7 +215,7 @@ index 0b92d7f..14b729c 100644
 +	 * cpu->nextEvent to trip the frame loop's time guard without firing events
 +	 * (so the frozen PC wasn't clobbered by a VBlank IRQ). We're now starting a
 +	 * FRESH armed run (e.g. single-step right after a hit), so flush those
-+	 * pending events first — exactly like ARMRun/ARMRunLoop's normal tail — so
++	 * pending events first - exactly like ARMRun/ARMRunLoop's normal tail - so
 +	 * the step loop's `cpu->cycles < cpu->nextEvent` precondition holds and the
 +	 * step countdown actually advances. We are NOT at a breakpoint here, so an
 +	 * IRQ raised during the flush is normal, expected CPU behavior. */
@@ -252,7 +252,7 @@ index 27e289c..0bb04a7 100644
 + * romdev_debug.c. gba/memory.c keeps the GBA load/store hook macros (which call
 + * romdev_on_write/on_read) + the ARM snapshot externs. The hooks report the
 + * EXECUTING instruction's pipeline PC (romdev_arm_instr_pc, latched at dispatch in
-+ * arm.c). `cc` is the cycleCounter — NULL for internal helper accesses (skipped so
++ * arm.c). `cc` is the cycleCounter - NULL for internal helper accesses (skipped so
 + * an internal helper read doesn't double-fire). GBA is a flat 32-bit space. */
 +extern unsigned int romdev_arm_instr_pc;
 +extern void romdev_arm_snap(struct ARMCore* cpu, int kind);
@@ -340,7 +340,7 @@ index 4b05a42..57918d0 100644
 + * the ARM7 setReg/getReg wrappers + the memory regions. */
 +#include "romdev_debug.h"
 +
-+/* romdev register read/write (GBA ARM7) — the inverse of getCPUState, used by the
++/* romdev register read/write (GBA ARM7) - the inverse of getCPUState, used by the
 + * host's setRegister / callSubroutine (set a reg / PC, push a sentinel return,
 + * run to it, capture the output). The actual register access + the PC pipeline
 + * reload live in src/arm/arm.c (romdev_arm_setreg/getreg) where ARM_PC and the
@@ -372,10 +372,10 @@ index 4b05a42..57918d0 100644
 + * registers (DISPCNT, BGxCNT, scroll, window, blend) AND the audio registers
 + * (SOUNDxCNT, SOUNDCNT, SOUNDBIAS, WAVE_RAM), so one region serves both. */
 +#define ROMDEV_REGION_GBA_CPU_REGS 0x180u /* 20 u32: gprs[0..15], cpsr, spsr, execMode, privMode */
-+#define ROMDEV_REGION_GBA_IO_REGS  0x181u /* 0x400 bytes: io[512] — video + audio regs */
++#define ROMDEV_REGION_GBA_IO_REGS  0x181u /* 0x400 bytes: io[512] - video + audio regs */
 +#define ROMDEV_REGION_GBA_PALETTE  0x182u /* 0x400 bytes: palette[512] 15-bit BGR (256 BG + 256 OBJ) */
-+#define ROMDEV_REGION_GBA_OAM      0x183u /* 0x400 bytes: oam.raw[512] — 128 sprites x 8 bytes */
-+#define ROMDEV_REGION_GBA_IWRAM    0x184u /* 0x8000 bytes: IWRAM @ 0x03000000 — the C stack + libtonc/maxmod .bss live here */
++#define ROMDEV_REGION_GBA_OAM      0x183u /* 0x400 bytes: oam.raw[512] - 128 sprites x 8 bytes */
++#define ROMDEV_REGION_GBA_IWRAM    0x184u /* 0x8000 bytes: IWRAM @ 0x03000000 - the C stack + libtonc/maxmod .bss live here */
 +
 +#ifdef M_CORE_GBA
 +/* Assemble the ARM7 register snapshot. Layout (all little-endian u32):
@@ -427,7 +427,7 @@ index 4b05a42..57918d0 100644
  		break;
  	case RETRO_MEMORY_SYSTEM_RAM:
 +		/* romdev fix (upstream bug): this returned GB_SIZE_WORKING_RAM (0x8000)
-+		 * UNCONDITIONALLY — the Game Boy constant — while retro_get_memory_data
++		 * UNCONDITIONALLY - the Game Boy constant - while retro_get_memory_data
 +		 * returns the GBA's 256KB EWRAM. So on GBA the region reported IWRAM's
 +		 * size (32KB, a coincidence) over EWRAM's bytes: reads past 32KB were
 +		 * refused and the size misled callers into thinking this WAS IWRAM.
@@ -439,7 +439,7 @@ index 4b05a42..57918d0 100644
 +#endif
 +#ifdef M_CORE_GBA
 +		case mPLATFORM_GBA:
-+			return GBA_SIZE_EWRAM; /* 0x40000 — matches memory.wram above */
++			return GBA_SIZE_EWRAM; /* 0x40000 - matches memory.wram above */
 +#endif
 +		default:
 +			break;
@@ -457,7 +457,7 @@ index 4b05a42..57918d0 100644
 +	case ROMDEV_REGION_GBA_OAM:
 +		return GBA_SIZE_OAM;       /* 0x400 */
 +	case ROMDEV_REGION_GBA_IWRAM:
-+		return GBA_SIZE_IWRAM;     /* 0x8000 — IWRAM @ 0x03000000 */
++		return GBA_SIZE_IWRAM;     /* 0x8000 - IWRAM @ 0x03000000 */
 +#endif
  	default:
  		break;

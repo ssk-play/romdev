@@ -1,16 +1,16 @@
-cc65 reproducible debug info — deterministic, location/time-independent objects.
+cc65 reproducible debug info - deterministic, location/time-independent objects.
 
 WHY: With -g, cc65/ca65 bake three environment-dependent values into every
 object file's debug info: (1) an OPT_DATETIME wall-clock timestamp stamped by
 ca65 at assembly time, (2) each source file's modification time, and (3) each
-source file's full path. None affect generated code — a debugger uses them only
-to locate a source and check whether it changed — but they make the object
+source file's full path. None affect generated code - a debugger uses them only
+to locate a source and check whether it changed - but they make the object
 depend on WHEN and WHERE it was built. That breaks byte-for-byte reproducibility.
 
 It bites us concretely: romdev ships cc65 both as a native binary and as a WASM
 build. The WASM build stages inputs into a virtual filesystem under "/work/...",
 each written with a single mtime, so assembling the very same source through the
-WASM ca65 produces a different .o than the native ca65 — different debug paths,
+WASM ca65 produces a different .o than the native ca65 - different debug paths,
 different mtimes, different OPT_DATETIME. Downstream, the GameTank SDK's
 FLASH2M bank-placement measures object/segment sizes, so this cosmetic delta
 perturbs code layout and can flip a tight build between fitting and overflowing.

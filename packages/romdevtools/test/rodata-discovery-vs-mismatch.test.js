@@ -35,7 +35,7 @@ test("the i2 shape yields exactFunctionMatch:true, matching the byte-exact integ
   const v = aggregateVerdict({
     strict: EXACT_TEXT,
     rodata: { compared: false, applicable: false, references: { target: 0, candidate: 1 },
-      limitation: "target-rodata-not-discoverable", reason: "…" },
+      limitation: "target-rodata-not-discoverable", reason: "..." },
     romLinked: EXACT_LINKED,
   });
   assert.equal(v.functionLocal, "exact");

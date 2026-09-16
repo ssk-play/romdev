@@ -1,4 +1,4 @@
-// build-fixture-rom.js — build a real, bootable ROM from our OWN example
+// build-fixture-rom.js - build a real, bootable ROM from our OWN example
 // sources for tests that just need *a* valid ROM of a given platform (load,
 // step, screenshot, read memory, savestate, watchpoints). This replaces
 // depending on an external test ROM on disk: the tests now run unconditionally
@@ -6,7 +6,7 @@
 //
 // For tests that genuinely need a SPECIFIC commercial ROM's behavior (battery
 // SRAM quirks, a particular mapper), use rom-fixtures.js (user-supplied,
-// env-gated) instead — those legitimately skip when absent.
+// env-gated) instead - those legitimately skip when absent.
 import { readFile, writeFile, mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build prosystem (Atari 7800) libretro core → WASM, with romdev's
 # custom memory region patch applied (exposes 6502 CPU snapshot via
-# retro_get_memory_data for the getCPUState tool — MARIA/TIA/ROM are
+# retro_get_memory_data for the getCPUState tool - MARIA/TIA/ROM are
 # already reachable via system_ram, which returns the full 64KB 6502
 # address-space buffer).
 #
@@ -22,7 +22,7 @@ fetch_pinned cores.prosystem "$DIR"
 cd "$DIR"
 git checkout -- core/libretro.c core/Memory.c core/Sally.c core/ProSystem.c 2>/dev/null || true
 # prosystem ships Memory.c/Sally.c/ProSystem.c as CRLF; normalize to LF so the
-# (LF-generated) romdev patch applies cleanly — same as the vice build.
+# (LF-generated) romdev patch applies cleanly - same as the vice build.
 sed -i 's/\r$//' core/libretro.c core/Memory.c core/Sally.c core/ProSystem.c || true
 if ! git apply --recount --check "$PATCH_FILE" 2>/dev/null; then
   if grep -q "ROMDEV_MEMORY_A78_CPU_REGS" core/libretro.c; then

@@ -1,15 +1,15 @@
-# Build map — which recipe builds which package
+# Build map - which recipe builds which package
 
 The build system is **centralized on purpose**: every upstream pin lives in one
 [`versions.json`](./versions.json) (loaded by [`_versions.sh`](./_versions.sh)),
 every `build-*.sh` recipe lives here in `scripts/`, and our patches are the only
 committed third-party-adjacent source, in [`patches/`](./patches/). None of this
-ships — `romdevtools`' `package.json` `files` allowlist excludes `scripts/`, so
+ships - `romdevtools`' `package.json` `files` allowlist excludes `scripts/`, so
 patches + recipes are repo-only dev artifacts.
 
 What **does** ship is the built `.wasm`, in the per-platform **binary packages**
 (`romdev-core-*`, `romdev-platform-*`, `romdev-analysis*`). Those packages are
-pure artifact carriers — a thin `index.js` + a `wasm/` dir. This file is the
+pure artifact carriers - a thin `index.js` + a `wasm/` dir. This file is the
 missing link between the two: **given a package, find the recipe that builds it;
 given a recipe, find what it ships into.**
 
@@ -39,7 +39,7 @@ staging), and copies into the shipping package's `wasm/`.
 | GBA | mgba | `build-mgba.sh` | `mgba-romdev-watchpoint.patch` | `romdev-platform-gba` |
 
 **`romdev-core-*` vs `romdev-platform-*`:** a `core` package is just an emulator
-core (often shared — gpgx serves 3 platforms, gambatte 2). A `platform` package
+core (often shared - gpgx serves 3 platforms, gambatte 2). A `platform` package
 bundles a core **with the dedicated toolchain only that platform uses**, shipped
 together because nothing else needs them: `romdev-platform-snes` = snes9x + asar +
 tcc816 + wla-dx; `romdev-platform-gba` = mgba + arm-none-eabi-gcc; +
@@ -50,7 +50,7 @@ tcc816 + wla-dx; `romdev-platform-gba` = mgba + arm-none-eabi-gcc; +
 
 Toolchain recipes fetch `toolchains.<name>`, build to WASM, and stage into
 `src/toolchains/<name>/wasm/`. ⚠ **Known asymmetry:** unlike the core recipes,
-most toolchain recipes do NOT yet copy into their shipping package automatically —
+most toolchain recipes do NOT yet copy into their shipping package automatically -
 the `romdev-toolchain-*/wasm/` copy is synced separately. (Worth unifying: give
 each toolchain recipe the same `PKG_OUT` copy step the core recipes have.)
 
@@ -76,18 +76,18 @@ each toolchain recipe the same `PKG_OUT` copy step the core recipes have.)
 
 ## Shared primitives (build no package directly)
 
-Built once, consumed by the recipes above — they have no satellite package:
+Built once, consumed by the recipes above - they have no satellite package:
 
-- `build-bison.sh`, `build-flex.sh`, `build-mcpp.sh` — host build tools.
-- `build-m68k-toolchain.sh`, `build-arm-toolchain.sh` — native cross-toolchains
+- `build-bison.sh`, `build-flex.sh`, `build-mcpp.sh` - host build tools.
+- `build-m68k-toolchain.sh`, `build-arm-toolchain.sh` - native cross-toolchains
   the `*-wasm-tools` recipes wrap (newlib patches: `newlib-4.4.0-m68k-*.patch`).
-- `build-genesis-libres.sh` — Genesis SGDK resource compiler bits.
-- `build-sdcc-native-debug.sh` — a native SDCC for local debugging, not shipped.
+- `build-genesis-libres.sh` - Genesis SGDK resource compiler bits.
+- `build-sdcc-native-debug.sh` - a native SDCC for local debugging, not shipped.
 
 ## Orchestration
 
 `build-all.sh` runs the toolchain recipes in order. Per-recipe usage is in each
-script's header. To re-pin an upstream, edit [`versions.json`](./versions.json) —
+script's header. To re-pin an upstream, edit [`versions.json`](./versions.json) -
 never a `build-*.sh`. Emscripten itself is pinned in `build-image/Dockerfile`
 (WASM isn't bit-reproducible across emcc versions, so an emsdk bump is deliberate).
 

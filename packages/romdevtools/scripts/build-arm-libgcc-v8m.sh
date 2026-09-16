@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Build libgcc for ARMv8-M main + hard float (fpv5-sp-d16) — the multilib a
+# Build libgcc for ARMv8-M main + hard float (fpv5-sp-d16) - the multilib a
 # sync32 cart links against.
 #
 # WHY THIS EXISTS SEPARATELY from build-arm-toolchain.sh: that script builds a
 # SINGLE-ARCH toolchain (`--disable-multilib --with-cpu=arm7tdmi`) for the GBA,
 # so the libgcc it installs is ARMv4T and link-incompatible with a Cortex-M33
-# object. The compiler itself is fine for both — only the runtime library is
+# object. The compiler itself is fine for both - only the runtime library is
 # per-architecture.
 #
 # A sync32 cart is freestanding and needs NO libc, but it does need libgcc's
@@ -35,7 +35,7 @@ NCPU="$(nproc)"
 mkdir -p "$SRC_DIR" "$PREFIX"
 
 cd "$SRC_DIR"
-# Same upstreams and versions as build-arm-toolchain.sh — the compiler that
+# Same upstreams and versions as build-arm-toolchain.sh - the compiler that
 # builds this libgcc must match the one that compiles carts.
 [ -d "binutils-$BINUTILS_VER" ] || {
   [ -f "binutils-$BINUTILS_VER.tar.xz" ] || wget -q "https://ftp.gnu.org/gnu/binutils/binutils-$BINUTILS_VER.tar.xz"
@@ -58,7 +58,7 @@ export PATH="$PREFIX/bin:$PATH"
 
 # ── gcc stage 1, configured for the v8-m multilib ──
 # --without-headers + --with-newlib: libgcc builds in its "no libc yet" mode,
-# which is exactly right — a cart links no libc at all.
+# which is exactly right - a cart links no libc at all.
 if [ ! -x "$PREFIX/bin/$TARGET-gcc" ]; then
   mkdir -p "$ROOT/build-gcc"; cd "$ROOT/build-gcc"
   [ -f Makefile ] || "$SRC_DIR/gcc-$GCC_VER/configure" \

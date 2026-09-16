@@ -1,7 +1,7 @@
 // ESLint flat config for the romdev monorepo.
 //
 // Deliberately lean: plain JavaScript ESM (no TypeScript), so we run the
-// recommended JS rules plus a few that actually catch BUGS in this codebase —
+// recommended JS rules plus a few that actually catch BUGS in this codebase -
 // undefined variable references and unused vars/imports (the class of typo a
 // build-time syntax check + node --test does NOT catch). Style is left alone.
 //
@@ -21,11 +21,11 @@ export default [
       "packages/romdev-audio-resampler/resampler.mjs",
       "**/build/**",
       "**/.romdev-build/**",
-      "**/.claude/**",     // workflow scripts — top-level return, not project ESM
+      "**/.claude/**",     // workflow scripts - top-level return, not project ESM
       "**/dist/**",
       // Vendored upstream SDK / lib C sources we ship but don't author.
       "packages/*/src/platforms/*/lib/**",
-      // Bundled game/example C & asm — not our JS.
+      // Bundled game/example C & asm - not our JS.
       "**/*.c",
       "**/*.h",
       "**/*.s",
@@ -45,7 +45,7 @@ export default [
       },
     },
     rules: {
-      // The bug-catchers we actually want — these are why we added a linter:
+      // The bug-catchers we actually want - these are why we added a linter:
       // undefined references, unused vars/imports, real defects (dupe keys,
       // self-assignment, always-true comparisons). Kept at "error".
       "no-undef": "error",
@@ -59,13 +59,13 @@ export default [
           ignoreRestSiblings: true,
         },
       ],
-      // Genuine-defect rules from recommended — keep on.
+      // Genuine-defect rules from recommended - keep on.
       // (no-dupe-keys, no-self-assign, no-constant-binary-expression,
       //  no-dupe-args, no-unreachable, etc. all stay at their recommended level.)
       "no-empty": ["error", { allowEmptyCatch: true }],
       "no-constant-condition": ["error", { checkLoops: false }],
 
-      // OFF — opinionated/stylistic rules that fire heavily on deliberate
+      // OFF - opinionated/stylistic rules that fire heavily on deliberate
       // existing code and aren't bugs in this codebase. Re-enable case-by-case
       // later if desired; for now they'd only bury the real findings.
       "no-useless-assignment": "off",   // intentional throwaway assigns in parsers/decoders

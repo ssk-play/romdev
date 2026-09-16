@@ -13,8 +13,8 @@ index 96dece6..ae7a694 100644
 +extern uint8_t RawDALatch;          /* $4011 */
 +extern uint8_t DMCAddressLatch;     /* $4012 */
 +extern uint8_t DMCSizeLatch;        /* $4013 */
-+extern uint8_t EnabledChannels;     /* $4015 (write — channel enable) */
-+extern uint8_t IRQFrameMode;        /* $4017 (write — frame counter mode) */
++extern uint8_t EnabledChannels;     /* $4015 (write - channel enable) */
++extern uint8_t IRQFrameMode;        /* $4017 (write - frame counter mode) */
 +#include "../../x6502struct.h"
 +extern X6502 X;            /* 6502 CPU state */
  
@@ -59,13 +59,13 @@ index 96dece6..ae7a694 100644
 +   return n;
 +}
 +
-+/* romdev register read/write — the inverse of getCPUState, used by the host's
++/* romdev register read/write - the inverse of getCPUState, used by the host's
 + * callSubroutine / setRegister (set A/X/Y/PC, push a sentinel return, run to it,
 + * capture the output). romdev 6502 reg-id convention (STABLE across all cores so
 + * the host passes the same ids): 0=A, 1=X, 2=Y, 3=P(status), 4=SP, 16=PC. Maps
 + * onto fceumm's X6502 struct (X.A/X.X/X.Y/X.P/X.S/X.PC). Returns 0 on success,
 + * -1 on an unknown id from setreg; getreg returns the value (0 for unknown). The
-+ * NES PC is a flat 16-bit address (no bank arg) — fine for RE; the write-watch
++ * NES PC is a flat 16-bit address (no bank arg) - fine for RE; the write-watch
 + * reports prgOffset separately if the bank matters. */
 +int romdev_setreg(int regId, unsigned int value)
 +{
@@ -101,8 +101,8 @@ index 96dece6..ae7a694 100644
 +#define ROMDEV_MEMORY_NES_OAM        0x102  /* 256B SPRAM */
 +#define ROMDEV_MEMORY_NES_CHR        0x103  /* 8KB CHR via VPage[0..7] */
 +#define ROMDEV_MEMORY_NES_APU_REGS   0x104  /* 24B synthesized APU register snapshot ($4000-$4017) */
-+#define ROMDEV_MEMORY_NES_CPU_REGS   0x105  /* sizeof(X6502) — live 6502 CPU struct snapshot */
-+#define ROMDEV_MEMORY_NES_PPU_REGS   0x106  /* 4B PPU latch — PPUCTRL/PPUMASK/PPUSTATUS/OAMADDR */
++#define ROMDEV_MEMORY_NES_CPU_REGS   0x105  /* sizeof(X6502) - live 6502 CPU struct snapshot */
++#define ROMDEV_MEMORY_NES_PPU_REGS   0x106  /* 4B PPU latch - PPUCTRL/PPUMASK/PPUSTATUS/OAMADDR */
 +#define ROMDEV_MEMORY_NES_CART_RAM   0x107  /* 8KB cart WRAM at CPU $6000-$7FFF */
 +#define ROMDEV_MEMORY_NES_SCROLL     0x108  /* 8B scroll: v[x,y,nt,pad] then t[x,y,nt,pad] */
 +/* PER-SCANLINE scroll: 240 entries x [x, y, ntSelect, pad].
@@ -262,7 +262,7 @@ index 96dece6..ae7a694 100644
 +             *
 +             * Why: fceumm stores VPage[i] differently depending on the
 +             * mapper. setchr8 (NROM, full 8KB single bank): all eight
-+             * VPage[i] point to the same 8KB base — reading `VPage[i]+0`
++             * VPage[i] point to the same 8KB base - reading `VPage[i]+0`
 +             * gives the first 1KB regardless of i. setchr1 (per-1KB
 +             * mappers like MMC3): VPage[i] = `bank_start - i*$400` so
 +             * that PPU reads `VPage[i][ppu_addr]` resolve correctly,
@@ -560,7 +560,7 @@ index 2a5ba88..9a7b7cc 100644
  	vtoggle ^= 1;
  }
  
-+/* romdev VRAM-port copy trace — state + logger in x6502.c. */
++/* romdev VRAM-port copy trace - state + logger in x6502.c. */
 +extern unsigned int  romdev_vw_lo, romdev_vw_hi;
 +extern int           romdev_vw_enabled;
 +extern void          romdev_vw_log(unsigned int vaddr, unsigned int pc, unsigned char val);
@@ -1046,13 +1046,13 @@ index 61b83e0..6fc0034 100644
 +#include "romdev_debug.h"
 +
 +/* First-byte address of the instruction being executed, latched at dispatch in
-+ * X6502_Run — X.PC is only synced at loop boundaries, so mid-instruction hooks
++ * X6502_Run - X.PC is only synced at loop boundaries, so mid-instruction hooks
 + * must report THIS. */
 +uint32_t      romdev_6502_instr_pc = 0xFFFFFFFF;
 +
 +/* romdev VRAM-port COPY TRACE (the source-trace primitive for port-based
 + * video memory): log every CPU write that lands in a watched VRAM address
-+ * window, with the EXECUTING instruction's PC — answers "which routine
++ * window, with the EXECUTING instruction's PC - answers "which routine
 + * uploads this tile/nametable region?" the way watch({on:'dma'}) does on
 + * Genesis. Hooked in ppu.c's $2007 data-port handler; the vaddr is the PPU
 + * address (RefreshAddr), not a CPU address. Ring buffer; host drains it. */
@@ -1076,7 +1076,7 @@ index 61b83e0..6fc0034 100644
 +	}
 +}
 +
-+/* romdev at-hit register snapshot (6502 layout — per-core). Fills the shared
++/* romdev at-hit register snapshot (6502 layout - per-core). Fills the shared
 + * romdev_snap_regs[] in the romdev_getReg regId order ([0]=A [1]=X [2]=Y [3]=P
 + * [4]=S [16]=PC-of-executing-instruction [18]=S) + the kind. The hooks call this
 + * when the shared lib reports a hit. */
@@ -1150,7 +1150,7 @@ index 61b83e0..6fc0034 100644
  	#define _PC pbackus
  
 +	/* romdev: once a breakpoint/watchdog hit has frozen this CPU, KEEP it
-+	 * frozen — the PPU loop re-enters X6502_Run several times per frame, which
++	 * frozen - the PPU loop re-enters X6502_Run several times per frame, which
 +	 * would resume execution and drift the register file away from the hit
 +	 * (the documented "live regs are end-of-frame state" problem; the snapshot
 +	 * sidestepped it, the freeze now removes it). The host clears the hit
@@ -1178,7 +1178,7 @@ index 61b83e0..6fc0034 100644
  		_PI = _P;
 +
 +		/* romdev (0.80.0): _PC right now is the first byte of the instruction about to
-+		 * be dispatched — latch it for the mid-instruction R/W hooks, then ask the
++		 * be dispatched - latch it for the mid-instruction R/W hooks, then ask the
 +		 * shared lib whether this dispatch should FREEZE (coverage + watchdog +
 +		 * pc-break/single-step all live in romdev_debug.c now). */
 +		romdev_6502_instr_pc = (uint32_t)_PC;
@@ -1187,7 +1187,7 @@ index 61b83e0..6fc0034 100644
 +			/* freeze the CPU EXACTLY at this PC (X.PC = pbackus, instruction NOT run),
 +			 * take the 6502 register snapshot with the shared lib's reported kind
 +			 * (2=watchdog else 1=pc-break/step) + fill the compact pcbreak_get reg slots
-+			 * (A,X,Y,P,S — clobbered by the rest of the frame otherwise), and DRAIN the
++			 * (A,X,Y,P,S - clobbered by the rest of the frame otherwise), and DRAIN the
 +			 * cycle budget so this frame ends here instead of re-looping forever. */
 +			X.PC = pbackus;
 +			romdev_6502_snap(romdev_pc_hit_kind() == 2 ? 2 : 1);
