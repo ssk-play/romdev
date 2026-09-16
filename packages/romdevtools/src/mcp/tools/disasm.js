@@ -2007,6 +2007,7 @@ export function registerDisasmTools(server, z) {
       length: z.number().int().min(1).max(65536).optional().describe("target=rom/range/recompile: bytes to disassemble or lift (default 256; mutually exclusive with endAddress)."),
       emit: z.enum(["asm", "ir"]).default("asm").describe("target=recompile: asm preserves existing output; ir exports decoded/lifted Z80 instructions as JSONL at outputPath, with byte offsets, CPU addresses, banks, cycles and flags. No WAT backend."),
       allOffsets: z.boolean().default(false).describe("target=recompile emit=ir: export the entire SMS/GG ROM in bank-sized windows in one call, including ROMs larger than 64KB. Linear decode, not reachability proof."),
+      alignments: z.enum(["primary", "all"]).default("primary").describe("target=recompile emit=ir: 'primary' (default) emits ONE linear tiling — every byte owned by exactly one instruction. 'all' additionally emits a decode STARTING at every offset the tiling did not begin an instruction at, marked alignment:'secondary'. A static recompiler needs those: a computed jump (jp (hl), an rst table) can land mid-instruction. Secondary records overlap by design and must NOT be summed against romBytes."),
 
       slot: z.number().int().min(0).max(2).optional().describe("target=recompile emit=ir: CPU slot for exported SMS/GG banks (16KB each). Default bank0 at slot0, bank1 at slot1, other banks at slot2; targets remain CPU addresses."),
       addOrigin: z.boolean().default(true).describe("target=bytes/rom: prepend `.org` so the asm re-assembles through ca65."),

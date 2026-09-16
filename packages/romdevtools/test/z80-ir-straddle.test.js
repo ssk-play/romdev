@@ -96,3 +96,76 @@ test("a genuine decode gap is still refused", async () => {
     /byte\/offset mismatch/,
     "an instruction starting outside the window must still be rejected");
 });
+
+// ── alignments:'all' (client report 2026-09-16) ──────────────────────────────
+//
+// `allOffsets:true` gives a single linear tiling: every byte owned once. A
+// static recompiler needs the decode STARTING at every offset, because a
+// computed jump (jp (hl), an rst table, a RAM-built dispatch) can land
+// mid-instruction. Their measurement: 95,166 IR records vs 130,341 from their
+// own k=0..7 sweep on a 128KB cart; the difference is entry points, and every
+// miss cost one disasm call, making the IR path SLOWER than what it replaced.
+
+test("alignments:'all' emits a record at EVERY byte offset", async () => {
+  // Interleaved code and data: multi-byte instructions leave offsets that the
+  // linear tiling never starts on.
+  const dir = await mkdtemp(path.join(tmpdir(), "romdev-align-"));
+  const b = Buffer.alloc(16384);
+  for (let i = 0; i < 600; i += 3) { b[i] = 0x21; b[i + 1] = i & 0xff; b[i + 2] = 0xc0; } // ld hl,nn
+  const rom = path.join(dir, "t.sms"), out = path.join(dir, "ir.jsonl");
+  await writeFile(rom, b);
+  const m = await exportZ80IR({ platform: "sms", path: rom, outputPath: out, emit: "ir", allOffsets: true, alignments: "all" });
+  assert.equal(m.offsetsWithRecord, m.offsetsTotal, "every offset must carry a record");
+  assert.equal(m.offsetsTotal, 16384);
+  assert.ok(m.secondaryCount > 0, "a tiling of 3-byte instructions must leave secondary offsets");
+
+  const offs = new Set((await readFile(out, "utf8")).split("\n").filter(Boolean).map((l) => JSON.parse(l).off));
+  assert.equal(offs.size, 16384, "no offset may be missing");
+});
+
+test("secondary records are MARKED and their bytes are the ROM's", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "romdev-align2-"));
+  const b = Buffer.alloc(16384);
+  for (let i = 0; i < 600; i += 3) { b[i] = 0x21; b[i + 1] = i & 0xff; b[i + 2] = 0xc0; }
+  const rom = path.join(dir, "t.sms"), out = path.join(dir, "ir.jsonl");
+  await writeFile(rom, b);
+  await exportZ80IR({ platform: "sms", path: rom, outputPath: out, emit: "ir", allOffsets: true, alignments: "all" });
+
+  const recs = (await readFile(out, "utf8")).split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  const sec = recs.filter((r) => r.alignment === "secondary");
+  assert.ok(sec.length, "no secondary records emitted");
+  assert.ok(recs.some((r) => r.alignment === "primary"), "primary records must still be labelled");
+  for (const r of sec.slice(0, 50)) {
+    for (let i = 0; i < r.bytes.length; i++) {
+      assert.equal(r.bytes[i], b[r.off + i], `secondary record at ${r.off} does not carry the ROM's bytes`);
+    }
+  }
+});
+
+test("the default export is UNCHANGED — no new fields, no extra records", async () => {
+  // Existing consumers must see exactly what they saw before.
+  const dir = await mkdtemp(path.join(tmpdir(), "romdev-align3-"));
+  const b = Buffer.alloc(16384);
+  for (let i = 0; i < 600; i += 3) { b[i] = 0x21; b[i + 1] = i & 0xff; b[i + 2] = 0xc0; }
+  const rom = path.join(dir, "t.sms");
+  await writeFile(rom, b);
+  const def = await exportZ80IR({ platform: "sms", path: rom, outputPath: path.join(dir, "a.jsonl"), emit: "ir", allOffsets: true });
+  assert.equal(def.alignments, undefined, "the default must not advertise an alignments mode");
+  assert.equal(def.secondaryCount, undefined);
+  const recs = (await readFile(path.join(dir, "a.jsonl"), "utf8")).split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  assert.ok(recs.every((r) => r.alignment === undefined), "default records must carry no alignment label");
+  assert.equal(def.coveredBytes, def.romBytes);
+});
+
+test("secondary records overlap by design and must not be summed as coverage", async () => {
+  // The trap this guards: summing every record's len against romBytes would
+  // now overcount wildly. coveredBytes counts the PRIMARY tiling only.
+  const dir = await mkdtemp(path.join(tmpdir(), "romdev-align4-"));
+  const b = Buffer.alloc(16384);
+  for (let i = 0; i < 600; i += 3) { b[i] = 0x21; b[i + 1] = i & 0xff; b[i + 2] = 0xc0; }
+  const rom = path.join(dir, "t.sms");
+  await writeFile(rom, b);
+  const m = await exportZ80IR({ platform: "sms", path: rom, outputPath: path.join(dir, "a.jsonl"), emit: "ir", allOffsets: true, alignments: "all" });
+  assert.equal(m.coveredBytes, m.romBytes, "coveredBytes must still be the primary tiling, not the sum of all records");
+  assert.match(m.alignmentNote, /do NOT sum their lengths/i);
+});
