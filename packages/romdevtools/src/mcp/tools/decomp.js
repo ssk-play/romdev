@@ -12,7 +12,7 @@
 // NO_TARGET_ASM, FUNCTION_NOT_IN_TU, STALE_CONTEXT, COMPILE_FAILED,
 // CANDIDATE_REJECTED, SEARCH_IMPORT_FAILED, JOB_NOT_FOUND, CANCELLED,
 // LOST_RUNTIME_STATE, PC_BREAK_UNSUPPORTED, UNSUPPORTED_OP).
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir, stat } from "node:fs/promises";
 import fs from "node:fs";
 import path from "node:path";
 import { jsonContent, safeTool } from "../util.js";
@@ -42,7 +42,7 @@ export function registerDecompTools(server, z, sessionKey) {
     "Every result names the project, function {symbol, segment, va}, candidate sha, compiler fingerprint and artifact paths; errors carry a typed [CODE]. `exactFunctionMatch` and `romLinked.status:'exact'` are the acceptance signals; `distance` is a ranking hint, never proof. " +
     "Ghidra pseudocode stays in disasm({target:'decompile'}) for understanding; it is never counted as matched.",
     {
-      op: z.enum(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage", "workbench", "dispatch", "experiment", "gate", "typeGraph", "rank", "ledger", "scenario", "capabilities", "knownSource", "assets", "artifacts", "handoff", "skill"]).describe(
+      op: z.enum(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage", "workbench", "dispatch", "experiment", "gate", "typeGraph", "rank", "ledger", "scenario", "capabilities", "knownSource", "assets", "artifacts", "handoff", "skill", "diagnose", "research", "variants"]).describe(
         "import=register a project (root; splat yaml auto-detected; ROM sha1 verified; toolchain fingerprinted; compile invocation captured from make); " +
         "status=manifest + backend identities + segment table; list=registered projects; map=TU → object → segment → functions associations; " +
         "plan=payoff-ordered queue of remaining asm functions + batches that call each other inside one TU (call graph from the built objects' relocations); batch=generate+compare every function of a batch (`symbols`), sharing the context; " +
@@ -80,13 +80,16 @@ export function registerDecompTools(server, z, sessionKey) {
         "preview", "write",
         // op:'artifacts'
         "prune", "restore", "pin",
+        // op:'research'
+        "import",
       ]).optional().describe(
         "op:'job' — status (default), best, cancel, report. "
         + "op:'experiment' — create, control, candidate, conclude, list, families. "
         + "op:'scenario' — save, run, list. "
         + "op:'assets' — unpack (decode one container to a file), repack (compress an edited payload back, verified by decoding it again). "
         + "op:'skill' — preview (default), write. "
-        + "op:'artifacts' — status (default), prune, restore, pin."),
+        + "op:'artifacts' — status (default), prune, restore, pin. "
+        + "op:'research' — list (default), import, status."),
       experimentId: z.string().optional().describe("op:'experiment' — the record to act on (from action:'create' or action:'list')."),
       hypothesis: z.string().optional().describe("op:'experiment' action:'create' — ONE falsifiable causal claim. Required: an experiment without one is a sweep, and a sweep is what produced 264 undifferentiated candidates for a single function."),
       lever: z.string().optional().describe("op:'experiment' action:'create' — the SINGLE source change being varied. Required: varying two things at once cannot attribute the result."),
@@ -128,7 +131,7 @@ export function registerDecompTools(server, z, sessionKey) {
       allowNetwork: z.boolean().default(false).describe("op:'workbench' — required to run a command the workbench's OWN catalog marks as reaching the network."),
       timeoutMs: z.number().int().min(1000).max(3_600_000).optional().describe("op:'workbench' — per-command timeout (default 600000)."),
       force: z.boolean().default(false).describe("op:'workbench' — re-read the command catalog instead of using the cached one."),
-      root: z.string().optional().describe("op:'import' — absolute path of the decompilation checkout (the dir with the splat yaml + Makefile)."),
+      root: z.string().optional().describe("op:'import' — absolute path of the decompilation checkout (the dir with the splat yaml + Makefile). op:'research' action:'import' — a directory of prior research (drafts and notes) to INDEX. Indexing records what exists; it never turns a note into a verified result."),
       splatYaml: z.string().optional().describe("op:'import' — splat yaml (relative to root) when auto-detection finds more than one."),
       rom: z.string().optional().describe("op:'import' — base ROM path when it differs from the yaml's target_path."),
       expectedSha1: z.string().optional().describe("op:'import' — expected base-ROM sha1 (default: the yaml's)."),
@@ -144,19 +147,28 @@ export function registerDecompTools(server, z, sessionKey) {
       // duplicate-key bug that made five `action` vocabularies unreachable.
       maxFunctions: z.number().int().min(1).max(512).default(12).describe("op:'batch' — cap on functions run (default 12). op:'dispatch' — cap on functions processed this run (default 64)."),
       timeBudgetS: z.number().int().min(10).max(86400).default(600).describe("op:'batch' — wall-clock budget (default 600). op:'dispatch' — wall-clock budget; remaining functions come back as `skipped`."),
-      candidatePath: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate' — path to a C file holding the function definition (+ any local declarations it needs). op:'artifacts' action:'pin' — the candidate to pin."),
-      candidateText: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate' — the candidate C inline (alternative to candidatePath)."),
+      candidatePath: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate'/'variants'/'experiment' — path to a C file holding the function definition (+ any local declarations it needs). op:'artifacts' action:'pin' — the candidate to pin."),
+      candidateText: z.string().optional().describe("op:'compare'/'search'/'integrate'/'gate'/'variants'/'experiment' — the candidate C inline (alternative to candidatePath)."),
+      variants: z.array(z.object({
+        id: z.string().describe("stable id for this variant, used in the results table"),
+        hypothesis: z.string().optional().describe("the ONE thing this variant tests"),
+        find: z.string().optional().describe("literal text in the baseline to replace; must occur EXACTLY once"),
+        replace: z.string().optional().describe("what to replace it with (omit to delete)"),
+        candidateText: z.string().optional().describe("full replacement source, instead of find/replace"),
+      })).optional().describe("op:'variants' — a bounded list of named source variants measured against one baseline under ONE dependency snapshot. Duplicate sources and byte-identical outputs are reported rather than silently dropped."),
+      artifactId: z.string().optional().describe("op:'diagnose' — a stored compare artifact (the `.diff.json` path from a compare's `artifacts.diff`, or its cache key). The diagnosis reuses that comparison's exact streams; no recompile."),
+      tracePath: z.string().optional().describe("op:'diagnose' — an as1 `-Wa,-R` trace of the SAME compile, for source-line attribution and scheduling priorities. Optional: without it mechanisms are inferred from the instruction streams alone and the response says so."),
       ownerPath: z.string().optional().describe("op:'compare' — REPLAY FIXTURE: compile the candidate into this saved owner TU instead of the one in the current tree. Use the pre-integration backup to re-verify a function that has since been integrated; without it the accepted definition is already present and the compile fails with 'redeclaration'."),
       contextHash: z.string().optional().describe("op:'compare' — the context hash the candidate was generated against; the result flags contextStale when the TU/headers/flags changed since."),
-      declarations: z.string().optional().describe("op:'compare'/'integrate' — extra declarations (proposed structs/prototypes) placed before the function in the TU copy; pair with the same text passed to generate as extraContext."),
+      declarations: z.string().optional().describe("op:'compare'/'integrate'/'variants'/'generate' — extra declarations (proposed structs/prototypes) placed before the function in the TU copy; pair with the same text passed to generate as extraContext."),
       extraContext: z.string().optional().describe("op:'generate' — C declarations (proposed structs/prototypes, e.g. decomp({op:'types', propose:true}).text) appended to the TU's context so the draft is generated with those types WITHOUT editing a header."),
       propose: z.boolean().default(false).describe("op:'types' — also propose struct typedefs + a prototype from the evidence (a proposal, not confirmed types)."),
       chunkFrames: z.number().int().min(1).max(600).default(10).describe("op:'coverage' — frames per bitmap read between input events (input events split chunks anyway); the union is the same, smaller chunks only cost more reads."),
       cpuCore: z.enum(["pure_interpreter", "cached_interpreter", "dynamic_recompiler"]).optional().describe("op:'smoke' — N64 CPU core option for both sessions (pure_interpreter enables PC breaks, single-step and the PC coverage log; default is the core's dynarec)."),
       label: z.string().optional().describe("Free label stored with the candidate/job."),
       maxDiffInstructions: z.number().int().min(4).max(400).default(40).describe("op:'compare' — lines in the inline diff preview (full diff always on disk)."),
-      noCache: z.boolean().default(false).describe("op:'compare' — recompile even if this candidate was compared under the same dependency hash."),
-      verifyTu: z.boolean().default(true).describe("op:'compare' — also check every OTHER function in the TU's object is unchanged."),
+      noCache: z.boolean().default(false).describe("op:'compare'/'variants' — recompile even if this candidate was compared under the same dependency hash. op:'context' — rebuild the context cache."),
+      verifyTu: z.boolean().default(true).describe("op:'compare'/'variants' — also check every OTHER function in the TU's object is unchanged."),
       timeLimitS: z.number().int().min(10).max(86400).default(300).describe("op:'search' — wall-clock budget."),
       threads: z.number().int().min(1).max(32).default(2).describe("op:'search' — permuter worker threads."),
       seed: z.string().optional().describe("op:'search' — permuter seed. The backend accepts ONLY integers: 'rngSeed' (e.g. '297') or 'permuterIndex,rngSeed' (e.g. '0,297'). A descriptive label ([A-Za-z0-9][A-Za-z0-9._-]*) is accepted too and mapped DETERMINISTICALLY onto that space; the response returns the mapping so the run can be reproduced. An unusable seed is refused synchronously, before any job directory or process exists. Seed identity fixes the mutation stream, NOT thread scheduling: with threads>1 the ORDER results arrive still varies."),
@@ -338,6 +350,121 @@ export function registerDecompTools(server, z, sessionKey) {
             maxWorkers: args.maxWorkers, timeBudgetS: args.timeBudgetS ?? 3600,
           });
           return jsonContent({ project: project.id, ...out });
+        }
+        case "variants": {
+          // One baseline + named variants, one dependency snapshot, a compact
+          // table. This is the ad-hoc Node script the reporter kept rewriting.
+          const V = await import("../../decomp/variants.js");
+          const fn = await resolveFn();
+          const base = await candidateSource();
+          if (!Array.isArray(args.variants) || !args.variants.length) {
+            throw Object.assign(new Error("decomp({op:'variants'}): `variants` is a list of {id, hypothesis, find/replace | candidateText}."), { code: "BAD_ARGS" });
+          }
+          const { compileAndCompare } = await import("../../decomp/compile.js");
+          const { semanticGate } = await import("../../decomp/semantic-gate.js");
+          const compare = async ({ candidateText, label, ownerPath }) =>
+            compileAndCompare(project, fn, { candidateText, label, ownerPath, noCache: args.noCache, verifyTu: args.verifyTu, declarations: args.declarations });
+          const gate = async (text) => {
+            const g = semanticGate({ candidateText: text, baselineText: base.text });
+            return { classification: g.classification, counts: g.counts, findings: g.findings.slice(0, 4) };
+          };
+          return jsonContent({ project: project.id,
+            ...(await V.runVariantBatch(project, fn, { baselineText: base.text, variants: args.variants, compare, gate, maxVariants: args.maxFunctions ?? 12, ownerPath: args.ownerPath ?? null })) });
+        }
+        case "research": {
+          // DISCOVERY, kept apart from measurement. Nothing imported here is a
+          // verified result: a note claiming exactness is a CLAIM, labelled
+          // stale until re-measured, and can never override a failed build.
+          const R = await import("../../decomp/research.js");
+          const action = args.action ?? "list";
+          if (action === "import") {
+            // Symbols that already have a CURRENT-tree measurement, so a lead
+            // for one of them is marked history rather than a refresh target.
+            let measured = new Set();
+            try {
+              const { loadCandidateEvidence } = await import("../../decomp/plan.js");
+              const ev = await loadCandidateEvidence(project, {});
+              measured = new Set(Object.keys(ev ?? {}));
+            } catch {}
+            return jsonContent({ project: project.id, ...(await R.importResearch(project, { root: args.root, measuredSymbols: measured })) });
+          }
+          if (action === "list") {
+            const docs = await R.loadResearch(project);
+            return jsonContent({ project: project.id, indexes: docs.map((d) => ({ root: d.root, importedAt: d.importedAt, files: d.files, symbols: d.symbols, leads: d.leads?.length ?? 0, conflicts: d.conflicts?.length ?? 0 })),
+              ...(docs.length ? {} : { note: "no research imported yet: decomp({op:'research', action:'import', root:'<directory>'})" }) });
+          }
+          if (action === "status") {
+            const map = await R.researchBySymbol(project);
+            const sym = args.symbol;
+            if (sym) {
+              const lead = map.get(sym);
+              return jsonContent({ project: project.id, symbol: sym, ...(lead ?? { state: "none", stateReason: "no imported research mentions this symbol" }) });
+            }
+            const all = [...map.values()].sort((a, b) => (a.claimedBestDistance ?? 1e9) - (b.claimedBestDistance ?? 1e9));
+            return jsonContent({ project: project.id, symbols: map.size, leads: all.slice(0, args.limit ?? 40) });
+          }
+          throw Object.assign(new Error(`decomp({op:'research'}): unknown action '${action}'. Use import, list or status.`), { code: "BAD_ARGS" });
+        }
+        case "diagnose": {
+          // Reuse the STORED comparison rather than recompiling: the report's
+          // ask was a one-request diagnosis from an existing artifact, and a
+          // fresh compile would also risk diagnosing a different build than the
+          // one the caller is looking at.
+          const D = await import("../../decomp/diagnose.js");
+          let diffPath = args.artifactId ?? null;
+          if (!diffPath) {
+            // No artifact named: use the newest diff for this function.
+            const fn0 = await resolveFn();
+            const dir = path.join(project.ws, "candidates", fn0.symbol);
+            let entries = [];
+            try { entries = (await readdir(dir)).filter((f) => f.endsWith(".diff.json")); } catch {}
+            if (!entries.length) throw Object.assign(new Error(`no stored comparison for '${fn0.symbol}'. Run decomp({op:'compare', ...}) first, then diagnose its artifacts.diff.`), { code: "NO_ARTIFACT" });
+            const stats = await Promise.all(entries.map(async (f) => ({ f, t: (await stat(path.join(dir, f))).mtimeMs })));
+            stats.sort((a, b) => b.t - a.t);
+            diffPath = path.join(dir, stats[0].f);
+          } else if (!diffPath.endsWith(".diff.json")) {
+            const fn0 = await resolveFn();
+            diffPath = path.join(project.ws, "candidates", fn0.symbol, `${diffPath}.diff.json`);
+          }
+          let stored;
+          try { stored = JSON.parse(await readFile(diffPath, "utf8")); }
+          catch (e) { throw Object.assign(new Error(`cannot read the comparison artifact '${diffPath}': ${e.message}`), { code: "NO_ARTIFACT" }); }
+
+          // TRACE PROVENANCE. "Do not silently change optimization flags or
+          // compiler binary to obtain a trace. First establish that the traced
+          // compile emits the same candidate bytes." A trace whose words do
+          // not match the compared candidate is describing a DIFFERENT build,
+          // so it is reported as such rather than used.
+          let traceText = null, traceProvenance = null;
+          if (args.tracePath) {
+            traceText = await readFile(args.tracePath, "utf8");
+            const parsed = D.parseAs1Trace(traceText);
+            // Compare with assembler-patched fields masked: a trace prints
+            // instructions BEFORE branch displacements and relocated
+            // immediates are filled in, so raw-word comparison penalises every
+            // branch and store and would reject correct traces.
+            const traceWords = new Set(parsed.nodes.map((n) => D.maskPatchable(n.word >>> 0)));
+            const candWords = (stored.candidate ?? []).map((i) => D.maskPatchable(i.word >>> 0));
+            const covered = candWords.filter((w) => traceWords.has(w)).length;
+            const coverage = candWords.length ? covered / candWords.length : 0;
+            const byteInert = coverage >= 0.9;
+            traceProvenance = { path: args.tracePath, nodes: parsed.nodeCount, regions: parsed.regionCount,
+              candidateWordsCovered: covered, candidateWords: candWords.length,
+              coverage: Number(coverage.toFixed(3)), byteInert,
+              verdict: byteInert
+                ? "the traced compile emits the candidate's words, so the trace describes THIS build"
+                : "WARNING: the trace covers only part of the candidate's words. It may be from a different compile (different flags or compiler). Source-line attribution from it is NOT trustworthy — regenerate the trace from the same invocation." };
+            if (!byteInert) traceText = null;  // refuse to attribute from a mismatched trace
+          }
+
+          const diag = D.diagnoseResiduals({
+            target: stored.target ?? [], candidate: stored.candidate ?? [],
+            strict: stored.strict ?? { mismatches: [] },
+            trace: traceText, traceProvenance,
+          });
+          return jsonContent({ project: project.id, symbol: args.symbol ?? null, artifact: diffPath,
+            ...(traceProvenance && !traceProvenance.byteInert ? { traceRejected: traceProvenance } : {}),
+            ...diag });
         }
         case "gate": {
           // A byte-exact candidate is not automatically a correct one. This

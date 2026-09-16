@@ -383,9 +383,20 @@ export function makeScopeChecker(shape, toolName) {
   // the phrasing of a sentence. Tests assert every entry names a real op.
   const DECLARED_SCOPE = {
     decomp: {
-      candidatePath: ["compare", "search", "integrate", "gate", "artifacts"],
-      candidateText: ["compare", "search", "integrate", "gate"],
-      ownerPath: ["compare"],
+      candidatePath: ["compare", "search", "integrate", "gate", "artifacts", "variants", "experiment"],
+      action: ["job", "experiment", "scenario", "assets", "skill", "artifacts", "research"],
+      candidateText: ["compare", "search", "integrate", "gate", "variants", "experiment"],
+      ownerPath: ["compare", "variants"],
+      artifactId: ["diagnose"],
+      variants: ["variants"],
+      // A batch runs real compares, so it takes the compare knobs too. These
+      // were refused at the validator while the handler passed them straight
+      // through -- the same defect as `action` on op:'assets', a third time.
+      noCache: ["compare", "variants", "context"],
+      verifyTu: ["compare", "variants"],
+      declarations: ["compare", "integrate", "variants", "generate"],
+      root: ["import", "research"],
+      tracePath: ["diagnose"],
       baselineText: ["gate", "experiment"],
       exactFunctionMatch: ["gate", "experiment"],
       functionLocal: ["gate", "experiment"],

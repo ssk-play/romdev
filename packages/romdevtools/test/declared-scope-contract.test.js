@@ -47,6 +47,55 @@ test("a handler that reads a parameter has that parameter in scope for its op", 
   }
 });
 
+test("EVERY op whose handler reads a candidate has it in declared scope", async () => {
+  // The narrow version of this test checked only op:'gate' and passed while
+  // op:'variants' was refused at the validator -- the same defect, one op
+  // over. Derive the list from the dispatch instead of naming ops by hand.
+  const decomp = await srcOf("decomp.js");
+  const util = await readFile(new URL("../src/mcp/util.js", import.meta.url), "utf8");
+  const block = util.match(/const DECLARED_SCOPE = \{[\s\S]*?\n  \};/)?.[0] ?? "";
+  const scopeOf = (p) => (block.match(new RegExp(`${p}: \\[([^\\]]+)\\]`))?.[1] ?? "");
+
+  // Every `case "<op>": { ... }` body that calls candidateSource().
+  const needs = [];
+  for (const m of decomp.matchAll(/case "(\w+)": \{([\s\S]*?)\n        \}/g)) {
+    if (/candidateSource\(\)/.test(m[2])) needs.push(m[1]);
+  }
+  assert.ok(needs.length >= 4, `expected several ops to read a candidate, found ${needs.join(", ")}`);
+  for (const op of needs) {
+    for (const p of ["candidatePath", "candidateText"]) {
+      assert.match(scopeOf(p), new RegExp(`"${op}"`),
+        `op:'${op}' reads a candidate via candidateSource() but '${p}' is not in its declared scope -- the validator will refuse the call before the handler runs`);
+    }
+  }
+});
+
+test("no op reads an args.* field that its declared scope forbids", async () => {
+  // The broadest version of the same defect: a handler reads args.noCache /
+  // args.declarations / args.verifyTu, but the parameter's declared scope
+  // names only the op it was first written for, so the validator refuses the
+  // call. Checking candidateSource() alone missed three of these.
+  const decomp = await srcOf("decomp.js");
+  const util = await readFile(new URL("../src/mcp/util.js", import.meta.url), "utf8");
+  const block = util.match(/const DECLARED_SCOPE = \{[\s\S]*?\n  \};/)?.[0] ?? "";
+  const declared = new Map();
+  for (const m of block.matchAll(/(\w+): \[([^\]]+)\]/g)) {
+    declared.set(m[1], new Set([...m[2].matchAll(/"(\w+)"/g)].map((x) => x[1])));
+  }
+
+  const problems = [];
+  for (const m of decomp.matchAll(/case "(\w+)": \{([\s\S]*?)\n        \}/g)) {
+    const [, op, body] = m;
+    for (const u of body.matchAll(/\bargs\.(\w+)/g)) {
+      const param = u[1];
+      const scope = declared.get(param);
+      if (scope && !scope.has(op)) problems.push(`op:'${op}' reads args.${param}, declared only for ${[...scope].join("/")}`);
+    }
+  }
+  assert.deepEqual(problems, [],
+    `a handler reads a parameter the validator refuses for that op:\n  ${problems.join("\n  ")}`);
+});
+
 test("the description text agrees with the declared scope", async () => {
   // Docs and skill generation read the description; the validator reads the
   // map. If they disagree, one of them is lying to a caller.

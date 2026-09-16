@@ -145,6 +145,13 @@ export async function planWork(project, { limit = 40, tu, evidence, forceGraph =
   // One hash per TU, not per function — the TUs are far fewer.
   const currentDependencyHashes = await currentDepHashes(project, asm, g);
   const hints = evidence ?? (await loadCandidateEvidence(project, { currentDependencyHashes }));
+  // PRIOR ART. A queue row showing `attempts: 0` next to 54 drafts on disk is
+  // what sent an agent to rebuild a function from scratch that was already one
+  // difference away. Imported research never affects payoff or ranking — it is
+  // a CLAIM, not a measurement — but the row must not imply the work is
+  // untouched when it is not.
+  let researchLeads = new Map();
+  try { researchLeads = await (await import("./research.js")).researchBySymbol(project); } catch {}
   const rows = asm.map((n) => {
     const size = g.sizes[n] ?? 0;
     const callees = g.edges[n] ?? [], callersOf = g.callers[n] ?? [];
@@ -166,7 +173,15 @@ export async function planWork(project, { limit = 40, tu, evidence, forceGraph =
       // Evidence identity, so a score can be traced to the tree it was measured on.
       evidenceDependencyHash: h.dependencyHash ?? null,
       ...(h.historicalAttempts ? { historicalAttempts: h.historicalAttempts, historicalBestDistance: h.historicalBestDistance ?? null } : {}),
-      ...(h.staleEvidenceWarning ? { staleEvidenceWarning: h.staleEvidenceWarning } : {}) };
+      ...(h.staleEvidenceWarning ? { staleEvidenceWarning: h.staleEvidenceWarning } : {}),
+      ...(researchLeads.has(n) ? { priorArt: {
+        drafts: researchLeads.get(n).drafts.length,
+        claimedBestDistance: researchLeads.get(n).claimedBestDistance ?? null,
+        state: researchLeads.get(n).state,
+        note: (h.attempts ?? 0) === 0
+          ? "this row has no API-measured attempt, but prior drafts/notes EXIST on disk — decomp({op:'research', action:'status', symbol}) lists them. Do not treat it as never attempted."
+          : "prior research exists alongside the measured attempts; the numbers in notes are claims until refreshed",
+      } } : {}) };
   }).sort((a, b) => b.payoff - a.payoff);
   // Batches: connected components over asm↔asm edges within one TU.
   const byName = new Map(rows.map((r) => [r.symbol, r]));
