@@ -4,6 +4,41 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 —
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.146.0 — 2026-09-16
+
+### `memory({op:'provenance'})` — which ROM bytes are these RAM bytes?
+
+A static recompiler client hit a cart that executes 100% of some frames from
+RAM. The code there is not generated: it is verbatim ROM, copied and run at a
+different address. To compile those ranges a second time at their RAM addresses
+the client needs to know which ROM range each came from, and a byte scan on
+their side cannot find the copy site -- the destination arrives in a register or
+through a shared memcpy, which is cross-bank dataflow.
+
+The dataflow is not needed. Because the bytes ARE the ROM's bytes, searching the
+ROM image for them answers the question directly. Verified against the client's
+two measured routines: both resolve to exactly the offsets they reported.
+
+What it deliberately does not do:
+
+- **Pick a candidate.** Identical bytes can appear at several ROM offsets --
+  measured on a 256KB cart, ~13% of 32-byte ranges match more than one. Every
+  candidate is returned with its bank and the caller decides.
+- **Claim a copy happened**, identify the copying instruction, or say anything
+  about reachability. Those stay the caller's.
+- **Search a uniform run.** Zero-fill or $FF padding matches everywhere, so any
+  "origin" would be noise; it is refused with the reason.
+- **Answer a too-short query.** A 4-byte range is ambiguous about half the time,
+  so queries below `minLength` are refused rather than answered badly.
+
+It also reports how far the match runs BEYOND the queried range
+(`verbatimBytes`, `divergesAt`), because a fixed-length query is the wrong shape
+alone: one of the client's routines is verbatim for only 9 bytes, so a 20-byte
+query returned nothing while an 8-byte query resolved uniquely -- an empty
+result easy to misread as "not from ROM at all". A run that hits the scan window
+or the region end is flagged `verbatimAtLeast` so the number is never mistaken
+for the length of the copy.
+
 ## 0.145.0 — 2026-09-16
 
 SMS/GG recompiler support, driven by a static Z80->WAT client. Their measured

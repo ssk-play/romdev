@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { getHost } from "../state.js";
 import { cartImageFromBytes } from "romdev-core-host/cart-image.js";
 import { MemoryRegionToRetro } from "romdev-core-host/types.js";
@@ -306,6 +307,128 @@ async function memWrite(sessionKey, { region, offset = 0, hex, base64, data, byt
       assertRegionOnPlatform(writeHost, region);
       writeHost.writeMemory(region, offset, buf);
       return textContent(`wrote ${buf.length} bytes to ${region}+${offset}`);
+}
+
+/**
+ * WHERE DID THESE RAM BYTES COME FROM?
+ *
+ * Client ask (2026-09-16): a game copies routines out of ROM into RAM and jumps
+ * there. A static recompiler can compile those ranges a second time at their RAM
+ * addresses — but only if it knows which ROM range each one came from, and a
+ * byte scan on the client's side cannot find the copy site: the destination
+ * arrives in a register or through a shared memcpy, which is cross-bank
+ * dataflow.
+ *
+ * The dataflow turns out not to be needed. The RAM bytes are VERBATIM ROM, so
+ * the question "which ROM offset did these bytes come from" is answered by
+ * searching the ROM for the bytes themselves. Verified against the client's own
+ * two measurements: both their routines resolve to exactly the offsets they
+ * reported, each a unique hit.
+ *
+ * What this is NOT: proof of how the bytes got there, or that they were copied
+ * at all. Identical bytes can appear at several ROM offsets — measured on a
+ * 256KB cart, ~13% of 32-byte ranges match more than one offset — so EVERY
+ * candidate is returned with its bank, and the caller decides. Picking one
+ * silently is the failure mode this tool exists to avoid.
+ */
+async function memProvenance(sessionKey, { region = "system_ram", offset = 0, length = 32, romPath, platform: romPlatform, maxCandidates = 8, minLength = 8, extendBy = 4096 }) {
+  if (length < minLength) {
+    throw new Error(`memory({op:'provenance'}): \`length\` ${length} is below minLength ${minLength}. A short byte run matches many ROM offsets by coincidence — measured on a 256KB cart, a 4-byte range is ambiguous about half the time. Ask for at least ${minLength} bytes, or lower \`minLength\` deliberately and read the candidate count.`);
+  }
+  const host = getHost(sessionKey);
+  const live = host.readMemory(region, offset, length);
+  if (!live || !live.length) throw new Error(`memory({op:'provenance'}): could not read ${length} bytes from '${region}' at ${offset}.`);
+  const needle = Buffer.from(live);
+
+  let rom;
+  if (romPath) {
+    if (!romPlatform) throw new Error("memory({op:'provenance', romPath}): `platform` is required alongside `romPath` — header layout is per-platform.");
+    rom = cartImageFromBytes(new Uint8Array(await readFile(romPath)), romPlatform);
+  } else {
+    rom = host.getCartRom();
+  }
+  const hay = Buffer.from(rom.bytes.buffer, rom.bytes.byteOffset, rom.bytes.byteLength);
+
+  // A run of one repeated byte (zero-fill, $FF padding) is not evidence of
+  // anything: it will match thousands of ROM offsets and any "origin" reported
+  // for it would be noise.
+  const uniform = needle.every((b) => b === needle[0]);
+
+  const candidates = [];
+  if (!uniform) {
+    let i = hay.indexOf(needle);
+    while (i !== -1 && candidates.length < maxCandidates + 1) {
+      candidates.push({ romOffset: i, romOffsetHex: `0x${i.toString(16).toUpperCase()}`,
+        bank: Math.floor(i / 0x4000), bankOffset: i % 0x4000 });
+      i = hay.indexOf(needle, i + 1);
+    }
+  }
+  const truncated = candidates.length > maxCandidates;
+  if (truncated) candidates.length = maxCandidates;
+
+  // HOW FAR DOES THE MATCH ACTUALLY RUN?
+  //
+  // A fixed-length query is the wrong shape on its own: the caller cannot know
+  // the copied run's length in advance. Measured on a real cart, one routine
+  // was verbatim ROM for 9 bytes and then diverged — so a 20-byte query
+  // returned NOTHING while an 8-byte query resolved uniquely, and the honest
+  // reading of the empty result is "not copied verbatim at this length", which
+  // is easy to misread as "not from ROM at all". For each candidate, extend the
+  // comparison past the queried range and report where it stops.
+  // Extend by `extendBy` bytes past the query, CLAMPED to what the region
+  // actually holds. Reading past the end throws ("read out of bounds"), which
+  // would turn a larger window from "look further" into "the query fails" —
+  // and near the end of a region that is every query. A run that reaches
+  // whichever limit comes first is reported as capped rather than as a final
+  // length: a number that silently means "at least this" is the same trap as
+  // an omitted count.
+  let fullRam = live, extendLimit = "query";
+  for (const want of [length + extendBy]) {
+    try { fullRam = host.readMemory(region, offset, want); extendLimit = "extendBy"; }
+    catch {
+      // Binary-search the largest readable window rather than giving up: the
+      // region's size is not something this op is told.
+      let lo = length, hi = want;
+      while (lo + 1 < hi) {
+        const mid = (lo + hi) >> 1;
+        try { host.readMemory(region, offset, mid); lo = mid; } catch { hi = mid; }
+      }
+      try { fullRam = host.readMemory(region, offset, lo); extendLimit = "region-end"; } catch { fullRam = live; }
+    }
+  }
+  for (const c of candidates) {
+    let n = 0;
+    while (n < fullRam.length && c.romOffset + n < hay.length && hay[c.romOffset + n] === fullRam[n]) n++;
+    c.verbatimBytes = n;
+    if (n > length) c.extendsBeyondQuery = n - length;
+    if (n >= fullRam.length) {
+      c.verbatimAtLeast = true;
+      c.verbatimCapNote = extendLimit === "region-end"
+        ? `the comparison ran to the END OF THE '${region}' REGION and was still matching, so ${n} is a lower bound. The copy may continue past this region; there is nothing further to compare here.`
+        : `the comparison ran to the end of the ${fullRam.length}-byte window and was still matching, so ${n} is a LOWER BOUND, not the length of the copy. Raise \`extendBy\` to find where it really ends.`;
+    }
+    if (n < fullRam.length && c.romOffset + n < hay.length) {
+      c.divergesAt = { ramOffset: offset + n, romOffset: c.romOffset + n,
+        ramByte: fullRam[n].toString(16).padStart(2, "0"), romByte: hay[c.romOffset + n].toString(16).padStart(2, "0") };
+    }
+  }
+
+  return jsonContent({
+    query: { region, offset, offsetHex: `0x${offset.toString(16).toUpperCase()}`, length,
+      bytes: [...needle].map((b) => b.toString(16).padStart(2, "0")).join(" ") },
+    romBytes: hay.length, romSha256: createHash("sha256").update(hay).digest("hex").slice(0, 16),
+    candidates, candidateCount: candidates.length,
+    ...(truncated ? { truncated: true, truncatedNote: `more than ${maxCandidates} ROM offsets hold these exact bytes; raise maxCandidates to see the rest. A range matching this many places is probably not distinctive enough to identify an origin.` } : {}),
+    ...(uniform ? { uniform: true,
+      uniformNote: `every byte in this range is 0x${needle[0].toString(16).padStart(2, "0")}. A uniform run matches padding all over the ROM, so no search was run: any "origin" would be coincidence. Ask about a range containing real code.` } : {}),
+    resolved: candidates.length === 1,
+    verdict: uniform ? "not-searched: uniform byte run"
+      : candidates.length === 0 ? "no ROM range holds these exact bytes. The bytes were not copied verbatim from this cartridge: they may be generated, assembled from pieces, patched after the copy, or come from a different ROM."
+      : candidates.length === 1 ? "exactly one ROM range holds these bytes. That is the likely origin — but identical bytes CAN occur once by coincidence, so treat it as a strong lead, not proof of a copy."
+      : `${candidates.length} ROM ranges hold these exact bytes. This tool does NOT choose between them: pick using the bank that was mapped when the code ran, or ask about a longer range.`,
+    ...(candidates.length ? { verbatimNote: `\`verbatimBytes\` is how far each candidate stays identical BEYOND the queried range, found by extending the comparison. A copied routine usually runs longer than you asked about; where it stops, \`divergesAt\` names the first differing byte. That boundary is the end of the verbatim copy, not necessarily the end of the routine — the rest may be patched after the copy or built in place.` } : {}),
+    policy: "this answers 'which ROM bytes are identical to these RAM bytes', by searching the ROM image. It does NOT prove a copy happened, does not identify the copying instruction, and makes no claim about reachability. Longer ranges are more distinctive: on a 256KB cart ~13% of 32-byte ranges still match more than one offset.",
+  });
 }
 
 async function memReadCart(sessionKey, { offset = 0, length = 16, cpuAddress, bank, mapper, outputPath, inline, echo, findHex, maxMatches = 100, romPath, platform: romPlatform }) {
@@ -953,8 +1076,8 @@ export function registerMemoryTools(server, z, sessionKey) {
     "• op:'searchUnknown' — the UNKNOWN-INITIAL-VALUE hunt (Cheat Engine's 'Unknown initial value'): seed the WHOLE region as candidates with NO value, then narrow across in-game events with op:'searchNext' compare 'dec'/'inc'/'unchanged'/'changed'/'gt'/'lt'. THE way to find a value you can't see (lives/timer/ammo not on the HUD): searchUnknown → lose a life → searchNext compare:'dec' → repeat. Use this when you don't know the number; use op:'search' when you do.\n" +
     "• op:'searchNext' — narrow the active candidate list against CURRENT memory. `compare`: 'eq'/'gt'/'lt' (need `value`), 'changed'/'unchanged'/'inc'/'dec' (vs the previous read — usable as the FIRST narrow too; baselines are recorded at seed). Comparisons happen in the seed's `as` representation. Repeat until 1-2 remain, then confirm with op:'write'. (For values an INPUT drives — position, velocity — op:'diffRuns' is usually one call instead of a narrowing loop.)",
     {
-      op: z.enum(["read", "write", "readCart", "regions", "snapshot", "diff", "diffRuns", "classify", "search", "searchUnknown", "searchNext"])
-        .describe("read=bytes→hex; write=hex/base64→region; readCart=loaded cart ROM image; snapshot=capture a baseline; diff=changed bytes vs a baseline; diffRuns=run the SAME start state twice under two different held inputs and return only the DIVERGENT bytes (THE input→RAM mapping primitive — replaces save/run/dump/restore/run/dump/python-diff); classify=what kind of data is here; search=seed a value search (you know the number); searchUnknown=seed the whole region (you DON'T know the number); searchNext=narrow either."),
+      op: z.enum(["read", "write", "readCart", "regions", "snapshot", "diff", "diffRuns", "classify", "search", "searchUnknown", "searchNext", "provenance"])
+        .describe("read=bytes→hex; write=hex/base64→region; readCart=loaded cart ROM image; snapshot=capture a baseline; diff=changed bytes vs a baseline; diffRuns=run the SAME start state twice under two different held inputs and return only the DIVERGENT bytes (THE input→RAM mapping primitive — replaces save/run/dump/restore/run/dump/python-diff); classify=what kind of data is here; search=seed a value search (you know the number); searchUnknown=seed the whole region (you DON'T know the number); searchNext=narrow either; provenance=which ROM offset holds bytes identical to a RAM range (for code copied out of ROM and executed in RAM — returns ALL candidates with banks, never picks one)."),
       region: z.enum(REGIONS).optional().describe("Memory region. Required for read/write/snapshot/diff; defaults to system_ram for classify/search. (readCart targets the cart ROM image, not a region.)"),
       /*
        * NO `.default(0)` here, deliberately.
@@ -1008,7 +1131,9 @@ export function registerMemoryTools(server, z, sessionKey) {
       size: z.number().int().min(1).max(4).default(1).describe("op:search — value width in bytes: 1 (stats/lives), 2 (scores/timers), 4 (big counters). Ignored for as:'digits' (width = the value's digit count)."),
       as: z.enum(["raw", "bcd", "digits"]).default("raw").describe("op:search — value representation: 'raw' (binary int, region endianness), 'bcd' (packed BCD, 2 decimal digits/byte — common for NES scores), 'digits' (one byte per ON-SCREEN digit, MSD first, any constant tile base — HUD/tile-index score buffers; the matched base is reported per candidate). searchNext compares in the SAME representation automatically."),
       compare: z.enum(["eq", "changed", "unchanged", "inc", "dec", "gt", "lt"]).optional().describe("op:searchNext — eq=now equals `value`; changed/unchanged vs the last read; inc/dec=went up/down. All of these work as the FIRST narrow too (baselines are recorded at seed). gt/lt=now >/< `value`."),
-      maxCandidates: z.number().int().min(1).max(8192).default(64).describe("op:search/searchNext — cap the candidates RETURNED (the full list is kept server-side; `count` is the true total)."),
+      maxCandidates: z.number().int().min(1).max(8192).default(64).describe("op:search/searchNext — cap the candidates RETURNED (the full list is kept server-side; `count` is the true total). op:'provenance' — cap the ROM offsets returned (default 8); a range matching many places is not distinctive enough to identify an origin."),
+      extendBy: z.number().int().min(0).max(65536).default(4096).describe("op:'provenance' — how far past the queried range to keep comparing, to find the real length of the copied block. A run that reaches this cap is flagged `verbatimAtLeast` so the number is never mistaken for the end of the copy."),
+      minLength: z.number().int().min(1).max(4096).default(8).describe("op:'provenance' — refuse a query shorter than this, because a short byte run matches many ROM offsets by coincidence (a 4-byte range on a 256KB cart is ambiguous about half the time). Lower it deliberately and read `candidateCount`."),
       // shared output
       outputPath: z.string().optional().describe(`op:read/readCart — write RAW bytes here. Required for reads >${INLINE_HEX_LIMIT}B unless inline. Small reads honor it too (writes file AND returns hex), so 'dump to disk then diff two files' works at any size. (Ignored with offsets.) op:diff — write the FULL diff JSON here regardless of size (so a big diff routes to YOUR path, not a harness path). 'path' is accepted as an alias (the spelling frame({op:'screenshot'}) uses).`),
       path: z.string().optional().describe("Alias for `outputPath` — the spelling frame({op:'screenshot'}) uses for the same idea."),
@@ -1054,6 +1179,7 @@ export function registerMemoryTools(server, z, sessionKey) {
           return await memWrite(sessionKey, args);
         }
         case "readCart":   return await memReadCart(sessionKey, args);
+        case "provenance": return await memProvenance(sessionKey, args);
         case "snapshot": {
           if (!args.region) throw new Error("memory({op:'snapshot'}): `region` is required.");
           return await memSnapshot(sessionKey, args);
