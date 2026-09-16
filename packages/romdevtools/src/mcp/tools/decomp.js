@@ -1099,6 +1099,39 @@ async function runReplayCase(project, kase, { ownerFor, resolveFn }) {
       const g = semanticGate({ candidateText: kase.candidateText, baselineText: kase.baselineText ?? null });
       return { findingIds: g.findings.map((f) => f.id), classification: g.classification };
     }
+    case "search-launch": {
+      // A REAL bounded search through the public path: preflight, seed
+      // mapping, launch, budget termination, accounting. Short on purpose --
+      // proving the path does not require re-spending the client's 300s.
+      const { startSearch, jobStatus, jobReport } = await import("../../decomp/jobs.js");
+      const { compileAndCompare } = await import("../../decomp/compile.js");
+      const fn = await project.resolveFunction({ symbol: kase.symbol, segment: kase.segment });
+      const text = await rf(kase.candidatePath, "utf8");
+      const pre = await compileAndCompare(project, fn, { candidateText: text, label: "replay-preflight" })
+        .then((r) => ({ compileSucceeded: r.compileSucceeded, strictMismatches: r.strictMismatches ?? null,
+          linkedMismatches: r.romLinked?.mismatches ?? null, exactFunctionMatch: r.exactFunctionMatch }))
+        .catch((e) => ({ compileSucceeded: false, firstDiagnostic: String(e?.message ?? e).slice(0, 160) }));
+      const j = await startSearch({ project, fn, baseCandidateText: text,
+        timeLimitS: kase.timeLimitS ?? 20, threads: kase.threads ?? 2, seed: kase.seed, label: "replay", preflight: pre });
+      // Wait for the budget, then a moment for the process to reap.
+      const deadline = Date.now() + (kase.timeLimitS ?? 20) * 1000 + 20_000;
+      let st = null;
+      while (Date.now() < deadline) {
+        st = await jobStatus(project, j.jobId);
+        if (!st.alive) break;
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      const rep = await jobReport(project, j.jobId);
+      const log = await rf(rep.artifacts?.log ?? "", "utf8").catch(() => "");
+      return { jobId: j.jobId, artifact: rep.reportJson ?? null,
+        preflightRan: !!rep.preflight && rep.preflight.compileSucceeded === true,
+        seedMapped: j.seedFrom === "label" && /^\d+$/.test(String(j.seed ?? "")),
+        seed: j.seed, seedRequested: j.seedRequested ?? null,
+        terminatedOnBudget: /budget/i.test(rep.accounting?.terminationReason ?? ""),
+        terminationReason: rep.accounting?.terminationReason ?? null,
+        backendTraceback: /traceback|invalid literal/i.test(log),
+        elapsedS: rep.elapsedS };
+    }
     case "job-accounting": {
       // Exercises the REPORT over a recorded job, not a fresh search launch.
       // The distinction is the point: this case is labelled `partial`.

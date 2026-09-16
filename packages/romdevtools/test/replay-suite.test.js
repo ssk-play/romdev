@@ -135,9 +135,27 @@ test("the number-renderer cases are in the set, resolved from nonstandard filena
     "§12.4 was skipped for 'no .c fixture' when the drafts sit at the research root under .c.txt names");
 });
 
-test("the i5 search case is present and labelled partial", () => {
-  const k = defaultCases({ researchRoot: "/r", workspace: "/w" }).find((c) => c.id.startsWith("i5-"));
-  assert.ok(k, "§12.6 must appear in the matrix rather than being omitted");
-  assert.equal(k.status, "partial");
-  assert.match(k.unexercised, /fresh bounded search/);
+test("§12.6 is covered by BOTH the accounting and a real bounded launch", () => {
+  // It sat at `partial` with "a fresh bounded search launch" unexercised.
+  // Re-running the client's 300s search would only re-derive a recorded
+  // result, but a 20s launch proves the same path, so the gap is closed by
+  // running it rather than by relabelling.
+  const cases = defaultCases({ researchRoot: "/r", workspace: "/w" });
+  const accounting = cases.find((c) => c.id.startsWith("i5-"));
+  const launch = cases.find((c) => c.id === "bounded-search-launch-end-to-end");
+  assert.ok(accounting, "§12.6 accounting case missing");
+  assert.ok(launch, "§12.6 launch case missing");
+  assert.equal(accounting.status, undefined, "the accounting case should no longer be partial");
+  assert.ok(launch.timeLimitS <= 30, "the launch case must be cheap enough to run every time");
+  for (const k of ["preflightRan", "seedMapped", "terminatedOnBudget", "backendTraceback"]) {
+    assert.ok(k in launch.expect, `the launch case does not assert '${k}'`);
+  }
+});
+
+test("no case is left in a partial state without naming what is unexercised", () => {
+  for (const c of defaultCases({ researchRoot: "/r", workspace: "/w" })) {
+    if (c.status === "partial") {
+      assert.ok(c.unexercised, `case '${c.id}' is partial but does not say what is unexercised`);
+    }
+  }
 });

@@ -107,6 +107,9 @@ export async function runVariantBatch(project, fn, {
   rows.push({ id: "baseline", hypothesis: "the unmodified candidate: the reference every variant is compared against",
     sourceSha: sha(baselineText).slice(0, 16), metrics: metricsOf(base), artifacts: base?.artifacts ?? null });
 
+  // Did the baseline produce a usable reference at all?
+  const baselineMeasured = rows[0].metrics.compiled === true;
+
   /** @type {Map<string,string>} sourceSha -> first id with it */
   const bySource = new Map([[sha(baselineText).slice(0, 16), "baseline"]]);
   /** @type {Map<string,string>} candidate object bytes -> first id */
@@ -149,12 +152,19 @@ export async function runVariantBatch(project, fn, {
       id: v.id, hypothesis: v.hypothesis ?? null, sourceSha: srcSha,
       metrics: m,
       // Movement relative to the BASELINE, per dimension.
-      delta: {
+      //
+      // A delta is only meaningful when the baseline actually produced a
+      // measurement. When it did not compile there is nothing to move relative
+      // TO, and `bytes: 0` / `registers: 0` would read as "this variant changed
+      // nothing" when the truth is "we cannot say" -- the confident-wrong-answer
+      // shape this whole module exists to avoid.
+      delta: baselineMeasured ? {
         strict: m.strictMismatches != null && rows[0].metrics.strictMismatches != null ? m.strictMismatches - rows[0].metrics.strictMismatches : null,
         linked: m.linkedMismatches != null && rows[0].metrics.linkedMismatches != null ? m.linkedMismatches - rows[0].metrics.linkedMismatches : null,
         bytes: m.candidateBytes != null && rows[0].metrics.candidateBytes != null ? m.candidateBytes - rows[0].metrics.candidateBytes : null,
         registers: m.registerSubstitutions - (rows[0].metrics.registerSubstitutions ?? 0),
-      },
+      } : null,
+      ...(baselineMeasured ? {} : { deltaNote: "the BASELINE did not compile, so there is no reference to measure movement against. This variant's own metrics stand on their own; no delta is reported rather than one that would read as 'unchanged'." }),
       ...(byteInert ? { byteIdenticalTo: byteInert, note: "different source, IDENTICAL compiled bytes: this variant changed nothing the compiler cared about" } : {}),
       ...(r?.diagnostics?.length ? { diagnostics: r.diagnostics.slice(0, 4) } : {}),
       artifacts: r?.artifacts ?? null,
@@ -182,6 +192,8 @@ export async function runVariantBatch(project, fn, {
     byteInert: rows.filter((r) => r.byteIdenticalTo).length,
     failed: rows.filter((r) => r.error).length,
     elapsedMs: Date.now() - startedAt,
+    baselineMeasured,
+    ...(baselineMeasured ? {} : { baselineWarning: "the baseline candidate did not compile. Variants were still measured and their own numbers are real, but NO deltas are reported: there is nothing to compare movement against. Fix the baseline first if you need relative movement." }),
     rows,
     policy: "size, schedule and register residuals are reported SEPARATELY and never collapsed into one score: a variant can get closer on bytes while getting worse on allocation, and a scalar hides exactly that. Duplicates and byte-inert variants are reported rather than dropped — they were paid for, and knowing a lever does nothing is a result.",
   };

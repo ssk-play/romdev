@@ -59,7 +59,29 @@ the research index finds in one call), and the i5 bounded search, labelled
 `partial` because the accounting over the recorded job is exercised while a
 fresh search launch is not.
 
-10 cases: 9 passed, 1 partial, 0 failed. Suite 1835 green.
+### Closing the partial, and two more found by probing
+
+The i5 case went in as `partial` with "a fresh bounded search launch" named as
+unexercised. That reason did not survive examination: re-running the client's
+300-second search would only re-derive a recorded result, but proving the PATH
+costs 20 seconds. `op:'replay'` now launches a real bounded search -- preflight
+recorded, descriptive seed mapped, budget honoured, no backend traceback -- so
+both halves of §12.6 are standing cases. The `partial` state remains in the
+tooling, and a test fails any case sitting in it without naming what is
+unexercised.
+
+Probing the branch fix rather than waiting for the next report found two more:
+
+- a changed `j`/`jal` DESTINATION returned `unclassified`. Jumps carry no
+  registers, so they fell outside the branch reasoning entirely and got a shrug
+  where the answer is a control-flow shape difference. Single-register and
+  zero-compare branches (`bgez`, `beq`-to-zero) are covered too: the
+  two-operand swap test does not apply to them, but the substitution rule must.
+- a variant batch reported `bytes: 0, registers: 0` when the BASELINE failed to
+  compile. There is nothing to measure movement against, and a zero there reads
+  as "this variant changed nothing". Deltas are omitted with the reason stated.
+
+11 cases: 11 passed, 0 partial, 0 failed. Suite 1838 green.
 
 ## 0.143.0 — 2026-09-15
 

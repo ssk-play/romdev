@@ -122,12 +122,24 @@ export function defaultCases({ researchRoot, workspace }) {
       // job — which is a narrower claim, and the matrix labels it `partial`
       // rather than letting it stand in for the search behaviour.
       id: "i5-no-improvement-search-accounting",
-      why: "§12.6 — a correct-size residual whose bounded search returned no improvement. EXERCISED: the report's accounting over the recorded job (termination reason, mutation family, and a recommendation to switch mechanism). NOT EXERCISED: launching a fresh bounded search, which would spend another 300s to re-derive a recorded result.",
+      why: "§12.6 — a correct-size residual whose bounded search returned no improvement. Exercises the report's accounting over the recorded 300s job: termination reason, mutation family, and the recommendation to switch mechanism rather than re-run.",
       op: "job-accounting",
       jobPrefix: "search-func_i5_802C5DC0",
-      status: "partial",
       expect: { hasAccounting: true, terminationReasonPresent: true, recommendsSwitchingMechanism: true },
-      unexercised: "a fresh bounded search launch (budget, threads, seed reproducibility end to end)",
+    },
+    {
+      // The half that was labelled `unexercised` while this case sat at
+      // `partial`. Re-running the client's 300-second search would only
+      // re-derive a recorded result, but a SHORT bounded launch proves the
+      // path end to end for a fraction of the cost: preflight, seed mapping,
+      // budget, termination and accounting.
+      id: "bounded-search-launch-end-to-end",
+      why: "§12.6 (second half) — a fresh bounded search, launched through the public API on a 20s budget: the preflight must run and be recorded, a descriptive seed must map deterministically, and the job must terminate on its budget with accounting and no backend traceback.",
+      op: "search-launch",
+      symbol: "func_i3_802C5800", segment: "ovl_i3",
+      candidatePath: R("i3-init5800-300/candidate.c"),
+      timeLimitS: 20, threads: 2, seed: "replay-bounded-probe",
+      expect: { preflightRan: true, seedMapped: true, terminatedOnBudget: true, backendTraceback: false },
     },
     {
       id: "semantically-wrong-but-plausible",
@@ -192,6 +204,10 @@ export function checkExpectations(kase, actual) {
     const d = actual.claimedBestDistance;
     if (!(d != null && d <= e.claimedBestDistanceAtMost)) fails.push(`claimedBestDistance: expected <= ${e.claimedBestDistanceAtMost}, got ${JSON.stringify(d)}`);
   }
+  if (e.preflightRan != null) eq("preflight ran", actual.preflightRan, e.preflightRan);
+  if (e.seedMapped != null) eq("seed mapped", actual.seedMapped, e.seedMapped);
+  if (e.terminatedOnBudget != null) eq("terminated on budget", actual.terminatedOnBudget, e.terminatedOnBudget);
+  if (e.backendTraceback != null) eq("backend traceback", actual.backendTraceback, e.backendTraceback);
   if (e.hasAccounting != null) eq("has accounting", actual.hasAccounting, e.hasAccounting);
   if (e.terminationReasonPresent != null) eq("termination reason present", actual.terminationReasonPresent, e.terminationReasonPresent);
   if (e.recommendsSwitchingMechanism != null) eq("recommends switching mechanism", actual.recommendsSwitchingMechanism, e.recommendsSwitchingMechanism);
