@@ -6,6 +6,7 @@ import { jsonContent, safeTool, writeOutput } from "../util.js";
 import { parseSymbols, buildSymbolMap } from "../../toolchains/common/symbols.js";
 import { registersForPlatform } from "../../platforms/common/registers.js";
 import { CAPABILITIES } from "../../cores/capabilities.js";
+import { smsWindows } from "../../analysis/sms-mapping.js";
 
 /**
  * Platforms the `platform` argument accepts. The capability manifest is the
@@ -57,7 +58,7 @@ function cpuAddrToFileOffset(platform, data, cpuAddr, opts = {}) {
   try {
     switch (platform) {
       case "snes": return mapSnesAddress(data, cpuAddr, 1, opts.snesMapper).fileOffset;
-      case "sms": case "gg": return mapSmsAddress(data, cpuAddr, 1).fileOffset;
+      case "sms": case "gg": return mapSmsAddress(data, cpuAddr, 1, opts.bank, opts).fileOffset;
       case "gb": case "gbc": return mapGbAddress(data, cpuAddr, 1, opts.bank).fileOffset;
       case "atari2600": return mapAtari2600Address(data, cpuAddr, 1, opts.bank ?? 0).fileOffset;
       case "atari7800": return mapAtari7800Address(data, cpuAddr, 1, opts.bank ?? 0).fileOffset;
@@ -443,44 +444,19 @@ function findFirstReturnLine(asm, cpuFamily = "6502") {
   return -1;
 }
 
-/**
- * SMS / Game Gear address mapping. The first 48 KB of the ROM is mapped
- * 1:1 to the Z80's lower 48 KB ($0000-$BFFF). Higher banks are
- * page-mapped via the sega mapper, but for v1 we treat the 16 KB at
- * $8000-$BFFF as "bank 0" by default.
- */
-export function mapSmsAddress(data, cpuAddr, length, bank) {
-  // Slot 0: $0000-$3FFF maps to file 0..$3FFF (bank 0, fixed).
-  // Slot 1: $4000-$7FFF maps to file $4000..$7FFF (bank 1, fixed by default).
-  // Slot 2: $8000-$BFFF maps to file $8000..$BFFF (banked — default = bank 2).
-  //   Pass `bank` to page a different 16KB bank into slot 2 on a Sega-mapper
-  //   cart (bank ignored for the fixed slots 0/1 — those windows have only one
-  //   possible mapping, so there's nothing to get wrong).
-  if (cpuAddr < 0xC000) {
-    let fileOffset = cpuAddr;
-    let note = `SMS/GG sega mapper, slot ${cpuAddr < 0x4000 ? 0 : cpuAddr < 0x8000 ? 1 : 2} (default bank)`;
-    if (bank != null && cpuAddr >= 0x8000) {
-      const numBanks = Math.ceil(data.length / 0x4000);
-      if (bank < 0 || bank >= numBanks) {
-        throw new Error(`SMS bank ${bank} out of range (ROM has ${numBanks} × 16KB banks, 0-${numBanks - 1})`);
-      }
-      fileOffset = bank * 0x4000 + (cpuAddr - 0x8000);
-      note = `SMS/GG sega mapper, bank ${bank} paged into slot 2 ($8000)`;
+/** Static SMS/GG mapper selection; does not configure the emulator. */
+export function mapSmsAddress(data, cpuAddr, length, bank, options = {}) {
+  const windows = smsWindows(data.length, cpuAddr, length, { ...options, bank });
+  // The ROM annotation path requires one contiguous physical slice. Split
+  // non-contiguous mappings explicitly through the bank-aware IR path.
+  for (let i = 1; i < windows.length; i++) {
+    if (windows[i].off !== windows[i - 1].off + windows[i - 1].length) {
+      throw new Error("SMS CPU range crosses non-contiguous mapped banks; split the range or use recompile emit:'ir'");
     }
-    if (fileOffset >= data.length) {
-      throw new Error(`CPU address $${cpuAddr.toString(16)} past end of SMS ROM (${data.length} bytes)`);
-    }
-    return {
-      bytes: data.slice(fileOffset, fileOffset + length),
-      fileOffset,
-      cpu: "z80",
-      note,
-    };
   }
-  throw new Error(
-    `CPU address $${cpuAddr.toString(16)} is in RAM ($C000-$FFFF), not ROM. ` +
-    `For SMS disasm, target $0000-$BFFF.`
-  );
+  const first = windows[0];
+  return { bytes: data.slice(first.off, first.off + length), fileOffset: first.off,
+    cpu: "z80", note: `SMS/GG ${first.mapper} static mapping, bank ${first.bank}, slot ${first.slot}; runtime mapper is not changed` };
 }
 
 /**
@@ -876,7 +852,7 @@ async function disassembleRomCore(args) {
         : resolved === "snes"
         ? mapSnesAddress(data, startAddress, length, mapper)
         : resolved === "sms" || resolved === "gg"
-          ? mapSmsAddress(data, startAddress, length, args.bank)
+          ? mapSmsAddress(data, startAddress, length, args.bank, args)
           : resolved === "gb" || resolved === "gbc"
             ? mapGbAddress(data, startAddress, length, args.bank)
             : resolved === "atari2600"
@@ -1108,7 +1084,7 @@ async function disassembleRomCore(args) {
         // da65 emitted bank-local 16-bit addresses; add the bank base back so the
         // file mapper resolves to the right ROM offset for a banked SNES address.
         const bankBase = args._bankBase ?? 0;
-        const cpuToFile = (cpuAddr) => cpuAddrToFileOffset(resolved, data, (cpuAddr & 0xFFFF) + bankBase, { bank: args.bank, snesMapper: mapper });
+        const cpuToFile = (cpuAddr) => cpuAddrToFileOffset(resolved, data, (cpuAddr & 0xFFFF) + bankBase, { ...args, snesMapper: mapper });
         // Secondary translator for NES — also report the header-stripped
         // PRG offset, since patchFile against `prg.bin` (from extractCart)
         // needs the header-less frame.
@@ -1679,6 +1655,10 @@ const Z80_SOURCES = new Set(["sms", "gg", "msx", "z80"]);
  * caller can recompile one routine instead of a whole ROM.
  */
 async function recompileZ80(args, targetPlatform) {
+  if (args.emit === "ir") {
+    const { exportZ80IR } = await import("../../analysis/recompile/export-z80-ir.js");
+    return jsonContent(await exportZ80IR({ ...args, path: requireRomPath(args) }));
+  }
   const platform = args.platform;
   const romPath = requireRomPath(args);
   const start = args.startAddress ?? 0;
@@ -1707,6 +1687,8 @@ async function recompileZ80(args, targetPlatform) {
 
 async function recompileCore(args) {
   const { platform } = args;
+  if (args.emit === "ir" && !Z80_SOURCES.has(platform)) throw new Error("emit:'ir' currently exports Z80 sources (sms/gg/msx/z80); other source lifters still use emit:'asm'");
+  if (args.allOffsets && args.emit !== "ir") throw new Error("allOffsets requires emit:'ir'; existing assembly recompilation remains a CPU-window operation");
   const targetPlatform = args.targetPlatform || "snes";
   if (platform && Z80_SOURCES.has(platform)) return await recompileZ80(args, targetPlatform);
   if (platform && platform !== "nes") {
@@ -2023,6 +2005,10 @@ export function registerDisasmTools(server, z) {
       platform: z.enum(DISASM_PLATFORMS).optional().describe("target=rom/project/references: override platform (else sniffed from extension). target=source: pico8 (.p8 carts are Lua source). n64/ps1/dreamcast: functions/cfg/xrefs/decompile (the MIPS/SH-4 RE engine); their bytes/rom/project/references targets are not implemented and return a capability error."),
       startAddress: z.number().int().min(0).max(0xffffffff).default(0x8000).describe("target=bytes/rom/range/recompile: address of the first byte (GBA auto-bumped to 0x08000000). On target=recompile this is the routine to lift — NOT `address`, which belongs to the analysis targets."),
       length: z.number().int().min(1).max(65536).optional().describe("target=rom/range/recompile: bytes to disassemble or lift (default 256; mutually exclusive with endAddress)."),
+      emit: z.enum(["asm", "ir"]).default("asm").describe("target=recompile: asm preserves existing output; ir exports decoded/lifted Z80 instructions as JSONL at outputPath, with byte offsets, CPU addresses, banks, cycles and flags. No WAT backend."),
+      allOffsets: z.boolean().default(false).describe("target=recompile emit=ir: export the entire SMS/GG ROM in bank-sized windows in one call, including ROMs larger than 64KB. Linear decode, not reachability proof."),
+
+      slot: z.number().int().min(0).max(2).optional().describe("target=recompile emit=ir: CPU slot for exported SMS/GG banks (16KB each). Default bank0 at slot0, bank1 at slot1, other banks at slot2; targets remain CPU addresses."),
       addOrigin: z.boolean().default(true).describe("target=bytes/rom: prepend `.org` so the asm re-assembles through ca65."),
       outputPath: z.string().optional().describe("target=bytes/rom: write asm to disk and return {path}; required for bytes unless inline:true."),
       inline: z.boolean().default(false).describe("target=bytes: return asm in the response instead of writing to disk."),
@@ -2037,7 +2023,8 @@ export function registerDisasmTools(server, z) {
       widths: z.object({ a: z.union([z.literal(8), z.literal(16)]).optional(), i: z.union([z.literal(8), z.literal(16)]).optional() }).optional().describe("target=rom, SNES/65816 — FORCE the ENTRY width (a = accumulator/M, i = index/X, default 8) instead of inferring it. Use when YOU know the width (live P capture, surrounding code) for a window with no in-window caller — e.g. widths:{a:16,i:16} to decode a blob entered in 16-bit mode. In-window rep/sep are still followed."),
       endAddress: z.number().int().min(0).max(0xffffff).optional().describe("target=rom: CPU end address (inclusive); alternative to length."),
       untilReturn: z.boolean().default(false).describe("target=rom: stop at the first return/unconditional-jump (rts/rti/rtl/jmp, or ret/reti/jp per CPU) — grab one routine."),
-      mapper: z.enum(["lorom", "hirom"]).optional().describe("target=rom/references: SNES mapper override (header-less homebrew defaults lorom)."),
+      mapper: z.enum(["lorom", "hirom", "sega", "codemasters", "korean", "korean-16k-v2"]).optional().describe("Static mapping only: SNES lorom/hirom; SMS/GG rom/recompile sega/codemasters/korean (A000 16KB)/korean-16k-v2 (4000+8000). Does not change runtime core mapper detection. Other Korean boards are not implied."),
+      mapperState: z.object({ pages: z.tuple([z.number().int().min(0).max(255), z.number().int().min(0).max(255), z.number().int().min(0).max(255)]), control: z.number().int().min(0).max(255).optional(), ramEnabled: z.boolean().optional() }).optional().describe("SMS/GG rom/recompile CPU mapping: three physical 16KB page indices; Sega control register or Codemasters ramEnabled. Cartridge RAM is rejected as ROM. Physical allOffsets export does not use mapper state."),
       dataRanges: z.array(z.object({
         start: z.number().int().min(0).max(0xffffff),
         length: z.number().int().min(1),
@@ -2070,7 +2057,11 @@ export function registerDisasmTools(server, z) {
       count: z.number().int().min(1).max(4096).optional().describe("target=pointerTable: number of entries to decode."),
       convention: z.enum(["direct", "rts+1"]).default("direct").describe("target=pointerTable: 'direct' = the stored word IS the handler; 'rts+1' = the 6502 RTS-trick (table holds handler-1; +1 is applied)."),
       grammar: z.record(z.string(), z.any()).optional().describe("target=script: the declarative bytecode grammar. {endian?, recordPrefix?: [field...], opcode?: {type}, commands: {'<opcode>': {name, fields?: [field...], stop?, chain?: '<fieldName>'}}, unknownOpcode?: 'stop'|'error'}. field = {name, type: u8|i8|u16|i16|u24|u32, if?: {field, mask?, eq|ne}, default?, pointer?, repeat?: {count: '<field>'|N} | {until: {name, type, gte|eq}}, fields?: [...]}. `if` reads already-decoded fields ((value & mask) vs eq/ne) so flag-gated layouts ('bit 7 set = delay omitted') are one line; `default` records the implied value when the condition fails. repeat.until reads the leading field each iteration and ends the list (terminator consumed) when it trips."),
-      fileOffset: z.number().int().optional().describe("target=script: raw file offset of the script start (alternative to `address`, which maps through the platform's banking)."),
+      // ONE declaration for both uses. This key was declared twice — once for
+      // target=recompile emit=ir and once for target=script — and an object
+      // literal keeps only the LAST, so the recompile form silently lost its
+      // min(0) bound and its documentation.
+      fileOffset: z.number().int().min(0).optional().describe("target=recompile emit=ir: physical ROM byte offset, explicitly distinct from startAddress (CPU address). target=script: raw file offset of the script start (alternative to `address`, which maps through the platform's banking)."),
       maxRecords: z.number().int().optional().describe("target=script: decode cap (default 256)."),
       project: z.string().optional().describe("target=decompile, n64: a decomp-registered project id (decomp({op:'import'})) — the VA is resolved through the project's splat segment map (relocated segments + overlays) and the output is symbolized with the project's names. Without it the header-entry formula is used, which maps ONLY the boot segment (the result says so)."),
       splatYaml: z.string().optional().describe("target=decompile, n64: path to a splat yaml to use for segment mapping when no project is registered."),
@@ -2085,6 +2076,10 @@ export function registerDisasmTools(server, z) {
       reverseHandler: z.number().int().min(0).max(0xFFFF).optional().describe("target=pointerTable: also report which dispatch INDEX/indices land on this handler address (reverse lookup — 'what state triggers this routine?')."),
     },
     safeTool(async (args) => {
+      const smsMapper = ["sega", "codemasters", "korean", "korean-16k-v2"].includes(args.mapper);
+      if ((smsMapper || args.mapperState) && (!["rom", "range", "recompile"].includes(args.target) || !["sms", "gg"].includes(args.platform ?? sniffPlatformFromPath(args.path ?? "")))) {
+        throw new Error("SMS mapper/mapperState options currently apply to SMS/GG rom, range and recompile only; other analysis paths do not consume this static mapping");
+      }
       // Capability gate: a platform that names itself (or is sniffed from the
       // ROM path) only gets the targets its tier implements. The 8/16-bit
       // reassembly pipeline (bytes/rom/project/references) is not the MIPS/SH

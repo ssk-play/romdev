@@ -34,8 +34,12 @@ test("an unknown objective is refused, not silently ignored", async () => {
 
 test("every row reports the FACTORS behind its rank", async () => {
   const s = await src();
-  assert.match(s, /objectiveScore: o\.score, objectiveFactors: o\.factors/,
-    "a rank without its factors is an opaque number");
+  // Assert that a row carries BOTH its score and the factors behind it, without
+  // pinning the exact expression: a later refactor multiplied the score by a
+  // cooldown factor and nested the factors, which is a better answer than the
+  // one this test originally hard-coded.
+  assert.match(s, /objectiveScore:/, "a row must carry its objective score");
+  assert.match(s, /objectiveFactors:/, "a rank without its factors is an opaque number");
 });
 
 test("no completion-time estimate is invented", async () => {

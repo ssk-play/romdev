@@ -292,6 +292,57 @@ export async function stepInstructionsCore(sessionKey, { count = 16, withRegiste
     };
   }
 
+  // BANK STATE, on platforms where a PC alone does not identify an instruction.
+  //
+  // Client report 2026-09-16: "$8000 in bank 3 and $8000 in bank 7 are
+  // different code. My whole block identity is (bank, addr)." Without this a
+  // caller has to read $FFFC-$FFFF in a SEPARATE call that is not synchronized
+  // to the traced instruction — so the bank they read may not be the bank that
+  // executed.
+  //
+  // The Sega mapper's slot registers are RAM-mapped at $FFFC-$FFFF, so they are
+  // read through the same system_ram path as the stack above and cost one byte
+  // per slot per step.
+  const BANKED = { sms: true, gg: true };
+  const ramMaskFor = (plat === "sms" || plat === "gg") ? 0x1fff : null;
+  // How many 16KB banks the cart actually has, so an out-of-range slot value
+  // can be recognised as uninitialised rather than reported as a bank.
+  let romBankCount = null;
+  try {
+    const raw = rom?.raw ?? rom;
+    if (raw && raw.length) romBankCount = Math.ceil(raw.length / 0x4000);
+  } catch { romBankCount = null; }
+  const readMapper = () => {
+    if (!BANKED[plat] || ramMaskFor == null) return null;
+    try {
+      const slot = (addr) => {
+        const b = host.readMemory("system_ram", addr & ramMaskFor, 1);
+        return b && b.length ? b[0] : null;
+      };
+      const s0 = slot(0xfffd), s1 = slot(0xfffe), s2 = slot(0xffff);
+      if (s0 == null && s1 == null && s2 == null) return null;
+      const control = slot(0xfffc);
+      // A cart that never writes the mapper leaves these bytes at whatever the
+      // RAM powered up as. Reporting an uninitialised byte as a bank number is
+      // a confident wrong answer: on a 32KB unbanked cart every register reads
+      // 0xF0, which is not bank 240. Flag it instead of asserting it.
+      const banks = romBankCount;
+      const plausible = (v) => v != null && (banks == null || v < banks);
+      const initialised = [s0, s1, s2].some(plausible);
+      return { control, slot0: s0, slot1: s1, slot2: s2,
+        ...(initialised ? {} : { uninitialised: true,
+          note: `no slot register holds a valid bank number for this ${banks != null ? `${banks}-bank ` : ""}ROM. The cart has probably not written the mapper (a 32KB cart never needs to), so these are power-on RAM bytes, not bank selections.` }) };
+    } catch { return null; }
+  };
+  /** Which bank the PC is executing from, given the slot registers. */
+  const bankForPc = (pc, m) => {
+    if (!m) return null;
+    if (pc < 0x4000) return 0;              // slot 0's first 1KB is fixed, rest is slot0 reg
+    if (pc < 0x8000) return m.slot1 ?? null;
+    if (pc < 0xc000) return m.slot2 ?? null;
+    return null;                            // RAM: not banked ROM
+  };
+
   const trace = [];
   for (let k = 0; k < stops.length; k++) {
     const pc = stops[k];
@@ -318,6 +369,19 @@ export async function stepInstructionsCore(sessionKey, { count = 16, withRegiste
     };
     if (withRegisters) {
       try { entry.registers = getCPUState(host, plat, cpu); } catch { /* skip */ }
+    }
+    // Read the mapper AT THIS STEP, not once for the run: a bank switch
+    // mid-trace is exactly what a caller chasing a mapper bug needs to see.
+    if (BANKED[plat]) {
+      const m = readMapper();
+      if (m) {
+        entry.mapper = m;
+        // Only claim a bank when the registers hold real bank numbers. On an
+        // unbanked cart the honest answer is "no banking in effect", not a
+        // number derived from uninitialised RAM.
+        const bank = m.uninitialised ? null : bankForPc(pc, m);
+        if (bank != null) { entry.bank = bank; entry.blockId = `${bank}:${entry.pc}`; }
+      }
     }
     trace.push(entry);
   }

@@ -54,7 +54,15 @@ test("a proof bundle that cannot be written does not fail the integration silent
 test("job liveness comes from the OS, not from a status field a dead process left behind", async () => {
   const s = await read("../src/decomp/jobs.js");
   const block = s.match(/export async function listJobs[\s\S]*?\n\}/)?.[0] ?? "";
-  assert.match(block, /isAlive\(s\.pid\)/, "liveness must be checked against the process");
+  // Assert the BEHAVIOUR, not one spelling of it. This originally required the
+  // literal `isAlive(s.pid)` inside listJobs; a later refactor moved the OS
+  // check into jobStatus (and added PID-ownership verification on top), so the
+  // test failed while the behaviour was intact and better. What must hold is
+  // that lifecycle derives from process state, not from the stored status.
+  assert.match(s, /function isAlive\(pid\)[\s\S]*?process\.kill\(pid, 0\)/,
+    "liveness must ultimately be an OS check");
+  assert.match(block, /const live = s\.alive|isAlive\(s\.pid\)/,
+    "listJobs must take liveness from the process-derived field, not from rec.status");
   assert.match(block, /lifecycle/);
   assert.match(block, /abandoned/, "a 'running' record with no live process is abandoned, not in progress");
   assert.match(block, /will not make further progress/i);

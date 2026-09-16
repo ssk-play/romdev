@@ -170,8 +170,31 @@ test("edit path: a same-length region edit rebuilds a modified-but-valid ROM (by
     // Edit ONE data byte in the region .asm (same length), then rebuild.
     const regFile = path.join(projDir, proj.regions[0].file);
     let asm = await readFile(regFile, "utf8");
-    // The region floors to .byte data; flip the first 0x3a to 0x00 (both valid).
-    const edited = asm.replace(/0x3a/i, "0x00");
+    // Flip ONE data byte, whichever the region actually contains.
+    //
+    // This used to hunt for the literal `0x3a`, which assumed the disassembler
+    // floors this region to `.byte` rather than decoding `3A 05 C0` as
+    // `ld a,($C005)`. A decoder improvement changed that and the test failed
+    // while the edit path was fine. Any `.byte` operand will do: the point is
+    // that a same-length edit rebuilds to a valid, non-identical ROM.
+    // The region may floor to `.byte` data OR decode to instructions depending
+    // on the decoder — both are valid outputs and this test is about the EDIT
+    // path, not about which one happens today. So edit the first hex operand
+    // of either form, keeping the same length.
+    // Match a hex operand of ANY width: a `.byte` is 2 digits, an absolute
+    // address operand like 0xC005 is 4. Skip the `.org 0x0` directive, which is
+    // layout rather than data.
+    const hex = [...asm.matchAll(/0x([0-9a-fA-F]{2,4})\b/g)]
+      .find((m) => !/\.org\s+$/.test(asm.slice(Math.max(0, m.index - 8), m.index)));
+    assert.ok(hex, `no hex operand to edit in the region asm:\n${asm.slice(0, 400)}`);
+    // Keep the same digit count so the rebuild stays the same length, and
+    // change only the LOW nibble so exactly ONE byte differs — a 16-bit operand
+    // edited wholesale would move two bytes and the count assertion below is
+    // deliberately strict about that.
+    const digits = hex[1];
+    const low = digits.slice(-1).toLowerCase();
+    const flipped = digits.slice(0, -1) + (low === "0" ? "1" : "0");
+    const edited = asm.slice(0, hex.index) + `0x${flipped}` + asm.slice(hex.index + hex[0].length);
     assert.notEqual(edited, asm, "test edit must apply");
     await writeFile(regFile, edited);
 
