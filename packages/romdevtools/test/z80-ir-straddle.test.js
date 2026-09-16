@@ -169,3 +169,32 @@ test("secondary records overlap by design and must not be summed as coverage", a
   assert.equal(m.coveredBytes, m.romBytes, "coveredBytes must still be the primary tiling, not the sum of all records");
   assert.match(m.alignmentNote, /do NOT sum their lengths/i);
 });
+
+test("an unknown opcode is refused, never given fabricated semantics", async () => {
+  // A downstream static recompiler turns these records into traps, so what
+  // `lifted` contains is load-bearing. The manifest used to say unknowns "are
+  // not silently lifted", which reads as `lifted: []`; in fact they carry a
+  // single {op:'refuse'} marker. Measured on a real cart: 2,095 unknown
+  // records, 2,095 refuse nodes, ZERO real operations. The safety property
+  // holds — the wording did not describe it.
+  const dir = await mkdtemp(path.join(tmpdir(), "romdev-unk-"));
+  const b = Buffer.alloc(16384);
+  for (let i = 0; i < 400; i += 2) b[i] = 0xFD;   // lone FD prefix -> undecodable
+  const rom = path.join(dir, "t.sms"), out = path.join(dir, "ir.jsonl");
+  await writeFile(rom, b);
+  const m = await exportZ80IR({ platform: "sms", path: rom, outputPath: out, emit: "ir", allOffsets: true });
+  assert.ok(m.unknownCount > 0, "fixture produced no unknown records");
+
+  const unknowns = (await readFile(out, "utf8")).split("\n").filter(Boolean)
+    .map((l) => JSON.parse(l)).filter((r) => r.decodeStatus === "unknown");
+  for (const r of unknowns) {
+    assert.ok(r.bytes.length, `unknown record at ${r.off} dropped its bytes`);
+    for (const node of r.lifted ?? []) {
+      assert.equal(node.op, "refuse",
+        `unknown record at ${r.off} carries a real lifted op '${node.op}' — that is fabricated semantics`);
+    }
+    assert.deepEqual(r.targets, [], "an unknown opcode must not claim control-flow targets");
+  }
+  assert.match(m.note, /never given fabricated semantics/,
+    "the manifest must describe what unknown records actually contain");
+});

@@ -222,5 +222,5 @@ export async function exportZ80IR(args) {
     mapper: args.mapper ?? "sega",
     mappingMode: args.allOffsets || args.fileOffset != null ? "physical-banks-with-declared-cpu-slot" : "static-cpu-mapping",
     mapperState: args.mapperState ?? null,
-    note: "Linear decode is not proof of reachable code. Each bank uses the reported CPU slot; targets stay CPU addresses and are never rebased as ROM offsets. Instruction decoding stops at each selected window boundary; crossing instructions require the actual adjacent mapped bank context. Unknown/data opcodes retain their bytes and are not silently lifted." };
+    note: "Linear decode is not proof of reachable code. Each bank uses the reported CPU slot; targets stay CPU addresses and are never rebased as ROM offsets. Instruction decoding stops at each selected window boundary; crossing instructions require the actual adjacent mapped bank context. Unknown/data opcodes retain their bytes and are never given fabricated semantics: decodeStatus:'unknown' records carry `lifted` holding a single {op:'refuse'} node naming the unrecognised mnemonic, NOT an empty array and never a real operation. A consumer deciding what to trap should key on decodeStatus, not on `lifted` being empty." };
 }
