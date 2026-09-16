@@ -14,6 +14,7 @@ import { resolveCore } from "../src/cores/registry.js";
 import { resetHost, clearHost } from "../src/mcp/state.js";
 import { prgToD64 } from "../src/platforms/c64/d64.js";
 import { buildExampleRom } from "./build-fixture-rom.js";
+import { installC64Roms, c64RomsMissing } from "./c64-roms.js";
 
 let PRG;
 before(async () => { PRG = await buildExampleRom("c64"); });
@@ -38,6 +39,7 @@ test("watch fromState: in-memory slot restore reruns the trace from that moment"
     const core = resolveCore("c64");
     const host = resetHost(key);
     await host.loadCore(core.jsPath, core.wasmPath);
+    if ((core.coreName ?? "").includes("vice")) installC64Roms(host);
     const { readFileSync } = await import("node:fs");
     const prg = new Uint8Array(readFileSync(PRG));
     await host.loadMedia({ platform: "c64", bytes: prgToD64(prg, { name: "X" }), virtualName: "/g.d64" });
@@ -70,6 +72,7 @@ test("watch fromState: determinism - same state slot gives the same distinctPCs"
     const core = resolveCore("c64");
     const host = resetHost(key);
     await host.loadCore(core.jsPath, core.wasmPath);
+    if ((core.coreName ?? "").includes("vice")) installC64Roms(host);
     const { readFileSync } = await import("node:fs");
     const prg = new Uint8Array(readFileSync(PRG));
     await host.loadMedia({ platform: "c64", bytes: prgToD64(prg, { name: "X" }), virtualName: "/g.d64" });
@@ -91,6 +94,7 @@ test("watch fromStatePath: restore from a savestate FILE", { timeout: 120000 }, 
     const core = resolveCore("c64");
     const host = resetHost(key);
     await host.loadCore(core.jsPath, core.wasmPath);
+    if ((core.coreName ?? "").includes("vice")) installC64Roms(host);
     const { readFileSync, writeFileSync } = await import("node:fs");
     const prg = new Uint8Array(readFileSync(PRG));
     await host.loadMedia({ platform: "c64", bytes: prgToD64(prg, { name: "X" }), virtualName: "/g.d64" });
@@ -114,6 +118,7 @@ test("watch fromState + fromStatePath together is rejected", { timeout: 120000 }
     const core = resolveCore("c64");
     const host = resetHost(key);
     await host.loadCore(core.jsPath, core.wasmPath);
+    if ((core.coreName ?? "").includes("vice")) installC64Roms(host);
     const { readFileSync } = await import("node:fs");
     const prg = new Uint8Array(readFileSync(PRG));
     await host.loadMedia({ platform: "c64", bytes: prgToD64(prg, { name: "X" }), virtualName: "/g.d64" });

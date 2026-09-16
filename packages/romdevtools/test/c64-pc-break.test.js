@@ -15,6 +15,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { z } from "zod";
 
 import { registerTools } from "../src/mcp/tools/index.js";
+import { installC64Roms, c64RomsMissing } from "./c64-roms.js";
 
 async function startClient() {
   const server = new McpServer({ name: "c64-pc-break", version: "0.0.1" }, { capabilities: { tools: {} } });

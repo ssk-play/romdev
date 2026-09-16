@@ -1,11 +1,12 @@
 // diff.js - compare a candidate function's instruction stream against the
 // target's. Two layers, kept deliberately separate:
 //
-//   STRICT  - the acceptance test. Word-for-word equality of every encoded
-//             instruction AND equality of every relocation (type + symbol +
-//             addend). A same-shaped stream with a different call target fails
-//             here even though the words match (the word is 0 under a
-//             R_MIPS_26 reloc in both objects).
+//   STRICT  - raw word-for-word equality of every encoded instruction AND
+//             equality of every relocation (type + symbol + addend). The
+//             aggregate verifier may accept relocation-symbol spelling alone
+//             only after the independent ROM-linked check proves that every
+//             resolved instruction word is exact; unresolved or different
+//             targets still fail.
 //   SCORED  - the ranking signal. A documented edit distance over NORMALIZED
 //             instructions so a search can tell "closer" from "farther". It is
 //             never presented as proof; `strict.exact` is.
@@ -41,7 +42,14 @@ export function strictCompare(target, candidate) {
     const wordEq = a.word === b.word;
     const relocEq = relocKey(a.reloc) === relocKey(b.reloc);
     if (wordEq && relocEq) continue;
-    mismatches.push({ index: i, kind: !relocEq && wordEq ? "relocation-target" : "instruction", target: fmt(a), candidate: fmt(b) });
+    // Named-symbol and section-relative forms encode different placeholder
+    // immediates before the linker applies them (e.g. jtbl_X+0 versus
+    // .rodata+0x4d8). They are still one relocation-shaped residual when the
+    // opcode and relocation kind agree. The verdict accepts that residual
+    // only if independent ROM linking resolves it to the exact target word.
+    const relocationShape = !!a.reloc && !!b.reloc
+      && a.reloc.type === b.reloc.type && a.mnemonic === b.mnemonic;
+    mismatches.push({ index: i, kind: !relocEq && (wordEq || relocationShape) ? "relocation-target" : "instruction", target: fmt(a), candidate: fmt(b) });
   }
   return { exact: mismatches.length === 0, targetBytes: target.length * 4, candidateBytes: candidate.length * 4, mismatchCount: mismatches.length, mismatches };
 }

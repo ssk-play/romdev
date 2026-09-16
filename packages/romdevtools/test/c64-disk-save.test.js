@@ -10,6 +10,7 @@ import { resolveCore } from "../src/cores/registry.js";
 import { LibretroHost } from "romdev-core-host/LibretroHost.js";
 import { prgToD64, readDirectory, extractFile } from "../src/platforms/c64/d64.js";
 import { buildExampleRom } from "./build-fixture-rom.js";
+import { installC64Roms, c64RomsMissing } from "./c64-roms.js";
 
 let PRG;
 before(async () => { PRG = await buildExampleRom("c64"); });
@@ -20,17 +21,18 @@ async function bootDisk() {
   const core = resolveCore("c64");
   const host = new LibretroHost();
   await host.loadCore(core.jsPath, core.wasmPath);
+  installC64Roms(host);
   await host.loadMedia({ platform: "c64", bytes: prgToD64(prg, { name: "GAME" }), virtualName: "/g.d64" });
   for (let i = 0; i < 200; i++) host.stepFrames(1);
   return host;
 }
 
-test("core exposes the disk read/write exports", { timeout: 60000 }, async () => {
+test("core exposes the disk read/write exports", { timeout: 60000, skip: c64RomsMissing() }, async () => {
   const host = await bootDisk();
   assert.equal(host.diskImageSupported(), true, "patched VICE core should expose disk export/import");
 });
 
-test("exportDiskImage reads the live .d64 (174848 bytes, GAME present)", { timeout: 60000 }, async () => {
+test("exportDiskImage reads the live .d64 (174848 bytes, GAME present)", { timeout: 60000, skip: c64RomsMissing() }, async () => {
   const host = await bootDisk();
   const d64 = host.exportDiskImage(8);
   assert.equal(d64.length, 174848);
@@ -38,7 +40,7 @@ test("exportDiskImage reads the live .d64 (174848 bytes, GAME present)", { timeo
   assert.ok(dir.find((e) => e.name === "GAME"), "the packed program should be on the disk");
 });
 
-test("putDiskFile injects a PRG file that exportDiskImage reads back", { timeout: 60000 }, async () => {
+test("putDiskFile injects a PRG file that exportDiskImage reads back", { timeout: 60000, skip: c64RomsMissing() }, async () => {
   const host = await bootDisk();
   // a save file: 2-byte load address ($C000) + body
   const body = "DISK-SAVE-ROUNDTRIP";
@@ -54,7 +56,7 @@ test("putDiskFile injects a PRG file that exportDiskImage reads back", { timeout
   assert.equal(Buffer.from(back.subarray(2)).toString("latin1"), body, "save body round-trips byte-exact");
 });
 
-test("importDiskImage swaps the whole disk", { timeout: 60000 }, async () => {
+test("importDiskImage swaps the whole disk", { timeout: 60000, skip: c64RomsMissing() }, async () => {
   const { readFileSync } = await import("node:fs");
   const host = await bootDisk();
   const prg = new Uint8Array(readFileSync(PRG));
@@ -77,7 +79,7 @@ test("importDiskImage rejects a non-174848-byte image at the state layer", () =>
 // the saved file back out. This persists because VICE writes it into the live
 // disk image (TDE GCR writeback) - exportDisk reads that image. The filename is
 // stored in high-bit PETSCII by the KERNAL, which the readDirectory fix decodes.
-test("a game's own cbm_save persists into the disk and reads back", { timeout: 120000 }, async () => {
+test("a game's own cbm_save persists into the disk and reads back", { timeout: 120000, skip: c64RomsMissing() }, async () => {
   const { buildC } = await import("../src/toolchains/cc65/cc65.js");
   const SRC = `#include <cbm.h>
 void main(void){
@@ -91,6 +93,7 @@ void main(void){
   const core = resolveCore("c64");
   const host = new LibretroHost();
   await host.loadCore(core.jsPath, core.wasmPath);
+  installC64Roms(host);
   await host.loadMedia({ platform: "c64", bytes: prgToD64(built.binary, { name: "SAVER" }), virtualName: "/g.d64" });
   for (let i = 0; i < 8000; i++) host.stepFrames(1);   // autostart + the save + drive settle
 

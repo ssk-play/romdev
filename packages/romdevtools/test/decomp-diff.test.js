@@ -37,6 +37,14 @@ test("strict: same words, different relocation target FAILS (the call-target tra
   assert.ok(scoreDistance(base(), cand).value > 0);
 });
 
+test("strict: section-relative relocation placeholders stay relocation-shaped", () => {
+  const target = [ins(0, 0x8c290000, "lw", "t1,0(at)", { type: "R_MIPS_LO16", symbol: "jtbl_named", addend: 0 })];
+  const candidate = [ins(0, 0x8c2904d8, "lw", "t1,1240(at)", { type: "R_MIPS_LO16", symbol: ".rodata", addend: 0 })];
+  const s = strictCompare(target, candidate);
+  assert.equal(s.exact, false);
+  assert.equal(s.mismatches[0].kind, "relocation-target");
+});
+
 test("strict: same size, one changed constant fails; classified as immediate", () => {
   const cand = base(); cand[0] = ins(0, 0x27bdffe0, "addiu", "sp,sp,-32"); cand[6] = ins(24, 0x27bd0020, "addiu", "sp,sp,32");
   const s = strictCompare(base(), cand);

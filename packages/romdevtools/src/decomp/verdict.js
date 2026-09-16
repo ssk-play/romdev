@@ -14,14 +14,26 @@
 // unknown; else exact. `not-applicable` satisfies a check. The version below is
 // part of the compare cache key: a result verified under an older policy is
 // never returned as a current verdict.
-export const VERIFIER_VERSION = 3;
+export const VERIFIER_VERSION = 4;
 export const VERDICT_STATES = ["exact", "mismatch", "error", "unknown", "not-applicable"];
-export const POLICY = "any mismatch → mismatch; else any error → error; else any unknown/not-run → unknown; else exact (not-applicable satisfies). exactFunctionMatch is true only for exact.";
+export const POLICY = "instruction words must match; relocation-symbol spelling may differ only when every strict residual is relocation-only and the independently resolved ROM-linked words are exact. Any other mismatch → mismatch; else any error → error; else any unknown/not-run → unknown; else exact (not-applicable satisfies). exactFunctionMatch is true only for exact.";
 
 /** State of the text (instruction + relocation) check. */
-export function textState(strict) {
+export function textState(strict, romLinked) {
   if (!strict || typeof strict.exact !== "boolean") return { state: "error", reason: "no strict comparison result" };
-  return strict.exact ? { state: "exact" } : { state: "mismatch", reason: `${strict.mismatchCount} instruction/relocation mismatches` };
+  if (strict.exact) return { state: "exact" };
+  const mismatches = Array.isArray(strict.mismatches) ? strict.mismatches : [];
+  const relocationOnly = mismatches.length > 0
+    && mismatches.length === strict.mismatchCount
+    && mismatches.every((m) => m?.kind === "relocation-target");
+  if (relocationOnly && romLinked?.status === "exact") {
+    return {
+      state: "exact",
+      equivalence: "resolved-relocations",
+      reason: `${strict.mismatchCount} relocation symbol-name difference(s) resolve to the exact ROM words`,
+    };
+  }
+  return { state: "mismatch", reason: `${strict.mismatchCount} instruction/relocation mismatches` };
 }
 
 /** State of the function-local rodata check. Failure to compare is never equality. */
@@ -56,7 +68,7 @@ export function romLinkedState(romLinked) {
 
 /** Aggregate the required function-local checks. */
 export function aggregateVerdict({ strict, rodata, romLinked }) {
-  const checks = { text: textState(strict), rodata: rodataState(rodata), romLinked: romLinkedState(romLinked) };
+  const checks = { text: textState(strict, romLinked), rodata: rodataState(rodata), romLinked: romLinkedState(romLinked) };
   const states = Object.values(checks).map((c) => c.state);
   const functionLocal = states.includes("mismatch") ? "mismatch" : states.includes("error") ? "error" : states.includes("unknown") ? "unknown" : "exact";
   const reasons = Object.entries(checks).filter(([, c]) => c.state !== "exact" && c.state !== "not-applicable").map(([k, c]) => `${k}: ${c.state}${c.reason ? ` (${c.reason})` : ""}`);

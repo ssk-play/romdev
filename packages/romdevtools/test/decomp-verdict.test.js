@@ -57,6 +57,21 @@ test("mismatching text with equal data → mismatch; ROM-linked unknown → unkn
   assert.equal(aggregateVerdict({ strict: exactText, rodata: { compared: false, error: "boom" }, romLinked: { status: "no-rom-offset" } }).functionLocal, "error");
 });
 
+test("relocation symbol spelling is equivalent only when resolved ROM words are exact", () => {
+  const aliases = { exact: false, mismatchCount: 2, mismatches: [
+    { kind: "relocation-target" }, { kind: "relocation-target" },
+  ] };
+  const exact = assembleVerdictFields({ strict: aliases, rodata: { compared: true, equal: true }, romLinked: romExact });
+  assert.deepEqual(both(exact), [true, "exact"]);
+  assert.equal(exact.verdict.checks.text.equivalence, "resolved-relocations");
+
+  const wrong = assembleVerdictFields({ strict: aliases, rodata: { compared: true, equal: true }, romLinked: { status: "mismatch", mismatches: 1 } });
+  assert.deepEqual(both(wrong), [false, "mismatch"]);
+
+  const unresolved = assembleVerdictFields({ strict: aliases, rodata: { compared: true, equal: true }, romLinked: { status: "unresolved-relocations", unresolvedSymbols: ["alias"] } });
+  assert.deepEqual(both(unresolved), [false, "mismatch"]);
+});
+
 test("a cached result from the old verifier is not usable as a current verdict", () => {
   assert.equal(cacheUsable({ exactFunctionMatch: true, verification: { functionLocal: "exact" } }), false, "v1 result (no verifierVersion) rejected");
   assert.equal(cacheUsable({ exactFunctionMatch: true, verifierVersion: VERIFIER_VERSION }), false, "no verdict object rejected");
