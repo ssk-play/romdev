@@ -122,8 +122,24 @@ export function resolveSeed(seed) {
  * Start a search job.
  * @param {{project, fn, baseCandidateText, timeLimitS?:number, threads?:number, seed?:string, stopOnZero?:boolean, label?:string, resumeFrom?:string}} a
  */
-export async function startSearch({ project, fn, baseCandidateText, timeLimitS = 300, threads = 2, seed, stopOnZero = true, label, resumeFrom }) {
+export async function startSearch({ project, fn, baseCandidateText, timeLimitS = 300, threads = 2, seed, stopOnZero = true, label, resumeFrom, preflight = null }) {
   const t = toolPaths();
+  // PREFLIGHT BEFORE SPENDING BUDGET.
+  //
+  // §9: a 300-second, eight-thread search returned no improvement after ~317
+  // seconds. A search can only permute a base that COMPILES, and a base that
+  // is already exact needs no search at all — both are answerable in one
+  // compile, before committing minutes of CPU. The caller supplies the check;
+  // this refuses to launch when it fails, because "budget exhausted" is a much
+  // more expensive way to learn the same thing.
+  if (preflight) {
+    if (preflight.compileSucceeded === false) {
+      throw Object.assign(new Error(`search preflight FAILED: the base candidate does not compile, so every mutation of it would also fail. Fix the diagnostics first — a search cannot permute a candidate the compiler rejects.${preflight.firstDiagnostic ? ` First error: ${preflight.firstDiagnostic}` : ""}`), { code: "PREFLIGHT_FAILED" });
+    }
+    if (preflight.exactFunctionMatch === true) {
+      throw Object.assign(new Error("search preflight: the base candidate is ALREADY byte-exact. There is nothing to search for — verify it with decomp({op:'compare'}) and integrate it."), { code: "PREFLIGHT_ALREADY_EXACT" });
+    }
+  }
   // VALIDATE BEFORE ANYTHING EXISTS. This throws synchronously, so an invalid
   // seed cannot leave a job directory or a spawned process behind.
   const seedInfo = resolveSeed(seed);
@@ -140,6 +156,7 @@ export async function startSearch({ project, fn, baseCandidateText, timeLimitS =
     jobId, project: project.id, function: { symbol: fn.symbol, segment: fn.segment, va: fn.vaHex }, label: label ?? null,
     status: "running", pid: child.pid, startedAt: new Date().toISOString(), timeLimitS, threads, seed: seedInfo.seed, seedRequested: seed ?? null, seedFrom: seedInfo.from, seedMapping: seedInfo.mapping, stopOnZero,
     resumeFrom: resumeFrom ?? null, baseCandidateSha256: sha256Text(baseCandidateText).slice(0, 16),
+    ...(preflight ? { preflight: { compileSucceeded: preflight.compileSucceeded ?? null, strictMismatches: preflight.strictMismatches ?? null, linkedMismatches: preflight.linkedMismatches ?? null, exactFunctionMatch: preflight.exactFunctionMatch ?? null } } : {}),
     dir: jobDir, permuterDir: prep.permDir, log: logPath, importLog: prep.importLog,
     backend: { name: "decomp-permuter", commit: (await backendStatus()).permuter?.commit, argv: [t.python, ...args] },
     best: null,
@@ -211,7 +228,24 @@ export async function listJobs(project, symbol) {
   try { ids = await readdir(jobsDir(project)); } catch { return []; }
   const out = [];
   for (const id of ids) {
-    try { const s = await jobStatus(project, id); if (!symbol || s.function.symbol === symbol) out.push({ jobId: id, symbol: s.function.symbol, status: s.status, best: s.best?.score ?? null, elapsedS: s.elapsedS, startedAt: s.startedAt }); } catch {}
+    try {
+      const s = await jobStatus(project, id);
+      if (symbol && s.function.symbol !== symbol) continue;
+      // §11: after a restart a caller must be able to tell LIVE work from
+      // terminal work "from authoritative process/job state", not from a
+      // status field a dead process never got to update. `pid` is checked
+      // against the OS; a record that still says "running" with no live
+      // process is reported as abandoned rather than as work in progress.
+      const live = s.pid ? isAlive(s.pid) : false;
+      const lifecycle = live ? "live"
+        : s.status === "running" ? "abandoned"
+        : "terminal";
+      out.push({ jobId: id, symbol: s.function.symbol, segment: s.function.segment ?? null,
+        status: s.status, lifecycle, live, pid: s.pid ?? null,
+        best: s.best?.score ?? null, bestPath: s.best?.path ?? null,
+        elapsedS: s.elapsedS, startedAt: s.startedAt,
+        ...(lifecycle === "abandoned" ? { abandonedNote: `the record says 'running' but pid ${s.pid} is not alive: the process died (a restart, an OOM kill, or a reboot) without updating its status. Its artifacts are still on disk and its best candidate is still usable; it will not make further progress.` } : {}) });
+    } catch {}
   }
   return out.sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
 }
@@ -224,10 +258,41 @@ export async function jobReport(project, jobId) {
   const log = fs.existsSync(s.log) ? await readFile(s.log, "utf8") : "";
   const history = [...log.matchAll(/found (?:new best|a better) score!? \((\d+) vs (\d+)\)/g)].map((m, i) => ({ n: i + 1, score: Number(m[1]), previous: Number(m[2]) }));
   const outputs = fs.existsSync(s.permuterDir) ? (await readdir(s.permuterDir)).filter((d) => /^output-\d+-\d+$/.test(d)).length : 0;
+  // WHAT THE BUDGET ACTUALLY BOUGHT.
+  //
+  // §9: a 300s/8-thread run returned no improvement and left an 8-line log.
+  // "No improvement" is only actionable if you know what was tried, so the
+  // accounting below is read from the backend's own output rather than
+  // inferred. A field the log does not support is reported as null — an
+  // invented count would be worse than an absent one.
+  const iterations = Number(/(?:iteration|tried)\s+(\d+)/i.exec(log)?.[1] ?? NaN);
+  const compileFails = (log.match(/compile (?:error|failed)/gi) ?? []).length;
+  const permMacros = /No perm macros found/i.test(log);
+  const baseSources = Number(/Will try (\d+) different base sources/i.exec(log)?.[1] ?? NaN);
+  const accounting = {
+    elapsedS: s.elapsedS, timeLimitS: s.timeLimitS, threads: s.threads,
+    candidatesWritten: outputs,
+    improvements: history.length,
+    iterationsReported: Number.isFinite(iterations) ? iterations : null,
+    compileFailures: compileFails || null,
+    baseSources: Number.isFinite(baseSources) ? baseSources : null,
+    mutationFamilies: permMacros ? "randomization only (no PERM macros in the base: the search explores random rewrites, not a declared family)" : "PERM macros present in the base",
+    terminationReason: s.zeroFound ? "zero score found"
+      : s.status === "complete-budget" ? `time budget of ${s.timeLimitS}s exhausted`
+      : s.status === "running" ? "still running"
+      : s.status,
+    note: Number.isFinite(iterations) ? undefined
+      : "the backend's log does not report an iteration count, so effective compilations and cache hits cannot be stated. They are null rather than guessed.",
+  };
+  const exhaustedNoImprovement = s.status === "complete-budget" && history.length === 0;
   const report = { jobId, project: project.id, function: s.function, label: s.label, status: s.status, startedAt: s.startedAt, endedAt: s.endedAt ?? null, elapsedS: s.elapsedS, timeLimitS: s.timeLimitS, threads: s.threads, seed: s.seed,
+    ...(s.seedRequested && s.seedFrom === "label" ? { seedRequested: s.seedRequested, seedMapping: s.seedMapping } : {}),
+    ...(s.preflight ? { preflight: s.preflight } : {}),
     baseCandidateSha256: s.baseCandidateSha256, baseScore: s.baseScore, best: s.best, improvements: history, candidatesWritten: outputs, zeroFound: s.zeroFound, resumeFrom: s.resumeFrom,
+    accounting,
     backend: s.backend, artifacts: { dir: s.dir, permuterDir: s.permuterDir, log: s.log, importLog: s.importLog, base: path.join(s.dir, "base.c") },
-    verdict: s.zeroFound ? "zero score found — run decomp({op:'compare'}) on best.path; the permuter's score is not the strict test" : s.status === "complete-budget" ? "budget exhausted — best is the closest candidate, not a match" : s.status };
+    verdict: s.zeroFound ? "zero score found — run decomp({op:'compare'}) on best.path; the permuter's score is not the strict test" : s.status === "complete-budget" ? "budget exhausted — best is the closest candidate, not a match" : s.status,
+    ...(exhaustedNoImprovement ? { recommendation: `${s.elapsedS}s of ${s.threads}-thread search produced NO improvement over base score ${s.baseScore}. ${permMacros ? "The base has no PERM macros, so this was undirected randomization — it cannot target a specific residual." : ""} Switch mechanism rather than re-running with a larger budget: diagnose the residual (decomp({op:'diagnose'})) to learn which groups exist, then test a bounded set of source levers (decomp({op:'variants'})). Re-running an exhausted undirected search explores the same space again.` } : {}) };
   const md = [`# search ${jobId}`, ``, `- function: ${s.function.symbol} (${s.function.segment} ${s.function.va})`, `- status: ${s.status} (${s.elapsedS}s of ${s.timeLimitS}s, ${s.threads} threads${s.seed ? ", seed " + s.seed : ""})`, `- base score: ${s.baseScore} → best: ${s.best?.score ?? "none"} (${outputs} candidates written, ${history.length} improvements)`, `- verdict: ${report.verdict}`, `- best candidate: ${s.best?.path ?? "none"}`, ``, `## improvements`, ...history.map((h) => `${h.n}. ${h.previous} → ${h.score}`), ``, `## artifacts`, `- ${s.dir}`, `- ${s.log}`].join("\n");
   await writeFile(path.join(s.dir, "report.json"), JSON.stringify(report, null, 2));
   await writeFile(path.join(s.dir, "report.md"), md);

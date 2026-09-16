@@ -42,7 +42,7 @@ export function registerDecompTools(server, z, sessionKey) {
     "Every result names the project, function {symbol, segment, va}, candidate sha, compiler fingerprint and artifact paths; errors carry a typed [CODE]. `exactFunctionMatch` and `romLinked.status:'exact'` are the acceptance signals; `distance` is a ranking hint, never proof. " +
     "Ghidra pseudocode stays in disasm({target:'decompile'}) for understanding; it is never counted as matched.",
     {
-      op: z.enum(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage", "workbench", "dispatch", "experiment", "gate", "typeGraph", "rank", "ledger", "scenario", "capabilities", "knownSource", "assets", "artifacts", "handoff", "skill", "diagnose", "research", "variants"]).describe(
+      op: z.enum(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage", "workbench", "dispatch", "experiment", "gate", "typeGraph", "rank", "ledger", "scenario", "capabilities", "knownSource", "assets", "artifacts", "handoff", "skill", "diagnose", "research", "variants", "layout", "replay"]).describe(
         "import=register a project (root; splat yaml auto-detected; ROM sha1 verified; toolchain fingerprinted; compile invocation captured from make); " +
         "status=manifest + backend identities + segment table; list=registered projects; map=TU → object → segment → functions associations; " +
         "plan=payoff-ordered queue of remaining asm functions + batches that call each other inside one TU (call graph from the built objects' relocations); batch=generate+compare every function of a batch (`symbols`), sharing the context; " +
@@ -131,17 +131,19 @@ export function registerDecompTools(server, z, sessionKey) {
       allowNetwork: z.boolean().default(false).describe("op:'workbench' — required to run a command the workbench's OWN catalog marks as reaching the network."),
       timeoutMs: z.number().int().min(1000).max(3_600_000).optional().describe("op:'workbench' — per-command timeout (default 600000)."),
       force: z.boolean().default(false).describe("op:'workbench' — re-read the command catalog instead of using the cached one."),
-      root: z.string().optional().describe("op:'import' — absolute path of the decompilation checkout (the dir with the splat yaml + Makefile). op:'research' action:'import' — a directory of prior research (drafts and notes) to INDEX. Indexing records what exists; it never turns a note into a verified result."),
+      root: z.string().optional().describe("op:'import' — absolute path of the decompilation checkout (the dir with the splat yaml + Makefile). op:'research' action:'import' — a directory of prior research (drafts and notes) to INDEX. op:'replay' — the research root holding the replay fixtures (default: <project>/docs/research). Indexing records what exists; it never turns a note into a verified result."),
       splatYaml: z.string().optional().describe("op:'import' — splat yaml (relative to root) when auto-detection finds more than one."),
       rom: z.string().optional().describe("op:'import' — base ROM path when it differs from the yaml's target_path."),
       expectedSha1: z.string().optional().describe("op:'import' — expected base-ROM sha1 (default: the yaml's)."),
       buildCommand: z.array(z.string()).optional().describe("op:'import' — argv of the full-build command run from root (default: tools/matching-build.sh if present, else make)."),
       symbol: z.string().optional().describe("Function symbol name (func_801DEB08). Alternative to `va`."),
-      symbols: z.array(z.union([z.string(), z.object({ symbol: z.string(), segment: z.string().optional(), va: z.union([z.string(), z.number()]).optional(), targetId: z.string().optional() }).passthrough()])).optional().describe("op:'batch' — the functions to run (a batch from op:'plan'). op:'dispatch' — explicit symbols to triage; omit to take the top of the plan queue. Each entry is either a bare symbol name OR a target record {symbol, segment} — required when a VA is mapped by several overlays, since a bare name cannot say which overlay it belongs to. op:'plan' returns records in this shape, so a plan batch can be passed straight back."),
+      symbols: z.array(z.union([z.string(), z.object({ symbol: z.string(), segment: z.string().optional(), va: z.union([z.string(), z.number()]).optional(), targetId: z.string().optional() }).passthrough()])).optional().describe("op:'batch' — the functions to run (a batch from op:'plan'). op:'dispatch' — explicit symbols to triage; omit to take the top of the plan queue. op:'replay' — restrict the run to these case ids or symbols. Each entry is either a bare symbol name OR a target record {symbol, segment} — required when a VA is mapped by several overlays, since a bare name cannot say which overlay it belongs to. op:'plan' returns records in this shape, so a plan batch can be passed straight back."),
       va: z.union([z.number().int(), z.string()]).optional().describe("Virtual address (number, or hex string '0x801DEB08')."),
       segment: z.string().optional().describe("Segment name to disambiguate an overlay VA (the resolver lists candidates when ambiguous)."),
       tu: z.string().optional().describe("op:'plan'/'map' — restrict to one translation unit (relative path)."),
-      limit: z.number().int().min(1).max(500).default(40).describe("op:'plan' — queue length."),
+      limit: z.number().int().min(1).max(500).default(40).describe("op:'plan' — page size. The full ranked set is paged, so a small limit never silently excludes the rest: the response reports `page.hasMore` and `page.nextOffset`."),
+      offset: z.number().int().min(0).default(0).describe("op:'plan' — start of the page into the ranked queue."),
+      objective: z.enum(["byte-coverage", "function-count", "shared-type", "diagnostic-research"]).default("byte-coverage").describe("op:'plan' — what to optimise the queue FOR. byte-coverage ranks large routines first (default); function-count ranks small well-constrained targets first, which is the right queue for 'another N verified functions'; shared-type ranks functions whose typed neighbours already pin their structs; diagnostic-research ranks measured near-misses. Each row reports the factors behind its rank; no completion-time estimates are invented."),
       // DECLARED TWICE before: the op:'batch' version silently replaced the
       // op:'dispatch' one and narrowed its ceiling from 512 to 64. Same
       // duplicate-key bug that made five `action` vocabularies unreachable.
@@ -156,7 +158,7 @@ export function registerDecompTools(server, z, sessionKey) {
         replace: z.string().optional().describe("what to replace it with (omit to delete)"),
         candidateText: z.string().optional().describe("full replacement source, instead of find/replace"),
       })).optional().describe("op:'variants' — a bounded list of named source variants measured against one baseline under ONE dependency snapshot. Duplicate sources and byte-identical outputs are reported rather than silently dropped."),
-      artifactId: z.string().optional().describe("op:'diagnose' — a stored compare artifact (the `.diff.json` path from a compare's `artifacts.diff`, or its cache key). The diagnosis reuses that comparison's exact streams; no recompile."),
+      artifactId: z.string().optional().describe("op:'diagnose'/'layout' — a stored compare artifact (the `.diff.json` path from a compare's `artifacts.diff`, or its cache key). The diagnosis reuses that comparison's exact streams; no recompile."),
       tracePath: z.string().optional().describe("op:'diagnose' — an as1 `-Wa,-R` trace of the SAME compile, for source-line attribution and scheduling priorities. Optional: without it mechanisms are inferred from the instruction streams alone and the response says so."),
       ownerPath: z.string().optional().describe("op:'compare' — REPLAY FIXTURE: compile the candidate into this saved owner TU instead of the one in the current tree. Use the pre-integration backup to re-verify a function that has since been integrated; without it the accepted definition is already present and the compile fails with 'redeclaration'."),
       contextHash: z.string().optional().describe("op:'compare' — the context hash the candidate was generated against; the result flags contextStale when the TU/headers/flags changed since."),
@@ -171,6 +173,8 @@ export function registerDecompTools(server, z, sessionKey) {
       verifyTu: z.boolean().default(true).describe("op:'compare'/'variants' — also check every OTHER function in the TU's object is unchanged."),
       timeLimitS: z.number().int().min(10).max(86400).default(300).describe("op:'search' — wall-clock budget."),
       threads: z.number().int().min(1).max(32).default(2).describe("op:'search' — permuter worker threads."),
+      detail: z.boolean().default(false).describe("op:'compare' — return the FULL result (compiler invocation, per-word evidence, changed ranges, diff preview). Default false: the compact response carries the verdict and a residual summary, and every omitted field is on disk at the paths in `artifacts`."),
+      preflight: z.boolean().default(true).describe("op:'search' — compile and compare the base ONCE before spending the search budget. A base that does not compile cannot be permuted and one that is already exact needs no search; both are refused up front. Set false to skip."),
       seed: z.string().optional().describe("op:'search' — permuter seed. The backend accepts ONLY integers: 'rngSeed' (e.g. '297') or 'permuterIndex,rngSeed' (e.g. '0,297'). A descriptive label ([A-Za-z0-9][A-Za-z0-9._-]*) is accepted too and mapped DETERMINISTICALLY onto that space; the response returns the mapping so the run can be reproduced. An unusable seed is refused synchronously, before any job directory or process exists. Seed identity fixes the mutation stream, NOT thread scheduling: with threads>1 the ORDER results arrive still varies."),
       jobId: z.string().optional().describe("op:'job' — the job to inspect/cancel/report."),
       resumeFrom: z.string().optional().describe("op:'search' — a previous jobId whose best candidate becomes the base."),
@@ -350,6 +354,81 @@ export function registerDecompTools(server, z, sessionKey) {
             maxWorkers: args.maxWorkers, timeBudgetS: args.timeBudgetS ?? 3600,
           });
           return jsonContent({ project: project.id, ...out });
+        }
+        case "replay": {
+          // §12: a public-API replay suite over preserved candidates. Runs the
+          // SAME endpoints a caller uses — no internal shortcuts — and never
+          // mutates the production checkout.
+          const RP = await import("../../decomp/replay.js");
+          const researchRoot = args.root ?? path.join(project.root, "docs/research");
+          const cases = RP.defaultCases({ researchRoot, workspace: project.ws });
+          const only = args.symbols?.length ? new Set(args.symbols.map((x) => (typeof x === "string" ? x : x.symbol))) : null;
+          const results = [];
+
+          // An integrated function's owner must come from its PRE-INTEGRATION
+          // backup; the current owner already contains the accepted source.
+          const ownerFor = async (hint) => {
+            if (!hint) return null;
+            const dir = path.join(project.ws, path.dirname(hint));
+            const re = new RegExp("^" + path.basename(hint).replace(/[.*+?^${}()|[\]\\]/g, (m) => (m === "*" ? ".*" : "\\" + m)) + "$");
+            try {
+              const hits = (await readdir(dir)).filter((f) => re.test(f)).sort();
+              return hits.length ? path.join(dir, hits[hits.length - 1]) : null;
+            } catch { return null; }
+          };
+
+          for (const kase of cases) {
+            if (only && !only.has(kase.id) && !only.has(kase.symbol)) continue;
+            const t0 = Date.now();
+            try {
+              const actual = await runReplayCase(project, kase, { ownerFor, resolveFn, live });
+              const fails = RP.checkExpectations(kase, actual);
+              results.push({ id: kase.id, why: kase.why, passed: fails.length === 0, ms: Date.now() - t0,
+                actual, ...(fails.length ? { failures: fails } : {}) });
+            } catch (e) {
+              const msg = String(e?.message ?? e);
+              const missing = /ENOENT|no such file/i.test(msg);
+              results.push({ id: kase.id, why: kase.why, passed: false, skipped: missing, ms: Date.now() - t0,
+                error: `${e?.code ?? "ERROR"}: ${msg.slice(0, 220)}`,
+                ...(missing ? { skipNote: "the fixture this case replays is not on disk; the case is SKIPPED rather than counted as a pass" } : {}) });
+            }
+          }
+          return jsonContent({ project: project.id, researchRoot, ...RP.summarize(results) });
+        }
+        case "layout": {
+          // Stack map + data ownership. Reads a stored comparison, like
+          // op:'diagnose' — the streams are already there and recompiling to
+          // answer a layout question would risk describing a different build.
+          const L = await import("../../decomp/layout.js");
+          // `va` asks the OWNERSHIP question: what does this address already
+          // belong to? That is a question about data, not about the function
+          // being worked on, so it must not be resolved against the
+          // function's segment — doing so rejected a global with
+          // SEGMENT_MISMATCH for not living inside the overlay asking about it.
+          if (args.va != null) {
+            const ld = await project.linkerMap();
+            const sa = await project.symbolAddrs();
+            const syms = new Map();
+            for (const [name, rec] of (sa ?? new Map())) syms.set(name, { va: rec.va, size: rec.size });
+            for (const [name, rec] of (ld?.symbols ?? new Map())) if (!syms.has(name)) syms.set(name, { va: rec.va, size: rec.size });
+            return jsonContent({ project: project.id, va: `0x${hexOrInt(args.va).toString(16)}`,
+              ...L.resolveAddress(syms, hexOrInt(args.va)) });
+          }
+          const fn = await resolveFn();
+          let diffPath = args.artifactId ?? null;
+          if (!diffPath || !String(diffPath).endsWith(".diff.json")) {
+            const dir = path.join(project.ws, "candidates", fn.symbol);
+            let entries = [];
+            try { entries = (await readdir(dir)).filter((f) => f.endsWith(".diff.json")); } catch {}
+            if (!entries.length) throw Object.assign(new Error(`no stored comparison for '${fn.symbol}'. Run decomp({op:'compare', ...}) first.`), { code: "NO_ARTIFACT" });
+            const stats = await Promise.all(entries.map(async (f) => ({ f, t: (await stat(path.join(dir, f))).mtimeMs })));
+            stats.sort((a, b) => b.t - a.t);
+            diffPath = args.artifactId && !String(args.artifactId).endsWith(".diff.json")
+              ? path.join(dir, `${args.artifactId}.diff.json`) : path.join(dir, stats[0].f);
+          }
+          const stored = JSON.parse(await readFile(diffPath, "utf8"));
+          return jsonContent({ project: project.id, symbol: fn.symbol, segment: fn.segment ?? null, artifact: diffPath,
+            ...L.layoutReport({ targetStream: stored.target ?? [], candidateStream: stored.candidate ?? [] }) });
         }
         case "variants": {
           // One baseline + named variants, one dependency snapshot, a compact
@@ -737,7 +816,7 @@ export function registerDecompTools(server, z, sessionKey) {
         }
         case "plan": {
           const { planWork } = await import("../../decomp/plan.js");
-          return jsonContent({ project: project.id, ...(await planWork(project, { limit: args.limit, tu: args.tu, workClass: args.workClass, includeAllClasses: !!args.includeAllClasses, forceGraph: !!args.forceGraph })) });
+          return jsonContent({ project: project.id, ...(await planWork(project, { limit: args.limit, offset: args.offset, objective: args.objective, tu: args.tu, workClass: args.workClass, includeAllClasses: !!args.includeAllClasses, forceGraph: !!args.forceGraph })) });
         }
         case "batch": {
           if (!args.symbols?.length) throw Object.assign(new Error("decomp({op:'batch'}): pass `symbols` (a batch from op:'plan')."), { code: "BAD_ARGS" });
@@ -782,6 +861,35 @@ export function registerDecompTools(server, z, sessionKey) {
           const c = await candidateSource();
           const r = await compileAndCompare(project, fn, { candidateText: c.text, candidatePath: c.path, label: args.label, maxDiffInstructions: args.maxDiffInstructions, noCache: args.noCache, verifyTu: args.verifyTu, contextHash: args.contextHash, declarations: args.declarations, ownerPath: args.ownerPath });
           const { evidence, ...rest } = r;
+          // COMPACT BY DEFAULT. §11: "Repeating the full compiler argv and long
+          // diff preview for every variant creates substantial context
+          // overhead. Keep all raw details available by reference."
+          //
+          // Nothing is discarded — every field below is on disk in the stored
+          // result and diff artifacts, whose paths are in `artifacts`. `detail`
+          // returns the full object for the one call that needs it.
+          if (args.detail !== true) {
+            const { compiler, diffPreview, romLinked, evidence: ev, changedRanges, rodata, translationUnitCheck, ...core } = rest;
+            return jsonContent({
+              ...core,
+              // The residual summary a caller acts on, without the word lists.
+              residuals: {
+                strictMismatches: rest.strictMismatches ?? null,
+                linkedMismatches: romLinked?.mismatches ?? null,
+                kinds: rest.differenceKinds ?? [],
+                changedRanges: changedRanges?.count ?? null,
+                registerSubstitutions: ev?.registerSubstitutions?.count ?? 0,
+                frame: ev?.stackFrame ?? null,
+                instructionCount: ev?.instructionCount ?? null,
+              },
+              romLinked: romLinked ? { status: romLinked.status, mismatches: romLinked.mismatches, target: romLinked.target ?? null, ...(romLinked.sizeDelta ? { sizeDelta: romLinked.sizeDelta } : {}), ...(romLinked.overflow ? { overflow: { candidateBytes: romLinked.overflow.candidateBytes, targetBytes: romLinked.overflow.targetBytes } } : {}) } : null,
+              rodata: rodata ? { compared: rodata.compared ?? null, equal: rodata.equal ?? null, applicable: rodata.applicable ?? null, ...(rodata.limitation ? { limitation: rodata.limitation } : {}) } : null,
+              translationUnit: translationUnitCheck?.status ?? rest.verification?.translationUnit ?? null,
+              compiler: { fingerprint: compiler?.fingerprint ?? null, dependencyHash: compiler?.dependencyHash ?? null },
+              detail: "compact by default. `detail:true` returns the full compiler invocation, per-word evidence, changed ranges and diff preview — all of which are also on disk at the paths in `artifacts`.",
+              nextStep: r.verdict?.functionLocal === "exact" ? `decomp({op:'integrate', project:'${project.id}', symbol:'${fn.symbol}', candidatePath:'${r.candidate.storedAt}', apply:true})` : r.code === "CANDIDATE_REJECTED" ? "remove the retained assembly / copied bytes: that is not a translation" : r.compileSucceeded ? `decomp({op:'diagnose', project:'${project.id}', symbol:'${fn.symbol}'}) to group these residuals by mechanism, or decomp({op:'search', ...})` : "fix the diagnostics (declarations/types) and compare again",
+            });
+          }
           return jsonContent({ ...rest, evidence, nextStep: r.verdict?.functionLocal === "exact" ? `decomp({op:'integrate', project:'${project.id}', symbol:'${fn.symbol}', candidatePath:'${r.candidate.storedAt}', apply:true})` : r.code === "CANDIDATE_REJECTED" ? "remove the retained assembly / copied bytes: that is not a translation" : r.compileSucceeded ? `fix the classified differences, or decomp({op:'search', project:'${project.id}', symbol:'${fn.symbol}', candidatePath:'${r.candidate.storedAt}'})` : "fix the diagnostics (declarations/types) and compare again" });
         }
         case "search": {
@@ -796,9 +904,26 @@ export function registerDecompTools(server, z, sessionKey) {
           const { lintCandidate } = await import("../../decomp/compile.js");
           const lint = lintCandidate(base.text);
           if (lint.rejected) throw Object.assign(new Error(`base candidate rejected: ${lint.reasons.join("; ")}`), { code: "CANDIDATE_REJECTED" });
-          const j = await startSearch({ project, fn, baseCandidateText: base.text, timeLimitS: args.timeLimitS, threads: args.threads, seed: args.seed, label: args.label, resumeFrom: args.resumeFrom });
+          // PREFLIGHT: one compile before committing minutes of CPU. A base
+          // that does not compile cannot be permuted, and one that is already
+          // exact needs no search — both were previously discovered only after
+          // the budget ran out.
+          let pre = null;
+          if (args.preflight !== false) {
+            const { compileAndCompare } = await import("../../decomp/compile.js");
+            try {
+              const r = await compileAndCompare(project, fn, { candidateText: base.text, candidatePath: base.path, label: "search-preflight" });
+              pre = { compileSucceeded: r.compileSucceeded, strictMismatches: r.strictMismatches ?? null,
+                linkedMismatches: r.romLinked?.mismatches ?? null, exactFunctionMatch: r.exactFunctionMatch,
+                firstDiagnostic: (r.diagnostics ?? []).find((d) => d.severity === "error")?.message?.slice(0, 200) ?? null };
+            } catch (e) {
+              pre = { compileSucceeded: false, firstDiagnostic: String(e?.message ?? e).slice(0, 200) };
+            }
+          }
+          const j = await startSearch({ project, fn, baseCandidateText: base.text, timeLimitS: args.timeLimitS, threads: args.threads, seed: args.seed, label: args.label, resumeFrom: args.resumeFrom, preflight: pre });
           return jsonContent({ started: true, jobId: j.jobId, project: project.id, function: j.function, timeLimitS: j.timeLimitS, threads: j.threads, permuterDir: j.permuterDir, log: j.log, backend: j.backend,
             ...(j.seed ? { seed: j.seed, ...(j.seedFrom === "label" ? { seedRequested: j.seedRequested, seedMapping: j.seedMapping } : {}) } : {}),
+            ...(pre ? { preflight: { compileSucceeded: pre.compileSucceeded, strictMismatches: pre.strictMismatches, linkedMismatches: pre.linkedMismatches, note: "the base was compiled and compared BEFORE the search launched, so a non-compiling or already-exact base costs one compile instead of the whole budget" } } : {}),
             nextStep: `decomp({op:'job', project:'${project.id}', jobId:'${j.jobId}'}) — poll; 'budget exhausted' is not 'decompiled': confirm any zero-score best with op:'compare'.` });
         }
         case "job": {
@@ -873,4 +998,93 @@ export function registerDecompTools(server, z, sessionKey) {
       }
     })),
   );
+}
+
+/**
+ * Run ONE replay case through the same code paths the public ops use.
+ *
+ * Deliberately calls the shared modules rather than re-implementing checks:
+ * a replay suite that tested its own logic instead of the product's would
+ * confirm itself and prove nothing about what a caller experiences.
+ */
+async function runReplayCase(project, kase, { ownerFor, resolveFn }) {
+  const { readFile: rf } = await import("node:fs/promises");
+
+  switch (kase.op) {
+    case "compare": {
+      const { compileAndCompare } = await import("../../decomp/compile.js");
+      const fn = await project.resolveFunction({ symbol: kase.symbol, segment: kase.segment });
+      const ownerPath = await ownerFor(kase.ownerPathHint);
+      const text = await rf(kase.candidatePath, "utf8");
+      const r = await compileAndCompare(project, fn, { candidateText: text, candidatePath: kase.candidatePath, label: `replay:${kase.id}`, noCache: true, ownerPath });
+      return { compileSucceeded: r.compileSucceeded, exactFunctionMatch: r.exactFunctionMatch,
+        strictMismatches: r.strictMismatches ?? null, linkedMismatches: r.romLinked?.mismatches ?? null,
+        rodataState: r.verdict?.checks?.rodata?.state ?? null,
+        ownerPath: ownerPath ?? "(current tree)" };
+    }
+    case "diagnose": {
+      const D = await import("../../decomp/diagnose.js");
+      const { compileAndCompare } = await import("../../decomp/compile.js");
+      const fn = await project.resolveFunction({ symbol: kase.symbol, segment: kase.segment });
+      const text = await rf(kase.candidatePath, "utf8");
+      const r = await compileAndCompare(project, fn, { candidateText: text, candidatePath: kase.candidatePath, label: `replay:${kase.id}`, noCache: true });
+      const stored = JSON.parse(await rf(r.artifacts.diff, "utf8"));
+      const traceText = kase.tracePath ? await rf(kase.tracePath, "utf8") : null;
+      let traceAccepted = false, useTrace = null;
+      if (traceText) {
+        const parsed = D.parseAs1Trace(traceText);
+        const tw = new Set(parsed.nodes.map((n) => D.maskPatchable(n.word >>> 0)));
+        const cw = (stored.candidate ?? []).map((i) => D.maskPatchable(i.word >>> 0));
+        traceAccepted = cw.length ? cw.filter((w) => tw.has(w)).length / cw.length >= 0.9 : false;
+        useTrace = traceAccepted ? traceText : null;
+      }
+      const diag = D.diagnoseResiduals({ target: stored.target ?? [], candidate: stored.candidate ?? [], strict: stored.strict ?? { mismatches: [] }, trace: useTrace });
+      return { mechanisms: diag.groups.map((g) => g.mechanism), groupCount: diag.groupCount, traceAccepted };
+    }
+    case "variants": {
+      const V = await import("../../decomp/variants.js");
+      const { compileAndCompare } = await import("../../decomp/compile.js");
+      const fn = await project.resolveFunction({ symbol: kase.symbol, segment: kase.segment });
+      const baselineText = await rf(kase.candidatePath, "utf8");
+      const compare = async ({ candidateText, label }) => compileAndCompare(project, fn, { candidateText, label, noCache: true });
+      const out = await V.runVariantBatch(project, fn, { baselineText, variants: kase.variants, compare });
+      const row = out.rows.find((r) => r.id === kase.variants[0].id);
+      return { variantDeltaLinked: row?.delta?.linked ?? null, variantDeltaStrict: row?.delta?.strict ?? null,
+        snapshotStable: out.snapshotStable };
+    }
+    case "layout": {
+      const L = await import("../../decomp/layout.js");
+      const { compileAndCompare } = await import("../../decomp/compile.js");
+      const fn = await project.resolveFunction({ symbol: kase.symbol, segment: kase.segment });
+      const text = await rf(kase.candidatePath, "utf8");
+      const r = await compileAndCompare(project, fn, { candidateText: text, candidatePath: kase.candidatePath, label: `replay:${kase.id}`, noCache: true });
+      const stored = JSON.parse(await rf(r.artifacts.diff, "utf8"));
+      const rep = L.layoutReport({ targetStream: stored.target ?? [], candidateStream: stored.candidate ?? [] });
+      return { frameDelta: rep.comparison.frame.delta, layoutShape: rep.comparison.shape, movedSlots: rep.comparison.moved.length };
+    }
+    case "batch": {
+      const { targetId } = await import("../../decomp/plan.js");
+      const seen = [];
+      for (const t of kase.symbols) {
+        const fn = await project.resolveFunction({ symbol: t.symbol, segment: t.segment });
+        seen.push({ targetId: targetId(fn), tu: fn.source?.tu ?? null, sizeBytes: fn.sizeBytes, romOffset: fn.romOffset });
+      }
+      return { distinctTargets: new Set(seen.map((s) => s.targetId)).size,
+        distinctTus: new Set(seen.map((s) => s.tu)).size, targets: seen };
+    }
+    case "research-status": {
+      const R = await import("../../decomp/research.js");
+      const map = await R.researchBySymbol(project);
+      const lead = map.get(kase.symbol);
+      return { hasDrafts: !!lead?.drafts?.length, drafts: lead?.drafts?.length ?? 0,
+        claimedBestDistance: lead?.claimedBestDistance ?? null, state: lead?.state ?? "none" };
+    }
+    case "gate": {
+      const { semanticGate } = await import("../../decomp/semantic-gate.js");
+      const g = semanticGate({ candidateText: kase.candidateText, baselineText: kase.baselineText ?? null });
+      return { findingIds: g.findings.map((f) => f.id), classification: g.classification };
+    }
+    default:
+      throw Object.assign(new Error(`replay: unknown case op '${kase.op}'`), { code: "UNSUPPORTED_OP" });
+  }
 }

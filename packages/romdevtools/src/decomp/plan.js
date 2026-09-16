@@ -116,7 +116,60 @@ export async function callGraph(project, { force = false } = {}) {
  * each other (connected components of the asm-only subgraph), plus their
  * already-C neighbours as context. Score = expected payoff.
  */
-export async function planWork(project, { limit = 40, tu, evidence, forceGraph = false, workClass, includeAllClasses = false } = {}) {
+/**
+ * Ranking objectives. §10: "A request for another 15 verified functions
+ * benefits from a different queue than a request to recover the most bytes or
+ * unlock a shared type."
+ *
+ * The default (byte coverage) is kept, because changing what an existing
+ * caller's queue means would be worse than not offering the choice. Every
+ * objective reports the FACTORS it used rather than inventing a completion
+ * estimate, which the report explicitly did not want.
+ */
+export const PLAN_OBJECTIVES = Object.freeze({
+  "byte-coverage": "recover the most code bytes: ranks large routines first. The default, and the right queue for a percentage goal.",
+  "function-count": "finish the most FUNCTIONS: ranks small, well-constrained targets first. The right queue for 'another 15 verified functions'.",
+  "shared-type": "unlock shared types: ranks functions whose typed C neighbours already pin their structs, so one type fix lands for several callers.",
+  "diagnostic-research": "learn the most: ranks functions that have been ATTEMPTED and are close, where a residual diagnosis can say something concrete.",
+});
+
+/** Score one row under an objective. Factors are reported, never hidden. */
+function objectiveScore(r, objective) {
+  const size = r.sizeBytes ?? 0;
+  const typed = (r.cCallees ?? 0) + (r.cCallers ?? 0);
+  const attempted = (r.attempts ?? 0) > 0;
+  const near = r.lastDistance != null ? r.lastDistance : null;
+  switch (objective) {
+    case "function-count": {
+      // Smaller is better, but a target with NO evidence is a coin flip, so a
+      // known-close one outranks an unmeasured one of the same size.
+      const sizeTerm = 1 / Math.max(1, size);
+      const evidenceTerm = near != null ? 1 / (1 + near) : 0.15;
+      const score = Math.round(1e6 * sizeTerm * (1 + 2 * evidenceTerm) * (1 + 0.1 * Math.min(typed, 5)));
+      return { score, factors: { sizeBytes: size, lastDistance: near, typedNeighbours: typed,
+        note: "smaller first, with a measured-close target preferred over an unmeasured one of the same size" } };
+    }
+    case "shared-type": {
+      const score = Math.round(typed * 1000 + size / 100);
+      return { score, factors: { typedNeighbours: typed, sizeBytes: size,
+        note: "typed C neighbours already pin this function's structs, so the type work is shared with them" } };
+    }
+    case "diagnostic-research": {
+      // Only attempted functions can teach anything: an unmeasured one has no
+      // residual to diagnose.
+      const score = attempted && near != null ? Math.round(10000 / (1 + near)) : 0;
+      return { score, factors: { attempts: r.attempts ?? 0, lastDistance: near,
+        note: attempted ? "a measured residual can be diagnosed; closer residuals are usually more informative" : "never measured: nothing to diagnose yet, so it ranks last under this objective" } };
+    }
+    default:
+      return { score: r.payoff, factors: { sizeBytes: size, payoff: r.payoff, note: "expected recovered bytes, discounted by uncertainty" } };
+  }
+}
+
+export async function planWork(project, { limit = 40, offset = 0, objective = "byte-coverage", tu, evidence, forceGraph = false, workClass, includeAllClasses = false } = {}) {
+  if (!PLAN_OBJECTIVES[objective]) {
+    throw Object.assign(new Error(`unknown plan objective '${objective}'. Choose one of: ${Object.keys(PLAN_OBJECTIVES).join(", ")}.`), { code: "BAD_ARGS" });
+  }
   const g = await callGraph(project, { force: forceGraph });
   const { makeWorkClassifier, DEFAULT_QUEUE_CLASSES, WORK_CLASSES, WORK_CLASS_POLICY, emptyClassTally } = await import("./work-class.js");
   const classify = makeWorkClassifier(await project.map(), project.m);
@@ -174,6 +227,21 @@ export async function planWork(project, { limit = 40, tu, evidence, forceGraph =
       evidenceDependencyHash: h.dependencyHash ?? null,
       ...(h.historicalAttempts ? { historicalAttempts: h.historicalAttempts, historicalBestDistance: h.historicalBestDistance ?? null } : {}),
       ...(h.staleEvidenceWarning ? { staleEvidenceWarning: h.staleEvidenceWarning } : {}),
+      // §10: four DIFFERENT states, previously collapsed into `attempts: 0`.
+      // "Avoid treating low numerical distance as automatically easy: a
+      // one-word branch residue can require deeper work than a larger
+      // structural mismatch." So this states what is KNOWN, not how hard it is.
+      evidenceState: (h.attempts ?? 0) > 0 ? "active-current-tree-candidate"
+        : h.historicalAttempts ? "historical-candidate-needs-refresh"
+        : researchLeads.has(n) ? "research-drafts-exist-unmeasured"
+        : "no-api-measurement",
+      evidenceStateMeaning: (h.attempts ?? 0) > 0
+        ? "measured against the CURRENT tree: lastDistance is a real number for this source"
+        : h.historicalAttempts
+          ? "measured, but against a DIFFERENT tree: the numbers do not apply until refreshed"
+          : researchLeads.has(n)
+            ? "drafts exist on disk that romdev has never compiled: unknown, not untouched"
+            : "no measurement and no known draft: genuinely unexplored as far as anything on this machine records",
       ...(researchLeads.has(n) ? { priorArt: {
         drafts: researchLeads.get(n).drafts.length,
         claimedBestDistance: researchLeads.get(n).claimedBestDistance ?? null,
@@ -182,7 +250,12 @@ export async function planWork(project, { limit = 40, tu, evidence, forceGraph =
           ? "this row has no API-measured attempt, but prior drafts/notes EXIST on disk — decomp({op:'research', action:'status', symbol}) lists them. Do not treat it as never attempted."
           : "prior research exists alongside the measured attempts; the numbers in notes are claims until refreshed",
       } } : {}) };
-  }).sort((a, b) => b.payoff - a.payoff);
+  }).map((r) => {
+    // The objective's score and the FACTORS behind it, so a caller can see why
+    // a row ranks where it does instead of trusting an opaque number.
+    const o = objectiveScore(r, objective);
+    return { ...r, objectiveScore: o.score, objectiveFactors: o.factors };
+  }).sort((a, b) => b.objectiveScore - a.objectiveScore || b.payoff - a.payoff);
   // Batches: connected components over asm↔asm edges within one TU.
   const byName = new Map(rows.map((r) => [r.symbol, r]));
   const seen = new Set(); const batches = [];
@@ -206,7 +279,17 @@ export async function planWork(project, { limit = 40, tu, evidence, forceGraph =
     batches.push({ tu: r.tu, functions: comp, targets, bytes, payoff: comp.reduce((s, n) => s + byName.get(n).payoff, 0), reason: comp.length > 1 ? "call each other inside one TU — decompile together so the shared struct/prototype fixes land once" : "isolated in its TU" });
   }
   batches.sort((a, b) => b.payoff - a.payoff);
-  return { functionsRemaining: rows.length, bytesRemaining: rows.reduce((s, r) => s + r.sizeBytes, 0), queue: rows.slice(0, limit), batches: batches.slice(0, Math.max(10, Math.ceil(limit / 3))),
+  // PAGINATION. §10: "selecting the 100 highest-payoff functions cannot
+  // accidentally exclude all the smaller targets before sorting them locally."
+  // The full ranked set is paged, and the response says how much is beyond the
+  // window rather than letting a truncated queue look like the whole list.
+  const page = rows.slice(offset, offset + limit);
+  return { functionsRemaining: rows.length, bytesRemaining: rows.reduce((s, r) => s + r.sizeBytes, 0),
+    objective, objectiveMeaning: PLAN_OBJECTIVES[objective],
+    objectivesAvailable: PLAN_OBJECTIVES,
+    page: { offset, limit, returned: page.length, total: rows.length, hasMore: offset + page.length < rows.length,
+      ...(offset + page.length < rows.length ? { nextOffset: offset + page.length, note: `${rows.length - offset - page.length} more function(s) rank below this window. They are NOT excluded from the work, only from this page — raise offset to see them.` } : {}) },
+    queue: page, batches: batches.slice(0, Math.max(10, Math.ceil(limit / 3))),
     workClasses: { selected: [...wanted], counts: byClass, policy: WORK_CLASS_POLICY,
       allRemainingFunctions: allAsm.length, allRemainingBytes: allAsm.reduce((s, n) => s + (g.sizes[n] ?? 0), 0),
       note: "functionsRemaining/queue cover the SELECTED classes only. Pass workClass:'libultra-known-source' (or includeAllClasses:true) to see the others; `counts` is every class regardless of selection." },

@@ -387,15 +387,20 @@ export function makeScopeChecker(shape, toolName) {
       action: ["job", "experiment", "scenario", "assets", "skill", "artifacts", "research"],
       candidateText: ["compare", "search", "integrate", "gate", "variants", "experiment"],
       ownerPath: ["compare", "variants"],
-      artifactId: ["diagnose"],
+      artifactId: ["diagnose", "layout"],
       variants: ["variants"],
+      symbols: ["batch", "dispatch", "replay", "generate"],
+      preflight: ["search"],
+      detail: ["compare"],
+      objective: ["plan"],
+      offset: ["plan"],
       // A batch runs real compares, so it takes the compare knobs too. These
       // were refused at the validator while the handler passed them straight
       // through -- the same defect as `action` on op:'assets', a third time.
       noCache: ["compare", "variants", "context"],
       verifyTu: ["compare", "variants"],
       declarations: ["compare", "integrate", "variants", "generate"],
-      root: ["import", "research"],
+      root: ["import", "research", "replay"],
       tracePath: ["diagnose"],
       baselineText: ["gate", "experiment"],
       exactFunctionMatch: ["gate", "experiment"],
