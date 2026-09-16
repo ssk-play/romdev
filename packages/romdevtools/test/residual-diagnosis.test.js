@@ -283,3 +283,14 @@ test("trace provenance uses the traced OBJECT when it sits beside the trace", as
   assert.match(src, /byte-identical objects|byte-identical object/,
     "the remaining blind spot must be named precisely");
 });
+
+test("the policy does not claim causal independence the analysis cannot prove", () => {
+  // The response said this had been fixed while the live text still opened
+  // "groups are INDEPENDENT residuals" -- a document describing a fix that did
+  // not exist. Grouping establishes shared evidence, not independent causes.
+  const d = diagnoseResiduals({ target: [ins("nop", "")], candidate: [ins("nop", "")], strict: strictOf([]) });
+  assert.doesNotMatch(d.policy, /groups are INDEPENDENT residuals/,
+    "the policy must not assert independence");
+  assert.match(d.policy, /correlation, not proved causal independence/i);
+  assert.match(d.policy, /CAN still share an upstream cause/i);
+});

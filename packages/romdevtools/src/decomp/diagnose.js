@@ -521,6 +521,14 @@ export function diagnoseResiduals({ target, candidate, strict, trace = null, tra
           provenance: traceProvenance,
           limits: "an as1 trace explains SCHEDULING. It cannot explain which expressions exist or which registers uopt chose — those decisions precede it." }
       : { supplied: false, limits: "without a trace, source-line attribution and scheduling priorities are unavailable; mechanisms are inferred from the instruction streams alone" },
-    policy: "groups are INDEPENDENT residuals, not individual words: one allocator or scheduling decision is reported once. A mechanism this classifier does not recognise is reported as 'unclassified' rather than forced into a category, because a confident wrong label sends the next experiment in the wrong direction.",
+    // WHAT THE GROUPING ACTUALLY ESTABLISHES.
+    //
+    // This said "groups are INDEPENDENT residuals", which claims more than the
+    // analysis proves. Two residuals are grouped because they share a register
+    // mapping or sit within a few instructions of each other -- real evidence,
+    // and enough to merge a constant with its branch consumer correctly. It is
+    // NOT proof that two separate groups have independent causes: one decision
+    // upstream can produce two mappings that appear here as two groups.
+    policy: "residuals are grouped by SHARED EVIDENCE -- the same register mapping, or adjacency within a few instructions -- so one allocator or scheduling decision is reported once instead of once per word. That is correlation, not proved causal independence: two separate groups CAN still share an upstream cause, and this analysis does not establish that they do not. A mechanism the classifier does not recognise is reported as 'unclassified' rather than forced into a category, because a confident wrong label sends the next experiment in the wrong direction.",
   };
 }

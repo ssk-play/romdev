@@ -113,7 +113,13 @@ the response says `evidenceStrength: instruction-word coverage only` instead of
 implying the stronger check ran. The invocation itself is still unverified and
 the output says so.
 
-11 cases: 11 passed, 0 partial, 0 failed. Suite 1843 green.
+The diagnosis policy line claimed more than the analysis proves. It opened
+"groups are INDEPENDENT residuals" while grouping actually establishes shared
+evidence -- the same register mapping, or adjacency within a few instructions.
+Two separate groups can still share an upstream cause. The line now says that,
+and a test fails if the independence claim returns.
+
+11 cases: 11 passed, 0 partial, 0 failed. Suite 1844 green.
 
 ## 0.143.0 — 2026-09-15
 
