@@ -18,7 +18,6 @@ import { buildProjectCore } from "../src/mcp/tools/toolchain.js";
 import { resolveCore } from "../src/cores/registry.js";
 import { resetHost, clearHost } from "../src/mcp/state.js";
 import { computeVerify } from "../src/mcp/tools/frame.js";
-import { installC64Roms, c64RomsMissing } from "./c64-roms.js";
 
 const parse = (r) => JSON.parse(r.content[0].text);
 
@@ -54,7 +53,6 @@ for (const [platform, template] of PLATFORMS) {
       const core = resolveCore(platform);
       const host = resetHost(key);
       await host.loadCore(core.jsPath, core.wasmPath);
-      if ((core.coreName ?? "").includes("vice")) installC64Roms(host);
       const bin = new Uint8Array(await readFile(romPath));
       await host.loadMedia({ platform, bytes: bin, virtualName: "/rom" + (VEXT[platform] || "") });
 

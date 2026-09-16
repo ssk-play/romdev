@@ -51,10 +51,23 @@ Emulator cores
   genesis_plus_gx   Genesis / SMS / GG  non-commercial  ⚠ (see above)
   snes9x            SNES                non-commercial  ⚠ (see above)
   mgba              GBA                 MPL-2.0
-  vice (x64)        C64                 GPL-2.0
+  vice (x64)        C64                 GPL-2.0  (see "C64 ROMs" below)
   stella2014        Atari 2600          GPL-2.0
   prosystem         Atari 7800          GPL-2.0
   handy             Atari Lynx          zlib
+
+C64 ROMs - free replacements, not Commodore's
+----------------------------------------------
+  Upstream vice-libretro compiles Commodore's KERNAL, BASIC and CHARGEN ROMs
+  into the core (USE_EMBEDDED). Those images are "Copyright C by Commodore
+  Business Machines" per VICE's own README; the GPL covers VICE's code, not
+  them. romdev builds VICE with that define disabled and redistributes none of
+  them.
+
+  In their place romdev-core-vice bundles MEGA65 Open ROMs (GPL-3.0 /
+  LGPL-3.0), a clean-room KERNAL/BASIC/CHARGEN, so the C64 works out of the
+  box. Licences ship alongside the images in that package's roms/ directory.
+  Set ROMDEV_C64_ROM_DIR to use original ROMs you own instead.
 
 Compiler toolchains  (runtime exception - does not encumber compiled ROMs)
 --------------------------------------------------------------------------

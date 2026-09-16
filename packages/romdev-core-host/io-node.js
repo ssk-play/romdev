@@ -80,15 +80,16 @@ export function resolveBundledDir(pkg, subdir) {
  * @param {string} hostDir absolute host path
  * @param {string} fsDir destination path inside the wasm FS (e.g. "/system")
  */
-export function mirrorDirToFS(FS, hostDir, fsDir) {
-  try { FS.mkdir(fsDir); } catch { /* exists */ }
+export function mirrorDirToFS(FS, hostDir, fsDir, accept) {
+  if (fsDir) { try { FS.mkdir(fsDir); } catch { /* exists */ } }
   for (const name of readdirSync(hostDir)) {
     const hostPath = path.join(hostDir, name);
     const fsPath = fsDir + "/" + name;
     const st = statSync(hostPath);
     if (st.isDirectory()) {
-      mirrorDirToFS(FS, hostPath, fsPath);
+      mirrorDirToFS(FS, hostPath, fsPath, accept);
     } else if (st.isFile()) {
+      if (accept && !accept(name)) continue;
       try { FS.writeFile(fsPath, readFileSync(hostPath)); } catch { /* skip */ }
     }
   }

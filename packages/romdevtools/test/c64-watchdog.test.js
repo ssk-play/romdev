@@ -25,7 +25,6 @@ import { z } from "zod";
 
 import { registerTools } from "../src/mcp/tools/index.js";
 import { resolveCore } from "../src/cores/registry.js";
-import { installC64Roms, c64RomsMissing } from "./c64-roms.js";
 
 async function startClient() {
   const server = new McpServer({ name: "c64-watchdog", version: "0.0.1" }, { capabilities: { tools: {} } });
@@ -48,7 +47,7 @@ void main(void) {
   while (1) { c++; }
 }`;
 
-test("C64 watchdog force-stops an infinite loop (vice 6510)", { timeout: 180000, skip: c64RomsMissing() }, async () => {
+test("C64 watchdog force-stops an infinite loop (vice 6510)", { timeout: 180000 }, async () => {
   const client = await startClient();
 
   const build = toJSON(await client.callTool({
@@ -61,7 +60,6 @@ test("C64 watchdog force-stops an infinite loop (vice 6510)", { timeout: 180000,
   assert.ok(core, "resolveCore('c64') returned null - vice_x64_libretro.{js,wasm} missing?");
   const host = new LibretroHost();
   await host.loadCore(core.jsPath, core.wasmPath);
-  installC64Roms(host);
   await host.loadMedia({ platform: "c64", path: build.binaryPath });
 
   // Feature detection: the whole point of this change.

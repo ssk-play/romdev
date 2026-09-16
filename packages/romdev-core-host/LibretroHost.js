@@ -156,6 +156,22 @@ const PLATFORM_SYSTEM_DIR = {
   msx: { pkg: "romdev-core-bluemsx", export: "biosDir" },
 };
 
+/**
+ * Platforms whose core fopen()s ROM images as BARE FILENAMES at the emscripten
+ * FS ROOT rather than under the system directory.
+ *
+ * VICE is the case: it opens "/kernal-901227-03.bin", not
+ * "/system/C64/kernal-...", so PLATFORM_SYSTEM_DIR above cannot satisfy it.
+ * romdev builds VICE without USE_EMBEDDED (Commodore's ROMs are not
+ * redistributable), so without this the C64 traps with "memory access out of
+ * bounds" on the first load. The bundled set is MEGA65 Open ROMs, GPL/LGPL.
+ *
+ * `envOverride` lets a user point at genuine ROMs they own instead.
+ */
+const PLATFORM_ROOT_ROMS = {
+  c64: { pkg: "romdev-core-vice", subdir: "roms", envOverride: "ROMDEV_C64_ROM_DIR" },
+};
+
 // resolvePlatformSystemDir / mirrorDirToFS / mirrorDirToAppFS moved to
 // io-node.js (they read the host disk); the call sites go through this._io.
 
@@ -555,6 +571,30 @@ export class LibretroHost {
       const entry = PLATFORM_SYSTEM_DIR[platform];
       const bundled = entry ? this._io.resolveBundledDir(entry.pkg, "bios") : null;
       if (bundled) this.systemDir = bundled;
+    }
+
+    // Root-level ROM images (VICE/C64). These land at "/" rather than /system,
+    // and they are REQUIRED - the core traps on a raw wasm memory fault rather
+    // than reporting a missing file, so a clear error here is the difference
+    // between "supply your ROMs" and an unexplained crash.
+    const romEntry = PLATFORM_ROOT_ROMS[platform];
+    if (romEntry && mod.FS && this._io) {
+      const override = romEntry.envOverride ? process.env[romEntry.envOverride] : null;
+      const dir = override || this._io.resolveBundledDir(romEntry.pkg, romEntry.subdir);
+      if (!dir) {
+        throw new Error(
+          `${platform}: no ROM images found. romdev ships this core without the machine's original ROMs; `
+          + `the ${romEntry.pkg} package normally provides a free replacement set. Reinstall it, or set `
+          + `${romEntry.envOverride} to a directory holding your own ROM files.`,
+        );
+      }
+      try {
+        // Only the ROM images: the dir also holds a README and licence files,
+        // which have no business in the emulated machine's filesystem.
+        this._io.mirrorDirToFS(mod.FS, dir, "", (name) => name.endsWith(".bin"));
+      } catch (e) {
+        throw new Error(`${platform}: failed to install ROM images from ${dir}: ${e.message}`);
+      }
     }
 
     // In-memory system tree - the isomorphic alternative to a host-disk

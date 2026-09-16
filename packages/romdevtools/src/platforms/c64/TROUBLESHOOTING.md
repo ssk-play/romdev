@@ -9,6 +9,30 @@
 When something's broken. Read MENTAL_MODEL.md first
 (via `platform({op:'doc', platform:"c64", name:"mental_model"})`).
 
+## "C64 won't boot" / `memory access out of bounds` on loadMedia
+
+romdev ships free replacement ROMs (MEGA65 Open ROMs) with the C64 core and
+installs them automatically, so this should not happen. If it does, the ROM
+images are missing or unreadable - the core traps on a raw wasm memory fault
+rather than reporting a missing file.
+
+Check that `romdev-core-vice` is installed intact (its `roms/` directory holds
+`kernal-901227-03.bin`, `basic-901226-01.bin`, `chargen-901225-01.bin`), and
+that `ROMDEV_C64_ROM_DIR`, if you set it, points at a directory containing all
+three under those exact names. VICE resolves them by those filenames.
+
+## "It boots but my program never runs" (a bare `READY.` prompt)
+
+That is not a ROM failure - the machine came up fine and nothing autostarted.
+Check screen RAM at `$0400`, or a side effect your program produces, to tell
+"booted and ran" from "booted and sat there". A climbing frame counter proves
+neither.
+
+Note the bundled Open ROMs implement a deliberately partial BASIC (most BASIC
+commands, integer/float variables and arrays, and expression handling are
+unimplemented upstream). If your program depends on original BASIC behaviour,
+supply genuine ROMs via `ROMDEV_C64_ROM_DIR`.
+
 ## "Screen is blank or filled with the wrong characters"
 
 Three common modes:

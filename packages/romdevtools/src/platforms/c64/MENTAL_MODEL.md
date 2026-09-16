@@ -4,10 +4,18 @@ One page. Read once before you write your first C64 game. The
 TROUBLESHOOTING.md alongside this file is for when something's broken.
 
 The C64 is the architectural outlier of romdev's 6502-class platforms.
-It has KERNAL + BASIC ROMs always available (and your code can call
-them or override them), 64 KB of contiguous RAM with bank-switching to
-get under the I/O area, two CIAs for I/O, and a VIC-II that doesn't
-think in "tiles" - it thinks in **character cells**.
+It has KERNAL + BASIC ROMs mapped into the address space (and your code
+can call them or override them), 64 KB of contiguous RAM with
+bank-switching to get under the I/O area, two CIAs for I/O, and a VIC-II
+that doesn't think in "tiles" - it thinks in **character cells**.
+
+> **Those ROMs are not Commodore's.** romdev builds the C64 core without
+> VICE's embedded ROM set and ships [MEGA65 Open
+> ROMs](https://github.com/MEGA65/open-roms) (GPL/LGPL) instead, so the
+> C64 works out of the box. It is a reimplementation, not a bit-exact
+> clone - upstream's BASIC is incomplete, so code leaning on original
+> BASIC internals may differ. Set `ROMDEV_C64_ROM_DIR` to use originals
+> you own.
 
 ## CPU memory map (6510 - a 6502 with a tiny I/O port)
 

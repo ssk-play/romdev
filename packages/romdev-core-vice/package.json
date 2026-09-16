@@ -1,17 +1,19 @@
 {
   "name": "romdev-core-vice",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "VICE x64 libretro core (Commodore 64) for romdev, bundled as WASM.",
   "type": "module",
   "main": "index.js",
   "exports": {
     ".": "./index.js",
-    "./wasm/*": "./wasm/*"
+    "./wasm/*": "./wasm/*",
+    "./roms/*": "./roms/*"
   },
   "files": [
     "index.js",
     "wasm",
-    "README.md"
+    "README.md",
+    "roms"
   ],
   "engines": {
     "node": ">=24"

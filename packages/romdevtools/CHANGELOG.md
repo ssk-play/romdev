@@ -4,6 +4,46 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 -
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.149.0 - 2026-09-16
+
+### C64 ships free ROMs and boots with zero setup
+
+romdev builds VICE without `USE_EMBEDDED`, so the core no longer carries
+Commodore's KERNAL, BASIC and CHARGEN images. That was the right licensing call
+but it left the C64 unbootable: the core traps with a raw
+`RuntimeError: memory access out of bounds` on the first `loadMedia`, and 21
+tests failed.
+
+`romdev-core-vice` now bundles **MEGA65 Open ROMs** (dual GPL-3.0/LGPL-3.0), a
+clean-room KERNAL/BASIC/CHARGEN written so emulators can ship a working C64
+legally. The host installs them automatically, so the C64 works out of the box
+with nothing to download.
+
+Measured rather than assumed: the C64 boots on the bundled set, a `.d64`
+autostarts, and the program runs (verified via screen RAM and sprite pointers,
+not a frame counter). A side-by-side run against genuine Commodore ROMs behaves
+the same on every C64 test.
+
+Two details worth knowing:
+
+- VICE resolves ROM images as **bare filenames at the emscripten FS root**
+  (`/kernal-901227-03.bin`), not under the system directory, so the existing
+  `systemDir`/`systemFiles` mechanism could not satisfy it. The new
+  `PLATFORM_ROOT_ROMS` path handles that, and reports a clear error naming the
+  package and the override instead of letting the core fault.
+- The bundled files carry Commodore part-number names because VICE looks them
+  up by those exact names. The contents are Open ROMs; provenance, upstream
+  filenames and hashes are recorded in that package's `roms/README.md`.
+
+`ROMDEV_C64_ROM_DIR` points at original ROMs you own and overrides the bundle.
+Open ROMs is a reimplementation: upstream's BASIC is incomplete (most BASIC
+commands, integer/float variables and arrays, and expression handling are
+unimplemented), so code depending on original BASIC internals may differ.
+
+One pre-existing C64 failure is now marked `todo` rather than hidden: a cc65
+`cbm_save` never lands its file in the `.d64`. It reproduces identically on
+genuine Commodore ROMs, so it is a romdev write-back bug, not a ROM problem.
+
 ## 0.148.0 - 2026-09-16
 
 ### `loadMedia` discloses the warm-up frames it ran

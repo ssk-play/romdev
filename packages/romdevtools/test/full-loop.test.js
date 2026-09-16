@@ -22,7 +22,6 @@ import { buildForPlatform } from "../src/toolchains/index.js";
 import { resolveCore } from "../src/cores/registry.js";
 import { LibretroHost } from "romdev-core-host/index.js";
 import { framebufferToPng } from "romdev-core-host/framebuffer-png.js";
-import { installC64Roms, c64RomsMissing } from "./c64-roms.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -89,8 +88,6 @@ for (const c of cases) {
     }
     const host = new LibretroHost();
     await host.loadCore(resolved.jsPath, resolved.wasmPath);
-    // The C64 core ships without Commodore's ROMs; supply them before boot.
-    if (c.platform === "c64") installC64Roms(host);
     await host.loadMedia({ platform: c.platform, path: romPath });
 
     // 4. Step frames.
