@@ -537,12 +537,21 @@ export function registerDecompTools(server, z, sessionKey) {
             const covered = candWords.filter((w) => traceWords.has(w)).length;
             const coverage = candWords.length ? covered / candWords.length : 0;
             const byteInert = coverage >= 0.9;
+            // Exactly how strong is this evidence? Coverage compares the
+            // trace's instruction words against the candidate's, with the
+            // fields the assembler patches masked out. State the threshold and
+            // what it can and cannot rule out, so nobody reads "byteInert" as
+            // a proof of provenance it is not.
+            const uncovered = candWords.length - covered;
             traceProvenance = { path: args.tracePath, nodes: parsed.nodeCount, regions: parsed.regionCount,
-              candidateWordsCovered: covered, candidateWords: candWords.length,
-              coverage: Number(coverage.toFixed(3)), byteInert,
+              candidateWordsCovered: covered, candidateWords: candWords.length, uncoveredWords: uncovered,
+              coverage: Number(coverage.toFixed(3)), threshold: 0.9, byteInert,
+              method: "each candidate instruction word is looked up among the trace's node words, with branch displacements and relocated immediates masked (the assembler fills those in after scheduling, so an unmasked comparison penalises every branch and store).",
+              detects: "a trace of a DIFFERENT candidate, a different function, or a truncated/wrong-file trace: those diverge in instruction words and fall below the threshold.",
+              cannotDetect: "a trace of the SAME source compiled with different optimisation flags or a different compiler build, when that compile happens to emit the same instruction words. Word equality is necessary evidence of provenance, not sufficient — nothing in the trace records the invocation that produced it. If you need that guaranteed, generate the trace from the invocation `decomp({op:'resolve'})` reports for this TU and keep them together.",
               verdict: byteInert
-                ? "the traced compile emits the candidate's words, so the trace describes THIS build"
-                : "WARNING: the trace covers only part of the candidate's words. It may be from a different compile (different flags or compiler). Source-line attribution from it is NOT trustworthy — regenerate the trace from the same invocation." };
+                ? `the traced compile emits ${covered}/${candWords.length} of the candidate's words (>= the ${0.9} threshold), so the trace describes a build that agrees with THIS candidate instruction for instruction`
+                : `WARNING: the trace covers only ${covered}/${candWords.length} of the candidate's words (below the ${0.9} threshold). It is from a different compile. Source-line attribution from it is NOT trustworthy — regenerate the trace from the same invocation.` };
             if (!byteInert) traceText = null;  // refuse to attribute from a mismatched trace
           }
 

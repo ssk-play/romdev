@@ -81,7 +81,31 @@ Probing the branch fix rather than waiting for the next report found two more:
   compile. There is nothing to measure movement against, and a zero there reads
   as "this variant changed nothing". Deltas are omitted with the reason stated.
 
-11 cases: 11 passed, 0 partial, 0 failed. Suite 1838 green.
+### Turning two "limits" into measurements
+
+An `unclassified` group was a shrug where a specific answer existed. On the
+client's artifact it was instructions 115-116: the target loads from the named
+symbol `D_i15_802C6E34` while the candidate materialises its own anonymous
+`.rodata` literal. The linked bytes can match while the original's DECLARATION
+is missing from the candidate's source. That is now a `data-ownership`
+mechanism, with an experiment that points at `op:'layout'` and refuses to let a
+caller declare a second name for bytes that already have one. Unclassified went
+from 1 of 4 groups to 0 of 4 on that artifact.
+
+A control written for it found a second defect: a one-instruction pair with
+identical pre-link words but DIFFERENT relocation symbols matched
+`relocation-spelling` first and answered "nothing needed: the linked bytes are
+identical". False -- the linker resolves different symbols to different
+addresses. Spelling now requires the symbols to match.
+
+Trace provenance now states its method, its 0.9 threshold, what it detects and
+what it cannot: the same source compiled with different flags, when that compile
+emits the same instruction words. Word equality is necessary evidence of
+provenance, not sufficient, and nothing in an as1 trace records the invocation
+that produced it. Measured live: 0.962 for a matching trace, 0.322 for a trace
+of a different function (rejected).
+
+11 cases: 11 passed, 0 partial, 0 failed. Suite 1842 green.
 
 ## 0.143.0 — 2026-09-15
 

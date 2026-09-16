@@ -6,7 +6,7 @@
 // lines 43/44/45, and a reversed branch operand pair at instruction 56.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseAs1Trace, maskPatchable, groupResiduals, classifyGroup, diagnoseResiduals } from "../src/decomp/diagnose.js";
+import { parseAs1Trace, maskPatchable, groupResiduals, classifyGroup, diagnoseResiduals, experimentsFor } from "../src/decomp/diagnose.js";
 
 const ins = (mnemonic, operands, word = 0, reloc = null) => ({ mnemonic, operands, word, reloc });
 const strictOf = (idx) => ({ mismatches: idx.map((i) => ({ index: i, kind: "instruction" })) });
@@ -203,4 +203,64 @@ test("single-register and zero-compare branches follow the same substitution rul
     const cls = classifyGroup(groupResiduals([t], [c], strictOf([0]))[0], [t], [c]);
     assert.equal(cls.mechanism, "register-assignment", `${t.mnemonic} was classified ${cls.mechanism}`);
   }
+});
+
+test("a HI16/LO16 pair naming different symbols is data-ownership, not 'unclassified'", () => {
+  // On the client's own artifact this sat in `unclassified` -- a shrug where a
+  // specific answer exists: the target loads from a named symbol while the
+  // candidate materialises its own anonymous literal. The linked bytes can
+  // match while the DECLARATION the original had is missing.
+  const reloc = (type, symbol) => ({ type, symbol, addend: 0 });
+  const target = [
+    { mnemonic: "lui", operands: "at,0x0", word: 1, reloc: reloc("R_MIPS_HI16", "D_i15_802C6E34") },
+    { mnemonic: "lwc1", operands: "ft2,0(at)", word: 2, reloc: reloc("R_MIPS_LO16", "D_i15_802C6E34") },
+  ];
+  const candidate = [
+    { mnemonic: "lui", operands: "at,0x0", word: 1, reloc: reloc("R_MIPS_HI16", ".rodata") },
+    { mnemonic: "lwc1", operands: "ft2,20(at)", word: 3, reloc: reloc("R_MIPS_LO16", ".rodata") },
+  ];
+  const cls = classifyGroup(groupResiduals(target, candidate, strictOf([0, 1]))[0], target, candidate);
+  assert.equal(cls.mechanism, "data-ownership");
+  assert.match(cls.why, /D_i15_802C6E34/);
+  assert.match(cls.why, /DECLARATION/);
+  // The experiment must not tell the caller to invent a new symbol.
+  assert.match(cls.evidence.targetSymbols.join(","), /D_i15_802C6E34/);
+});
+
+test("the data-ownership experiment refuses to invent a second name for the same bytes", () => {
+  const reloc = (t, s) => ({ type: t, symbol: s, addend: 0 });
+  const target = [{ mnemonic: "lui", operands: "at,0x0", word: 1, reloc: reloc("R_MIPS_HI16", "D_REAL") }];
+  const candidate = [{ mnemonic: "lui", operands: "at,0x0", word: 1, reloc: reloc("R_MIPS_HI16", ".rodata") }];
+  const g = groupResiduals(target, candidate, strictOf([0]))[0];
+  const cls = classifyGroup(g, target, candidate);
+  const exp = experimentsFor(cls, g)[0];
+  assert.match(exp.caution, /second name for bytes that already have one/i);
+  assert.doesNotMatch(exp.do, /D_REAL, D_REAL/, "the symbol list must be deduplicated");
+});
+
+test("identical reloc symbols are NOT data-ownership", () => {
+  // The control: same symbol on both sides is a spelling or offset matter,
+  // not an ownership difference.
+  const reloc = (t, s) => ({ type: t, symbol: s, addend: 0 });
+  const target = [{ mnemonic: "lwc1", operands: "ft2,0(at)", word: 2, reloc: reloc("R_MIPS_LO16", "D_SAME") }];
+  const candidate = [{ mnemonic: "lwc1", operands: "ft2,4(at)", word: 3, reloc: reloc("R_MIPS_LO16", "D_SAME") }];
+  const cls = classifyGroup(groupResiduals(target, candidate, strictOf([0]))[0], target, candidate);
+  assert.notEqual(cls.mechanism, "data-ownership");
+});
+
+test("trace provenance states its method, threshold, and what it CANNOT detect", async () => {
+  // "It's a heuristic" is a hand-wave. The output has to say how strong the
+  // evidence is and where it stops: measured 0.962 on a matching trace and
+  // 0.322 on a trace of a different function, both live.
+  const { readFile } = await import("node:fs/promises");
+  const src = await readFile(new URL("../src/mcp/tools/decomp.js", import.meta.url), "utf8");
+  const block = src.match(/traceProvenance = \{[\s\S]*?\};/)?.[0] ?? "";
+  assert.ok(block, "no trace provenance block");
+  for (const field of ["method", "detects", "cannotDetect", "threshold", "uncoveredWords"]) {
+    assert.match(block, new RegExp(field), `provenance omits '${field}'`);
+  }
+  assert.match(block, /necessary evidence of provenance, not sufficient/i,
+    "the output must not let word equality read as proof of provenance");
+  assert.match(block, /different optimisation flags/i,
+    "the one thing it cannot rule out must be named explicitly");
 });

@@ -264,8 +264,19 @@ export function classifyGroup(group, target, candidate) {
   // differ (and a stream without word data would classify EVERYTHING as a
   // spelling difference), which would hide a real residual behind
   // "no action needed".
+  // NOTE the symbol check: two relocations against DIFFERENT symbols are not a
+  // spelling difference even when the pre-link words match, because the linker
+  // will resolve them to different addresses. Without this, a one-instruction
+  // ownership difference was answered with "nothing needed: the linked bytes
+  // are identical" — which is false and stops the caller looking.
+  const sameRelocSymbol = (a, b) => {
+    const sa = a?.reloc && typeof a.reloc === "object" ? a.reloc.symbol ?? null : null;
+    const sb = b?.reloc && typeof b.reloc === "object" ? b.reloc.symbol ?? null : null;
+    return sa === sb;
+  };
   if (ta.length && ta.every((a, k) => ca[k] && a.word === ca[k].word
       && a.mnemonic === ca[k].mnemonic && a.operands === ca[k].operands
+      && sameRelocSymbol(a, ca[k])
       && relocSpelling(a) !== relocSpelling(ca[k]))) {
     return { mechanism: "relocation-spelling", confidence: "high",
       why: "every word in this group is byte-identical; only the relocation's spelling differs, so the linker produces the same bytes",
@@ -343,6 +354,33 @@ export function classifyGroup(group, target, candidate) {
       phase: "uopt (control flow) — an as1 trace cannot decide this" };
   }
 
+  // A HI16/LO16 pair that names a DIFFERENT SYMBOL: the target references a
+  // named data symbol and the candidate an anonymous local literal (or vice
+  // versa). The linked bytes can be identical while the OWNERSHIP differs —
+  // the target's compiler had a declaration this candidate does not.
+  //
+  // This landed in `unclassified` on the reporter's own artifact, which is a
+  // shrug where a specific answer exists: "your source is materialising a
+  // literal the original took from an existing symbol."
+  const relocSymOf = (i) => (i?.reloc && typeof i.reloc === "object" ? i.reloc.symbol ?? null : null);
+  const tSyms = ta.map(relocSymOf).filter(Boolean);
+  const cSyms = ca.map(relocSymOf).filter(Boolean);
+  if (tSyms.length && cSyms.length && tSyms.length === cSyms.length
+      && ta.every((a, k) => ca[k] && a.mnemonic === ca[k].mnemonic)
+      && tSyms.some((sym, k) => sym !== cSyms[k])) {
+    const named = (x) => x && !x.startsWith(".");
+    const targetNamed = tSyms.some(named), candNamed = cSyms.some(named);
+    return { mechanism: "data-ownership", confidence: "high",
+      why: targetNamed && !candNamed
+        ? `the target loads from the named symbol ${tSyms.find(named)} while the candidate materialises its own anonymous literal in ${cSyms[0]}. The linked bytes may match, but the original had a DECLARATION this candidate does not — the value belongs to an existing object`
+        : !targetNamed && candNamed
+          ? `the candidate loads from the named symbol ${cSyms.find(named)} while the target used an anonymous literal in ${tSyms[0]}: the candidate is attributing the value to an object the original did not reference`
+          : `the two sides reference different data symbols (${tSyms.join(", ")} vs ${cSyms.join(", ")})`,
+      evidence: { targetSymbols: tSyms, candidateSymbols: cSyms,
+        target: ta.map(key), candidate: ca.map(key) },
+      phase: "uopt (data references) — decided by which declaration is in scope, not by scheduling" };
+  }
+
   if (ta.length !== ca.length) {
     return { mechanism: "instruction-count", confidence: "high",
       why: `the group holds ${ta.length} target instruction(s) against ${ca.length} candidate: the candidate computes something the target does not, or vice versa`,
@@ -418,6 +456,14 @@ export function experimentsFor(cls, group, ctx = {}) {
         do: "move a real object's declaration between the existing ones",
         predict: "all offsets shift into place together",
         refutes: "if only some do, more than one object is misplaced",
+      }];
+    case "data-ownership":
+      return [{
+        id: "use-the-existing-symbol",
+        do: `declare and reference the data symbol the target uses (${[...new Set((cls.evidence?.targetSymbols ?? []).filter((x) => x && !x.startsWith(".")))].join(", ") || "the named symbol in the evidence"}) instead of writing the value as a literal in this function`,
+        predict: "the HI16/LO16 pair resolves to the same symbol as the target and the reference difference disappears",
+        refutes: "if the pair still differs, the symbol is not the one the original referenced — resolve the address with decomp({op:'layout', va}) before guessing again",
+        caution: "do NOT declare a new symbol at that address. A second name for bytes that already have one is how one object becomes two incompatible types — decomp({op:'layout', va:...}) says what already owns it",
       }];
     case "relocation-spelling":
       return [{ id: "none-needed", do: "nothing: the linked bytes are identical",
