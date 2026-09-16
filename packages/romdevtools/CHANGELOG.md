@@ -4,6 +4,79 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 —
 the `romdev-mcp` bin is kept as an alias.)
 
+## 0.143.0 — 2026-09-15
+
+A throughput report from the client working a 15-function matching campaign:
+five P0 public-API defects, then diagnosis, memory and batching work aimed at
+removing uninformative experiments rather than making compiles faster.
+
+### P0 — public API correctness
+
+- **`gate` was unreachable with a candidate.** The per-op validator inferred
+  applicability from prose, and the candidate parameters did not name
+  `op:'gate'` in their descriptions — so it refused the parameter the gate
+  handler REQUIRES. Applicability now comes from a declared contract that
+  overrides prose. Two more ops (`variants`, `experiment`) and three compare
+  knobs had the same defect; the contract test now derives the requirement from
+  the dispatch instead of naming ops by hand.
+- **A false rodata mismatch on an exact recovery.** Data defined in a separate
+  object is undefined in the function's own object, so target-side discovery
+  enumerated nothing while the candidate's compiler emitted its literal
+  locally. The 0-vs-1 count set `exactFunctionMatch:false` on a function that
+  integrates byte-exact. Missing discovery is now reported as a limitation
+  rather than converted into a proved semantic mismatch; a changed literal or
+  jump table still fails.
+- **`compare` gained `ownerPath`**, so an accepted candidate can be replayed
+  against its pre-integration owner instead of failing with `redeclaration`.
+- **Seed grammar.** The permuter parses `--seed` as integers, so a descriptive
+  seed crashed it after the job directory existed. Seeds are validated before
+  anything is created, and a descriptive label maps deterministically onto the
+  integer space with the mapping returned.
+- **Overlay identity in batches.** Where many segments map one VA, a bare
+  symbol is not an identity. Batches accept `{symbol, segment}` records, `plan`
+  emits them, and every result carries a stable `targetId` with its segment, TU
+  and ROM range.
+- **Target bounds are immutable.** The ROM read was `max(candidate, target)`,
+  so a longer candidate redefined the target to include the following function.
+  Overflow words are labelled separately and `sizeDelta` marks a positional
+  mismatch count as an upper bound.
+
+### New ops
+
+- **`diagnose`** — groups a stored comparison's residuals into INDEPENDENT
+  groups by compiler mechanism, with source-line attribution from an as1 trace
+  and experiments that state what would refute them. A trace that does not
+  cover the compared candidate is rejected rather than used.
+- **`layout`** — a stack map separating inferred slots from proven homes, and a
+  comparison that tells a uniform shift from an isolated misplacement. Also
+  resolves an address against symbols that already exist, so an existing member
+  is proposed instead of a new stride array.
+- **`variants`** — a bounded batch of named source variants under ONE
+  dependency snapshot, with duplicates and byte-inert variants reported rather
+  than dropped, and size/schedule/register residuals never collapsed into one
+  score.
+- **`research`** — indexes prior drafts and notes as CLAIMS that never outrank
+  a current-tree measurement, and reports notes contradicted by drafts on disk.
+  `plan` rows carry `priorArt`, so a row with no measured attempt no longer
+  reads as untouched.
+- **`replay`** — re-runs the preserved fixture cases through this same public
+  API. It reports outcomes, withholds percentiles below five samples, and
+  states no speedup figure, because no before/after benchmark was run.
+
+### Also
+
+- `plan` gained four objectives (byte-coverage stays the default),
+  pagination, and four evidence states in place of a bare `attempts: 0`.
+- `search` runs a compile/compare preflight before spending its budget, and its
+  report accounts for what the budget bought instead of only a final score.
+- Every build writes an immutable per-build log, and an integration writes a
+  proof bundle that stays auditable after later edits.
+- `compare` responses are compact by default with `detail:true` for the full
+  object; nothing is discarded, and the omitted fields stay on disk.
+- The skill staleness check compares CONTENT, not just version numbers: a
+  document whose version matched the server documented none of the newly
+  shipped ops.
+
 ## 0.142.0 — 2026-09-15
 
 Two verification rounds against 0.141.0. The client re-verified round 2 (4 of 4

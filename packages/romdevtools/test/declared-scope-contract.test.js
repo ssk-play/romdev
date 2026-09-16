@@ -18,8 +18,10 @@ test("every op named in DECLARED_SCOPE is a real op in the tool's enum", async (
   assert.ok(block, "DECLARED_SCOPE not found");
 
   const decomp = await srcOf("decomp.js");
-  const enumBlock = decomp.match(/op: z\.enum\(\[([\s\S]*?)\]\)/)?.[1];
-  assert.ok(enumBlock, "decomp op enum not found");
+  // The op list lives in one exported constant so the schema and the
+  // skill-staleness check cannot drift apart.
+  const enumBlock = decomp.match(/export const DECOMP_OPS = Object\.freeze\(\[([\s\S]*?)\]\)/)?.[1];
+  assert.ok(enumBlock, "DECOMP_OPS not found");
   const realOps = new Set([...enumBlock.matchAll(/"([a-zA-Z]+)"/g)].map((m) => m[1]));
 
   const entries = [...block.matchAll(/(\w+): \[([^\]]+)\]/g)];

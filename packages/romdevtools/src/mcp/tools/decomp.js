@@ -32,6 +32,13 @@ function typed(fn) {
   };
 }
 
+/**
+ * Every op this tool serves. ONE source of truth: the schema builds from it and
+ * the skill-staleness check reads it, so a shipped op cannot be missing from
+ * the installed skill while the version number says everything is current.
+ */
+export const DECOMP_OPS = Object.freeze(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage", "workbench", "dispatch", "experiment", "gate", "typeGraph", "rank", "ledger", "scenario", "capabilities", "knownSource", "assets", "artifacts", "handoff", "skill", "diagnose", "research", "variants", "layout", "replay"]);
+
 export function registerDecompTools(server, z, sessionKey) {
   server.tool(
     "decomp",
@@ -42,7 +49,7 @@ export function registerDecompTools(server, z, sessionKey) {
     "Every result names the project, function {symbol, segment, va}, candidate sha, compiler fingerprint and artifact paths; errors carry a typed [CODE]. `exactFunctionMatch` and `romLinked.status:'exact'` are the acceptance signals; `distance` is a ranking hint, never proof. " +
     "Ghidra pseudocode stays in disasm({target:'decompile'}) for understanding; it is never counted as matched.",
     {
-      op: z.enum(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage", "workbench", "dispatch", "experiment", "gate", "typeGraph", "rank", "ledger", "scenario", "capabilities", "knownSource", "assets", "artifacts", "handoff", "skill", "diagnose", "research", "variants", "layout", "replay"]).describe(
+      op: z.enum(DECOMP_OPS).describe(
         "import=register a project (root; splat yaml auto-detected; ROM sha1 verified; toolchain fingerprinted; compile invocation captured from make); " +
         "status=manifest + backend identities + segment table; list=registered projects; map=TU → object → segment → functions associations; " +
         "plan=payoff-ordered queue of remaining asm functions + batches that call each other inside one TU (call graph from the built objects' relocations); batch=generate+compare every function of a batch (`symbols`), sharing the context; " +
@@ -776,7 +783,11 @@ export function registerDecompTools(server, z, sessionKey) {
           const pkgVersion = JSON.parse(await readFile(new URL("../../../package.json", import.meta.url), "utf8")).version;
           const platforms = Object.keys(CAPABILITIES);
           const decompPlatforms = platforms.filter((p) => CAPABILITIES[p]?.ops?.decompile || CAPABILITIES[p]?.decomp);
-          const server = { version: pkgVersion, platforms, hasDecomp: true };
+          // The LIVE op list, read from this tool's own schema, so a skill that
+          // omits a shipped op is detected as stale even when its version
+          // number matches. Hardcoding the list here would drift the same way
+          // the skill did.
+          const server = { version: pkgVersion, platforms, hasDecomp: true, ops: [...DECOMP_OPS] };
           const status = await SK.skillStatus(server);
           if (args.action !== "write") {
             return jsonContent({ ...status, serverPlatforms: platforms.length,
@@ -784,7 +795,7 @@ export function registerDecompTools(server, z, sessionKey) {
           }
           const content = SK.generateSkill({
             version: pkgVersion, platforms, decompPlatforms,
-            toolCount: null,
+            toolCount: null, ops: [...DECOMP_OPS],
             domains: [
               { name: "build + run", description: "compile for a platform, load media, step frames, screenshot, script controller input" },
               { name: "inspect", description: "memory regions, CPU and sound-chip state, sprites, palettes, tilemaps" },
