@@ -13,7 +13,7 @@ const out=path.join(dist,'m1');mkdirSync(out,{recursive:true});
 for(const name of ['index.html','main.js','worker.js'])cpSync(path.join(import.meta.dirname,'harness',name),path.join(out,name));
 const hostDir=path.join(repo,'packages/romdev-core-host');mkdirSync(path.join(out,'host'),{recursive:true});
 for(const name of (await import('node:fs')).readdirSync(hostDir).filter(n=>n.endsWith('.js')&&!n.endsWith('.test.js')))cpSync(path.join(hostDir,name),path.join(out,'host',name));
-const roms={nes:(await fourScoreRom()).outputs['pads.nes'],gb:gbFixture(false),gbc:gbFixture(true)};
+const roms={nes:(await fourScoreRom()).outputs['pads.nes'],gb:gbFixture(false),gbc:gbFixture(true),'gb-offlcd':gbFixture(false,false,true),'gbc-offlcd':gbFixture(true,false,true)};
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const artifacts={};for(const [name,bytes]of Object.entries(roms)){writeFileSync(path.join(out,name+'.rom'),bytes);artifacts[name+'.rom']=hash(bytes);}
 for(const core of ['gambatte','fceumm'])for(const ext of ['js','wasm']){

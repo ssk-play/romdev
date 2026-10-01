@@ -1,6 +1,6 @@
 // Small MBC3 timer ROM: native joypad, timer, serial, audio, WRAM bank probes.
 // No injected multiplayer ABI is required by this core-level fixture.
-export function gbFixture(cgb = true, haltRtc = false) {
+export function gbFixture(cgb = true, haltRtc = false, pauseBeforeLcd = false) {
  const rom = new Uint8Array(32768), labels = new Map(), fixups = [];
  let pc = 0x150;
  const emit = (...bytes) => { rom.set(bytes, pc); pc += bytes.length; };
@@ -29,7 +29,14 @@ export function gbFixture(cgb = true, haltRtc = false) {
   store(0xff4f,1);emit(0x21,0,0x98,0x01,0,4);label('attrs');emit(0xaf,0x22,0x0b,0x78,0xb1);jr(0x20,'attrs');store(0xff4f,0);
   store(0xff68,0x80);for(const byte of [0xff,0x7f,0,0,0x1f,0,0,0x7c])store(0xff69,byte);
  }
- store(0xff47,0xe4);store(0xff40,0x91);
+ if(pauseBeforeLcd) {
+  store(0xc020,0x5a);store(0xff41,8);
+  label('paused');emit(0xfa,0x21,0xc0,0xb7);jr(0x28,'paused');
+  // Different visible sprite attributes after release exercise restoration of
+  // dormant sprite-list entries after the core has visited a later frame.
+  for(let i=0;i<4;i++)for(const [j,v]of [16,16+i*24,0,3+i].entries())store(0xfe00+i*4+j,v);
+ }
+ store(0xff47,0xe4);store(0xff40,pauseBeforeLcd?0x93:0x91);
  label('frame');emit(0xf0,0x44,0xfe,144);jr(0x20,'frame');
  store(0xff00,0x20);emit(0xf0,0,0xea,0x00,0xc0,0xe0,0x43);
  emit(0x21,1,0xc0,0x34);

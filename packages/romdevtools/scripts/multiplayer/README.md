@@ -42,7 +42,7 @@ from ROM identity and emulates its timers from CPU cycles.
 
 | Core | Schema | Snapshot additions and normalization |
 | --- | --- | --- |
-| gambatte | `0x47420101` | Full CPU/mapper/RTC/HuC3/timer/serial/APU/PPU/WRAM/VRAM/OAM/HRAM/cart-RAM serializer; epoch and emulated clock; frontend frame/sample counters, turbo phase/config, both blipper buffers, phase, integrator and last sample. CC resampler and interframe blending are disabled in this mode. |
+| gambatte | `0x47420102` | Full CPU/mapper/RTC/HuC3/timer/serial/APU/PPU/WRAM/VRAM/OAM/HRAM/cart-RAM serializer; epoch and emulated clock; frontend frame/sample counters, turbo phase/config, both blipper buffers, phase, integrator and last sample; native blit deadline and blank-LCD phase. CC resampler and interframe blending are disabled in this mode. |
 | fceumm | `0x4e450101` | Full CPU/mapper/PPU/APU/DMA/RAM/cart-RAM/controller serializer, Four Score enable flag and exact native device configuration, FIR interpolation index and full low/high quality wave histories. Existing DC filter accumulators remain included. Stereo widening is unsupported (digest refuses it). |
 
 Gambatte's `endx` was a cached next-tile boundary reconstructed on load from `xpos`
@@ -50,6 +50,21 @@ and its low three bits. Deterministic save applies that same reconstruction, ret
 PPU causal fields. The unused DMG-only `dmgPalette` payload previously contained
 uninitialized stack bytes; deterministic save writes explicit zeros when `isCgb()` is false.
 CGB palette data remains intact. No known byte is hidden from the digest.
+
+The MP bootstrap can spend many native frames with the LCD off before world
+initialization. Gambatte's ordinary loader recomputes the blit deadline and resets
+the blank-LCD phase, changing the first restored native frame. Deterministic
+schema `0x47420102` retains both in its 80-byte envelope (64-byte v1 envelopes
+are rejected). Its loader also restores all captured sprite attributes/words,
+including the dormant suffix that the ordinary loader leaves from a later frame,
+and preserves the LCD-off initial current-sprite sentinel. A disabled mode-0 STAT
+IRQ deadline is normalized only when the loader ignores it; active deadlines
+remain part of the snapshot and digest. These changes are deterministic-only.
+
+The LCD-off regression restores four differently aged boot checkpoints after
+LCD enable, visible sprite processing and active STAT timing. Each restore compares
+40 subsequent native frames' CPU/RAM/pixels/audio/digest, including the transition
+out of the wait. The browser harness performs the same checks.
 
 Blipper serialization uses fixed-width little-endian integers and excludes its
 immutable coefficient table and pointers. Its signed residual phase can be
@@ -109,7 +124,7 @@ ROMDEV_BUILD_CWD=packages/romdevtools build-image/build-wasm.sh build-fceumm.sh
 node --test packages/romdevtools/test/multiplayer-core.test.js packages/romdevtools/test/browser-surface-imports.test.js
 ```
 
-The thirteen core/compiler tests independently boot GB/GBC/NES across a wall-clock
+The core/compiler tests independently boot GB/GBC/NES across a wall-clock
 second without sharing state. They compare 32 replay frames' RAM, CPU registers,
 pixels, audio and digest, check against Node SHA-256, require visible fixture
 pixels, and cover 1/2/3/4 pads, gapped slots, release and reload, plus all three NES filter qualities and invalid bootstrap rejection. The GBC fixture

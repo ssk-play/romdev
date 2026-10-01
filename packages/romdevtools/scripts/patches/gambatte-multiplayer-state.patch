@@ -19,6 +19,24 @@ diff --git a/libgambatte/src/video/ppu.cpp b/libgambatte/src/video/ppu.cpp
  	ss.ppu.reg0 = p_.reg0;
  	ss.ppu.reg1 = p_.reg1;
  	ss.ppu.tileword = p_.tileword;
+@@ -1778,6 +1782,11 @@
+ 	p_.lastM0Time = p_.now - ss.ppu.lastM0Time;
+ 	loadSpriteList(p_, ss);
++	// loadSpriteList restores only the visible sprite prefix. The remaining
++	// captured attributes/words must not inherit a later frame of this instance.
++	if (romdev_clock_enabled) {
++		for (unsigned i = 0; i < 10; ++i) {
++			p_.spriteList[i].attrib = ss.ppu.spAttribList[i];
++			p_.spwordList[i] = ss.ppu.spByte1List[i] * 0x100 + ss.ppu.spByte0List[i];
++		}
++	}
++	// With the LCD off, the dormant initial sprite sentinel may be 0xFF.
++	// loadSpriteList clamps it to zero even though no sprite fetch is running.
++	// Preserve the captured value; setLcdc starts M3Start before a later fetch.
++	if (romdev_clock_enabled && !lcdcEn(p_))
++		p_.currentSprite = ss.ppu.currentSprite;
+ 
+ 	if (m3loopState && videoCycles < 144 * 456L && p_.xpos < 168
 diff --git a/libgambatte/src/initstate.cpp b/libgambatte/src/initstate.cpp
 --- a/libgambatte/src/initstate.cpp
 +++ b/libgambatte/src/initstate.cpp
@@ -45,6 +63,19 @@ diff --git a/libgambatte/src/initstate.cpp b/libgambatte/src/initstate.cpp
  	state.huc3.haltTime = state.huc3.baseTime;
  	state.huc3.dataTime = 0;
  	state.huc3.writingTime = 0;
+diff --git a/libgambatte/src/video.cpp b/libgambatte/src/video.cpp
+--- a/libgambatte/src/video.cpp
++++ b/libgambatte/src/video.cpp
+@@ -88,6 +88,11 @@
+    state.mem.hdmaTransfer = hdmaIsEnabled();
+    state.ppu.nextM0Irq = eventTimes_(MODE0_IRQ) - ppu_.now();
++   // A disabled event has no deadline. Subtracting stale PPU time makes this
++   // sentinel vary after restore (PPU::loadState catches up to CPU time).
++   // LCD::loadState ignores it with the LCD off or STAT mode-0 IRQ disabled;
++   // lcdcChange/statChange schedule a fresh deadline when enabled later.
++   if (romdev_clock_enabled && (!(ppu_.lcdc() & 0x80) || !(statReg_ & 0x08)))
++      state.ppu.nextM0Irq = 0;
+    state.ppu.pendingLcdstatIrq = eventTimes_(ONESHOT_LCDSTATIRQ) != disabled_time;
 diff --git a/libgambatte/src/mem/rtc.cpp b/libgambatte/src/mem/rtc.cpp
 --- a/libgambatte/src/mem/rtc.cpp
 +++ b/libgambatte/src/mem/rtc.cpp
@@ -214,10 +245,11 @@ diff --git a/libgambatte/libretro/libretro.cpp b/libgambatte/libretro/libretro.c
 +extern "C" {
 +uint32_t romdev_clock_enabled = 0, romdev_clock_epoch = 0;
 +uint64_t romdev_clock_ticks = 0;
++uint32_t romdev_gb_blit_time=0, romdev_gb_blank_lcd=0, romdev_gb_restore_timing=0;
 +time_t romdev_time(void) { return romdev_clock_enabled ? (time_t)(romdev_clock_epoch + romdev_clock_ticks / 4194304) : time(NULL); }
 +}
 +static size_t mp_gb_size(void) {
-+ return resampler_l && resampler_r ? 64 + gb.stateSize() + blipper_state_size(resampler_l) + blipper_state_size(resampler_r) : 0;
++ return resampler_l && resampler_r ? 80 + gb.stateSize() + blipper_state_size(resampler_l) + blipper_state_size(resampler_r) : 0;
 +}
  size_t retro_serialize_size(void)
  {
@@ -232,11 +264,12 @@ diff --git a/libgambatte/libretro/libretro.cpp b/libgambatte/libretro/libretro.c
 +   if (romdev_clock_enabled) {
 +      unsigned char *p = (unsigned char *)data;
 +      size_t core = gb.stateSize(), l = blipper_state_size(resampler_l), r = blipper_state_size(resampler_r);
-+      memset(p,0,64);mp_w32(p,0x3142474d);mp_w32(p+4,core);mp_w32(p+8,romdev_clock_epoch);mp_w32(p+12,0x47420101);
++      memset(p,0,80);mp_w32(p,0x3142474d);mp_w32(p+4,core);mp_w32(p+8,romdev_clock_epoch);mp_w32(p+12,0x47420102);
 +      mp_w64(p+16,romdev_clock_ticks);mp_w64(p+24,libretro_samples_count);mp_w64(p+32,libretro_frames_count);
 +      mp_w32(p+40,turbo_a_counter);mp_w32(p+44,turbo_b_counter);mp_w32(p+48,turbo_period);mp_w32(p+52,turbo_pulse_width);
-+      mp_w32(p+56,l);mp_w32(p+60,r);gb.saveState(p+64);
-+      return blipper_state_write(resampler_l,p+64+core,l) && blipper_state_write(resampler_r,p+64+core+l,r);
++      mp_w32(p+56,l);mp_w32(p+60,r);gb.saveState(p+80);
++      mp_w32(p+64,romdev_gb_blit_time);mp_w32(p+68,romdev_gb_blank_lcd);
++      return blipper_state_write(resampler_l,p+80+core,l) && blipper_state_write(resampler_r,p+80+core+l,r);
 +   }
     gb.saveState(data);
     return true;
@@ -249,8 +282,11 @@ diff --git a/libgambatte/libretro/libretro.cpp b/libgambatte/libretro/libretro.c
 +   if (romdev_clock_enabled) {
 +      const unsigned char *p = (const unsigned char *)data;
 +      size_t core = gb.stateSize(), l = blipper_state_size(resampler_l), r = blipper_state_size(resampler_r);
-+      if (mp_r32(p)!=0x3142474d || mp_r32(p+4)!=core || mp_r32(p+8)!=romdev_clock_epoch || mp_r32(p+12)!=0x47420101 || mp_r32(p+56)!=l || mp_r32(p+60)!=r || mp_r32(p+48)!=turbo_period || mp_r32(p+52)!=turbo_pulse_width) return false;
-+      if (!gb.loadState(p+64,core) || !blipper_state_read(resampler_l,p+64+core,l) || !blipper_state_read(resampler_r,p+64+core+l,r)) return false;
++      if (mp_r32(p)!=0x3142474d || mp_r32(p+4)!=core || mp_r32(p+8)!=romdev_clock_epoch || mp_r32(p+12)!=0x47420102 || mp_r32(p+56)!=l || mp_r32(p+60)!=r || mp_r32(p+48)!=turbo_period || mp_r32(p+52)!=turbo_pulse_width) return false;
++      if (mp_r32(p+68)>1) return false;
++      romdev_gb_blit_time=mp_r32(p+64);romdev_gb_blank_lcd=mp_r32(p+68);romdev_gb_restore_timing=1;
++      bool core_ok=gb.loadState(p+80,core);romdev_gb_restore_timing=0;
++      if (!core_ok || !blipper_state_read(resampler_l,p+80+core,l) || !blipper_state_read(resampler_r,p+80+core+l,r)) return false;
 +      romdev_clock_ticks=mp_r64(p+16);libretro_samples_count=mp_r64(p+24);libretro_frames_count=mp_r64(p+32);
 +      turbo_a_counter=mp_r32(p+40);turbo_b_counter=mp_r32(p+44);audio_out_buffer_pos=0;
 +      return true;
@@ -294,7 +330,7 @@ diff --git a/libgambatte/libretro/libretro.cpp b/libgambatte/libretro/libretro.c
 + return 1;
 +}
 +void romdev_deterministic_disable(void) { romdev_clock_enabled=0;invalidate_serialize_size(); }
-+unsigned romdev_state_schema(void) { return 0x47420101; }
++unsigned romdev_state_schema(void) { return 0x47420102; }
 +unsigned romdev_state_digest(unsigned char *out, unsigned len) {
 + size_t size = retro_serialize_size();
 + if (!out || !romdev_clock_enabled || len!=32 || !size || size>1048576 || use_cc_resampler || blend_frames) return 0;
@@ -319,3 +355,34 @@ diff --git a/libgambatte/src/video.cpp b/libgambatte/src/video.cpp
     
  
     lycIrq_.saveState(state);
+diff --git a/libgambatte/src/gambatte-memory.cpp b/libgambatte/src/gambatte-memory.cpp
+--- a/libgambatte/src/gambatte-memory.cpp
++++ b/libgambatte/src/gambatte-memory.cpp
+@@ -1,3 +1,8 @@
++#include "romdev_multiplayer.h"
++extern "C" {
++extern uint32_t romdev_gb_blit_time, romdev_gb_blank_lcd, romdev_gb_restore_timing;
++}
++
+ //
+ //   Copyright (C) 2007 by sinamas <sinamas at users.sourceforge.net>
+ //
+@@ -72,6 +77,10 @@
+ 	state.mem.dmaDestination = dmaDestination_;
+ 	state.mem.oamDmaPos = oamDmaPos_;
++	if (romdev_clock_enabled) {
++		romdev_gb_blit_time = intreq_.eventTime(intevent_blit);
++		romdev_gb_blank_lcd = blanklcd_ ? 1 : 0;
++	}
+ #ifdef HAVE_NETWORK
+ 	state.mem.serialize_value = serialize_value_;
+@@ -137,6 +146,10 @@
+ 	                                 ? lcd_.nextMode1IrqTime()
+ 	                                 : state.cpu.cycleCounter);
+ 	blanklcd_ = false;
++	if (romdev_clock_enabled && romdev_gb_restore_timing) {
++		intreq_.setEventTime<intevent_blit>(romdev_gb_blit_time);
++		blanklcd_ = romdev_gb_blank_lcd != 0;
++	}
+ 
+ 	if (!isCgb())
