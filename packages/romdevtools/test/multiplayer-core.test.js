@@ -127,6 +127,19 @@ for (const platform of ['gb', 'gbc']) test(`${platform}: LCD-off bootstrap resto
 });
 
 // These parsers belong only to the pinned core's tests. Consumers use stateDigest().
+for(const platform of ['gb','gbc'])test(`${platform}: active state survives an intervening LCD-off restore`,async t=>{
+ const h=await host(platform,15,true,undefined,gbFixture(platform==='gbc',false,true));t.after(()=>h.dispose());
+ h.stepFrames(12);const boot=h.serializeState();
+ for(const count of [1,2,3,8,30]){
+  h.unserializeState(boot);h.writeMemory('system_ram',0x21,new Uint8Array([1]));h.stepFrames(count);
+  const active=h.serializeState(),before=digest(h),inputs=Array.from({length:40},(_,f)=>({ports:[{right:f%3===0,a:f%7<3}]}));
+  const expected=inputs.map(i=>frame(h,i));
+  h.unserializeState(boot);h.unserializeState(active);
+  assert.equal(digest(h),before,`active restore after ${count} frames through LCD-off state`);
+  assert.deepEqual(h.serializeState(),active);
+  assert.deepEqual(inputs.map(i=>frame(h,i)),expected);
+ }
+});
 function fields(snapshot,platform){
  const out=new Map(),dv=new DataView(snapshot.buffer,snapshot.byteOffset,snapshot.byteLength);
  if(platform==='nes'){

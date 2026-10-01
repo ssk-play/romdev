@@ -30,11 +30,15 @@ diff --git a/libgambatte/src/video/ppu.cpp b/libgambatte/src/video/ppu.cpp
 +			p_.spwordList[i] = ss.ppu.spByte1List[i] * 0x100 + ss.ppu.spByte0List[i];
 +		}
 +	}
-+	// With the LCD off, the dormant initial sprite sentinel may be 0xFF.
-+	// loadSpriteList clamps it to zero even though no sprite fetch is running.
-+	// Preserve the captured value; setLcdc starts M3Start before a later fetch.
-+	if (romdev_clock_enabled && !lcdcEn(p_))
++	// In inactive scan phases loadSpriteList either clamps the LCD-off
++	// sentinel or does not visit these cursors at all. A restore from another
++	// phase must not inherit its current/next sprite. M3Start initializes
++	// them before the next active fetch; preserve the captured dormant state.
++	if (romdev_clock_enabled && (!lcdcEn(p_)
++			|| ss.ppu.videoCycles >= 144 * 456UL || ss.ppu.xpos >= 168)) {
 +		p_.currentSprite = ss.ppu.currentSprite;
++		p_.nextSprite = ss.ppu.nextSprite;
++	}
  
  	if (m3loopState && videoCycles < 144 * 456L && p_.xpos < 168
 diff --git a/libgambatte/src/initstate.cpp b/libgambatte/src/initstate.cpp

@@ -34,7 +34,18 @@ async function verifyBootstrap(platform){
    }
    h.unserializeState(snapshot);
   }
-  return 'LCD-off bootstrap and resume (4 checkpoints × 40 frames)';
+  const boot=h.serializeState(),inputs=Array.from({length:40},(_,f)=>({ports:[{right:f%3===0,a:f%7<3}]}));
+  for(const count of [1,2,3,8,30]){
+   h.unserializeState(boot);h.writeMemory('system_ram',0x21,new Uint8Array([1]));h.stepFrames(count);
+   const active=h.serializeState(),expected=inputs.map(input=>trace(h,input));
+   h.unserializeState(boot);h.unserializeState(active);
+   check(hex(h.stateDigest().bytes)===await hash(active),'Active state after LCD-off restore differs');
+   for(let f=0;f<inputs.length;f++){
+    const a=trace(h,inputs[f]),e=expected[f];
+    check(a.state===e.state&&equal(a.pixels,e.pixels)&&equal(a.audio,e.audio)&&a.regs===e.regs&&equal(a.ram,e.ram),'Active / dormant-sprite restore differs at frame '+f);
+   }
+  }
+  return 'LCD-off bootstrap and resume (4 checkpoints × 40 frames); active restore through LCD-off (5 checkpoints × 40 frames)';
  }finally{h.dispose();}
 }
 async function verify(platform){
