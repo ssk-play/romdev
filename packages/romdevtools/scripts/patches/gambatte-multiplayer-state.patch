@@ -371,16 +371,17 @@ diff --git a/libgambatte/src/gambatte-memory.cpp b/libgambatte/src/gambatte-memo
  //
  //   Copyright (C) 2007 by sinamas <sinamas at users.sourceforge.net>
  //
-@@ -72,6 +77,10 @@
+@@ -72,6 +77,11 @@
  	state.mem.dmaDestination = dmaDestination_;
  	state.mem.oamDmaPos = oamDmaPos_;
 +	if (romdev_clock_enabled) {
++		// CPU::runFor rebases at bit 31 via Memory::resetCounters (including blit); disabled_time=0xfffffffful also fits u32.
 +		romdev_gb_blit_time = intreq_.eventTime(intevent_blit);
 +		romdev_gb_blank_lcd = blanklcd_ ? 1 : 0;
 +	}
  #ifdef HAVE_NETWORK
  	state.mem.serialize_value = serialize_value_;
-@@ -137,6 +146,10 @@
+@@ -137,6 +147,10 @@
  	                                 ? lcd_.nextMode1IrqTime()
  	                                 : state.cpu.cycleCounter);
  	blanklcd_ = false;
