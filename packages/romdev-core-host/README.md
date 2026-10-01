@@ -167,3 +167,14 @@ reports the shift it recorded at; `exact` is false only when a caller asked for
 a granularity coarser than the CPU's instruction alignment. `logPCRange` is
 the older 8192-entry distinct ring (`romdev_cov_set/get`), still exported by
 every core. Every romdev core carries the bitmap.
+
+## Deterministic GB/GBC/NES sessions
+
+`loadMedia({…, deterministic: {rtcEpochSeconds: 0}})` enables the versioned causal
+snapshot schema on supported cores. `stateDigest()` returns `{schema, bytes}` with
+a 32-byte SHA-256; unsupported/non-deterministic cores reject the request.
+NES additionally accepts `controllerTopology: {kind: "nes", playerMask: 1..15}`
+for native 1–4 controllers (Four Score only when slot 3/4 is present), preserving
+slot numbers across gaps. Deterministic input accepts the eight native buttons.
+See `romdevtools/scripts/multiplayer/README.md` for the fixed session identities,
+frame-boundary restrictions, compiler records, reproducible builds and tests.
