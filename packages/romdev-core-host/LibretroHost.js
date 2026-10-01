@@ -1431,30 +1431,64 @@ export class LibretroHost {
    * Drain every native frame: >8 publications fail with truncation metadata.
    * Restore/reset/media changes disarm; callers must rebind fresh RAM pointers. */
   startWorldObservation({ trigger, tick, fields, value = 0xa5 }) {
-    const mod = this._needMod(); this._needMedia();
-    if (!['gb', 'gbc', 'nes'].includes(this.status.platform) || !['_romdev_observe_set', '_romdev_observe_add', '_romdev_observe_arm', '_romdev_observe_get'].every(k => typeof mod[k] === 'function')) throw new Error('world observation unsupported by this core');
-    const nes = this.status.platform === 'nes';
-    if (!Number.isInteger(value) || value < 0 || value > 255) throw new Error('invalid world publication value');
-    if (!Number.isInteger(trigger) || !(nes ? trigger >= 0 && trigger < 0x800 || trigger >= 0x6100 && trigger < 0x8000 : trigger >= 0xc000 && trigger < 0xd000)) throw new Error('world publication must be in stable writable RAM');
-    if (!Array.isArray(fields) || !fields.length || fields.length > 32) throw new Error('invalid world fields');
+    const mod = this._needMod();
+    this._needMedia();
+    const exports = ["_romdev_observe_set", "_romdev_observe_add", "_romdev_observe_arm", "_romdev_observe_get"];
+    if (!["gb", "gbc", "nes"].includes(this.status.platform) ||
+        !exports.every(k => typeof mod[k] === "function")) {
+      throw new Error("world observation unsupported by this core");
+    }
+    const nes = this.status.platform === "nes";
+    if (!Number.isInteger(value) || value < 0 || value > 255) {
+      throw new Error("invalid world publication value");
+    }
+    if (!Number.isInteger(trigger) || !(nes
+      ? (trigger >= 0 && trigger < 0x800) || (trigger >= 0x6100 && trigger < 0x8000)
+      : trigger >= 0xc000 && trigger < 0xd000)) {
+      throw new Error("world publication must be in stable writable RAM");
+    }
+    if (!Array.isArray(fields) || !fields.length || fields.length > 32) {
+      throw new Error("invalid world fields");
+    }
     const pointer = (span, fixedLength) => {
-      if (!span || !['system_ram', 'save_ram'].includes(span.region) || !Number.isInteger(span.offset) || span.offset < 0 || !Number.isInteger(span.length) || span.length < 1 || fixedLength && span.length !== fixedLength || span.length > 1024) throw new Error('invalid observation RAM span');
-      const id = MemoryRegionToRetro[span.region], size = mod._retro_get_memory_size(id), base = mod._retro_get_memory_data(id);
-      if (!base || span.offset + span.length > size || base + span.offset + span.length > mod.HEAPU8.length) throw new Error('observation RAM span out of bounds');
+      if (!span || !["system_ram", "save_ram"].includes(span.region) ||
+          !Number.isInteger(span.offset) || span.offset < 0 ||
+          !Number.isInteger(span.length) || span.length < 1 || span.length > 1024 ||
+          (fixedLength && span.length !== fixedLength)) {
+        throw new Error("invalid observation RAM span");
+      }
+      const id = MemoryRegionToRetro[span.region];
+      const size = mod._retro_get_memory_size(id);
+      const base = mod._retro_get_memory_data(id);
+      if (!base || span.offset + span.length > size ||
+          base + span.offset + span.length > mod.HEAPU8.length) {
+        throw new Error("observation RAM span out of bounds");
+      }
       return base + span.offset;
     };
-    const tickPtr = pointer(tick, 4), pointers = fields.map(f => pointer(f));
+    const tickPtr = pointer(tick, 4);
+    const pointers = fields.map(f => pointer(f));
     // Tick lives in stable unbanked WRAM, or ordinary NES RAM/PRG-RAM.
-    if (nes ? tick.region === 'system_ram' ? tick.offset + 4 > 0x800 : tick.offset < 0x100 : tick.region !== 'system_ram' || tick.offset + 4 > 0x1000) throw new Error('world tick must be in stable RAM');
+    const unstableTick = nes
+      ? (tick.region === "system_ram" ? tick.offset + 4 > 0x800 : tick.offset < 0x100)
+      : tick.region !== "system_ram" || tick.offset + 4 > 0x1000;
+    if (unstableTick) throw new Error("world tick must be in stable RAM");
     const bytes = fields.reduce((n, f) => n + f.length, 0);
-    if (bytes > 1024) throw new Error('observation world exceeds 1024 bytes');
+    if (bytes > 1024) throw new Error("observation world exceeds 1024 bytes");
     this.stopWorldObservation();
     mod._romdev_observe_set(trigger, tickPtr, value);
     try {
-      fields.forEach((f, i) => { if (!mod._romdev_observe_add(pointers[i], f.length)) throw new Error('core rejected observation span'); });
-      if (!mod._romdev_observe_arm(1)) throw new Error('core rejected world observation');
+      fields.forEach((f, i) => {
+        if (!mod._romdev_observe_add(pointers[i], f.length)) {
+          throw new Error("core rejected observation span");
+        }
+      });
+      if (!mod._romdev_observe_arm(1)) throw new Error("core rejected world observation");
       this._worldObservation = { bytes };
-    } catch (e) { this.stopWorldObservation(); throw e; }
+    } catch (e) {
+      this.stopWorldObservation();
+      throw e;
+    }
   }
 
   drainWorldObservation() {
