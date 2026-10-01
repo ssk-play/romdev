@@ -22,6 +22,17 @@ for(const core of ['gambatte','fceumm'])for(const ext of ['js','wasm']){
 const sourceCommit=execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8'}).trim();
 writeFileSync(path.join(out,'manifest.json'),JSON.stringify({milestone:'M1',sourceCommit,artifacts},null,2)+'\n');
 cpSync(path.join(dist,'LICENSE'),path.join(out,'LICENSE'));
-cpSync(path.join(dist,'NOTICE.md'),path.join(out,'NOTICE.md'));
+const versions=JSON.parse(readFileSync(path.join(repo,'packages/romdevtools/scripts/versions.json'),'utf8'));
+const source='https://github.com/ssk-play/romdev/tree/'+sourceCommit;
+const notices=['# Core verification program notices','',
+ 'This program redistributes the GPL emulator cores as separate WASM modules. LICENSE contains GPL version 2; LICENSE-host contains the MIT license for the host and test fixtures.', '',
+ 'Corresponding source and rebuild recipes for this exact harness: '+source+'.', '',
+ 'The host and fixtures come from packages/romdev-core-host and packages/romdevtools/scripts/multiplayer plus test/fixtures/multiplayer in that source tree.', ''];
+for(const core of ['gambatte','fceumm']){
+ const pkg=JSON.parse(readFileSync(path.join(repo,'packages',`romdev-core-${core}`,'package.json'),'utf8')),pin=versions.cores[core];
+ notices.push(`- ${core} (${pkg.name} ${pkg.version}, ${pkg.license}): ${pin.url.replace(/\.git$/,'')}/tree/${pin.commit}, with the patches and pinned build recipe at ${source}/packages/romdevtools/scripts/build-${core}.sh.`);
+}
+notices.push('', 'Rebuild from the source checkout with ROMDEV_BUILD_CWD=packages/romdevtools build-image/build-wasm.sh build-gambatte.sh (and build-fceumm.sh), then run build-harness.mjs. The published payload manifest pins the same core binaries. Manifest.json records SHA-256 for every ROM/core artifact.');
+writeFileSync(path.join(out,'NOTICE.md'),notices.join('\n')+'\n');
 cpSync(path.join(repo,'packages/romdevtools/LICENSE'),path.join(out,'LICENSE-host'));
 console.log('M1 harness staged:',out,sourceCommit);
