@@ -378,6 +378,7 @@ diff --git a/libgambatte/src/gambatte-memory.cpp b/libgambatte/src/gambatte-memo
  	state.mem.dmaDestination = dmaDestination_;
  	state.mem.oamDmaPos = oamDmaPos_;
 +	if (romdev_clock_enabled) {
++		// CPU::runFor rebases at bit 31 via Memory::resetCounters (including blit); disabled_time=0xfffffffful also fits u32.
 +		romdev_gb_blit_time = intreq_.eventTime(intevent_blit);
 +		romdev_gb_blank_lcd = blanklcd_ ? 1 : 0;
 +	}
