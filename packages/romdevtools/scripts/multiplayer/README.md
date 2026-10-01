@@ -117,3 +117,16 @@ WASM payloads are published with `scripts/browser-payloads.sh publish` after pus
 the source commit; commit its updated manifest so fresh checkouts reproduce the
 same binaries. Source pins and existing patches remain in scripts/versions.json;
 the recipes additionally apply the multiplayer patches and shared helper here.
+
+## Clean checkout and CI payloads
+
+The consumer packages pin the new in-tree core/tool versions. Regenerate the
+workspace lockfile together with those pins; a partial version bump can make
+`npm ci` resolve a second, older registry copy or reject the lockfile.
+
+`node scripts/fetch-payloads.mjs --browser-payloads` verifies/fills the five
+browser packages from `browser-payloads.json`, then fills unrelated packages
+from their normal npm versions. This fork does not substitute upstream npm
+binaries for its modified SDCC/gambatte/fceumm builds. CI uses this mode and
+keys its payload cache on both the dependency lockfile and payload manifest.
+The original npm-only mode remains available for upstream development.
