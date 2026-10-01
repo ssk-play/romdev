@@ -157,15 +157,15 @@ for(const platform of ['gb','gbc'])test(`${platform}: deterministic timing field
  const h=await host(platform,15,true,undefined,gbFixture(platform==='gbc',false,true));t.after(()=>h.dispose());
  h.stepFrames(12);h.writeMemory('system_ram',0x21,new Uint8Array([1]));h.stepFrames(20);
  const baseline=h.serializeState(),original=digest(h),map=fields(baseline,platform);
- assert.equal(h.stateDigest().schema,0x47420102);
+ assert.equal(h.stateDigest().schema,0x47420103);
  const active=baseline.slice(),irq=map.get('nm0irq');assert.ok(irq&&irq.size>0);
  active[irq.pos+irq.size-1]^=2;h.unserializeState(active);assert.notEqual(digest(h),original,'active STAT mode-0 deadline');
- for(const at of [64,68]){
-  h.unserializeState(baseline);const changed=baseline.slice();changed[at]^=1;h.unserializeState(changed);
-  assert.notEqual(digest(h),original,at===64?'native blit deadline':'blank-LCD phase');
+ for(const at of [64,68,72,76]){
+  h.unserializeState(baseline);const changed=baseline.slice();changed[at]=at===72?(baseline[at]===255?0:255):baseline[at]^1;h.unserializeState(changed);
+  assert.notEqual(digest(h),original,({64:'native blit deadline',68:'blank-LCD phase',72:'pending OAM scan',76:'OAM size source'})[at]);
  }
  h.unserializeState(baseline);
- for(const [at,value]of [[12,1],[68,2]]){
+ for(const [at,value]of [[12,1],[68,2],[72,81],[76,2]]){
   const invalid=baseline.slice();invalid[at]=value;assert.throws(()=>h.unserializeState(invalid),/rejected/);
   assert.equal(digest(h),original,'invalid envelope cannot mutate a live core');
  }
@@ -223,4 +223,29 @@ for (const platform of ['gb', 'gbc', 'nes']) test(`${platform}: ordinary legacy 
  assert.ok(h.serializeState().length > saved.bytes);
  await h.loadMedia({ platform, bytes: rom });
  assert.equal(h.serializeState().length, saved.bytes); h.unserializeState(blob);
+});
+
+// Fixed tiny bootstrap cartridges: writes to OAM while LCD is off, then enables
+// it in the first post-bootstrap frame. The older paused fixture waits longer.
+const oamBoot = JSON.parse(readFileSync(new URL('./fixtures/multiplayer/oam-bootstrap.json', import.meta.url), 'utf8'));
+for (const platform of ['gb', 'gbc']) test(`${platform}: first post-bootstrap OAM scan survives restore before any displayed frame`, async t => {
+ const rom = gunzipSync(Buffer.from(oamBoot[platform], 'base64'));
+ const h = await host(platform, 15, true, undefined, rom);
+ t.after(() => h.dispose());
+ let frames = 0;
+ while (h.readMemory('system_ram', 0x10f0, 2)[0] !== 77) {
+  h.stepFrames(1); assert.ok(++frames < 120);
+ }
+ const context = new Uint8Array(32);
+ context.set([2,3,4,0,7,7,1,1]); context[12] = 12;
+ h.writeMemory('system_ram', 0x400, context);
+ const boot = h.serializeState();
+ const run = () => Array.from({ length: 12 }, (_, f) => {
+  h.writeMemory('system_ram', 0x410, new Uint8Array([f % 2 ? 2 : 1, 2, 1, 0]));
+  return frame(h, { ports: [] });
+ });
+ const expected = run();
+ h.unserializeState(boot);
+ assert.deepEqual(h.serializeState(), boot);
+ assert.deepEqual(run(), expected, 'causal digest, audio, pixels and CPU future match from the very first frame');
 });

@@ -12,6 +12,7 @@ extern "C" {
 #endif
 extern uint32_t romdev_clock_enabled, romdev_clock_epoch;
 extern uint64_t romdev_clock_ticks;
+extern uint32_t romdev_gb_oam_last_change, romdev_gb_oam_size_source;
 time_t romdev_time(void);
 #ifdef __cplusplus
 }
