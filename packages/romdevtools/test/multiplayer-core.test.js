@@ -103,7 +103,43 @@ test('deterministic load leaves the CPU at reset before hidden warm-up',async t=
  }
 });
 
+for (const platform of ['gb', 'gbc']) test(`${platform}: LCD-off bootstrap restores before world initialization`, async t => {
+ const h = await host(platform, 15, true, undefined, gbFixture(platform === 'gbc', false, true));
+ t.after(() => h.dispose());
+ h.stepFrames(12);
+ assert.equal(h.readMemory('system_ram', 0x20, 1)[0], 0x5a);
+ for (const wait of [0, 1, 5, 30]) {
+  h.stepFrames(wait);
+  assert.equal(h.readMemory('system_ram', 0x21, 1)[0], 0);
+  const snapshot = h.serializeState(), before = digest(h);
+  const inputs = Array.from({length: 40}, (_, f) => ({ports: [{right: f % 3 === 0, a: f % 7 < 3}]}));
+  const run = () => inputs.map((input, f) => {
+   if (f === 8) h.writeMemory('system_ram', 0x21, new Uint8Array([1]));
+   return frame(h, input);
+  });
+  const expected = run();
+  h.unserializeState(snapshot);
+  assert.equal(digest(h), before, `LCD-off restore after ${wait} extra frames`);
+  assert.deepEqual(h.serializeState(), snapshot);
+  assert.deepEqual(run(), expected, 'LCD remains off, then native LCD/STAT IRQ/sprites resume');
+  h.unserializeState(snapshot);
+ }
+});
+
 // These parsers belong only to the pinned core's tests. Consumers use stateDigest().
+for(const platform of ['gb','gbc'])test(`${platform}: active state survives an intervening LCD-off restore`,async t=>{
+ const h=await host(platform,15,true,undefined,gbFixture(platform==='gbc',false,true));t.after(()=>h.dispose());
+ h.stepFrames(12);const boot=h.serializeState();
+ for(const count of [1,2,3,8,30]){
+  h.unserializeState(boot);h.writeMemory('system_ram',0x21,new Uint8Array([1]));h.stepFrames(count);
+  const active=h.serializeState(),before=digest(h),inputs=Array.from({length:40},(_,f)=>({ports:[{right:f%3===0,a:f%7<3}]}));
+  const expected=inputs.map(i=>frame(h,i));
+  h.unserializeState(boot);h.unserializeState(active);
+  assert.equal(digest(h),before,`active restore after ${count} frames through LCD-off state`);
+  assert.deepEqual(h.serializeState(),active);
+  assert.deepEqual(inputs.map(i=>frame(h,i)),expected);
+ }
+});
 function fields(snapshot,platform){
  const out=new Map(),dv=new DataView(snapshot.buffer,snapshot.byteOffset,snapshot.byteLength);
  if(platform==='nes'){
@@ -112,11 +148,32 @@ function fields(snapshot,platform){
    while(pos<end){const tag=new TextDecoder().decode(snapshot.subarray(pos,pos+4)).replaceAll('\0',''),size=dv.getUint32(pos+4,true);pos+=8;assert.ok(pos+size<=end);out.set(tag,{pos,size,kind});pos+=size;}
   }
  }else{
-  let pos=69,end=64+dv.getUint32(4,true);
+  let pos=85,end=80+dv.getUint32(4,true);
   while(pos<end){const start=pos;while(snapshot[pos])pos++;const tag=new TextDecoder().decode(snapshot.subarray(start,pos++)),size=(snapshot[pos]<<16)|(snapshot[pos+1]<<8)|snapshot[pos+2];pos+=3;assert.ok(pos+size<=end);out.set(tag,{pos,size});pos+=size;}
  }
  return out;
 }
+for(const platform of ['gb','gbc'])test(`${platform}: deterministic timing fields remain causal and incompatible envelopes are rejected`,async t=>{
+ const h=await host(platform,15,true,undefined,gbFixture(platform==='gbc',false,true));t.after(()=>h.dispose());
+ h.stepFrames(12);h.writeMemory('system_ram',0x21,new Uint8Array([1]));h.stepFrames(20);
+ const baseline=h.serializeState(),original=digest(h),map=fields(baseline,platform);
+ assert.equal(h.stateDigest().schema,0x47420102);
+ const active=baseline.slice(),irq=map.get('nm0irq');assert.ok(irq&&irq.size>0);
+ active[irq.pos+irq.size-1]^=2;h.unserializeState(active);assert.notEqual(digest(h),original,'active STAT mode-0 deadline');
+ for(const at of [64,68]){
+  h.unserializeState(baseline);const changed=baseline.slice();changed[at]^=1;h.unserializeState(changed);
+  assert.notEqual(digest(h),original,at===64?'native blit deadline':'blank-LCD phase');
+ }
+ h.unserializeState(baseline);
+ for(const [at,value]of [[12,1],[68,2]]){
+  const invalid=baseline.slice();invalid[at]=value;assert.throws(()=>h.unserializeState(invalid),/rejected/);
+  assert.equal(digest(h),original,'invalid envelope cannot mutate a live core');
+ }
+ // Original v1 deterministic envelopes were shorter and carry another schema.
+ const old=new Uint8Array(baseline.length-16);old.set(baseline.subarray(0,64));old.set(baseline.subarray(80),64);old[12]=1;
+ assert.throws(()=>h.unserializeState(old),/size mismatch|rejected/);assert.equal(digest(h),original);
+});
+
 for(const platform of ['gb','gbc','nes'])test(`${platform}: each causal state class participates in the digest`,async t=>{
  const h=await host(platform);t.after(()=>h.dispose());h.setInput({ports:[{a:true}]});h.stepFrames(130);
  const baseline=h.serializeState(),original=digest(h),map=fields(baseline,platform);
@@ -124,7 +181,7 @@ for(const platform of ['gb','gbc','nes'])test(`${platform}: each causal state cl
  for(const [tag,offset,bit]of probes){const f=map.get(tag);assert.ok(f&&offset<f.size,tag);const changed=baseline.slice();changed[f.pos+offset]^=bit;h.unserializeState(changed);assert.notEqual(digest(h),original,`${tag} causal mutation`);}
  if(platform!=='nes'){
   h.unserializeState(baseline);const clock=baseline.slice();clock[16]^=2;h.unserializeState(clock);assert.notEqual(digest(h),original,'emulated clock');
-  const core=64+new DataView(baseline.buffer).getUint32(4,true),audio=baseline.slice();audio[core+16]^=1;h.unserializeState(audio);assert.notEqual(digest(h),original,'audio resampler');
+  const core=80+new DataView(baseline.buffer).getUint32(4,true),audio=baseline.slice();audio[core+16]^=1;h.unserializeState(audio);assert.notEqual(digest(h),original,'audio resampler');
   // endx's upper bits are reconstructible cache representation, not hidden PPU state.
   const cache=baseline.slice();cache[map.get('endx').pos]^=8;h.unserializeState(cache);assert.equal(digest(h),original);
   const inputs=Array.from({length:8},()=>({ports:[{a:true}]}));const expected=inputs.map(i=>frame(h,i));h.unserializeState(baseline);for(let i=0;i<inputs.length;i++)assert.deepEqual(frame(h,inputs[i]),expected[i],'equivalent PPU cache future');
