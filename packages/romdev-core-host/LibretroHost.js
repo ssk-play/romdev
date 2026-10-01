@@ -530,6 +530,7 @@ export class LibretroHost {
    * @returns {Promise<void>} resolves (undefined) on success; THROWS on failure
    */
   async loadMedia(args) {
+    this.stopWorldObservation();
     const mod = this._needMod();
     const { platform } = args;
     const topology = args.controllerTopology;
@@ -960,6 +961,7 @@ export class LibretroHost {
 
   unloadMedia() {
     const mod = this._needMod();
+    this.stopWorldObservation();
     if (this.status.loaded) {
       mod._retro_unload_game();
       this.status.loaded = false;
@@ -995,6 +997,7 @@ export class LibretroHost {
   dispose() {
     const mod = this.mod;
     if (mod) {
+      try { this.stopWorldObservation(); } catch { /* teardown */ }
       try { if (this.status.loaded) mod._retro_unload_game(); } catch { /* ignore */ }
       // Proxied cores run retro_deinit on the app thread; calling the main-thread
       // export directly would race the worker. Their module teardown is the
@@ -1392,6 +1395,7 @@ export class LibretroHost {
       );
     }
     const ptr = mod._malloc(blob.byteLength);
+    this.stopWorldObservation();
     try {
       mod.HEAPU8.set(blob, ptr);
       const ok = mod._retro_unserialize(ptr, blob.byteLength);
@@ -1418,6 +1422,62 @@ export class LibretroHost {
       if (!mod._romdev_state_digest(ptr, 32)) throw new Error("core rejected deterministic state digest");
       return { schema: mod._romdev_state_schema(), bytes: mod.HEAPU8.slice(ptr, ptr + 32) };
     } finally { mod._free(ptr); }
+  }
+
+  /** Diagnostic snapshots at the ROM's explicit world-publication write. They do
+   * not pause CPU/PPU or change emulated RAM. Supported by rebuilt GB/GBC/NES
+   * cores only; ticks and fields are physical RAM regions, not CPU aliases.
+   * The ROM updates tick (LE32), then writes trigger before drawing its view.
+   * Drain every native frame: >8 publications fail with truncation metadata.
+   * Restore/reset/media changes disarm; callers must rebind fresh RAM pointers. */
+  startWorldObservation({ trigger, tick, fields, value = 0xa5 }) {
+    const mod = this._needMod(); this._needMedia();
+    if (!['gb', 'gbc', 'nes'].includes(this.status.platform) || !['_romdev_observe_set', '_romdev_observe_add', '_romdev_observe_arm', '_romdev_observe_get'].every(k => typeof mod[k] === 'function')) throw new Error('world observation unsupported by this core');
+    const nes = this.status.platform === 'nes';
+    if (!Number.isInteger(value) || value < 0 || value > 255) throw new Error('invalid world publication value');
+    if (!Number.isInteger(trigger) || !(nes ? trigger >= 0 && trigger < 0x800 || trigger >= 0x6100 && trigger < 0x8000 : trigger >= 0xc000 && trigger < 0xd000)) throw new Error('world publication must be in stable writable RAM');
+    if (!Array.isArray(fields) || !fields.length || fields.length > 32) throw new Error('invalid world fields');
+    const pointer = (span, fixedLength) => {
+      if (!span || !['system_ram', 'save_ram'].includes(span.region) || !Number.isInteger(span.offset) || span.offset < 0 || !Number.isInteger(span.length) || span.length < 1 || fixedLength && span.length !== fixedLength || span.length > 1024) throw new Error('invalid observation RAM span');
+      const id = MemoryRegionToRetro[span.region], size = mod._retro_get_memory_size(id), base = mod._retro_get_memory_data(id);
+      if (!base || span.offset + span.length > size || base + span.offset + span.length > mod.HEAPU8.length) throw new Error('observation RAM span out of bounds');
+      return base + span.offset;
+    };
+    const tickPtr = pointer(tick, 4), pointers = fields.map(f => pointer(f));
+    // Tick lives in stable unbanked WRAM, or ordinary NES RAM/PRG-RAM.
+    if (nes ? tick.region === 'system_ram' ? tick.offset + 4 > 0x800 : tick.offset < 0x100 : tick.region !== 'system_ram' || tick.offset + 4 > 0x1000) throw new Error('world tick must be in stable RAM');
+    const bytes = fields.reduce((n, f) => n + f.length, 0);
+    if (bytes > 1024) throw new Error('observation world exceeds 1024 bytes');
+    this.stopWorldObservation();
+    mod._romdev_observe_set(trigger, tickPtr, value);
+    try {
+      fields.forEach((f, i) => { if (!mod._romdev_observe_add(pointers[i], f.length)) throw new Error('core rejected observation span'); });
+      if (!mod._romdev_observe_arm(1)) throw new Error('core rejected world observation');
+      this._worldObservation = { bytes };
+    } catch (e) { this.stopWorldObservation(); throw e; }
+  }
+
+  drainWorldObservation() {
+    const mod = this._needMod(), layout = this._worldObservation;
+    if (!layout) throw new Error('no world observation armed');
+    const stride = 8 + layout.bytes, ptr = mod._malloc(stride * 8), meta = mod._malloc(12);
+    if (!ptr || !meta) { if (ptr) mod._free(ptr); if (meta) mod._free(meta); throw new Error('observation allocation failed'); }
+    try {
+      const n = mod._romdev_observe_get(ptr, stride * 8, meta, 1), counts = new DataView(mod.HEAPU8.buffer, meta, 12);
+      const total = counts.getUint32(0, true), stored = counts.getUint32(4, true);
+      if (n > 8 || stored > 8 || counts.getUint32(8, true) !== stride) throw new Error('invalid observation ABI');
+      const events = [];
+      for (let i = 0; i < n; i++) {
+        const at = ptr + i * stride, row = new DataView(mod.HEAPU8.buffer, at, stride);
+        events.push({ tick: row.getUint32(0, true), pc: row.getUint32(4, true), bytes: mod.HEAPU8.slice(at + 8, at + stride) });
+      }
+      return { events, total, truncated: total > n };
+    } finally { mod._free(ptr); mod._free(meta); }
+  }
+
+  stopWorldObservation() {
+    this.mod?._romdev_observe_set?.(0, 0, 0);
+    this._worldObservation = null;
   }
 
   listStates() {
@@ -1775,6 +1835,7 @@ export class LibretroHost {
 
   reset() {
     const mod = this._needMod();
+    this.stopWorldObservation();
     mod._retro_reset();
     this.status.frameCount = 0;
     // A reset clears the core's active cheats (they live in volatile core

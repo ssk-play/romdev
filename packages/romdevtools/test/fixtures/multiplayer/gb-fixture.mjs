@@ -1,6 +1,6 @@
 // Small MBC3 timer ROM: native joypad, timer, serial, audio, WRAM bank probes.
 // No injected multiplayer ABI is required by this core-level fixture.
-export function gbFixture(cgb = true, haltRtc = false, pauseBeforeLcd = false) {
+export function gbFixture(cgb = true, haltRtc = false, pauseBeforeLcd = false, observeWorld = false) {
  const rom = new Uint8Array(32768), labels = new Map(), fixups = [];
  let pc = 0x150;
  const emit = (...bytes) => { rom.set(bytes, pc); pc += bytes.length; };
@@ -40,6 +40,13 @@ export function gbFixture(cgb = true, haltRtc = false, pauseBeforeLcd = false) {
  label('frame');emit(0xf0,0x44,0xfe,144);jr(0x20,'frame');
  store(0xff00,0x20);emit(0xf0,0,0xea,0x00,0xc0,0xe0,0x43);
  emit(0x21,1,0xc0,0x34);
+ if(observeWorld) {
+  // World completes, then publishes a 32-bit logical tick before view writes.
+  store(0xc006,0x5a);
+  for(let i=0;i<4;i++){emit(0x21,0x20+i,0xc0,0x34);if(i<3)jr(0x20,'publishedTick');}
+  label('publishedTick');store(0xc024,0xa5);
+  store(0xc006,0xa5); // Intentionally different at the native/display boundary.
+ }
  emit(0xcd,0x80,0xff); // Call the DMA routine, which waits in HRAM.
  store(0x6000,0);store(0x6000,1);emit(0xfa,0,0xa0,0xea,0x10,0xc0);
  label('end');emit(0xf0,0x44,0xfe,144);jr(0x28,'end');jr(0x18,'frame');

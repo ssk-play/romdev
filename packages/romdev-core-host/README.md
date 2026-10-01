@@ -178,3 +178,23 @@ for native 1–4 controllers (Four Score only when slot 3/4 is present), preserv
 slot numbers across gaps. Deterministic input accepts the eight native buttons.
 See `romdevtools/scripts/multiplayer/README.md` for the fixed session identities,
 frame-boundary restrictions, compiler records, reproducible builds and tests.
+
+## Logical world observation (0.16.0)
+
+`startWorldObservation({trigger, tick, fields, value: 0xa5})` binds an explicit
+ROM publication write on GB/GBC/NES. After updating the world, the engine writes
+a four-byte little-endian logical tick to stable RAM, then writes `value` to
+`trigger` before rendering its view. `tick` and each field are
+`{region: "system_ram" | "save_ram", offset, length}` physical RAM spans; the
+tick must be unbanked and have length 4. The trigger is a stable writable CPU
+address. The observer copies the selected physical bytes at that bus write,
+without pausing the CPU, stepping clocks or modifying emulated state.
+
+`drainWorldObservation()` returns owned `{tick, pc, bytes}` records in publication
+order, plus `total` and `truncated`, then clears the diagnostic buffer. Drain once
+per native frame. The buffer holds eight publications, at most 32 fields and
+1024 field bytes; truncation must fail the logical-world check rather than be
+treated as agreement. Instrumentation is outside savestates and causal digests.
+`stopWorldObservation()`, restore, reset, unload and load disarm it. Rebind after
+those lifecycle changes. Older cores do not advertise these optional exports.
+This is a diagnostic hook; it does not synchronize consoles or certify a room.

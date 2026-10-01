@@ -167,3 +167,23 @@ from their normal npm versions. This fork does not substitute upstream npm
 binaries for its modified SDCC/gambatte/fceumm builds. CI uses this mode and
 keys its payload cache on both the dependency lockfile and payload manifest.
 The original npm-only mode remains available for upstream development.
+
+## Pre-render world publications
+
+The shared debug observer used by the GB/GBC/NES recipes records physical RAM
+at a trusted engine's publication write, after world update and before view
+rendering. It neither freezes nor advances the CPU and is not serialized.
+The ROM owns an ordinary unbanked LE32 tick and a marker written with `0xa5`;
+boot-time RAM clearing therefore does not publish spurious ticks. The host
+binds the linked addresses and physical field ranges rather than interpreting
+display-boundary RAM as a completed logical tick. Eight publications, 32 spans
+and 1024 field bytes are hard bounds. Overflow is reported, never silently
+accepted. Consumers must compare matching logical ticks and reject skipped or
+repeated publications. Disarm/rebind around restore, reset and media changes.
+
+Run `node --test packages/romdevtools/test/world-observation.test.js` after rebuilding
+Gambatte and fceumm. Tests compare instrumented and uninstrumented causal state,
+CPU registers, raw snapshots, pixels and audio for 130 frames on all three
+platforms, retain pre-view bytes after later writes, and cover bounded overflow,
+owned copies, lifecycle cleanup and the native C ABI. The engine publisher and
+author world schema are separate upper-layer responsibilities.
