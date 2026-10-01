@@ -18,7 +18,7 @@ OUT="$PROJECT_DIR/src/cores/wasm"
 fetch_pinned cores.fceumm "$FCEUMM_DIR"
 
 cd "$FCEUMM_DIR"
-git checkout -- src/sound.c src/input.c src/drivers/libretro/libretro.c src/filter.c src/filter.h 2>/dev/null || true
+git checkout -- src/sound.c src/input.c src/drivers/libretro/libretro.c src/filter.c src/filter.h src/state.c 2>/dev/null || true
 # Reset the files the patch touches - libretro.c (memory regions + watchpoint
 # exports), sound.c (drop `static` on the APU register holders), and x6502.c
 # (the write-watchpoint hook + state) - so a clean re-apply always works.

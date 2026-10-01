@@ -46,9 +46,9 @@ from ROM identity and emulates its timers from CPU cycles.
 | fceumm | `0x4e450101` | Full CPU/mapper/PPU/APU/DMA/RAM/cart-RAM/controller serializer, Four Score enable flag and exact native device configuration, FIR interpolation index and full low/high quality wave histories. Existing DC filter accumulators remain included. Stereo widening is unsupported (digest refuses it). |
 
 Gambatte's `endx` was a cached next-tile boundary reconstructed on load from `xpos`
-and its low three bits. Save now applies that same reconstruction, retaining all
+and its low three bits. Deterministic save applies that same reconstruction, retaining all
 PPU causal fields. The unused DMG-only `dmgPalette` payload previously contained
-uninitialized stack bytes; save now writes explicit zeros when `isCgb()` is false.
+uninitialized stack bytes; deterministic save writes explicit zeros when `isCgb()` is false.
 CGB palette data remains intact. No known byte is hidden from the digest.
 
 Blipper serialization uses fixed-width little-endian integers and excludes its
@@ -57,6 +57,28 @@ negative after rounding to the next output sample; restore validates that range.
 NES filter/wave histories cost extra snapshot bytes (~184 KB for the fixture),
 so phone rollback performance must still pass M2b. A deterministic GB/GBC snapshot
 is ~72/97 KB for these fixtures. This is not a mobile performance certification.
+
+## Ordinary disk-state compatibility
+
+romdev persists whole-machine states through MCP `state({op:"save"/"load", path})`,
+auto snapshots and playtest recovery. romdev-browser's probe/rollback snapshots
+stay inside the worker; its headless service/gamelab and chiptoy persist battery
+RAM, not whole-machine states. Ordinary GB/GBC/NES serialization therefore keeps
+the pre-M1 fields, sizes and behavior. PPU cache/DMG palette normalization and
+NES's Four Score flag, FIR index and full wave histories apply only in
+`deterministic` mode. Switching modes invalidates the NES size cache.
+
+`test/fixtures/multiplayer/legacy-*.state.gz` were captured with the pinned
+pre-M1 cores at `0316acbf`; `legacy-states.json` records core/ROM/state SHA-256
+values and 16 subsequent frames. GB fixtures halt the cartridge RTC through its
+native register so the reference is independent of wall time, without masking
+state bytes. Tests restore these existing disk blobs, compare the full WRAM and
+framebuffer futures, and verify returning from deterministic mode restores the
+ordinary format. Regeneration requires those old cores explicitly:
+
+```sh
+node packages/romdevtools/scripts/multiplayer/capture-legacy-states.mjs <pre-M1-repo>
+```
 
 ## Compiler allocation records
 

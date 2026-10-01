@@ -1,13 +1,21 @@
 diff --git a/libgambatte/src/video/ppu.cpp b/libgambatte/src/video/ppu.cpp
 --- a/libgambatte/src/video/ppu.cpp
 +++ b/libgambatte/src/video/ppu.cpp
-@@ -1626,7 +1626,8 @@
+@@ -1,3 +1,4 @@
++#include "romdev_multiplayer.h"
+ //
+ //   Copyright (C) 2010 by sinamas <sinamas at users.sourceforge.net>
+ //
+@@ -1626,7 +1626,11 @@
  	p_.spriteMapper.saveState(ss);
  	ss.ppu.videoCycles = lcdcEn(p_) ? p_.lyCounter.frameCycles(p_.now) : 0;
  	ss.ppu.xpos = p_.xpos;
 -	ss.ppu.endx = p_.endx;
-+	int const next = (p_.xpos & ~7) + (p_.endx & 7);
-+	ss.ppu.endx = std::min(next <= p_.xpos ? next + 8 : next, 168);
++	ss.ppu.endx = p_.endx;
++	if (romdev_clock_enabled) {
++		int const next = (p_.xpos & ~7) + (p_.endx & 7);
++		ss.ppu.endx = std::min(next <= p_.xpos ? next + 8 : next, 168);
++	}
  	ss.ppu.reg0 = p_.reg0;
  	ss.ppu.reg1 = p_.reg1;
  	ss.ppu.tileword = p_.tileword;
@@ -297,11 +305,16 @@ diff --git a/libgambatte/libretro/libretro.cpp b/libgambatte/libretro/libretro.c
 diff --git a/libgambatte/src/video.cpp b/libgambatte/src/video.cpp
 --- a/libgambatte/src/video.cpp
 +++ b/libgambatte/src/video.cpp
+@@ -1,3 +1,4 @@
++#include "romdev_multiplayer.h"
+ /***************************************************************************
+  *   Copyright (C) 2007 by Sindre Aamås                                    *
+  *   aamas@stud.ntnu.no                                                    *
 @@ -89,6 +89,8 @@
     
     if (isCgb())
        std::memcpy(state.ppu.dmgPalette, dmgColorsGBC_, 8 * 3);
-+   else
++   else if (romdev_clock_enabled)
 +      std::memset(state.ppu.dmgPalette, 0, sizeof state.ppu.dmgPalette);
     
  

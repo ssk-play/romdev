@@ -1,6 +1,6 @@
 // Small MBC3 timer ROM: native joypad, timer, serial, audio, WRAM bank probes.
 // No injected multiplayer ABI is required by this core-level fixture.
-export function gbFixture(cgb = true) {
+export function gbFixture(cgb = true, haltRtc = false) {
  const rom = new Uint8Array(32768), labels = new Map(), fixups = [];
  let pc = 0x150;
  const emit = (...bytes) => { rom.set(bytes, pc); pc += bytes.length; };
@@ -15,6 +15,9 @@ export function gbFixture(cgb = true) {
  store(0xc400,0xa5);store(0xff70,1);store(0xd0f0,0x5a);
  if(cgb){store(0xff70,2);store(0xd0f0,0x99);store(0xff70,1);}
  store(0x0000,0x0a);store(0x4000,8); // MBC3 RTC seconds
+ // Legacy disk fixtures use the cartridge halt bit, preserving real-time RTC
+ // behavior while making their expected restored frames independent of the date.
+ if(haltRtc){store(0x4000,12);store(0xa000,0x40);store(0x4000,8);}
  // Square wave and live divider/timer/serial state.
  for(const [a,v] of [[0xff26,0x80],[0xff24,0x77],[0xff25,0x11],[0xff11,0x80],[0xff12,0xf0],[0xff13,0x80],[0xff14,0x87],[0xff06,0x42],[0xff05,0x17],[0xff07,5],[0xff01,0xa5],[0xff02,0x81]])store(a,v);
  // HRAM DMA routine: ROM/stack bus is inaccessible during DMG OAM DMA.
