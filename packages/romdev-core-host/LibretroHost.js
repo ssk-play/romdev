@@ -44,6 +44,8 @@ import {
 // behavior) is chosen from an option at retro_init. loadCore uses this to pre-seed
 // PLATFORM_CORE_OPTIONS before the core registers its variables, so the override
 // wins over the core's default (e.g. glide64-GL over angrylion-software for N64).
+const NATIVE_DIGITAL_BUTTONS = new Set(["up", "down", "left", "right", "a", "b", "start", "select"]);
+
 const CORE_STEM_TO_PLATFORM = {
   parallel_n64: "n64",
   pcsx_rearmed: "ps1",
@@ -530,6 +532,25 @@ export class LibretroHost {
   async loadMedia(args) {
     const mod = this._needMod();
     const { platform } = args;
+    const topology = args.controllerTopology;
+    if (topology && (platform !== "nes" || topology.kind !== "nes" || !Number.isInteger(topology.playerMask) || topology.playerMask < 1 || topology.playerMask > 15)) {
+      throw new Error("controllerTopology: NES playerMask must be an integer from 1 to 15");
+    }
+    const epoch = args.deterministic?.rtcEpochSeconds;
+    if (args.deterministic && (!Number.isInteger(epoch) || epoch < 0 || epoch > 0x7fffffff || !["gb", "gbc", "nes"].includes(platform) || !mod._romdev_deterministic_boot)) {
+      throw new Error("deterministic boot requires a supported core and a 31-bit RTC epoch");
+    }
+    this._deterministic = !!args.deterministic;
+    this._controllerMask = topology?.playerMask ?? null;
+    if (platform === "nes") {
+      this.state.inputPorts = Array.from({ length: 4 }, () => new Uint16Array(1));
+      this.state.inputOverrides = [null, null, null, null];
+      this.state.analogPorts = [null, null, null, null];
+    }
+    if (topology || args.deterministic) this.setInput({ ports: [] });
+    if (args.deterministic) {
+      if (!mod._romdev_deterministic_boot(epoch)) throw new Error("core rejected deterministic bootstrap");
+    } else if (mod._romdev_deterministic_disable) mod._romdev_deterministic_disable();
     // Allow the systemDir to be supplied per-load (not just via the constructor) - proxied cores
     // (PSP) need it to mirror BIOS/font assets into the app-thread FS, and callers commonly pass
     // it to loadMedia rather than at construction.
@@ -793,6 +814,9 @@ export class LibretroHost {
       platform,
       mediaKind,
       virtualName: args.virtualName,
+      coreOptions: args.coreOptions ? { ...args.coreOptions } : undefined,
+      controllerTopology: topology ? { ...topology } : undefined,
+      deterministic: args.deterministic ? { ...args.deterministic } : undefined,
     };
 
     // Read system_av_info to seed framebuffer dimensions.
@@ -860,6 +884,16 @@ export class LibretroHost {
       // only reads RetroPad port 1 when it's registered as a joypad device.
       mod._retro_set_controller_port_device(1, RETRO_DEVICE_JOYPAD);
     }
+    if (platform === "nes") {
+      // fceumm's GAMEPAD subclass (513), rather than generic JOYPAD (1),
+      // enables native Four Score when either additional pad is connected.
+      // Physical ports stay live for a gapped mask; disconnected logical
+      // pads are zeroed by the host and are never remapped/compacted.
+      for (let port = 0; port < 4; port++) {
+        const present = port < 2 || ((topology?.playerMask ?? 3) & (1 << port));
+        mod._retro_set_controller_port_device(port, present ? 513 : 0);
+      }
+    }
 
     // ---- Settle the framebuffer to the ROM's chosen geometry ----
     //
@@ -885,7 +919,7 @@ export class LibretroHost {
     // Proxied cores (PSP) drive frames through the async run path (run_start + poll); the
     // synchronous settle loop below uses the blocking sync run, so skip it. PSP geometry is the
     // fixed 480×272 av_info already read, so there's no pre-init default to settle past.
-    if (!this.status.paused && !this._proxied) {
+    if (!args.deterministic && !this.status.paused && !this._proxied) {
       // Settle frames are core warm-up, not agent-visible gameplay
       // frames - don't increment frameCount. From the agent's POV the
       // first stepFrames(N) should advance the count by exactly N.
@@ -1227,6 +1261,13 @@ export class LibretroHost {
   /** @param {import("./types.js").FrameInput} input */
   setInput(input) {
     const platform = this.status.platform ?? undefined;
+    if (this._deterministic) {
+      for (const pad of input.ports) {
+        if (pad && Object.keys(pad).some(key => !NATIVE_DIGITAL_BUTTONS.has(key))) {
+          throw new Error("deterministic input accepts only native digital buttons");
+        }
+      }
+    }
     // C64: route the keyboard-mapped controller buttons (Space/Run-Stop/Return/
     // F1-F7) to the key matrix so a CONTROLLER alone can play - the
     // Batocera/RetroDeck model. The joystick bits (d-pad + Fire) still flow to
@@ -1243,7 +1284,7 @@ export class LibretroHost {
       // restoring the universal "host port 0 = player 1" convention.
       const srcPort = platform === "c64" ? (port ^ 1) : port;
       const portInput = this._c64StripKeyButtons(input.ports[srcPort], platform);
-      this.state.inputPorts[port][0] = portInputToMask(portInput, platform);
+      this.state.inputPorts[port][0] = this._controllerMask != null && !(this._controllerMask & (1 << port)) ? 0 : portInputToMask(portInput, platform);
       // Raw analog passthrough (additive; the mask above stays the digital
       // contract). `axes` = { lx, ly, rx, ry, lt, rt }: sticks -1..1,
       // triggers 0..1. Read by the ANALOG device callback (real stick beats
@@ -1365,6 +1406,18 @@ export class LibretroHost {
     const cleared = this._activeCheats ? this._activeCheats.size : 0;
     if (cleared) this.clearCheats();
     return cleared;
+  }
+
+  /** Core-owned versioned SHA-256 of causal state; no snapshot parsing here. */
+  stateDigest() {
+    const mod = this._needMod();
+    if (!this.status.loaded || !mod._romdev_state_digest || !mod._romdev_state_schema) throw new Error("core has no deterministic-state schema");
+    const ptr = mod._malloc(32);
+    if (!ptr) throw new Error("deterministic state digest allocation failed");
+    try {
+      if (!mod._romdev_state_digest(ptr, 32)) throw new Error("core rejected deterministic state digest");
+      return { schema: mod._romdev_state_schema(), bytes: mod.HEAPU8.slice(ptr, ptr + 32) };
+    } finally { mod._free(ptr); }
   }
 
   listStates() {

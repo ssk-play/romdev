@@ -109,6 +109,13 @@ else
   echo "Applied $PATCH_FILE"
 fi
 
+# c1mode consumes preprocessed stdin and clears fullSrcFileName. Keep the
+# existing typed .adb records when --debug is requested by a WASM caller.
+DEBUG_PATCH="$PROJECT_DIR/scripts/patches/sdcc-c1mode-debug-info.patch"
+if ! grep -q 'options.debug && (fullSrcFileName || options.c1mode)' "$SDCC_SRC_DIR/src/SDCCmain.c"; then
+  (cd "$SDCC_SRC_DIR" && patch -p1 --forward < "$DEBUG_PATCH")
+fi
+
 # ---- step 2: native build (produces Z80 runtime libs) ----------------------
 echo "Native pass: building sdcc + Z80 runtime libs ..."
 cd "$SDCC_SRC_DIR"
