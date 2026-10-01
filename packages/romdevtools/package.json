@@ -68,7 +68,7 @@
     "romdev-core-geargrafx": "0.10.1",
     "romdev-core-gpgx": "0.15.1",
     "romdev-core-handy": "0.9.1",
-    "romdev-core-host": "0.15.0",
+    "romdev-core-host": "0.16.0",
     "romdev-core-parallel-n64": "0.3.1",
     "romdev-core-prosystem": "0.10.1",
     "romdev-core-runner": "0.2.18",
