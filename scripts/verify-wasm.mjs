@@ -34,6 +34,7 @@ const MIN_WASM_BYTES = 16 * 1024;
 // (NODERAWFS builds, GPU cores and the gcc-family wraps stay node-only.)
 const BROWSER_GLUE = {
   "romdev-core-bluemsx": ["bluemsx_libretro.js"],
+  "romdev-core-bsnes": ["bsnes_libretro.js"],
   "romdev-core-fake08": ["fake08_libretro.js"],
   "romdev-core-fceumm": ["fceumm_libretro.js"],
   "romdev-core-gambatte": ["gambatte_libretro.js"],
@@ -50,7 +51,6 @@ const BROWSER_GLUE = {
   "romdev-toolchain-m68k-gcc": ["sjasm.js"],
   "romdev-toolchain-rgbds": ["rgbasm.js", "rgbfix.js", "rgblink.js"],
   "romdev-toolchain-sdcc": ["mcpp.js", "sdasgb.js", "sdasz80.js", "sdcc.js", "sdld.js"],
-  "romdev-toolchain-vasm": ["vasm68k.js"],
 };
 const NODE_ONLY_GLUE = /\bENVIRONMENT_IS_NODE\s*=\s*true\b|\bENVIRONMENT_IS_WEB\s*=\s*false\b/;
 
