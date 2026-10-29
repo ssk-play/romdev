@@ -352,6 +352,22 @@ function decodeZ80(bytes) {
  * @param {string} [cpu] "main" (default) or "spc700" for SNES
  * @returns {CPUState | null}
  */
+/** `n` u32 LE words of a region, or null when this core build lacks it. */
+function readU32s(host, region, n) {
+  try {
+    if (!(host.regionSize?.(region) >= n * 4)) return null;
+    const b = host.readMemory(region, 0, n * 4);
+    const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    return Array.from({ length: n }, (_, i) => dv.getUint32(i * 4, true) >>> 0);
+  } catch { return null; }
+}
+
+/** mGBA's master clock (gba_timing), as `coreInternal`, when the core has it. */
+function gbaTiming(host) {
+  const t = readU32s(host, "gba_timing", 4);
+  return t ? { coreInternal: { masterClock: t[0], cpuCycles: t[1], nextEvent: t[2], masterCycles: t[3] } } : {};
+}
+
 export function getCPUState(host, platform, cpu = "main") {
   if (platform === "n64" || platform === "ps1") {
     return decodeMips(host.getMipsRegs?.());
@@ -366,7 +382,10 @@ export function getCPUState(host, platform, cpu = "main") {
   if (platform === "snes") {
     const state = host.serializeState();
     if (cpu === "spc700") return decodeSnes9xSPC(state);
-    return decodeSnes9xCPU(state); // 65816
+    const st = decodeSnes9xCPU(state); // 65816
+    const t = readU32s(host, "snes_timing", 5);
+    if (t) st.coreInternal = { ...(st.coreInternal ?? {}), masterClock: t[0], lineCycles: t[1], vCounter: t[2], hMax: t[3], totalFrames: t[4] };
+    return st;
   }
   if (platform === "genesis") {
     if (cpu === "z80") {
@@ -486,6 +505,11 @@ export function getCPUState(host, platform, cpu = "main") {
         ime: !!bytes[12],
         halted: !!bytes[13],
       },
+      // Bytes 14-17 are gambatte's CPU clock (cycleCounter_) on cores built
+      // with it (0 on older builds, where they were reserved).
+      coreInternal: {
+        cycleCounter: (bytes[14] | (bytes[15] << 8) | (bytes[16] << 16) | (bytes[17] << 24)) >>> 0,
+      },
     };
   }
   if (platform === "gba") {
@@ -531,6 +555,7 @@ export function getCPUState(host, platform, cpu = "main") {
       spsr: hex32(spsr),
       note: "ARM PC is pipeline-prefetched; the executing instruction is at execPc " +
         "(PC-8 in ARM, PC-4 in THUMB). Registers are decimal; cpsr/spsr/execPc are hex.",
+      ...gbaTiming(host),
     };
   }
   if (platform === "sync32") {
@@ -564,6 +589,26 @@ export function getCPUState(host, platform, cpu = "main") {
       if (bits !== 0) fpu["S" + i] = asFloat(bits);
     }
     const itstate = u32(49);
+    // Frame timing from the core's deterministic cycle model (sync32_timing,
+    // absent on older core builds): the last frame's work cycles against the
+    // ABI floor. The floor is the console's guarantee (150 MHz-equivalent);
+    // shipping boards clock core 0 at 252 or 315 MHz, so those budgets are
+    // reported too, as context.
+    const tm = readU32s(host, "sync32_timing", 10);
+    const timing = tm && tm[0] === 0x54323353 ? (() => {
+      const floor = tm[2], mhz = tm[3], fc = tm[5];
+      const budget = (m) => Math.round(floor * m / mhz);
+      return {
+        frameCycles: fc,
+        framesPresented: tm[4],
+        totalCycles: tm[6] + tm[7] * 2 ** 32,
+        floorCycles: floor,
+        floorClockMHz: mhz,
+        pctOfFloor: Math.round(fc / floor * 10000) / 100,
+        budgets: { floor150MHz: floor, mhz252: budget(252), mhz315: budget(315) },
+        note: "frameCycles = CPU cycles the cart spent between the previous present() and this one (the vblank wait excluded), from s32core's cycle model; costs are estimates until calibrated on hardware (no flash wait-state or XIP cache model).",
+      };
+    })() : null;
     return {
       pc: gprs[15],
       sp: gprs[13],
@@ -578,6 +623,7 @@ export function getCPUState(host, platform, cpu = "main") {
       // touches the FPU stays readable.
       ...(Object.keys(fpu).length ? { fpu } : {}),
       ...(itstate ? { itstate: hex32(itstate) } : {}),
+      ...(timing ? { coreInternal: timing } : {}),
       note: "Cortex-M33 is always Thumb. PC is the NEXT instruction to execute " +
         "(this is an interpreter, so there is no pipeline offset to undo). " +
         "Registers are decimal; flags.raw is the packed APSR (N|Z|C|V|Q in bits 4..0). " +

@@ -10,7 +10,7 @@
 // (N64/PS1/Dreamcast/PSP/DS) breaks that - 3D rendering, MIPS/SH-4 CPUs, GPU-FBO
 // screenshots, ops that are meaningless on a polygon renderer. A declared
 // contract + a uniform "unsupported" signal lets agents discover what a system
-// can do BEFORE calling, and keeps the matrix honest as platforms diverge.
+// can do BEFORE calling, and keeps the matrix accurate as platforms diverge.
 //
 // Fields (keep MINIMAL - only what the contract / discovery / conformance use):
 //   cpuFamily       primary CPU family (forward-looking; "6502","z80","sm83",
@@ -29,7 +29,7 @@
  * file plumbing, encodeAudio, catalog, files, ...) are NOT here - they don't
  * vary by platform. */
 export const OP_KEYS = /** @type {const} */ ([
-  "build",              // buildSource for this platform
+  "build",              // build({output}) for this platform
   "run",                // loadMedia + a real core
   "screenshot",         // frame({op:'screenshot'})
   "inspectSprites",     // sprites({op:'inspect'})
@@ -40,7 +40,7 @@ export const OP_KEYS = /** @type {const} */ ([
   "audioDebug",         // audioDebug({op:'inspect'})
   "cart",               // cart({op:'extract'/'wrap'})
   "disasm",             // disasm({target:'rom'/'project'/'references'})
-  "decompile",          // disasm({target:'decompile'}) - RE engine, all 14
+  "decompile",          // disasm({target:'decompile'}) - RE engine
   "decomp",             // decomp({op}) - matching decompilation on a splat project's own compiler
 ]);
 
@@ -82,7 +82,7 @@ export const CAPABILITIES = {
     audioChips: ["dsp"],
     memoryRegions: [...GENERIC_REGIONS, "snes_oam", "snes_cgram", "snes_aram", "snes_fillram",
       "snes_linepix", "snes_linestate", "snes_frameinfo", "snes_m7lines", "snes_linedepth", "snes_cliplines",
-      "snes_lp_world", "snes_lp_obj"],
+      "snes_lp_world", "snes_lp_obj", "snes_timing", "snes_chipstate", "snes_bsx_psram"],
     ...tileDeep(),
   },
   genesis: {
@@ -91,7 +91,8 @@ export const CAPABILITIES = {
     audioChips: ["ym2612", "psg"],
     memoryRegions: [...GENERIC_REGIONS, "genesis_cram", "genesis_vsram", "genesis_vdp_regs",
       "genesis_z80_ram", "genesis_m68k", "genesis_ym2612", "genesis_psg",
-      "md_linepix", "md_bgpix", "md_objpix", "md_pixrgb", "md_linestate", "md_pixlines"],
+      "md_linepix", "md_bgpix", "md_objpix", "md_pixrgb", "md_linestate", "md_pixlines", "gpgx_blip_deltas",
+      "genesis_svp_dram", "genesis_svp_iram", "genesis_svp_ssp"],
     ...tileDeep(),
   },
   sms: {
@@ -99,7 +100,7 @@ export const CAPABILITIES = {
     cpus: { main: "z80", secondary: [] },
     audioChips: ["psg"],
     memoryRegions: [...GENERIC_REGIONS, "sms_vram", "sms_cram", "sms_vdp_regs", "sms_z80_regs",
-      "sms_linepix", "sms_bgpix", "sms_objpix", "sms_pixrgb", "sms_linestate", "sms_pixlines"],
+      "sms_linepix", "sms_bgpix", "sms_objpix", "sms_pixrgb", "sms_linestate", "sms_pixlines", "gpgx_blip_deltas"],
     ...tileDeep(),
   },
   gg: {
@@ -107,7 +108,7 @@ export const CAPABILITIES = {
     cpus: { main: "z80", secondary: [] },
     audioChips: ["psg"],
     memoryRegions: [...GENERIC_REGIONS, "gg_vram", "gg_cram",
-      "gg_linepix", "gg_bgpix", "gg_objpix", "gg_pixrgb", "gg_linestate", "gg_pixlines"],
+      "gg_linepix", "gg_bgpix", "gg_objpix", "gg_pixrgb", "gg_linestate", "gg_pixlines", "gpgx_blip_deltas"],
     ...tileDeep(),
   },
   gb: {
@@ -118,7 +119,7 @@ export const CAPABILITIES = {
       "gb_bgpdata", "gb_objpdata", "gb_cpu_regs",
       /* universal redraw capture planes */
       "gb_lineregs", "gb_bgpix", "gb_sprpix", "gb_palline",
-      "gb_bgcol15", "gb_sprcol15"],
+      "gb_bgcol15", "gb_sprcol15", "gb_lcdlog", "gb_apu_raw"],
     ...tileDeep(),
   },
   gbc: {
@@ -129,14 +130,14 @@ export const CAPABILITIES = {
       "gb_bgpdata", "gb_objpdata", "gb_cpu_regs",
       /* universal redraw capture planes */
       "gb_lineregs", "gb_bgpix", "gb_sprpix", "gb_palline",
-      "gb_bgcol15", "gb_sprcol15"],
+      "gb_bgcol15", "gb_sprcol15", "gb_lcdlog", "gb_apu_raw"],
     ...tileDeep(),
   },
   gba: {
     cpuFamily: "arm", decompileQuality: "excellent",
     cpus: { main: "arm", secondary: [] },
     audioChips: ["gba"],
-    memoryRegions: [...GENERIC_REGIONS, "gba_cpu_regs", "gba_io_regs", "gba_palette", "gba_oam"],
+    memoryRegions: [...GENERIC_REGIONS, "gba_cpu_regs", "gba_io_regs", "gba_palette", "gba_oam", "gba_iwram", "gba_timing", "gba_audio_raw"],
     // GBA: the patched mgba regions give MORE than BUILDING.md's old "shallow"
     // prose implied - inspectSprites/Palette + renderingContext + cpuState +
     // audioDebug are all wired (per the tool Supported lists). cart extract/wrap
@@ -222,7 +223,7 @@ export const CAPABILITIES = {
     // memory works - the romdev patch exposes the full 64KB PICO-8 address space as
     // system_ram (sprite sheet, map, flags, music, sfx, general RAM, screen buffer).
     // disasm here is target:'source' - the cart IS Lua source, so we return the Lua
-    // itself (the honest "understand this cart" path), not a machine-code listing.
+    // itself (the real "understand this cart" path), not a machine-code listing.
     // It renders to a 128×128 framebuffer (poke to screen memory), so the inspect-*
     // tile/sprite-table tools are N/A like gametank/the disc platforms.
     // tier:"fantasy" - a fantasy console (Lua VM), not a CPU emulator. Held to its OWN
@@ -244,7 +245,7 @@ export const CAPABILITIES = {
     },
   },
   sync32: {
-    // monteslu's RP2350 console (Cortex-M33 games as .s32 ROMs), emulated by
+    // sync32, an RP2350-based console (Cortex-M33 games as .s32 ROMs), emulated by
     // s32core - a first-party pure-C interpreter (11-cart byte-exact
     // differential suite against the Unicorn reference emulator lives in the
     // s32core repo). tier:"arm" - new 32-bit tier, analysis/inspectors land
@@ -261,7 +262,7 @@ export const CAPABILITIES = {
     // system_ram IS the console's 520KB SRAM at 0x20000000 - a game's globals,
     // its stack, and in ram mode its code. The sync32_* regions are the
     // debugger views the core exposes on top.
-    memoryRegions: ["system_ram", "sync32_cpu_regs", "sync32_palette", "sync32_canvas", "sync32_sheet0"],
+    memoryRegions: ["system_ram", "sync32_cpu_regs", "sync32_palette", "sync32_canvas", "sync32_sheet0", "sync32_timing", "sync32_profile"],
     renderingKind: "framebuffer", introspection: "shallow",
     // The framebuffer region the flat-renderer naReasons point at (the shared
     // text used to name `video_ram`, which this platform does not have).

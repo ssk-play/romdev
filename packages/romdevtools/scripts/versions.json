@@ -20,6 +20,26 @@
     "so an emsdk bump is a deliberate change."
   ],
   "emsdk": "4.0.18",
+  "wasm_toolchain": {
+    "_comment": "Python-free emcc (scripts/wasm-emcc/): LLVM, binaryen and emscripten's own JS, all run from node. Fetched by scripts/wasm-emcc/fetch-wasm-toolchain.mjs into build/wasm-toolchain. See internal-romdev/PLAN_no_python_wasm_toolchain.md.",
+    "npm": {
+      "@yowasp/clang": "22.0.0-git20542-10",
+      "binaryen": "124.0.0-nightly.20251021",
+      "acorn": "8.15.0"
+    },
+    "emscripten": {
+      "kind": "tarball",
+      "url": "https://github.com/emscripten-core/emscripten/archive/refs/tags/4.0.18.tar.gz",
+      "sha256": "a35d47135c19e244110c42129c99acdfe7313e2d212cfa513ac13212664948e4",
+      "license": "MIT / University of Illinois NCSA"
+    },
+    "zlib": {
+      "kind": "tarball",
+      "url": "https://github.com/madler/zlib/archive/refs/tags/v1.3.1.tar.gz",
+      "sha256": "17e88863f3600672ab49182f217281b6fc4d3c762bde361935e436a95214d05c",
+      "license": "zlib"
+    }
+  },
   "cores": {
     "fceumm": {
       "kind": "git",
@@ -67,6 +87,29 @@
       "platforms": [
         "snes"
       ]
+    },
+    "bsnes": {
+      "kind": "git",
+      "url": "https://github.com/libretro/bsnes.git",
+      "ref": "master",
+      "commit": "63ee22f7af8f5d1ada295c2c98fd7bf261fa62a7",
+      "license": "GPL-3.0-only (bsnes; libco and nall ISC)",
+      "patch": "scripts/patches/bsnes-romdev.patch",
+      "platforms": [
+        "snes"
+      ],
+      "note": "accuracy reference for the SNES coprocessors that run firmware (ST010/ST011 on the uPD96050, ST018 on the ARM); package romdev-core-bsnes"
+    },
+    "ares": {
+      "kind": "git",
+      "url": "https://github.com/ares-emulator/ares.git",
+      "ref": "master",
+      "commit": "4cb8d92b441557cb6bcaf133c4cbc7f6819b1122",
+      "license": "ISC (ares; Copyright (c) 2004-2025 ares team, Near et al)",
+      "platforms": [
+        "snes"
+      ],
+      "note": "source of the SNES firmware coprocessors transplanted into snes9x and recompiled carts: ares component/processor/upd96050 (ST010/ST011) and arm7tdmi (ST018) with drivers re-derived from ares/sfc/coprocessor/necdsp and armdsp; scripts/recompile-gen/ares-chips.mjs, scripts/build-snes9x.sh. Fetched only, never built as a core."
     },
     "stella2014": {
       "kind": "git",
@@ -172,6 +215,18 @@
       "platforms": [
         "pico8"
       ]
+    },
+    "flycast": {
+      "kind": "git",
+      "url": "https://github.com/flyinghead/flycast.git",
+      "ref": "master",
+      "commit": "1251a53aed36da52ddd3499152d12a85b53d8e8c",
+      "license": "GPL-2.0-or-later",
+      "patch": "scripts/patches/flycast-romdev-wasm-dynarec.patch",
+      "note": "The commit the shipped romdev-core-flycast was built from. build-flycast.sh applies the patch, its in-script edits and the WASM SH-4 backend in patches/flycast-wasm-jit/; submodules are taken at the commits this flycast commit records.",
+      "platforms": [
+        "dreamcast"
+      ]
     }
   },
   "toolchains": {
@@ -224,18 +279,6 @@
       "license": "GPL-2.0",
       "platforms": [
         "atari2600"
-      ]
-    },
-    "vasm68k": {
-      "kind": "tarball",
-      "url": "http://sun.hasenbraten.de/vasm/release/vasm.tar.gz",
-      "ref": "rolling-release (no archived versions)",
-      "version": "rolling (sha-pinned 2026-05-29; upstream tarball carries no version label)",
-      "sha256": "c73702574e8d6a154a7d64f22d7b618d0b85ace98ec9eb63d5e7c5ec696e3a6b",
-      "license": "vasm (free for any use)",
-      "note": "Upstream serves only a rolling 'latest' tarball with no version in the URL. sha256 is our only drift detector \u2014 fill it after the next clean build and treat a mismatch as a deliberate bump.",
-      "platforms": [
-        "genesis"
       ]
     },
     "rgbds": {
@@ -301,10 +344,201 @@
       "platforms": [
         "genesis"
       ]
+    },
+    "armips": {
+      "kind": "git",
+      "url": "https://github.com/Kingcom/armips.git",
+      "ref": "master",
+      "commit": "62adab4ef30da765f5cf22a451eb08a59c54dc8b",
+      "license": "MIT",
+      "patch": "scripts/patches/armips-wasm-single-thread.patch",
+      "platforms": [
+        "n64"
+      ],
+      "note": "Assembler for the N64 RSP microcode a decomp project rebuilds from source. Built to WASM by build-armips.sh with std::filesystem (no ext/filesystem submodule); ships in romdev-toolchain-mips-gcc beside the mips-linux-gnu binutils. The commit N64 decomp projects' armips install scripts pin."
+    },
+    "kmc_gcc": {
+      "kind": "git",
+      "url": "https://github.com/decompals/mips-gcc-2.7.2.git",
+      "ref": "main",
+      "commit": "43d1cdb67ed135879869b5266f01efaaada5e35a",
+      "license": "GPL-2.0",
+      "patch": "scripts/patches/kmc-gcc-2.7.2-wasm.patch",
+      "platforms": [
+        "n64"
+      ],
+      "note": "gcc 2.7.2 as N64 SDK (KMC) decomp projects compile with: the driver, cccp and cc1, built to WASM by build-decomp-gcc.sh into romdev-toolchain-decomp-gcc (wasm/kmc-2.7.2/)."
+    },
+    "kmc_binutils": {
+      "kind": "git",
+      "url": "https://github.com/decompals/mips-binutils-2.6.git",
+      "ref": "master",
+      "commit": "54514ded39ceb32165a125ddba04ca5b551773a2",
+      "license": "GPL-2.0",
+      "patch": "scripts/patches/kmc-binutils-2.6-wasm.patch",
+      "platforms": [
+        "n64"
+      ],
+      "note": "The binutils 2.6 assembler (with --force-n64align) paired with KMC gcc 2.7.2; built to WASM by build-decomp-gcc.sh. The reference assembler is an x86_64 glibc binary; the patch lays obstack chunks and frags out as there, so gas splits frags at the same places."
+    },
+    "egcs_gcc": {
+      "kind": "git",
+      "url": "https://github.com/decompals/mips-gcc-egcs-2.91.66.git",
+      "ref": "master",
+      "commit": "ac3419e24f024dc41a737837b3934103a58e7bbd",
+      "license": "GPL-2.0",
+      "patch": "scripts/patches/egcs-1.1.2-wasm.patch",
+      "platforms": ["n64"],
+      "note": "EGCS 1.1.2 (gcc 2.91.66) for mips-linux, the compiler N64 decomp projects build their iQue (China) versions with: driver, cccp and cc1, built to WASM by build-decomp-gcc.sh egcs into romdev-toolchain-decomp-gcc (wasm/egcs-1.1.2/)."
+    },
+    "old_gcc": {
+      "kind": "git",
+      "url": "https://github.com/decompals/old-gcc.git",
+      "ref": "master",
+      "commit": "b74211c9d959e9724802f3177c8229cd67202c87",
+      "license": "GPL-2.0",
+      "platforms": ["psx"],
+      "note": "decompals' build recipes and patches for the old gccs PS1 decomp projects compile with (gcc-2.x-psx); build-decomp-gcc.sh psx applies its gcc-2.6.3-psx steps."
+    },
+    "psx_gcc_263": {
+      "kind": "tarball",
+      "url": "https://mirrors.slackware.com/slackware/slackware-2.2.0/source/d/gcc/gcc-2.6.3.tar.gz",
+      "version": "2.6.3",
+      "sha256": "66529b6ced4ccc580ec365809c1abed856d948283deff656801dec14f47d081a",
+      "license": "GPL-2.0",
+      "patch": "scripts/patches/psx-gcc-2.6.3-wasm.patch",
+      "platforms": ["psx"],
+      "note": "gcc 2.6.3 source, the tarball old-gcc's gcc-2.6.3-psx recipe builds (the cc1 PS1 decomp projects pin as cc1-psx-26). Built to WASM (gcc driver, cc1, cpp) by build-decomp-gcc.sh psx into romdev-toolchain-decomp-gcc (wasm/psx-gcc-2.6.3/)."
+    },
+    "egcs_binutils": {
+      "kind": "git",
+      "url": "https://github.com/decompals/mips-binutils-egcs-2.9.5.git",
+      "ref": "master",
+      "commit": "d31f57d600e7d35289cb5494569b64f57570b2fb",
+      "license": "GPL-2.0",
+      "patch": "scripts/patches/egcs-binutils-2.9.5-wasm.patch",
+      "platforms": ["n64"],
+      "note": "The binutils 2.9.5 assembler paired with EGCS 1.1.2; built to WASM by build-decomp-gcc.sh egcs. The reference assembler is an x86_64 Linux binary using glibc obstacks; the patch lays obstack chunks and frags out and sizes new chunks as there, so gas splits frags (and folds label differences in .mdebug stabs) at the same places."
+    },
+    "slinky_cli": {
+      "kind": "tarball",
+      "crate": "slinky-cli",
+      "url": "https://crates.io/api/v1/crates/slinky-cli/0.5.0/download",
+      "version": "0.5.0",
+      "sha256": "98da2e6f564251e800cc8e4bd7fc813b61a71c4f4f117b7b84e0032ab921ec5f",
+      "license": "MIT",
+      "platforms": ["n64"],
+      "note": "decompals' linker-script generator, the release N64 decomp projects download as tools/slinky/slinky-cli. Built to WASM (wasm32-unknown-emscripten) by build-decomp-rust-tools.sh; ships in romdev-toolchain-decomp-gcc (wasm/tools/)."
+    },
+    "pigment64": {
+      "kind": "tarball",
+      "crate": "pigment64",
+      "url": "https://crates.io/api/v1/crates/pigment64/0.6.3/download",
+      "version": "0.6.3",
+      "sha256": "e2b2365687c1d80398066f0cd6db8ef586644218b4727efe067d1958a2e75e9b",
+      "license": "MIT",
+      "platforms": ["n64"],
+      "note": "decompals' PNG to N64 texture converter (tools/pigment64/pigment64 in decomp projects). Built to WASM by build-decomp-rust-tools.sh; ships in romdev-toolchain-decomp-gcc (wasm/tools/)."
+    },
+    "crunch64_cli": {
+      "kind": "git",
+      "url": "https://github.com/decompals/crunch64.git",
+      "ref": "0.6.1",
+      "commit": "223aefbf5ef83009f143c843a10eb3c5e086778c",
+      "version": "0.6.1",
+      "license": "MIT",
+      "platforms": ["n64"],
+      "note": "decompals' N64 compression library (gzip/yay0/yaz0/mio0) behind a CLI; the same crunch64 release decomp projects' Python ROM compressors call. Built to WASM by build-decomp-rust-tools.sh; ships in romdev-toolchain-decomp-gcc (wasm/tools/)."
+    },
+    "psx_decomp_tools": {
+      "kind": "git",
+      "url": "https://github.com/Xeeynamo/sotn-decomp.git",
+      "ref": "master",
+      "commit": "ea06850554ed29156cbabb1c7975c809b4cfef89",
+      "license": "AGPL-3.0",
+      "platforms": ["psx"],
+      "note": "A PS1 decomp project's own setup tools, built from the project tree at this commit and shipped under neutral names: psx-str from tools/<name>_str (Rust string encoder, cpp | <name>_str process | iconv) by build-decomp-rust-tools.sh, psx-disk from tools/<name>-disk (CD image extractor) and psx-assets from tools/<name>-assets (asset extract/build) (Go) by build-decomp-go-tools.sh, each from a rewritten copy that carries none of the game's names (src/decomp-go-wasip1/gen-source.mjs, src/psx-str/gen-source.mjs). Ship in romdev-toolchain-decomp-gcc (wasm/tools/)."
+    },
+    "go_toolchain": {
+      "kind": "tarball",
+      "url": "https://go.dev/dl/go1.27.1.linux-amd64.tar.gz",
+      "version": "1.27.1",
+      "sha256": "63d339f0da5ab53635a56f2490a7984dfe12dfcff22ad749f63edaf590168445",
+      "license": "BSD-3-Clause",
+      "platforms": ["psx"],
+      "note": "Official Go toolchain, a build-time dependency only (like cargo/emcc): build-decomp-go-tools.sh unpacks it under build/ and compiles Go tools with GOOS=wasip1 GOARCH=wasm. Module dependencies come from the tools' go.sum through proxy.golang.org (GOFLAGS=-mod=readonly)."
+    },
+    "rabbitizer_1_16_2": {
+      "kind": "git",
+      "url": "https://github.com/Decompollaborate/rabbitizer.git",
+      "ref": "1.16.2",
+      "commit": "724a49a5b4dbfb99f1a9e6992e63964fd29c90c8",
+      "version": "1.16.2",
+      "license": "MIT",
+      "platforms": ["n64", "psx", "ps2", "psp"],
+      "note": "MIPS instruction decoder (C library) that spimdisasm 1.42.4 calls through its Python extension. Built to WASM by build-rabbitizer.sh; ships in romdev-rabbitizer (wasm/rabbitizer-1.16.2.wasm) behind a JS binding that mirrors the Python module API."
+    },
+    "rabbitizer_1_14_3": {
+      "kind": "git",
+      "url": "https://github.com/Decompollaborate/rabbitizer.git",
+      "ref": "1.14.3",
+      "commit": "d5804fa488474830a47fbf9f3693048ec1e45589",
+      "version": "1.14.3",
+      "license": "MIT",
+      "platforms": ["n64", "psx", "ps2", "psp"],
+      "note": "MIPS instruction decoder (C library) that spimdisasm 1.39.3 calls through its Python extension. Built to WASM by build-rabbitizer.sh; ships in romdev-rabbitizer (wasm/rabbitizer-1.14.3.wasm) behind a JS binding that mirrors the Python module API."
+    },
+    "rabbitizer_1_13_0": {
+      "kind": "git",
+      "url": "https://github.com/Decompollaborate/rabbitizer.git",
+      "ref": "1.13.0",
+      "commit": "1df4709dcc927d9d9cc5859a6e7eb98e864f8468",
+      "version": "1.13.0",
+      "license": "MIT",
+      "platforms": ["n64", "psx", "ps2", "psp"],
+      "note": "MIPS instruction decoder (C library) that spimdisasm 1.35.0 calls through its Python extension. Built to WASM by build-rabbitizer.sh; ships in romdev-rabbitizer (wasm/rabbitizer-1.13.0.wasm) behind a JS binding that mirrors the Python module API."
+    },
+    "ido_static_recomp": {
+      "kind": "git",
+      "url": "https://github.com/decompals/ido-static-recomp.git",
+      "ref": "master",
+      "commit": "5a220629edb99040777fdba0b8f6db6c50246e2d",
+      "license": "ido-static-recomp: MIT (recompiler); IRIX IDO binaries it translates: see ido/<ver>/LICENSE.md upstream",
+      "patch": "scripts/patches/ido-static-recomp-wasm.patch",
+      "platforms": [
+        "n64"
+      ],
+      "note": "IDO 5.3 + 7.1 statically recompiled to C by the pinned recomp, then compiled to WASM by build-ido.sh into the private romdev-toolchain-ido package. IDO is proprietary and is never published; users build it themselves. Same commit the decompals N64 projects pin as their submodule."
     }
   },
   "heavy_toolchains": {
     "_comment": "GCC-family cross-toolchains \u2014 NOT covered by the light build image; need a native cross-gcc bootstrap. Pins recorded for completeness.",
+    "binutils_mips_linux": {
+      "kind": "tarball",
+      "url": "https://ftp.gnu.org/gnu/binutils/binutils-2.46.0.tar.xz",
+      "version": "2.46.0",
+      "sha256": "d75a94f4d73e7a4086f7513e67e439e8fcdcbb726ffe63f4661744e6256b2cf2",
+      "license": "GPL-3.0",
+      "note": "binutils for target mips-linux-gnu (the traditional-MIPS ELF vectors N64 decomp projects assemble, link and objcopy with). Built to WASM by build-mips-linux-binutils-wasm.sh; ships as mips-linux-gnu-{as,ld,objcopy,objdump} in romdev-toolchain-mips-gcc. The mips-elf tools cannot stand in: their IRIX-compatible vector names section symbols in .strtab and reorders symbols, so objects differ byte-for-byte."
+    },
+    "gcc_mips_linux": {
+      "kind": "tarball",
+      "url": "https://ftp.gnu.org/gnu/gcc/gcc-14.2.0/gcc-14.2.0.tar.xz",
+      "version": "14.2.0",
+      "sha256": "a7b39bc69cbf9e25826c5a60ab26477001f7c08d85cec04bc0e29cabed6f3cc9",
+      "license": "GPL-3.0",
+      "patch": "scripts/patches/gcc-14-driver-wasm-spawn.patch",
+      "distro_patch": "scripts/patches/gcc-14-debian-distro-specs.patch",
+      "note": "gcc for target mips-linux-gnu (driver, cpp, cc1), the modern cross gcc N64 decomp projects compile data-only TUs and preprocess .s files and linker scripts with. Built to WASM by build-mips-linux-gcc-wasm.sh with Debian trixie's gcc-14-cross-mipsen (14.2.0-13cross1) target configuration and distro specs (distro_patch); ships in romdev-toolchain-decomp-gcc (wasm/mips-linux-gnu-14.2/). Same gcc release as romdev-toolchain-mips-gcc's cc1."
+    },
+    "libc6_dev_mips_cross": {
+      "kind": "tarball",
+      "url": "https://snapshot.debian.org/archive/debian/20250109T144951Z/pool/main/c/cross-toolchain-base-mipsen/libc6-dev-mips-cross_2.40-5cross1_all.deb",
+      "version": "2.40-5cross1",
+      "sha256": "0d1c4e254c37e3a4dcde37c9cba4971df5fae3a4cab4ada6c0689f2984b53239",
+      "license": "LGPL-2.1-or-later",
+      "note": "Debian trixie's glibc headers for mips-linux-gnu. build-mips-linux-gcc-wasm.sh takes only usr/mips-linux-gnu/include/stdc-predef.h from it (ar + tar at build time) into wasm/mips-linux-gnu-14.2/mips-linux-gnu/include/, where the WASM cpp pre-includes it the way Debian's cross cpp does."
+    },
     "binutils": {
       "kind": "tarball",
       "version": "2.42",
@@ -360,14 +594,6 @@
       "commit": "c40f61621b4561da8da538ce3b12cd8892a59a93",
       "license": "LGPL-3.0-only",
       "_comment": "Phase 3: Ghidra C++ decompiler via rz-ghidra. Not built yet."
-    },
-    "meson": {
-      "kind": "tarball",
-      "url": "https://github.com/mesonbuild/meson/releases/download/1.6.1/meson-1.6.1.tar.gz",
-      "version": "1.6.1",
-      "sha256": "1eca49eb6c26d58bbee67fd3337d8ef557c0804e30a6d16bfdf269db997464de",
-      "license": "Apache-2.0",
-      "_comment": "Pure-python build tool for rizin; used standalone, no install."
     },
     "sleigh_specs": {
       "_comment": "External Ghidra SLEIGH specs for the 3 CPUs stock Ghidra lacks (SM83/65816/HuC6280). Compiled to .sla by build-decompiler.sh; only the compiled .sla ships, never the .slaspec source.",

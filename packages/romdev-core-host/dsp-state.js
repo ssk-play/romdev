@@ -1,6 +1,6 @@
 // SNES S-DSP state introspection.
 //
-// Per the rom-games agent's audio-debugging asks: distinguish "voice
+// Purpose: distinguish "voice
 // never produced output" (BRR/envelope issue) from "voice produced
 // output but mixer muted it" (master volume issue). The data lives in
 // the savestate's "SND" block, AFTER the SMP::save_state region. We
@@ -156,7 +156,7 @@ export function decodeSnes9xDSP(state) {
   // rather than `kon` / `koff` / `endx` (state names) so callers don't
   // mistake the byte for a live interpretation. Field names are still
   // memorable (the address IS the canonical DSP register name) but
-  // semantically honest about what you're reading.
+  // semantically accurate about what you're reading.
   //
   // Source: snes9x/src/apu/bapu/dsp/SPC_DSP.h r_* constants; .cpp KON/
   // ENDX special-case write handling at lines 285-291.

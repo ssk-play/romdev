@@ -6,7 +6,9 @@
 // Idempotent per server instance - installs once, repeats are no-ops.
 
 import { observer, extractImages, summarizeForLog, pushObserverFrame } from "./bus.js";
+import { noteToolCall } from "../mcp/autoplay.js";
 import { getHostOrNull } from "../mcp/state.js";
+import { floodWarning } from "./request-stats.js";
 
 const INSTALLED = Symbol.for("romdev.observer-installed");
 
@@ -38,6 +40,9 @@ export function installObserverMiddleware(server, sessionKey) {
 
     const wrappedHandler = async (args, extra) => {
       const startedAt = Date.now();
+      // A real-time host({op:'play'}) run on this session ends when the agent
+      // drives again (autoplay.js).
+      try { noteToolCall(sessionKey, name, args); } catch { /* never blocks a call */ }
       let result;
       let thrown;
       try {
@@ -125,6 +130,11 @@ export function installObserverMiddleware(server, sessionKey) {
       // Fire-and-forget - emit is synchronous + we don't block the
       // tool response on observer delivery.
       try { observer.push(event); } catch { /* never let observer kill the tool */ }
+      // A session looping per-item calls hears about it in the response it
+      // is already reading (see request-stats.js floodWarning).
+      if (!thrown && result && Array.isArray(result.content)) {
+        try { const flood = floodWarning(sessionKey, name); if (flood) result.content.push({ type: "text", text: flood }); } catch { /* advisory only */ }
+      }
 
       // Deferred frame: encoded + pushed AFTER the agent's response goes out,
       // throttled to one per 2s PER (session, tool) with a trailing-edge

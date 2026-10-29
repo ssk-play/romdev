@@ -23,8 +23,7 @@
 // come from the transport at all. Introducing the indirection now, while the
 // transport still supplies an id, means the stateless migration changes which
 // branch fires -- not the identity model, and not any handler.
-//
-// See internal-romdev/PLAN_mcp_v2_stateless_and_host_lifetime.md (workstream B).
+
 
 import { randomUUID } from "node:crypto";
 
@@ -149,7 +148,7 @@ export function resolveSessionKey({ meta, headers, transportSessionId, args, soc
  *
  * A minted key is a session the caller cannot name, so it cannot send the same
  * one twice: every request gets a brand-new empty session. `loadMedia` then
- * honestly reports `loaded:true` (it DID load, into that request's throwaway
+ * correctly reports `loaded:true` (it DID load, into that request's throwaway
  * session), and the very next call lands somewhere else and reports "No ROM
  * loaded" - with `catalog({op:'status'})` showing `loaded:false` alongside
  * `liveHosts:1`, because the host from the previous request really is still

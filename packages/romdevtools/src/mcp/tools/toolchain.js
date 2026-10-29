@@ -295,7 +295,7 @@ export function registerToolchainTools(server, z, sessionKey) {
       }
       // linkerConfigPath: read the .cfg from disk so a large multi-bank
       // config (e.g. a disasm'd mapper-2 rebuild) isn't re-streamed through
-      // context on every build (0.27.0 feedback #2).
+      // context on every build.
       if (linkerConfigPath && linkerConfig == null) {
         linkerConfig = await readFile(linkerConfigPath, "utf-8");
       }
@@ -476,10 +476,10 @@ export function registerToolchainTools(server, z, sessionKey) {
         ? d.consumeHint(
             "show-after-first-build",
             "Build succeeded - your user can watch the game live by calling " +
-            "loadCategory({category:'show'}) then playtest({}). It returns immediately " +
+            "playtest({}). It returns immediately " +
             "and the window follows your rebuilds, so the emulator stays available to " +
-            "all other tools (screenshot, readMemory, saveState, pause, stepFrames, ...) " +
-            "while the human plays - screenshot() shows the same frame the human sees. " +
+            "all other tools (frame, memory, state, host, ...) " +
+            "while the human plays - frame({op:'screenshot'}) shows the same frame the human sees. " +
             "Recommended early in any session where a user is watching."
           )
         : null;
@@ -530,7 +530,7 @@ export function registerToolchainTools(server, z, sessionKey) {
       }
       // Symbols/map info: only include when the underlying toolchain
       // produced something. SDCC stuffs the .map file here; cc65 writes
-      // a .sym table; vasm68k emits a listing. Keep it small.
+      // a .sym table; Genesis asm emits a label map. Keep it small.
       if (result.symbols && result.symbols.length > 0) {
         payload.symbolsBytes = result.symbols.length;
         // Don't embed the whole map by default - it can be 30+ KB on
@@ -539,7 +539,7 @@ export function registerToolchainTools(server, z, sessionKey) {
         if (includeSymbols) {
           payload.symbols = result.symbols;
         } else {
-          payload.symbolsHint = "Pass `includeSymbols: true` to get the full .map/.sym text inline. Or call `addressToSymbol({pc})` to look up a single address without loading it.";
+          payload.symbolsHint = "Pass `includeSymbols: true` to get the full .map/.sym text inline. Or call `symbols({op:'addr', pc})` to look up a single address without loading it.";
         }
       }
       return jsonContent(payload);
@@ -573,7 +573,7 @@ export function registerToolchainTools(server, z, sessionKey) {
         if (r.linkerConfig != null && linkerConfig == null) linkerConfig = r.linkerConfig;
         if (r.runtime != null && runtime == null) runtime = r.runtime;
         if (r.maxmod != null && maxmod == null) maxmod = r.maxmod;
-        // Single-source toolchains (dasm/atari2600, vasm/asm) need `source`, not
+        // Single-source toolchains (dasm/atari2600, genesis asm) need `source`, not
         // a `sources` map. Collapse a lone source so those targets build via the
         // dir path too. (resolveLinkerConfig support-sources, if any, force the
         // map form below.)
@@ -581,7 +581,7 @@ export function registerToolchainTools(server, z, sessionKey) {
         if (srcNames.length === 1 && r.crt0 == null && r.linkerConfig == null) {
           // Leave `source` null and set sourcePath - runSourceImpl reads it +
           // derives sourceName (extension) for language inference. Single-source
-          // targets (dasm/vasm) require this form, not a `sources` map.
+          // targets (dasm, genesis asm) require this form, not a `sources` map.
           sourcePath = path.join(projPath, srcNames[0]);
         } else {
           sources = r.sources;
@@ -806,7 +806,7 @@ export function registerToolchainTools(server, z, sessionKey) {
     "• output:'rom' (default) - assemble or compile `source` (single) / `sources` ({name:contents}) / `sourcePath` / `sourcesPaths`. Returns the ROM (path by default; `inline:true` for binaryBase64) + build log. **`binaryIncludes`/`binaryIncludePaths` (base64/path CHR-ROM, music blobs for `.incbin`) - WITHOUT them no game with external assets builds.** `includes`/`includePaths` for `.include`d text. `linkerConfig` (cc65; NES preset 'chr-ram-runtime' RECOMMENDED). `crt0`/`crt0Path`/`codeLoc`/`dataLoc` (SDCC). `runtime`/`maxmod`/`rebuildSdk` (GBA/Genesis SDK). **`lint:'strict'` fails the build (stage:'lint', no binary) if the pre-flight SDCC crash-pattern scan flags anything (e.g. the uint8 loop-bound trap); 'advisory' (default) just lists hits in issues[].** **`includeSymbols:true` returns the .map text inline on a PLAIN rom build - distinct from output:'romWithDebug' which writes .dbg/.map FILES.** Language is inferred from extension/content - usually OMIT `language`.\n" +
     "• output:'romWithDebug' - like 'rom' but also emits linker debug info for the `symbols` tool: cc65 → `.dbg`, SDCC → sdld `.map`, Genesis m68k → GNU ld map (find where a RAM var landed). DEFAULT writes ROM + debug file + log to disk (`outputPath` required unless `inline:true`). **`resolveSymbols:['grid','score']` folds those names' addresses ({resolvedSymbols:{grid:{address,hex,region?,ramOffset?}}}) straight into the result - the cheap way to a WRAM variable's address without loading the whole map (or round-tripping it through `symbols`).**\n" +
     "• output:'run' - BUILD + LOAD + RUN + SCREENSHOT in one round trip - the fastest iteration loop. Same build args; runs `frames` frames and returns the screenshot INLINE. `holdInputs` holds controller state; `screenshotPath` writes the PNG to disk instead; `projectName` titles the playtest window.\n" +
-    "• output:'project' - build a project DIRECTORY (`path`) without re-passing the file manifest each call. Entry point auto-detects `main.c` (C/SGDK Genesis, GBA, cc65/SDCC C) OR `main.s`/`main.asm` (asm); pass `entry:'smw.asm'` to point at a differently-named top-level file (e.g. an existing disassembly). Every `.c`/`.s`/`.asm` in the dir is a translation unit (linked together) - `exclude:['asset_check.c']` keeps a second entry point (a test harness beside the game) out of the link; `includeDirs:['/abs/shared']` pulls headers from OUTSIDE the dir - every `.h`/`.inc` an include, and `.bin/.chr/.pcm/.brr/.vgm/...` (recursively, including subdirectories) become binaryIncludes (for `.incbin`). `options` (e.g. asar `--define _VER=1`) and `defines` are honored here too. Iterate an on-disk project by re-calling with just `{path, platform}`. **This is the no-boilerplate path for an examples({op:'fork'}) dir: the per-platform recipe auto-supplies the crt0 + load address - GB/GBC default `gb_crt0.s` + `codeLoc:0x150` (don't hand-pass them!), MSX routes `msx_crt0.s` + `codeLoc:0x4010`, SMS/GG auto-inject their bundled crt0, NES applies the chr-ram-runtime preset. PREFER this over re-passing `crt0Path`/`codeLoc` to output:'rom' for a forked project.**\n" +
+    "• output:'project' - build a project DIRECTORY (`path`) without re-passing the file manifest each call. Entry point auto-detects `main.c` (C/SGDK Genesis, GBA, cc65/SDCC C) OR `main.s`/`main.asm` (asm); pass `entry:'game.asm'` to point at a differently-named top-level file (e.g. an existing disassembly). Every `.c`/`.s`/`.asm` in the dir is a translation unit (linked together) - `exclude:['asset_check.c']` keeps a second entry point (a test harness beside the game) out of the link; `includeDirs:['/abs/shared']` pulls headers from OUTSIDE the dir - every `.h`/`.inc` an include, and `.bin/.chr/.pcm/.brr/.vgm/...` (recursively, including subdirectories) become binaryIncludes (for `.incbin`). `options` (e.g. asar `--define _VER=1`) and `defines` are honored here too. Iterate an on-disk project by re-calling with just `{path, platform}`. **This is the no-boilerplate path for an examples({op:'fork'}) dir: the per-platform recipe auto-supplies the crt0 + load address - GB/GBC default `gb_crt0.s` + `codeLoc:0x150` (don't hand-pass them!), MSX routes `msx_crt0.s` + `codeLoc:0x4010`, SMS/GG auto-inject their bundled crt0, NES applies the chr-ram-runtime preset. PREFER this over re-passing `crt0Path`/`codeLoc` to output:'rom' for a forked project.**\n" +
     "• output:'reassemble' - **the UNIFORM byte-exact ROUND-TRIP**: rebuild a `disasm({target:'project'})` output dir (`path`) into a byte-identical ROM in ONE call, on EVERY classic platform (NES/SNES/Genesis/GB/GBC/SMS/GG/MSX/GBA/C64/Atari/PCE/Lynx) - not just the cc65-native subset that `rebuild.json` covers. It reads the `reassemble.json` manifest disasm wrote, ASSEMBLES each region `.asm` with the platform's native assembler (ca65 for 6502/65816, GNU-as for m68k/arm/z80/sm83), and SPLICES each result into a copy of the original ROM (`original.rom`, kept in the dir) at its file offset - so the cartridge header, inter-region gaps, and trailing pad return verbatim. Returns `{ok, byteExact, outputPath, regions:[{file,byteExact,...}]}` (a failed region carries structured `issues[]` - {file,line,message} pointing at the REGION'S source file, ANSI-free); writes the ROM to `outputPath` (or `<dir>/rebuilt.<ext>` by default). **This is the 'cmp before commit' gate for a ROM-hacking / annotation workflow: edit a region `.asm`, call this, get a byte-identical ROM back (or a precise per-region mismatch if your edit changed a region's length).** `byteExact:true` = the rebuild equals `original.rom` exactly.",
     {
       output: z.enum(["rom", "romWithDebug", "run", "project", "reassemble"])
@@ -844,7 +844,7 @@ export function registerToolchainTools(server, z, sessionKey) {
       maxmod: z.boolean().optional().describe("GBA - link maxmod for music (libmm.a). You still call mmInit/mmStart + hook mmVBlank."),
       rebuildSdk: z.boolean().optional().describe("GBA + Genesis - rebuild the bundled SDK (libtonc/libgba/maxmod/SGDK) from vendored source instead of the prebuilt seed (~20-40s). Only if you edited SDK source (else an `sdkEditIgnored` warning fires)."),
       lint: z.enum(["advisory", "strict"]).default("advisory").describe("output:'rom' SDCC - 'advisory' (default, warnings in issues[]) or 'strict' (any lint warning fails the build with stage:'lint' before the compiler runs - the SDCC crash-pattern guard)."),
-      includeSymbols: z.boolean().default(false).describe("output:'rom' - return the toolchain's symbol/map text inline (sdld .map / cc65 .sym). False = only symbolsBytes (call symbols/addressToSymbol to look up a PC). Maps can be 30+ KB."),
+      includeSymbols: z.boolean().default(false).describe("output:'rom' - return the toolchain's symbol/map text inline (sdld .map / cc65 .sym). False = only symbolsBytes (call symbols({op:'addr'}) to look up a PC). Maps can be 30+ KB."),
       resolveSymbols: z.array(z.string()).optional().describe("output:'romWithDebug' - resolve just these symbol NAMES (e.g. ['grid','score']) off the freshly-produced .dbg/.map and fold {resolvedSymbols:{grid:{address,hex,region?,ramOffset?}}} into the result. The CHEAP path to a WRAM variable's address: you get the addresses you asked for WITHOUT the 30-60KB map entering your context. Genesis work-RAM symbols come back with `ramOffset` for memory({region:'system_ram', offset}). Names that don't resolve are listed in `unresolvedSymbols`."),
       // run-only
       frames: z.number().int().min(1).max(100000).default(60).describe("output:'run' - frames to run before the screenshot (default 60)."),
@@ -856,7 +856,7 @@ export function registerToolchainTools(server, z, sessionKey) {
       title: z.string().optional().describe("sync32 - game name in the cart header, shown by the launcher (16 bytes, truncated). Defaults to `projectName` or 'untitled'."),
       id: z.string().optional().describe("sync32 - 8-byte save-file key in the cart header. Defaults to a slug of `title`; set it explicitly if the game already has saves in the wild."),
       mode: z.enum(["ram", "xip"]).optional().describe("sync32 - memory mode, selecting the SDK linker script and the image base: 'ram' (0x20030000, default) or 'xip' (0x10100000, execute-in-place from flash)."),
-      video: z.enum(["240", "180"]).optional().describe("sync32 - video mode the game requests (default '240')."),
+      video: z.enum(["240", "180", "128"]).optional().describe("sync32 - video mode the game requests (default '240'): '240' = 320x240 canvas; '180' = 320x180 letterbox; '128' = 128x128 canvas with a 128-byte stride, which the console shows at an exact 3x (384x384 centred in its 640x480 HDMI output) and the emulator emits at a native 128x128 (frame screenshots are 128x128). '128' is for PICO-8-style carts."),
       api: z.number().int().min(1).optional().describe("sync32 - minimum console API version the game requires; use 2 if it calls the disk functions (default 1)."),
       linkOptions: z.array(z.string()).optional().describe("sync32 - extra linker flags (the SDK's LDFLAGS_EXTRA), e.g. '--defsym=S32_STACK=0xA000' to raise the stack reservation for a deeply recursive port."),
       data: z.record(z.string()).optional().describe("sync32 - resource files the game reads through the disk API, as {filename: base64}. Passing any switches the output to the ARCHIVE form (main.s32e + info.txt + your files, tarred into one .s32), because a game with resources needs its namespace to travel with it. Set `api:2` if the game calls the disk functions."),
@@ -866,7 +866,7 @@ export function registerToolchainTools(server, z, sessionKey) {
       form: z.enum(["archive", "folder"]).optional().describe("sync32 with `data` - which shipping form to produce. 'archive' (default) is the single-file tar: main.s32e + info.txt + your files in one .s32, the shape you distribute. 'folder' writes the bare executable to `outputPath` and its resources into a sibling '<name>/' directory - REQUIRED if you want to run the cart in romdev, because the emulator core loads a bare executable and reads its data dir from disk; it does not unpack a tar."),
       // project-only
       path: z.string().optional().describe("output:'project' - absolute path to the project directory."),
-      entry: z.string().optional().describe("output:'project' - name of the top-level source file when it isn't main.c/main.s/main.asm (e.g. 'smw.asm' for an existing disassembly). Project-relative or a bare filename. Default: auto-detect main.c / main.s / main.asm."),
+      entry: z.string().optional().describe("output:'project' - name of the top-level source file when it isn't main.c/main.s/main.asm (e.g. 'game.asm' for an existing disassembly). Project-relative or a bare filename. Default: auto-detect main.c / main.s / main.asm."),
       exclude: z.array(z.string()).optional().describe("output:'project' (and output:'run' with `path`) - files in the directory that must NOT be treated as sources: bare names ('asset_check.c'), simple globs ('*.test.c', 'tests/**'). For a second entry point that lives beside the game - a verification harness with its own main/game_main - without which the two link together as \"multiple definition\"."),
       includeDirs: z.array(z.string()).optional().describe("ALL outputs - absolute directories whose .h/.inc files are staged as includes, keyed by their path relative to that directory (so #include \"x.h\" and #include \"sub/x.h\" both resolve). The DIRECTORY form of `includePaths`, which is an exact virtual-name → file MAP (not a search path: omit one entry and you get a plain 'foo.h: No such file'). For a multi-target repo's shared/ headers or a whole include tree, pass the directory here instead of retyping every header."),
       // shared output
@@ -1196,7 +1196,7 @@ export async function readProjectDir(projPath, platform, opts = {}) {
   const subAssets = (await walkSubdirAssets(projPath)).filter((a) => !excluded(a.rel));
 
   // Entry override: an existing project whose top file isn't main.* (e.g.
-  // smw.asm) OR is nested (e.g. src/main.c - common for decomps/SDK projects).
+  // game.asm) OR is nested (e.g. src/main.c - common for decomps/SDK projects).
   // Accept a project-relative path or a bare name; it becomes the single entry
   // source. Resolve against BOTH the top-level files AND the recursively staged
   // subdir set, with POSIX slashes (`path.normalize` may emit `\` on Windows).
@@ -1353,7 +1353,7 @@ export async function buildProjectCore({ path: projPath, platform, outputPath, o
     crt0Rel = asm.rel;
   }
 
-  // Single-source toolchains (dasm/atari2600, vasm/asm) take `source`, not the
+  // Single-source toolchains (dasm/atari2600, genesis asm) take `source`, not the
   // multi-TU `sources` map. When the dir has exactly one source file and no
   // preset support sources, pass it as `source` so those targets still build
   // (the original asm-only buildProject behavior).

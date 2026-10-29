@@ -11,16 +11,46 @@ going on" version (via `platform({op:'doc', platform:"genesis", name:"mental_mod
 
 ## "My C build is throwing 68000 assembler errors (identifier expected / missing reset vector)"
 
-That means the file was assembled as 68k by vasm68k instead of compiled as
-C. **Genesis C builds through m68k-elf-gcc + SGDK** (`#include <genesis.h>`),
-**not** vasm68k - vasm68k is only for hand-written 68000 assembly. You do NOT
+That means the file was assembled as 68k assembly instead of compiled as
+C. **Genesis C builds through m68k-elf-gcc + SGDK** (`#include <genesis.h>`);
+the assembly path is only for hand-written 68000 assembly. You do NOT
 need to write assembly. The build now infers the language from your source
 (a `.c` file / C content → gcc), so the common cause is forcing it the wrong
 way: if you passed `language:"asm"`, drop it; if your source has no `.c`
 filename AND no obvious C tokens, pass `language:"c"` explicitly. (Reverse case:
-a `.s` asm file builds via vasm68k - that's correct.)
+a `.s` asm file builds as Motorola-syntax assembly - that's correct.)
 
-## "I drive the game with setInput but the jump/action button doesn't fire"
+## "My 68000 assembly built differently after romdevtools 0.150.0"
+
+Genesis assembly is Motorola syntax (`$hex`, `%binary`, labels in column 0,
+`;`/`*` comments, `org`, `dc.b`/`dc.w`/`dc.l`, `dcb`, `ds`, `equ`, `set`,
+`=`, `rs`/`rsreset`, `offset`, `rept`/`endr` with `REPTN`, `macro` with
+`\1`..`\9`, `\0`, `\@`, `\#` and `NARG`, `mexit`, `if`/`ifeq`/`ifd`/`ifc`/...,
+`include`, `incdir`, `incbin`, `.local` and `1$` labels, `equr`/`reg`,
+`even`/`align`/`cnop`). Since 0.150.0 it is assembled by GNU as from the bundled
+m68k-elf toolchain, through a front end that reads that syntax and keeps the
+encoding choices of the assembler romdev used before (moveq/addq/lea forms,
+shortest branches, short absolute addresses for labels below $8000), so
+existing sources build to the same bytes. The differences:
+
+- An underscore between digits is a digit separator: `$7000_0083` is
+  $70000083. It used to be read as $7000 with a warning.
+- `0x1234` is accepted as hex. It used to be read as 0 with the rest ignored.
+- A space after a comma inside an instruction's operands is skipped
+  (`move.w #$2700, sr`). It used to be an error.
+- `suba.w #$8000,An` stays a `suba`; it was rewritten into a `lea` that
+  subtracted in the wrong direction.
+- `rorg`, `comm`, `dr.b/w/l` and `dc.x`/`dc.p` floating point are reported as
+  unsupported. Section directives (`section`, `text`, `data`, `bss`) are
+  accepted and have no effect: the ROM is one flat image laid out by `org`.
+- Assembler options: `-D NAME=VALUE` (or `--define`), `-I dir` and
+  `-m68000`..`-m68060` are honored; other options are ignored with a note.
+- Diagnostics read `main.s:12: error: undefined symbol plyer_x` with
+  `issues[].stage` = `"m68k-as"`. Errors inside a macro add
+  `(in macro NAME called from file:line)`.
+- The build result now carries `symbols`: every label with its address.
+
+## "I drive the game with input({op:'set'}) but the jump/action button doesn't fire"
 
 The Genesis button map is **inverted** vs the libretro names. genesis_plus_gx
 maps Genesis A/B/C onto libretro **y/b/a** - so `input({op:'set', a:true})` presses
@@ -118,10 +148,10 @@ per-target `#ifdef` is needed.
 You listed the project's `rom_header.c` in `sourcesPaths` (or your project dir
 build picked it up). The build **supplies the header itself**: it compiles its
 own bundled `rom_header.c` and assembles `sega.s`, which carries `rom_header`
-at `.text.keepboot+0x100` - so a second copy is always a duplicate. Since
-0.136.0 `build()` drops a `rom_header.c` translation unit with a
-`droppedSources` note instead of failing; on older servers, remove it from the
-manifest. Editing `rom_header.c` in place still works - it is picked up by
+at `.text.keepboot+0x100` - so a second copy is always a duplicate. `build()`
+drops a `rom_header.c` translation unit with a `droppedSources` note instead
+of failing. If you still see this error, another file in the build also
+defines `rom_header` (a renamed copy of rom_header.c or sega.s); remove it. Editing `rom_header.c` in place still works - it is picked up by
 name - just never pass it as a source.
 
 ## "`foo.h: No such file or directory` though the file is right there"
@@ -170,7 +200,7 @@ Three layered things to check:
 
 1. **YM2612 is muted at reset.** SGDK's XGM2_init() unmutes it; if
    you're using XGM2, just call `XGM2_init()` once before
-   `XGM2_play()`. (The R58 driver fn is `XGM2_play`, not `XGM2_startPlay` -
+   `XGM2_play()`. (The driver fn is `XGM2_play`, not `XGM2_startPlay` -
    and feed it a COMPILED XGM2 blob from `encodeAudio({target:'xgm2', vgmPath})`,
    not raw VGM.)
 2. **Z80 reset/busreq isn't released.** If you bypass SGDK's sound
@@ -207,7 +237,7 @@ snapshotted.
 
 This is expected. cc1-m68k.wasm is 17.5 MB and gets mmap-loaded into
 a worker on first invocation. Subsequent builds reuse the warm worker
-pool (R12 crash-isolation infrastructure). The cold-start hit is
+pool. The cold-start hit is
 unavoidable; the steady-state cost is sub-second.
 
 ## "Genesis ROM header is wrong (region, IO support, ROM range)"
@@ -223,9 +253,9 @@ your code+data; don't hand-edit it.
 
 **Edit it in place, never list it as a source.** The build compiles its own
 copy of `rom_header.c` (and assembles `sega.s`, which also defines
-`rom_header`), so passing the project's `rom_header.c` in `sourcesPaths` is a
-guaranteed `multiple definition of 'rom_header'` - since 0.136.0 the build
-drops it with a `droppedSources` note rather than failing.
+`rom_header`), so the project's `rom_header.c` must never be a second
+source; the build drops it from `sourcesPaths` with a `droppedSources` note
+rather than failing.
 
 ## "My splash / title screen is the right shapes but all one color and choppy/striped"
 
@@ -244,9 +274,8 @@ call:
 
 ```
 # 1. Source must be 320×224.
-# 2. Quantize to the Genesis palette:
-palette({ source:'platformMaster', platform:"genesis", format:"png", outputPath:"/tmp/gen_pal.png" })
-magick splash.png -dither FloydSteinberg -remap /tmp/gen_pal.png splash_q.png
+# 2. Quantize to the Genesis palette (4 lines × 16 colours):
+encodeArt({ stage:'quantize', platform:"genesis", path:"splash.png", outputPath:"splash_q.png" })
 # 3. Convert:
 encodeArt({ stage:'tilemap', platform:"genesis", pngPath:"splash_q.png", outputDir:"splash_out/" })
 ```
@@ -270,10 +299,11 @@ First choice for any PNG → tiles+tilemap+palette conversion: the
 **`encodeArt({stage:'tilemap'})` MCP tool** (see the splash-screen section above). It
 needs no native tools and produces ready-to-DMA blobs.
 
-Some SGDK helper tools (`rescomp`, `bintos`, `convsym`) aren't ported to WASM;
-you can run them natively on a build machine to produce .bin / .o / .pal /
-.tileset blobs, then drop them into your romdev project as binary includes - the
-build will just incbin them.
+Some SGDK helper tools (`rescomp`, `bintos`, `convsym`) are not part of romdev.
+The bundled equivalents cover the same ground: `encodeArt` (tiles, tilemaps,
+palettes), `importArt` (Aseprite/Tiled/GIF/TexturePacker or another ROM) and
+`encodeAudio`. Any other blob you already have can go in through
+`binaryIncludePaths` and an `.incbin`.
 
 **Music is covered, though:** VGM→XGM2 compilation (SGDK's Java `xgm2tool`) is
 ported to pure JS and exposed as `encodeAudio({target:'xgm2', vgmPath, name})`

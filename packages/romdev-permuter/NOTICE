@@ -1,0 +1,37 @@
+romdev-permuter
+
+A plain JavaScript port of decomp-permuter
+(https://github.com/simonlindholm/decomp-permuter), pinned at commit
+41bd0bfc32aa5ea78de4cf28be603163256c2a4c. decomp-permuter is
+Copyright (c) 2019 Simon Lindholm and contributors, MIT licensed; the license
+text is in LICENSE. default_weights.toml is copied unchanged from upstream.
+
+The C parser/printer it uses is romdev-pycparser (the port of the pycparser
+fork decomp-permuter vendors as perm_pycparser; BSD, see that package).
+
+src/pyrandom.js reimplements the documented algorithms of CPython's random
+module (MT19937 and the random.py sampling methods) and src/difflib.js those of
+difflib's SequenceMatcher and unified_diff, so seeds and scores replay
+upstream's; no CPython code is included.
+
+src/pow.js ports the pow() of the ARM optimized-routines (Copyright (c) 2018,
+Arm Limited, MIT), as shipped in glibc and musl, so the permuter's weights
+equal the doubles CPython's `**` obtains from the C library; src/pow-data.js
+holds its tables, generated from musl's pow_data.c / exp_data.c by
+scripts/gen-pow-data.mjs.
+
+src/levenshtein.js ports rapidfuzz's reference Levenshtein implementation
+(Levenshtein_py.py, Editops.as_opcodes; Copyright (c) 2020 Max Bachmann, MIT),
+which the `Levenshtein` package upstream's --algorithm levenshtein uses.
+
+permuter@home (src/net/, bin/pah.mjs, bin/pah-controller.mjs) ports upstream's
+src/net/*.py and its Rust controller (src/net/controller). Its crypto is
+libsodium through libsodium.js (libsodium-wrappers, ISC; libsodium is
+Copyright (c) 2013-2025 Frank Denis, ISC), a dependency, not bundled.
+src/net/icons/*.ico are upstream's systray icons, copied unchanged. The systray
+helper itself (upstream src/net/cmd/systray, Go, MIT, Copyright (c) 2017 Zack
+Young) is not included; see src/net/systray.js.
+
+The evaluator runs jobs with romdev's WASM toolchain instead of upstream's
+Docker image: the controller's docker_image names a toolchain profile
+("romdev:ido5.3", "romdev:ido7.1" or "romdev:<name>=<program>,...").

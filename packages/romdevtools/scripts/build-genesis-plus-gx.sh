@@ -23,14 +23,17 @@ fetch_pinned cores.genesis_plus_gx "$GPGX_DIR"
 cd "$GPGX_DIR"
 # Every file the patch touches (vdp_render.c included: the patch rewrites its CRLF
 # endings, so a second run on the same tree fails --check unless it is reverted too).
-git checkout -- libretro/libretro.c core/m68k/m68kcpu.c core/m68k/m68kcpu.h core/z80/z80.c core/vdp_ctrl.c core/vdp_render.c 2>/dev/null || true
+require_git_toplevel
+git checkout -- libretro/libretro.c core/m68k/m68kcpu.c core/m68k/m68kcpu.h core/z80/z80.c core/vdp_ctrl.c core/vdp_render.c core/sound/blip_buf.c
 # --recount lets the patch survive small additions (new ROMDEV_MEMORY_*
 # region IDs etc) without re-numbering hunk headers by hand.
 if ! git apply --recount --check "$PATCH_FILE" 2>/dev/null; then
-  if grep -q "ROMDEV_MEMORY_GENESIS_CRAM" libretro/libretro.c; then
-    echo "Patch already present (sentinel ROMDEV_MEMORY_GENESIS_CRAM found); skipping apply."
+  # Accept "already applied" only when THIS patch reverse-applies cleanly; a
+  # sentinel string is also present in older revisions of the patch.
+  if patch_already_applied "$PATCH_FILE"; then
+    echo "Patch already present (reverse-applies cleanly); skipping apply."
   else
-    echo "FATAL: patch failed to apply and sentinel not present." >&2
+    echo "FATAL: patch neither applies nor is already fully present (the tree holds a different revision of it). Delete $GPGX_DIR and re-run." >&2
     exit 1
   fi
 else
@@ -47,6 +50,8 @@ fi
 # include via INCFLAGS_PLATFORM, and compile+archive the .c.
 RDBG_SRC="$PROJECT_DIR/scripts/romdev-debug"
 cp "$RDBG_SRC/romdev_debug.h" "$RDBG_SRC/romdev_debug.c" "$GPGX_DIR/"
+# The gpgx_blip_deltas audio stream region (libretro.c) uses the shared RDAS helper.
+cp "$RDBG_SRC/romdev_audio_stream.h" "$GPGX_DIR/"
 ROMDEV_INC="-I$GPGX_DIR"
 
 emmake make -f Makefile.libretro platform=emscripten clean >/dev/null 2>&1 || true
@@ -110,7 +115,7 @@ RDBG_OBJ="$GPGX_DIR/romdev_debug.o"
 emcc -c -O2 "$GPGX_DIR/romdev_debug.c" -o "$RDBG_OBJ"
 emar rcs "$CORE_LIB" "$RDBG_OBJ"
 
-EXPORTED_FUNCTIONS='["_retro_api_version","_retro_init","_retro_deinit","_retro_set_environment","_retro_set_video_refresh","_retro_set_audio_sample","_retro_set_audio_sample_batch","_retro_set_input_poll","_retro_set_input_state","_retro_get_system_info","_retro_get_system_av_info","_retro_load_game","_retro_unload_game","_retro_run","_retro_reset","_retro_serialize_size","_retro_serialize","_retro_unserialize","_retro_cheat_reset","_retro_cheat_set","_romdev_watchpoint_set","_romdev_watchpoint_set_cond","_romdev_watchpoint_get","_romdev_readwatch_set","_romdev_readwatch_get","_romdev_pcbreak_set","_romdev_pcbreak_get","_romdev_watchdog_set","_romdev_irqblock_set","_romdev_setreg","_romdev_getreg","_romdev_range_set","_romdev_range_get","_romdev_cov_set","_romdev_cov_get","_romdev_covbits_set","_romdev_covbits_get","_romdev_dmawatch_set","_romdev_dmawatch_get","_romdev_regsnap_get","_romdev_run_pure","_romdev_vramwatch_set","_romdev_vramwatch_get","_retro_get_memory_data","_retro_get_memory_size","_retro_get_region","_retro_set_controller_port_device","_malloc","_free"]'
+EXPORTED_FUNCTIONS='["_retro_api_version","_retro_init","_retro_deinit","_retro_set_environment","_retro_set_video_refresh","_retro_set_audio_sample","_retro_set_audio_sample_batch","_retro_set_input_poll","_retro_set_input_state","_retro_get_system_info","_retro_get_system_av_info","_retro_load_game","_retro_unload_game","_retro_run","_retro_reset","_retro_serialize_size","_retro_serialize","_retro_unserialize","_retro_cheat_reset","_retro_cheat_set","_romdev_watchpoint_set","_romdev_watchpoint_set_cond","_romdev_watchpoint_get","_romdev_readwatch_set","_romdev_readwatch_get","_romdev_pcbreak_set","_romdev_pcbreak_get","_romdev_watchdog_set","_romdev_irqblock_set","_romdev_setreg","_romdev_getreg","_romdev_range_set","_romdev_range_get","_romdev_cov_set","_romdev_cov_get","_romdev_covbits_set","_romdev_covbits_get","_romdev_trace_set","_romdev_trace_info","_romdev_trace_regs","_romdev_dmawatch_set","_romdev_dmawatch_get","_romdev_regsnap_get","_romdev_run_pure","_romdev_vramwatch_set","_romdev_vramwatch_get","_retro_get_memory_data","_retro_get_memory_size","_retro_get_region","_retro_set_controller_port_device","_malloc","_free"]'
 EXPORTED_RUNTIME='["ccall","cwrap","addFunction","removeFunction","HEAPU8","HEAPU16","HEAPU32","HEAP16","HEAP32","HEAPF32","UTF8ToString","stringToUTF8","lengthBytesUTF8","getValue","setValue","FS"]'
 
 mkdir -p "$OUT"

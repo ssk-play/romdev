@@ -27,8 +27,8 @@ export function resolveButtonAlias(button, platform) {
   // genesis_plus_gx maps the Genesis face buttons A/B/C onto libretro y/b/a
   // respectively (verified empirically against the running core 2026-06-05),
   // so the Genesis-native button C is libretro 'a'. (Earlier this mapped
-  // c→y, which actually pressed Genesis A - the inverted bug a feedback agent
-  // hit when SGDK BUTTON_A wouldn't fire. Genesis A/B are libretro y/b, reached
+  // c→y, which actually pressed Genesis A - the inverted bug that showed
+  // up when SGDK BUTTON_A wouldn't fire. Genesis A/B are libretro y/b, reached
   // via setInput({y/b}) or the spatial east/south/west names.)
   if (platform === "genesis" || platform === "megadrive" || platform === "md") {
     if (button === "c") return "a";   // Genesis C = libretro A
@@ -164,15 +164,18 @@ function inputSetCore({ ports }, sessionKey) {
       }
       getHost(sessionKey).setInput({ ports });
       const requested = ports.map((p) => Object.keys(p).filter((k) => p[k] === true && KNOWN_BUTTONS.has(k)));
+      // axes are input too: echo them, or an axis-only set reads as requested:[[]]
+      const requestedAxes = ports.map((p) => (p.axes && typeof p.axes === "object" ? p.axes : null));
       return {
         inputSet: true,
         requested,
+        ...(requestedAxes.some(Boolean) ? { requestedAxes } : {}),
         ...coDriveFields(sessionKey),
       };
 }
 
 /** op:'press' - press one named button N frames then release (port 0 default). */
-function inputPressCore({ button, frames = 2, port: p = 0 }, sessionKey) {
+async function inputPressCore({ button, frames = 2, port: p = 0 }, sessionKey) {
       const host = getHost(sessionKey);
       const resolved = resolveButtonAlias(button, host.status.platform);
       // GUARANTEE a released->pressed EDGE. If the button is already held
@@ -181,13 +184,13 @@ function inputPressCore({ button, frames = 2, port: p = 0 }, sessionKey) {
       // the "one-shot press didn't pause the game" report (0.27.0 #7).
       // One released frame first makes the edge unconditional.
       host.setInput({ ports: [{}, {}] });
-      host.stepFrames(1);
+      await host.stepFrames(1);
       const pressed = { ports: [{}, {}] };
       pressed.ports[p][resolved] = true;
       host.setInput(pressed);
-      host.stepFrames(frames);
+      await host.stepFrames(frames);
       host.setInput({ ports: [{}, {}] });
-      host.stepFrames(1);
+      await host.stepFrames(1);
       return {
         button,
         ...(resolved !== button ? { resolvedTo: resolved } : {}),
@@ -201,12 +204,14 @@ function inputPressCore({ button, frames = 2, port: p = 0 }, sessionKey) {
 }
 
 /** op:'sequence' - scripted frame-by-frame inputs (ports shape per step). */
-function inputSequenceCore({ steps }, sessionKey) {
+async function inputSequenceCore({ steps }, sessionKey) {
       const host = getHost(sessionKey);
       let total = 0;
       for (const step of steps) {
         host.setInput(step.input);
-        host.stepFrames(step.frames);
+        // await: a WebGPU cart steps asynchronously (an event-loop turn per
+        // frame), so the next step's input must wait for this burst to end
+        await host.stepFrames(step.frames);
         total += step.frames;
       }
       return { stepsRun: steps.length, framesRun: total, frameCount: host.status.frameCount, ...coDriveFields(sessionKey) };
@@ -231,7 +236,7 @@ function inputSequenceCore({ steps }, sessionKey) {
  *   - the schedule is absolute, so two runs with the same timeline are
  *     frame-identical regardless of how the entries are ordered or split.
  */
-function inputTimelineCore({ timeline, untilFrame }, sessionKey) {
+async function inputTimelineCore({ timeline, untilFrame }, sessionKey) {
   const host = getHost(sessionKey);
   const platform = host.status.platform;
   if (!Array.isArray(timeline) || timeline.length === 0) {
@@ -274,7 +279,7 @@ function inputTimelineCore({ timeline, untilFrame }, sessionKey) {
   // until then, and stepping in bulk is far cheaper than frame-at-a-time.
   if (firstFrame > startedAt) {
     host.setInput({ ports: [{}, {}] });
-    host.stepFrames(firstFrame - startedAt);
+    await host.stepFrames(firstFrame - startedAt);
   }
 
   let chordFrames = 0;
@@ -292,7 +297,7 @@ function inputTimelineCore({ timeline, untilFrame }, sessionKey) {
     }
     if (anyHeld) chordFrames++;
     host.setInput({ ports });
-    host.stepFrames(1);
+    await host.stepFrames(1);
   }
   // Release, so a following step cannot inherit the last frame's chord.
   host.setInput({ ports: [{}, {}] });
@@ -314,7 +319,7 @@ function inputTimelineCore({ timeline, untilFrame }, sessionKey) {
   };
 }
 
-function inputNavigateCore({ steps }, sessionKey) {
+async function inputNavigateCore({ steps }, sessionKey) {
       const host = getHost(sessionKey);
       const platform = host.status.platform;
       const results = [];
@@ -325,19 +330,19 @@ function inputNavigateCore({ steps }, sessionKey) {
         const pressed = { ports: [{}, {}] };
         pressed.ports[0][resolved] = true;
         host.setInput(pressed);
-        host.stepFrames(step.holdFrames);
+        await host.stepFrames(step.holdFrames);
         totalFrames += step.holdFrames;
         host.setInput({ ports: [{}, {}] });
-        host.stepFrames(1);
+        await host.stepFrames(1);
         totalFrames += 1;
         let waited = 0, consumed = false;
         for (let i = 0; i < step.maxWaitFrames; i++) {
-          host.stepFrames(1);
+          await host.stepFrames(1);
           waited++; totalFrames++;
           if (host.framebufferHash() !== before) { consumed = true; break; }
         }
         if (consumed && step.settleFrames) {
-          host.stepFrames(step.settleFrames);
+          await host.stepFrames(step.settleFrames);
           totalFrames += step.settleFrames;
         }
         results.push({
@@ -394,7 +399,7 @@ export function registerInputTools(server, z, sessionKey) {
     "y/b/a, so set({a:true}) presses Genesis C and Genesis A is {y:true}. Prefer SPATIAL names (north/east/south/" +
     "west) or press/navigate's native aliases (Genesis c→a internally, SMS/GG 1/2→b/a). layout.faceButtons has the " +
     "exact map. NOTE on 'set': `requested` is what you SET, NOT proof the pad saw it - the game only reads input " +
-    "when ITS code polls; re-apply immediately before the consuming stepFrames and verify via the held-buttons RAM " +
+    "when ITS code polls; re-apply immediately before the consuming frame step and verify via the held-buttons RAM " +
     "byte, not this echo.",
     {
       op: z.enum(["set", "press", "sequence", "timeline", "navigate", "layout", "pressKey", "typeText", "joyport", "pointer", "wheel"]).describe("set/hold buttons; press one button; run a sequence; navigate a menu; get the input layout. WASMCART: pointer (absolute mouse/touch - position the cursor at an exact {x,y} and click; for carts that declare FLAG_POINTER), wheel (scroll delta for the frame). C64-ONLY: pressKey/typeText/joyport."),
@@ -411,7 +416,7 @@ export function registerInputTools(server, z, sessionKey) {
       dx: z.number().int().optional().describe("op=wheel: raw horizontal delta in 1/120 of a notch (the WHEEL_DELTA convention). Use `notchesX` unless you are asserting exact ABI values."),
       dy: z.number().int().optional().describe("op=wheel: raw vertical delta in 1/120 of a notch, positive UP. Use `notches` unless you are asserting exact ABI values."),
       // set
-      ports: z.array(port).min(1).max(2).optional().describe("op=set: per-port input. [{a:true,right:true}] holds A+Right on port 0."),
+      ports: z.array(port).min(1).max(4).optional().describe("op=set: per-port input, ports 0-3 (a wasmcart cart reads four pads; a core with fewer ports ignores the rest). [{a:true,right:true}] holds A+Right on port 0."),
       // press
       timeline: z.array(z.object({
         frame: z.number().int().min(0).describe("ABSOLUTE frame number this entry starts on."),
@@ -499,21 +504,21 @@ export function registerInputTools(server, z, sessionKey) {
         }
         case "press": {
           if (!args.button) throw new Error("input({op:'press'}): `button` is required.");
-          return attachObserverFrame(jsonContent(inputPressCore(args, sessionKey)), getHost(sessionKey), `press ${args.button}`);
+          return attachObserverFrame(jsonContent(await inputPressCore(args, sessionKey)), getHost(sessionKey), `press ${args.button}`);
         }
         case "sequence": {
           if (!args.steps) throw new Error("input({op:'sequence'}): `steps` is required.");
-          return attachObserverFrame(jsonContent(inputSequenceCore(args, sessionKey)), getHost(sessionKey), "input sequence");
+          return attachObserverFrame(jsonContent(await inputSequenceCore(args, sessionKey)), getHost(sessionKey), "input sequence");
         }
         case "timeline": {
           if (!args.timeline) throw new Error("input({op:'timeline'}): `timeline` is required - [{frame, buttons:[...], until?|holdFrames?, port?}].");
-          return attachObserverFrame(jsonContent(inputTimelineCore(args, sessionKey)), getHost(sessionKey), "input timeline");
+          return attachObserverFrame(jsonContent(await inputTimelineCore(args, sessionKey)), getHost(sessionKey), "input timeline");
         }
         case "navigate": {
           if (!args.steps) throw new Error("input({op:'navigate'}): `steps` is required.");
           // Fill per-step defaults the old navigate schema provided.
           const steps = args.steps.map((s) => ({ holdFrames: 2, maxWaitFrames: 120, settleFrames: 2, ...s }));
-          return attachObserverFrame(jsonContent(inputNavigateCore({ steps }, sessionKey)), getHost(sessionKey), "navigate");
+          return attachObserverFrame(jsonContent(await inputNavigateCore({ steps }, sessionKey)), getHost(sessionKey), "navigate");
         }
         case "layout": {
           if (!args.platform) throw new Error("input({op:'layout'}): `platform` is required.");

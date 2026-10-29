@@ -311,8 +311,7 @@ export async function playtest(args) {
   // manual progress - the recovery hint can only restore a fresh boot. Writing a
   // rolling .state to disk every N seconds means their progress is never more than
   // N seconds from recoverable (state({op:'load', path})). F2 also writes here on
-  // demand (so "I saved it" produces a real, reportable file). (v0.41.0 feedback
-  // note 125904 #2/#3.)
+  // demand (so "I saved it" produces a real, reportable file).
   const checkpointPath = args.autoCheckpointPath ?? null;
   const checkpointEverySec = args.checkpointIntervalSec ?? 15;
   let lastCheckpointTick = 0;
@@ -455,7 +454,7 @@ export async function playtest(args) {
 
   // Decide initial window size. In "tv" / "core" modes, scale by height
   // and let the chosen aspect dictate width - keeps vertical resolution
-  // honest (you can still count scanlines) while applying horizontal
+  // accurate (you can still count scanlines) while applying horizontal
   // stretch. Shared + unit-tested in core-runner (the inline copy of this
   // math is what opened a 0-width window when a host reported aspect 0).
   // A bezel's scene is already the finished picture at its intended shape, so
@@ -1155,6 +1154,9 @@ export async function playtest(args) {
     let quit = false;
     const isC64 = h.status?.platform === "c64";
     const isN64 = h.status?.platform === "n64";
+    // A wasmcart pad has Guide and the four paddles as buttons of their own
+    // (WC_BTN_GUIDE, WC_BTN_PADDLE1-4); on a libretro core Guide stays Select.
+    const isWasmcart = h.status?.platform === "wasmcart";
     function readControllerInto(port, inst, slot) {
       if (!inst) return;
       const btn = inst.buttons || {};
@@ -1164,7 +1166,11 @@ export async function playtest(args) {
       }
       const buttonMap = isN64 ? SDL_BUTTON_TO_LIBRETRO_BIT_N64 : SDL_BUTTON_TO_LIBRETRO_BIT;
       for (const [sdlName, bit] of Object.entries(buttonMap)) {
+        if (isWasmcart && sdlName === "guide") continue;
         if (btn[sdlName]) port[bitToName(bit)] = true;
+      }
+      if (isWasmcart) {
+        for (const name of ["guide", "paddle1", "paddle2", "paddle3", "paddle4"]) if (btn[name]) port[name] = true;
       }
       const axes = inst.axes || {};
       const lx = axes.leftStickX ?? 0;
@@ -1648,7 +1654,7 @@ export async function playtest(args) {
             // Nearest keeps emulator pixels crisp, which is right for a bare
             // core frame. A bezel composite is mostly anti-aliased panel art and
             // text, so nearest re-aliases exactly the edges the guest smoothed -
-            // linear is the honest presentation of what it drew.
+            // linear is the faithful presentation of what it drew.
             scaling: composed ? "linear" : "nearest",
             dstRect: { x: dstX, y: dstY, width: dstW, height: dstH },
           });
@@ -1794,7 +1800,7 @@ export async function playtest(args) {
     // Truth-probe for the underlying SDL window. `running` is our own flag
     // and can lag reality if the window dies without firing a 'close' event
     // (compositor kill, X/Wayland session loss, invalid handle). Callers
-    // that need an honest answer (playtestStatus) check this and reconcile.
+    // that need a reliable answer (playtestStatus) check this and reconcile.
     // Any throw from the SDL binding (handle freed under us) → treat as dead.
     windowAlive() {
       if (!running) return false;
@@ -1828,7 +1834,7 @@ export async function playtest(args) {
         // that the cadence fired -- it is stamped before writeCheckpoint runs
         // and stays set even when the write bails -- so it cannot answer this.
         // A caller needs "is the human's progress actually being saved", and
-        // that question had no honest answer here.
+        // that question had no reliable answer here.
         written: checkpointWritten,
         kind: checkpointKind,
       };

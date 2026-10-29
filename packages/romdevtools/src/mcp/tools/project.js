@@ -294,7 +294,7 @@ const TEMPLATES = {
       describe: "REDLINE - top-down road racer: moving lane stripes, rival cars to dodge, distance score, crash + lives.",
     },
   },
-  // sync32 - monteslu's RP2350 console. No PPU/tilemap/OAM/banking: a cart is
+  // sync32 - an RP2350-based console. No PPU/tilemap/OAM/banking: a cart is
   // game_main(api) drawing into a flat 8-bit canvas, so these templates carry
   // no runtime/crt0/linker files at all (the SDK ships in
   // romdev-platform-sync32 and build({platform:'sync32'}) supplies it).
@@ -469,7 +469,7 @@ const TEMPLATES = {
         "xorshift16 PRNG",
       ],
     },
-    /* R44 (2026-05-26): bundled-driver music demo. FamiTone2 engine +
+    /* bundled-driver music demo. FamiTone2 engine +
      * cc65 bridge + example track, all ship as source under lib/asm. */
     music_demo: {
       main: "templates/music_demo.c",
@@ -539,7 +539,7 @@ const TEMPLATES = {
       ],
       lang: "C (SDCC sm83)",
       ext: ".gb",
-      describe: "METEOR MILITIA - complete GB vertical shooter: press-start title shell with battery-persistent hi-score (MBC1+RAM+BATTERY declared in the crt0 header, $0A enable sequence, magic+checksum record, survives power cycles), and the GB signature - a WINDOW-layer fixed HUD (WX=7/WY=128, LCDC bit 5) over an SCY-scrolling starfield, no raster tricks. Wave spawner, AABB collisions, APU tune + SFX, divide-free painters (the sm83 has no divider). 1P by design: link-cable multiplayer can't be emulated single-instance (stated honestly in-file).",
+      describe: "METEOR MILITIA - complete GB vertical shooter: press-start title shell with battery-persistent hi-score (MBC1+RAM+BATTERY declared in the crt0 header, $0A enable sequence, magic+checksum record, survives power cycles), and the GB signature - a WINDOW-layer fixed HUD (WX=7/WY=128, LCDC bit 5) over an SCY-scrolling starfield, no raster tricks. Wave spawner, AABB collisions, APU tune + SFX, divide-free painters (the sm83 has no divider). 1P by design: link-cable multiplayer can't be emulated single-instance (noted in-file).",
       players: "1 (one controller; link cable unemulatable single-instance)",
       sram: "MBC1 cart RAM via the save_ram region (8KB) - crt0-declared battery cart, checksummed record, verified across hardReset",
       mechanics: ["projectile pools", "wave spawner", "AABB collision", "lives + respawn knockback", "battery-persistent hi-score", "title/play/game-over state machine"],
@@ -563,7 +563,7 @@ const TEMPLATES = {
       ],
       lang: "C (SDCC sm83)",
       ext: ".gb",
-      describe: "GULLY GALLOP - complete GB side-scrolling platformer: press-start title shell with battery-persistent hi-score (MBC1+RAM+BATTERY crt0 header, $0A enable sequence, magic+checksum record, survives power cycles), and the GB signature WINDOW-layer fixed HUD (WX=7/WY=128) over an SCX-scrolled, seamlessly looping 256-px column-map level. Gravity + Q4.4 sub-pixel jump physics, one-way platforms, lethal pits, drifting spikes, coins + distance scoring, one-way runner camera, APU tune + SFX, divide-free painters. 1P by design: link-cable multiplayer can't be emulated single-instance (stated honestly in-file).",
+      describe: "GULLY GALLOP - complete GB side-scrolling platformer: press-start title shell with battery-persistent hi-score (MBC1+RAM+BATTERY crt0 header, $0A enable sequence, magic+checksum record, survives power cycles), and the GB signature WINDOW-layer fixed HUD (WX=7/WY=128) over an SCX-scrolled, seamlessly looping 256-px column-map level. Gravity + Q4.4 sub-pixel jump physics, one-way platforms, lethal pits, drifting spikes, coins + distance scoring, one-way runner camera, APU tune + SFX, divide-free painters. 1P by design: link-cable multiplayer can't be emulated single-instance (noted in-file).",
       players: "1 (one controller; link cable unemulatable single-instance)",
       sram: "MBC1 cart RAM via the save_ram region (8KB) - crt0-declared battery cart, checksummed record, verified across hardReset",
       mechanics: ["gravity + Q4.4 jump physics", "one-way platforms (6-px landing window)", "pits + spikes + coins", "distance + coin scoring", "one-way scroll-wall camera", "lives + respawn breather", "battery-persistent hi-score"],
@@ -587,7 +587,7 @@ const TEMPLATES = {
       ],
       lang: "C (SDCC sm83)",
       ext: ".gb",
-      describe: "SHALE WELL - falling-stone match-3 to the full contract (the monochrome DMG take on a jewel matcher): an 8x15 well, five stone KINDS told apart by 2bpp TILE SHAPE through one DMG BGP palette (stripe/checker/ring/brick/diamond - the honest DMG answer to the GBC's six colors), move/cycle/soft-drop/hard-drop, 3+ clears in all 4 directions, gravity cascades chain for bonus, magic stone every 18th piece, levels speed up. 1P marathon (link-cable 2P unemulatable single-instance - honest in-file). Locked well rides the vblank COLLECT/FLUSH queue with an idle scrub; window-layer HUD; battery hi-score (MBC1+RAM+BATTERY, verified across power cycles); APU melody + SFX. Board arrays pinned via __at($C200) so it builds with the default recipe.",
+      describe: "SHALE WELL - falling-stone match-3 to the full contract (the monochrome DMG take on a jewel matcher): an 8x15 well, five stone KINDS told apart by 2bpp TILE SHAPE through one DMG BGP palette (stripe/checker/ring/brick/diamond - the DMG answer to the GBC's six colors), move/cycle/soft-drop/hard-drop, 3+ clears in all 4 directions, gravity cascades chain for bonus, magic stone every 18th piece, levels speed up. 1P marathon (link-cable 2P unemulatable single-instance - noted in-file). Locked well rides the vblank COLLECT/FLUSH queue with an idle scrub; window-layer HUD; battery hi-score (MBC1+RAM+BATTERY, verified across power cycles); APU melody + SFX. Board arrays pinned via __at($C200) so it builds with the default recipe.",
       players: "1 (handheld - link-cable 2P not emulatable single-instance)",
       sram: "MBC1+RAM+BATTERY, 8KB at $A000 ($0A-gated, magic+checksum), verified across hardReset",
       mechanics: ["falling-trio control", "match-3 in 4 directions", "gravity + cascade chains", "magic-stone target clear", "levels", "battery hi-score"],
@@ -610,7 +610,7 @@ const TEMPLATES = {
       ],
       lang: "C (SDCC sm83)",
       ext: ".gb",
-      describe: "CAROM COAST - head-to-head court game to the full contract (the monochrome DMG take on a versus paddle game): press-start title, 1P vs a beatable chase-AI CPU, first-to-5 match flow into a result screen, GB APU ch1 melody + ch2 SFX. The ball 'caroms' - rail ricochets + edge-deflection where it strikes your paddle; a +/-1 PRNG spin guarantees an idle rally ENDS (no infinite limit cycle). Paddles told apart by SHADE on the 4-grey DMG (you black OBP0, CPU lighter OBP1). Window-layer fixed HUD; score/record/result-text ride the vblank COMMIT queue (<=5 cells/frame - a full line dropped in one batch). Longest 1P win streak persists to battery SRAM (MBC1+RAM+BATTERY, magic+checksum, verified across power cycles). 1P by design - link-cable 2P unemulatable single-instance (honest in-file).",
+      describe: "CAROM COAST - head-to-head court game to the full contract (the monochrome DMG take on a versus paddle game): press-start title, 1P vs a beatable chase-AI CPU, first-to-5 match flow into a result screen, GB APU ch1 melody + ch2 SFX. The ball 'caroms' - rail ricochets + edge-deflection where it strikes your paddle; a +/-1 PRNG spin guarantees an idle rally ENDS (no infinite limit cycle). Paddles told apart by SHADE on the 4-grey DMG (you black OBP0, CPU lighter OBP1). Window-layer fixed HUD; score/record/result-text ride the vblank COMMIT queue (<=5 cells/frame - a full line dropped in one batch). Longest 1P win streak persists to battery SRAM (MBC1+RAM+BATTERY, magic+checksum, verified across power cycles). 1P by design - link-cable 2P unemulatable single-instance (noted in-file).",
       players: "1 (1P vs a beatable CPU - no link-cable 2P single-instance)",
       sram: "longest 1P win streak vs the CPU (MBC1+RAM+BATTERY, magic+checksum, verified across hardReset)",
       mechanics: ["versus match flow (first-to-5, result screen)", "beatable chase-AI CPU (speed-capped ball chase)", "edge-hit deflection + rail caroms with PRNG spin", "serve pause + alternating serve angle", "win-streak record that dies on a loss"],
@@ -634,7 +634,7 @@ const TEMPLATES = {
       ],
       lang: "C (SDCC sm83)",
       ext: ".gb",
-      describe: "TARMAC TILT - top-down vertical road racer to the full contract: press-start title (honest no-2P - link cable unemulatable single-instance), the road scrolls via SCY into a 256-px map (seamless uint8 wrap, no helper - contrast taught vs NES 240 / SMS 224 garbage-row / Genesis hardware-masked plane), four lanes, A/UP accelerate + B/DOWN brake (speed 1-4), LEFT/RIGHT lane tilt, overtaking traffic pool, 3-crash lives with invuln blink, best DISTANCE to battery SRAM (magic+checksum, verified across power cycles), window-layer HUD, GB APU music + SFX, divide-free digit math.",
+      describe: "TARMAC TILT - top-down vertical road racer to the full contract: press-start title (no 2P - link cable unemulatable single-instance), the road scrolls via SCY into a 256-px map (seamless uint8 wrap, no helper - contrast taught vs NES 240 / SMS 224 garbage-row / Genesis hardware-masked plane), four lanes, A/UP accelerate + B/DOWN brake (speed 1-4), LEFT/RIGHT lane tilt, overtaking traffic pool, 3-crash lives with invuln blink, best DISTANCE to battery SRAM (magic+checksum, verified across power cycles), window-layer HUD, GB APU music + SFX, divide-free digit math.",
       players: "1 (handheld - link-cable 2P not emulatable single-instance)",
       sram: "MBC1 cart RAM via the save_ram region (8KB) - crt0-declared battery cart, best-distance magic+checksum record, verified across hardReset",
       mechanics: ["lane steering", "speed control 1-4", "overtaking traffic pool", "crash lives + invuln blink", "best-distance persistence"],
@@ -646,7 +646,7 @@ const TEMPLATES = {
         "divide-free digit math",
       ],
     },
-    /* R45 - hUGEDriver music demo. Ships a compact SDCC-native music
+    /* hUGEDriver music demo. Ships a compact SDCC-native music
      * driver with the upstream hUGEDriver function surface plus a
      * hand-authored sample song. Source-visible: the full upstream
      * RGBDS asm is bundled alongside as hUGEDriver.upstream.asm. */
@@ -687,7 +687,7 @@ const TEMPLATES = {
       music_sfx: mk("music_sfx", "HuC6280 PSG demo: a looping melody plus a button-fired SFX. Shows psg_tone/psg_off across the PSG's wavetable channels."),
       catch_game: mk("catch_game", "A complete tiny game: a paddle catches a falling object with the d-pad; full game loop with waitvsync(), two sprites, collision, scoring."),
       shmup: {
-        ...mk("shmup", "ZENITH BARRAGE - complete PCE vertical shooter: title shell with in-session hi-score (a bare HuCard can't save - BRAM is peripheral-only; the bank-$F7 TAM/$1807-unlock dance is documented in-file as the real-hardware path), and the PCE signature - a 64x32 boss built from exactly TWO 32x32 SATB entries moving as one unit. Wave spawner, AABB collisions, 3-song PSG music + SFX, banded twinkling starfield. 1P by design: geargrafx ships TurboTap disabled, so port-2 input cannot reach the game (stated honestly in-file)."),
+        ...mk("shmup", "ZENITH BARRAGE - complete PCE vertical shooter: title shell with in-session hi-score (a bare HuCard can't save - BRAM is peripheral-only; the bank-$F7 TAM/$1807-unlock dance is documented in-file as the real-hardware path), and the PCE signature - a 64x32 boss built from exactly TWO 32x32 SATB entries moving as one unit. Wave spawner, AABB collisions, 3-song PSG music + SFX, banded twinkling starfield. 1P by design: geargrafx ships TurboTap disabled, so port-2 input cannot reach the game (noted in-file)."),
         players: "1 (stock PCE has one pad port; TurboTap exists in-core but disabled - future host core-option round)",
         sram: "none - a bare HuCard cannot save; BRAM (bank $F7) is PERIPHERAL-ONLY on real hardware (CD-ROM² unit / Tennokoe Bank / Memory Base 128). In-session hi-score only, like the 2600/Lynx; the BRAM mapping + write-lock are documented in-file as the real-hardware path.",
         mechanics: ["projectile pools", "wave spawner", "AABB collision", "multi-sprite boss with HP/phases", "lives + mercy invulnerability", "in-session hi-score (HuCards can't save)", "title/play/game-over state machine"],
@@ -702,7 +702,7 @@ const TEMPLATES = {
         ],
       },
       platformer: {
-        ...mk("platformer", "GLADE DASH - complete PC Engine side-scrolling platformer: title/1P/2P-alternating-turns shell, gravity + Q4.4 sub-pixel jump physics, one-way slabs, lethal pits + spikes, coins + distance scoring, in-session hi-score (a bare HuCard can't save - BRAM is peripheral-only; the bank-$F7 TAM/$1807-unlock dance is documented in-file as the real-hardware path), 3-song PSG music + SFX. The PCE signature on top: hardware BG scroll via the BXR register with column-streaming for a 768px looping world, plus a 32x32 large multi-cell hero (one SATB entry, 4-aligned pattern) with a walk cycle. Real 2P alternating turns - the host enables the TurboTap so port-1 input reaches player 2 (verified). HONEST CAVEAT: no hardware window/raster split in the minimal lib, so the HUD is a painted band that scrolls with the world but reads continuously (a raster-IRQ BXR reset can make it truly fixed - TROUBLESHOOTING note)."),
+        ...mk("platformer", "GLADE DASH - complete PC Engine side-scrolling platformer: title/1P/2P-alternating-turns shell, gravity + Q4.4 sub-pixel jump physics, one-way slabs, lethal pits + spikes, coins + distance scoring, in-session hi-score (a bare HuCard can't save - BRAM is peripheral-only; the bank-$F7 TAM/$1807-unlock dance is documented in-file as the real-hardware path), 3-song PSG music + SFX. The PCE signature on top: hardware BG scroll via the BXR register with column-streaming for a 768px looping world, plus a 32x32 large multi-cell hero (one SATB entry, 4-aligned pattern) with a walk cycle. Real 2P alternating turns - the host enables the TurboTap so port-1 input reaches player 2 (verified). CAVEAT: no hardware window/raster split in the minimal lib, so the HUD is a painted band that scrolls with the world but reads continuously (a raster-IRQ BXR reset can make it truly fixed - TROUBLESHOOTING note)."),
         players: "1-2 (2P alternating turns; P2 via TurboTap port 1, host-enabled - verified port-1 reaches P2)",
         sram: "none - a bare HuCard cannot save; BRAM (bank $F7) is PERIPHERAL-ONLY on real hardware (CD-ROM² unit / Tennokoe Bank / Memory Base 128). In-session hi-score only, like the 2600/Lynx; the BRAM mapping + write-lock are documented in-file as the real-hardware path.",
         mechanics: ["gravity + sub-pixel jump physics", "one-way platforms", "pits + spikes", "coins + distance scoring", "one-way scroll-wall camera", "alternating 2P turns (per-player score/lives)", "in-session hi-score (HuCards can't save)"],
@@ -732,7 +732,7 @@ const TEMPLATES = {
         ],
       },
       sports: {
-        ...mk("sports", "SPIKE SURGE - complete PC Engine versus court game (Pong lineage): title/1P-vs-CPU/2P-simultaneous-versus shell, first-to-5 match flow with a result screen, beatable chase-AI CPU, PRNG rally spin so idle matches provably END, in-session best-win-streak record (a bare HuCard can't save - BRAM is peripheral-only; documented in-file), 3-song PSG music + SFX. Real 2P simultaneous versus: P2 on the TurboTap (host-enabled port 1, verified). Court is the VDC BAT tilemap; paddles + ball are SATB sprites."),
+        ...mk("sports", "SPIKE SURGE - complete PC Engine versus court game (paddle-and-ball lineage): title/1P-vs-CPU/2P-simultaneous-versus shell, first-to-5 match flow with a result screen, beatable chase-AI CPU, PRNG rally spin so idle matches provably END, in-session best-win-streak record (a bare HuCard can't save - BRAM is peripheral-only; documented in-file), 3-song PSG music + SFX. Real 2P simultaneous versus: P2 on the TurboTap (host-enabled port 1, verified). Court is the VDC BAT tilemap; paddles + ball are SATB sprites."),
         players: "1-2 (1P vs beatable CPU, or 2P simultaneous versus; P2 via TurboTap port 1, host-enabled - verified port-1 reaches P2)",
         sram: "none - a bare HuCard cannot save; BRAM (bank $F7) is PERIPHERAL-ONLY on real hardware (CD-ROM² unit / Tennokoe Bank / Memory Base 128). In-session best-win-streak only, like the 2600/Lynx; the BRAM mapping + write-lock are documented in-file as the real-hardware path.",
         mechanics: ["paddle/ball court physics", "edge-deflection parry angle", "1P beatable chase-AI CPU", "2P simultaneous versus", "first-to-5 match + result screen", "PRNG rally spin (idle matches end)", "in-session win-streak record (HuCards can't save)"],
@@ -747,7 +747,7 @@ const TEMPLATES = {
         ],
       },
       racing: {
-        ...mk("racing", "PINION PURSUIT - complete PC Engine top-down road racer: title/1P-race/2P-simultaneous-split-lane-versus shell, hardware BG Y-scroll road via the VDC BYR register with per-row scenery streaming (no NES 240-wrap / SMS 224-wrap - the VDC masks BYR to the 256px BAT in hardware), 1P speed control + an in-session best distance (a bare HuCard can't save - BRAM is peripheral-only; the bank-$F7 TAM/$1807-unlock dance is documented in-file as the real-hardware path), 2-channel PSG music + SFX. Real 2P simultaneous versus: P2 on the TurboTap (host-enabled port 1, verified). HONEST CAVEAT: no hardware window/raster split in the minimal lib, so the HUD is a SPRITE HUD (screen-space digits) and the title/result screens use a static road backdrop - only the play state scrolls."),
+        ...mk("racing", "PINION PURSUIT - complete PC Engine top-down road racer: title/1P-race/2P-simultaneous-split-lane-versus shell, hardware BG Y-scroll road via the VDC BYR register with per-row scenery streaming (no NES 240-wrap / SMS 224-wrap - the VDC masks BYR to the 256px BAT in hardware), 1P speed control + an in-session best distance (a bare HuCard can't save - BRAM is peripheral-only; the bank-$F7 TAM/$1807-unlock dance is documented in-file as the real-hardware path), 2-channel PSG music + SFX. Real 2P simultaneous versus: P2 on the TurboTap (host-enabled port 1, verified). CAVEAT: no hardware window/raster split in the minimal lib, so the HUD is a SPRITE HUD (screen-space digits) and the title/result screens use a static road backdrop - only the play state scrolls."),
         players: "1-2 (1P endless race, or 2P simultaneous split-lane versus; P2 via TurboTap port 1, host-enabled - verified port-1 reaches P2)",
         sram: "none - a bare HuCard cannot save; BRAM (bank $F7) is PERIPHERAL-ONLY on real hardware (CD-ROM² unit / Tennokoe Bank / Memory Base 128). In-session best-distance only, like the 2600/Lynx; the BRAM mapping + write-lock are documented in-file as the real-hardware path.",
         mechanics: ["lane steering", "speed control (1P)", "traffic pool + AABB", "crash/lives", "best-distance scoring", "2P split-lane versus", "in-session best distance (HuCards can't save)"],
@@ -778,7 +778,7 @@ const TEMPLATES = {
       music_sfx: mk("music_sfx", "AY-3-8910 PSG demo: a looping melody on channel A plus a trigger-fired SFX on channel C, with an on-screen indicator."),
       catch_game: mk("catch_game", "A complete tiny game: a paddle catches falling fruit with the joystick; full game loop with vblank sync, two sprites, collision, scoring."),
       shmup: {
-        ...mk("shmup", "NEBULA WARDEN - complete MSX vertical shooter (screen 2): title shell with 1P/2P select and session hi-score, simultaneous 2-ship co-op (P2 = joystick port 2), shared-lives arcade scoring, PSG tune-table music + noise SFX, and the MSX signature - screen-2 per-row color (three independent color thirds: depth-banded starfield, HUD band, an 8-color gradient inside one tile). Hi-score is in-session only (the bundled bluemsx build exposes no SAVE_RAM - stated honestly in-file)."),
+        ...mk("shmup", "NEBULA WARDEN - complete MSX vertical shooter (screen 2): title shell with 1P/2P select and session hi-score, simultaneous 2-ship co-op (P2 = joystick port 2), shared-lives arcade scoring, PSG tune-table music + noise SFX, and the MSX signature - screen-2 per-row color (three independent color thirds: depth-banded starfield, HUD band, an 8-color gradient inside one tile). Hi-score is in-session only (the bundled bluemsx build exposes no SAVE_RAM - noted in-file)."),
         players: "1-2 (simultaneous co-op)",
         sram: "none - core exposes no SAVE_RAM region (in-session hi-score; ASCII8-SRAM mapper exists in-core but unsurfaced; future core round)",
         mechanics: ["projectile pools", "wave spawner", "AABB collision", "2P simultaneous co-op (shared lives)", "session hi-score", "title/play/game-over state machine"],
@@ -792,7 +792,7 @@ const TEMPLATES = {
         ],
       },
       platformer: {
-        ...mk("platformer", "MESA HOPPER - complete MSX side-scrolling platformer (screen 2): title shell with 1P / 2P-alternating-turns select (P2 on joystick port 2, per-player score + lives) and session hi-score, gravity + Q4.4 jump physics, one-way platforms, lethal pits, patrolling spikes, coin + traversal scoring, PSG tune-table music + SFX, and the MSX signature - screen-2 per-row color (3 color thirds: depth-banded fixed-screen level, HUD band, one-tile horizon gradient). Fixed single-screen arena because screen 2 has no hardware scroll (stated in-file). Hi-score is in-session only (bundled bluemsx build exposes no SAVE_RAM - stated honestly in-file)."),
+        ...mk("platformer", "MESA HOPPER - complete MSX side-scrolling platformer (screen 2): title shell with 1P / 2P-alternating-turns select (P2 on joystick port 2, per-player score + lives) and session hi-score, gravity + Q4.4 jump physics, one-way platforms, lethal pits, patrolling spikes, coin + traversal scoring, PSG tune-table music + SFX, and the MSX signature - screen-2 per-row color (3 color thirds: depth-banded fixed-screen level, HUD band, one-tile horizon gradient). Fixed single-screen arena because screen 2 has no hardware scroll (stated in-file). Hi-score is in-session only (bundled bluemsx build exposes no SAVE_RAM - noted in-file)."),
         players: "1-2 (alternating turns, P2 on joystick port 2)",
         sram: "none - core exposes no SAVE_RAM region (in-session hi-score)",
         mechanics: ["gravity + Q4.4 jump", "one-way platforms", "pits + patrolling spikes", "coin + traversal scoring", "2P alternating turns (per-player score/lives)", "session hi-score", "title/play/game-over state machine"],
@@ -806,7 +806,7 @@ const TEMPLATES = {
         ],
       },
       puzzle: {
-        ...mk("puzzle", "STOKE STACK - complete MSX falling-trio match-3 (screen 2): title shell with 1P-marathon / 2P-simultaneous-versus select (P2 = joystick port 2) and session hi-score, levels that speed the fall, cascade-chain scoring, 2P garbage attacks, PSG tune-table music + SFX, and the MSX signature - screen-2 per-row color (gem-colour-per-third one-tile trick + a one-tile ember gradient seam). Hi-score is in-session only (bundled bluemsx build exposes no SAVE_RAM - stated honestly in-file)."),
+        ...mk("puzzle", "STOKE STACK - complete MSX falling-trio match-3 (screen 2): title shell with 1P-marathon / 2P-simultaneous-versus select (P2 = joystick port 2) and session hi-score, levels that speed the fall, cascade-chain scoring, 2P garbage attacks, PSG tune-table music + SFX, and the MSX signature - screen-2 per-row color (gem-colour-per-third one-tile trick + a one-tile ember gradient seam). Hi-score is in-session only (bundled bluemsx build exposes no SAVE_RAM - noted in-file)."),
         players: "1-2 (simultaneous versus, P2 on joystick port 2)",
         sram: "none - core exposes no SAVE_RAM region (in-session hi-score)",
         mechanics: ["falling-trio match-3", "4-direction runs", "cascade chains", "levels (1P speed-up)", "2P versus garbage rows", "session hi-score", "title/play/game-over state machine"],
@@ -820,7 +820,7 @@ const TEMPLATES = {
         ],
       },
       sports: {
-        ...mk("sports", "SPARK SWAT - complete MSX head-to-head court sports (screen 2): title shell with 1P-vs-beatable-CPU / 2P-simultaneous-versus select (P2 = joystick port 2), first-to-5 match flow into a result screen, longest-win-streak record, PSG tune-table music + SFX, and the MSX signature - screen-2 per-row color (banded court + a one-tile net 'pulse' gradient). A +/-1 PRNG deflection spin guarantees idle 1P rallies END. Record is in-session only (bundled bluemsx build exposes no SAVE_RAM - stated honestly in-file)."),
+        ...mk("sports", "SPARK SWAT - complete MSX head-to-head court sports (screen 2): title shell with 1P-vs-beatable-CPU / 2P-simultaneous-versus select (P2 = joystick port 2), first-to-5 match flow into a result screen, longest-win-streak record, PSG tune-table music + SFX, and the MSX signature - screen-2 per-row color (banded court + a one-tile net 'pulse' gradient). A +/-1 PRNG deflection spin guarantees idle 1P rallies END. Record is in-session only (bundled bluemsx build exposes no SAVE_RAM - noted in-file)."),
         players: "1-2 (1P vs beatable CPU, or 2P simultaneous versus, P2 on joystick port 2)",
         sram: "none - core exposes no SAVE_RAM region (in-session win-streak record)",
         mechanics: ["paddle/ball court physics", "edge-deflection angle", "beatable chase-AI CPU", "2P simultaneous versus", "first-to-5 match + result screen", "PRNG rally spin (idle matches end)", "in-session win-streak record"],
@@ -833,7 +833,7 @@ const TEMPLATES = {
         ],
       },
       racing: {
-        ...mk("racing", "TURBO TANGLE - complete MSX top-down four-lane road racer (screen 2): title shell with 1P / 2P-split-lane-versus select, 1P speed control (UP/A gas, DOWN/B brake, speed 1-4) banking DISTANCE, 3 crashes end the run; 2P versus shares one road (P1 left two lanes / P2 right two, P2 on port 2), first to wreck out loses. Per-row color signature (depth-banded thirds + a one-tile shimmer divider gradient), PSG music + SFX. HONEST: screen 2 has no scroll register, so the road motion is the marching lane-dash + roadside columns redrawn one phase-step per frame (static asphalt painted once) - taught against the NES's true BG scroll. Best distance is in-session only (bluemsx exposes no SAVE_RAM - stated in-file)."),
+        ...mk("racing", "TURBO TANGLE - complete MSX top-down four-lane road racer (screen 2): title shell with 1P / 2P-split-lane-versus select, 1P speed control (UP/A gas, DOWN/B brake, speed 1-4) banking DISTANCE, 3 crashes end the run; 2P versus shares one road (P1 left two lanes / P2 right two, P2 on port 2), first to wreck out loses. Per-row color signature (depth-banded thirds + a one-tile shimmer divider gradient), PSG music + SFX. NOTE: screen 2 has no scroll register, so the road motion is the marching lane-dash + roadside columns redrawn one phase-step per frame (static asphalt painted once) - taught against the NES's true BG scroll. Best distance is in-session only (bluemsx exposes no SAVE_RAM - stated in-file)."),
         players: "1-2 (2P split-lane versus, P2 on joystick port 2)",
         sram: "none - core exposes no SAVE_RAM region (in-session best distance)",
         mechanics: ["lane steering", "speed control 1-4", "best-distance persistence (in-session)", "obstacle pool + AABB crashes", "crash lives", "2P split-lane versus"],
@@ -901,7 +901,7 @@ const TEMPLATES = {
   // ── Nintendo 64 (mips-elf-gcc R4300) - software 3D engine helper lib + examples ──
   // The N64 was a 3D-first machine, so ALL 5 examples are 3D (even the puzzle -
   // rendered as a 3D well of cubes). Same software-3D lib as PS1 (n64.{h,c}), a
-  // framebuffer backend the headless-angrylion core scans out.
+  // framebuffer backend the VI scans out.
   n64: (() => {
     const N64_RUNTIME = [
       { src: "lib/c/n64.h", dst: "n64.h" },
@@ -909,9 +909,9 @@ const TEMPLATES = {
     ];
     const mk = (name, describe) => ({ main: `${name}/main.c`, runtime: N64_RUNTIME, lang: "C (mips-elf-gcc)", ext: ".z64", describe });
     return {
-      default: mk("shmup", "STARFALL 64 - the canonical N64 3D starter: a vertical shooter where enemies fly in from depth and scale up under perspective. Exercises the whole software-3D lib (camera, transform, culled cubes) + SI/PIF pad + HUD, presented through angrylion's VI scanout. Same as 'shmup'."),
+      default: mk("shmup", "STARFALL 64 - the canonical N64 3D starter: a vertical shooter where enemies fly in from depth and scale up under perspective. Exercises the whole software-3D lib (camera, transform, culled cubes) + SI/PIF pad + HUD, presented through the VI scanout. Same as 'shmup'."),
       shmup: {
-        ...mk("shmup", "STARFALL 64 - a 3D Nintendo 64 vertical shooter (the N64 twin of the PS1 STARFALL). Enemy cubes fly in from the far distance and grow under perspective; stream bullets into Z, AABB collision, xorshift wave spawner, starfield, title/play/game-over with score + lives. Software 3D pipeline (n64_camera/n64_model/n64_quad3d) rendered to an RDRAM framebuffer the headless-angrylion core scans out."),
+        ...mk("shmup", "STARFALL 64 - a 3D Nintendo 64 vertical shooter (the N64 twin of the PS1 STARFALL). Enemy cubes fly in from the far distance and grow under perspective; stream bullets into Z, AABB collision, xorshift wave spawner, starfield, title/play/game-over with score + lives. Software 3D pipeline (n64_camera/n64_model/n64_quad3d) rendered to an RDRAM framebuffer the VI scans out."),
         players: "1 (N64 has 4 controller ports; 2-4P can hook the other ports later)",
         sram: "none in this starter - N64 saves go to Controller Pak / EEPROM / SRAM via the PI; the lib keeps hi-score in-session (stated in-file).",
         mechanics: ["3D perspective playfield", "depth-scaled enemies", "projectile pools", "wave spawner", "AABB collision", "lives + score", "title/play/game-over state machine"],
@@ -991,7 +991,7 @@ const TEMPLATES = {
       techniques: ["hand-authored car sprites", "scrolling-road illusion (moving dashes)", "camera() screen-shake", "__music__ loop + SFX"] },
   },
 };
-// R37: GBC has its own scaffold tree at examples/gbc/templates/ +
+// GBC has its own scaffold tree at examples/gbc/templates/ +
 // src/platforms/gbc/lib/c/. Same runtime files as GB (the APU + Z80 +
 // most VRAM layout are identical) but the scaffolds add visible
 // CGB-mode color via BCPS/BCPD palette writes. Output ext is .gbc so
@@ -1072,7 +1072,7 @@ TEMPLATES.gbc = {
   sports: {
     main: "templates/sports.c", runtime: GBC_RUNTIME,
     lang: GBC_LANG, ext: ".gbc",
-    describe: "HUE HUSTLE - Game Boy Color versus court game (Pong lineage) to the full contract: press-start title, 1P vs a beatable chase-AI CPU, first-to-5 match flow into a result screen, a PRNG +/-1 rally spin so an idle match provably ENDS, GB APU ch1 music + ch2 SFX, window-layer fixed HUD - and the GBC SIGNATURE: TRUE per-tile color. The two paddles are told apart by distinct CGB OBJ PALETTE (azure you / red CPU via OCPS), not DMG shade; the court is a real color scene (teal floor / gold rails / violet net) as CGB palettes assigned per BG cell through the VRAM bank-1 attribute map. Longest 1P win streak persists to battery SRAM (MBC1+RAM+BATTERY, magic+checksum, verified across power cycles). HUD/result commits write bank-0 tiles only and stage text out of the vblank slice. dataLoc 0xC200. 1P by design (link-cable 2P not emulatable single-instance).",
+    describe: "HUE HUSTLE - Game Boy Color versus court game (paddle-and-ball lineage) to the full contract: press-start title, 1P vs a beatable chase-AI CPU, first-to-5 match flow into a result screen, a PRNG +/-1 rally spin so an idle match provably ENDS, GB APU ch1 music + ch2 SFX, window-layer fixed HUD - and the GBC SIGNATURE: TRUE per-tile color. The two paddles are told apart by distinct CGB OBJ PALETTE (azure you / red CPU via OCPS), not DMG shade; the court is a real color scene (teal floor / gold rails / violet net) as CGB palettes assigned per BG cell through the VRAM bank-1 attribute map. Longest 1P win streak persists to battery SRAM (MBC1+RAM+BATTERY, magic+checksum, verified across power cycles). HUD/result commits write bank-0 tiles only and stage text out of the vblank slice. dataLoc 0xC200. 1P by design (link-cable 2P not emulatable single-instance).",
     players: "1 (handheld - link-cable 2P not emulatable single-instance)",
     sram: "MBC1+RAM+BATTERY, 8KB at $A000 ($0A-gated, magic+checksum), verified across hardReset",
     mechanics: ["paddle/ball physics with edge-deflection", "beatable chase-AI CPU", "first-to-5 match flow", "PRNG rally spin (idle match ends)", "battery win-streak record", "title/play/result state machine"],
@@ -1088,7 +1088,7 @@ TEMPLATES.gbc = {
   racing: {
     main: "templates/racing.c", runtime: GBC_RUNTIME,
     lang: GBC_LANG, ext: ".gbc",
-    describe: "TWILIGHT LANE - Game Boy Color top-down road racer to the full contract: press-start title (honest no-2P), the road scrolls via SCY into a 256-px map (seamless uint8 wrap - contrast vs NES 240 / SMS 224 garbage-row / Genesis hardware-masked plane), four lanes, A/UP accelerate + B/DOWN brake (speed 1-4), LEFT/RIGHT lane tilt, 6-slot traffic pool, crash + 3 lives with invuln blink, window-layer HUD, best distance to battery SRAM (verified across power cycles). The GBC SIGNATURE: 5 real CGB BG palettes (violet dusk asphalt / evening grass / pine trees / cyan-glow dividers / HUD) assigned per cell via the bank-1 attribute map, plus cyan-car / red-traffic OBJ palettes (OCPS) - not colorized mono. GB APU music + SFX, two-phase vblank commit, dataLoc 0xC200.",
+    describe: "TWILIGHT LANE - Game Boy Color top-down road racer to the full contract: press-start title (no 2P), the road scrolls via SCY into a 256-px map (seamless uint8 wrap - contrast vs NES 240 / SMS 224 garbage-row / Genesis hardware-masked plane), four lanes, A/UP accelerate + B/DOWN brake (speed 1-4), LEFT/RIGHT lane tilt, 6-slot traffic pool, crash + 3 lives with invuln blink, window-layer HUD, best distance to battery SRAM (verified across power cycles). The GBC SIGNATURE: 5 real CGB BG palettes (violet dusk asphalt / evening grass / pine trees / cyan-glow dividers / HUD) assigned per cell via the bank-1 attribute map, plus cyan-car / red-traffic OBJ palettes (OCPS) - not colorized mono. GB APU music + SFX, two-phase vblank commit, dataLoc 0xC200.",
     players: "1 (handheld - link-cable 2P not emulatable single-instance)",
     sram: "MBC1+RAM+BATTERY, 8KB at $A000 ($0A-gated, best-distance magic+checksum), verified across hardReset",
     mechanics: ["lane steering", "speed control 1-4", "best-distance persistence", "traffic pool + AABB crashes", "crash lives + invuln blink"],
@@ -1101,7 +1101,7 @@ TEMPLATES.gbc = {
       "battery SRAM best-distance ($0A enable dance)",
     ],
   },
-  /* R45 - same hUGEDriver music_demo as GB, with BCPS/BCPD palette
+  /* same hUGEDriver music_demo as GB, with BCPS/BCPD palette
    * writes so it boots in CGB mode (gambatte flips on .gbc + $0143=$80).
    * The APU is identical between DMG and CGB so the driver code is
    * unchanged - only the visual palette path differs. */
@@ -1129,7 +1129,7 @@ TEMPLATES.gbc = {
 // register addresses / cart layout. SMS has a fleshed-out lib/c/sms_hw.h
 // + working main.c we use directly; the other three reuse the same
 // example main.c shape and get a minimal __sfr declaration sketch.
-// R22: the modular SMS runtime under src/platforms/sms/lib/c/ is what
+// the modular SMS runtime under src/platforms/sms/lib/c/ is what
 // hello_sprite + tile_engine + shmup + platformer + puzzle templates link
 // against. Factored to a constant so adding a new template is a one-line
 // change at the bottom.
@@ -1146,10 +1146,10 @@ const SMS_RUNTIME = [
   { src: "lib/c/vblank_wait.c",   dst: "vblank_wait.c" },
   { src: "lib/c/joypad_read.c",   dst: "joypad_read.c" },
   { src: "lib/c/sprite_table.c",  dst: "sprite_table.c" },
-  // R35: PSG sound wrapper (SN76489 - same chip as Genesis PSG).
+  // PSG sound wrapper (SN76489 - same chip as Genesis PSG).
   { src: "lib/c/sms_sfx.h",       dst: "sms_sfx.h" },
   { src: "lib/c/sms_sfx.c",       dst: "sms_sfx.c" },
-  // R47: 3-voice tracker on top of the PSG (continuous music).
+  // 3-voice tracker on top of the PSG (continuous music).
   { src: "lib/c/sms_music.h",     dst: "sms_music.h" },
   { src: "lib/c/sms_music.c",     dst: "sms_music.c" },
 ];
@@ -1186,7 +1186,7 @@ TEMPLATES.sms = {
     runtime: SMS_RUNTIME,
     lang: SMS_LANG,
     ext: ".sms",
-    describe: "ASTRO PICKET - complete SMS vertical shooter: title shell with 1P/2P select and hi-score, simultaneous 2-ship co-op (P2 on port 1), PSG music + SFX, and the SMS signature LINE-INTERRUPT split (VDP register-10 line counter: fixed HUD strip over a scrolling starfield - the programmable cousin of the NES sprite-0 trick). Hi-score persists to Sega-mapper cart RAM on 64KB+ builds (verified); 32KB builds are honestly in-session.",
+    describe: "ASTRO PICKET - complete SMS vertical shooter: title shell with 1P/2P select and hi-score, simultaneous 2-ship co-op (P2 on port 1), PSG music + SFX, and the SMS signature LINE-INTERRUPT split (VDP register-10 line counter: fixed HUD strip over a scrolling starfield - the programmable cousin of the NES sprite-0 trick). Hi-score persists to Sega-mapper cart RAM on 64KB+ builds (verified); 32KB builds are in-session only.",
     players: "1-2 (simultaneous co-op)",
     sram: "Sega-mapper cart RAM at $8000 ($FFFC bit 3) on 64KB+ builds; in-session at 32KB (gpgx maps mapper RAM only above 48KB - documented in-file)",
     mechanics: ["projectile pools", "wave spawner", "AABB collision", "2P simultaneous co-op", "title/play/game-over state machine"],
@@ -1203,7 +1203,7 @@ TEMPLATES.sms = {
     runtime: SMS_RUNTIME,
     lang: SMS_LANG,
     ext: ".sms",
-    describe: "GULLY VAULT - side-scrolling platformer: gravity + Q4.4 sub-pixel jump physics, one-way platforms, pits and spikes, coins + distance scoring, PSG music + SFX. 2P is classic alternating turns (P2 on port B) with per-player score and lives. The SMS signature LINE-INTERRUPT split holds a fixed HUD over the scrolling level, and the 32-cell name table wraps at exactly 256 px - the level loops seamlessly with no second nametable or column streaming. Hi-score persists to Sega-mapper cart RAM on 64KB+ builds (verified incl. power-cycle); 32KB builds are honestly in-session.",
+    describe: "GULLY VAULT - side-scrolling platformer: gravity + Q4.4 sub-pixel jump physics, one-way platforms, pits and spikes, coins + distance scoring, PSG music + SFX. 2P is classic alternating turns (P2 on port B) with per-player score and lives. The SMS signature LINE-INTERRUPT split holds a fixed HUD over the scrolling level, and the 32-cell name table wraps at exactly 256 px - the level loops seamlessly with no second nametable or column streaming. Hi-score persists to Sega-mapper cart RAM on 64KB+ builds (verified incl. power-cycle); 32KB builds are in-session only.",
     players: "1-2 (alternating turns, P2 on port B)",
     sram: "Sega-mapper cart RAM at $8000 ($FFFC bit 3) on 64KB+ builds (verified across soft reset AND power-cycle); in-session at 32KB",
     mechanics: ["gravity-jump physics (Q4.4 fixed point)", "one-way platform collision", "one-way camera with scroll wall", "pits + spike hazards", "coin + distance scoring", "alternating 2P turns with per-player lives"],
@@ -1237,7 +1237,7 @@ TEMPLATES.sms = {
     runtime: SMS_RUNTIME,
     lang: SMS_LANG,
     ext: ".sms",
-    describe: "DEUCE DASH - head-to-head court sports to the full contract: title shell with 1P-vs-CPU / 2P-versus select, a beatable chase-AI CPU, 2P simultaneous versus (P2 on PORT B via sms_joypad_read_p2), first-to-5 match flow into a result screen, PSG music + SFX. A +/-1 PRNG deflection spin guarantees idle rallies END (no infinite limit cycle). Longest 1P win streak persists to Sega-mapper cart RAM (verified across power-cycle on 64KB; honest in-session at 32KB). Fixed HUD under the SMS line-IRQ split.",
+    describe: "DEUCE DASH - head-to-head court sports to the full contract: title shell with 1P-vs-CPU / 2P-versus select, a beatable chase-AI CPU, 2P simultaneous versus (P2 on PORT B via sms_joypad_read_p2), first-to-5 match flow into a result screen, PSG music + SFX. A +/-1 PRNG deflection spin guarantees idle rallies END (no infinite limit cycle). Longest 1P win streak persists to Sega-mapper cart RAM (verified across power-cycle on 64KB; in-session only at 32KB). Fixed HUD under the SMS line-IRQ split.",
     players: "1-2 (1P = vs beatable CPU; 2P = simultaneous versus, P2 on port B)",
     sram: "Sega-mapper cart RAM at $8000 ($FFFC bit 3) on 64KB+ builds (verified across soft reset AND power-cycle); in-session at 32KB",
     mechanics: ["paddle vs ball court play", "position-based deflection angle", "beatable chase-AI CPU", "simultaneous 2P versus", "first-to-5 match flow + result screen", "PRNG rally spin (no limit cycle)", "longest-win-streak record"],
@@ -1283,7 +1283,7 @@ TEMPLATES.sms = {
     describe: "Continuous 3-voice music demo via sms_music.{h,c} - a tiny tracker on top of the SN76489 PSG. Voice 0 melody, voice 1 harmony, voice 2 bass. Noise channel stays free for game sfx. Source-visible: the parallel per-voice freq/length arrays in sms_music.c ARE the song.",
   },
 };
-// R36: GG is tier-1 - full runtime + scaffolds + PSG sound, mirrors SMS.
+// GG is tier-1 - full runtime + scaffolds + PSG sound, mirrors SMS.
 // The genesis_plus_gx core handles GG natively. GG's visible viewport
 // is 160×144 (centered in a 256×192 framebuffer); scaffolds render to
 // the whole framebuffer but content positioning targets the center.
@@ -1337,8 +1337,8 @@ TEMPLATES.gg = {
     runtime: GG_RUNTIME,
     lang: GG_LANG,
     ext: ".gg",
-    describe: "PRISM PATROL - complete GG vertical shooter: press-START title shell with hi-score, PSG music + SFX, and the GG/SMS signature LINE-INTERRUPT split (fixed HUD over a scrolling starfield) taught against the GG's #1 footgun - the 160x144 window centered in the 256x192 frame (VIS_* offsets; line-counter values are FULL-frame scanlines, so the split lands at 47, not the SMS's 23). 12-bit CRAM palette shows the 4096 colors. Hi-score persists to Sega-mapper cart RAM on 64KB+ builds (verified incl. power-cycle); 32KB builds are honestly in-session.",
-    players: "1 (one controller; Gear-to-Gear link 2P can't be emulated single-instance - honest note in-file)",
+    describe: "PRISM PATROL - complete GG vertical shooter: press-START title shell with hi-score, PSG music + SFX, and the GG/SMS signature LINE-INTERRUPT split (fixed HUD over a scrolling starfield) taught against the GG's #1 footgun - the 160x144 window centered in the 256x192 frame (VIS_* offsets; line-counter values are FULL-frame scanlines, so the split lands at 47, not the SMS's 23). 12-bit CRAM palette shows the 4096 colors. Hi-score persists to Sega-mapper cart RAM on 64KB+ builds (verified incl. power-cycle); 32KB builds are in-session only.",
+    players: "1 (one controller; Gear-to-Gear link 2P can't be emulated single-instance - noted in-file)",
     sram: "Sega-mapper cart RAM at $8000 ($FFFC bit 3) on 64KB+ builds (verified across soft reset AND power-cycle); in-session at 32KB",
     mechanics: ["projectile pools", "wave spawner", "AABB collision", "title/play/game-over state machine", "persistent hi-score"],
     techniques: [
@@ -1355,7 +1355,7 @@ TEMPLATES.gg = {
     runtime: GG_RUNTIME,
     lang: GG_LANG,
     ext: ".gg",
-    describe: "SCARP SPRINT - side-scrolling platformer for the Game Gear: gravity + Q4.4 sub-pixel jump physics, one-way platforms, pits and spikes, coins + distance scoring, PSG music + SFX. The GG twin of the SMS platformer, fitted to the 160x144 visible window (VIS_* offsets; the line-IRQ split lands at full-frame scanline 47, not the SMS's 23). 2P is classic alternating turns (P2 on port B) with per-player score and lives. The GG/SMS signature LINE-INTERRUPT split holds a fixed HUD over the scrolling level, and the 32-cell name table wraps at exactly 256 px - the level loops seamlessly with no second nametable or column streaming. GG 12-bit CRAM palette. Hi-score persists to Sega-mapper cart RAM on 64KB+ builds (verified incl. power-cycle); 32KB builds are honestly in-session.",
+    describe: "SCARP SPRINT - side-scrolling platformer for the Game Gear: gravity + Q4.4 sub-pixel jump physics, one-way platforms, pits and spikes, coins + distance scoring, PSG music + SFX. The GG twin of the SMS platformer, fitted to the 160x144 visible window (VIS_* offsets; the line-IRQ split lands at full-frame scanline 47, not the SMS's 23). 2P is classic alternating turns (P2 on port B) with per-player score and lives. The GG/SMS signature LINE-INTERRUPT split holds a fixed HUD over the scrolling level, and the 32-cell name table wraps at exactly 256 px - the level loops seamlessly with no second nametable or column streaming. GG 12-bit CRAM palette. Hi-score persists to Sega-mapper cart RAM on 64KB+ builds (verified incl. power-cycle); 32KB builds are in-session only.",
     players: "1-2 (alternating turns, P2 on port B; GG has 2 controller ports - not the link cable)",
     sram: "Sega-mapper cart RAM at $8000 ($FFFC bit 3) on 64KB+ builds (verified across soft reset AND power-cycle); in-session at 32KB",
     mechanics: ["gravity-jump physics (Q4.4 fixed point)", "one-way platform collision", "one-way camera with scroll wall", "pits + spike hazards", "coin + distance scoring", "alternating 2P turns with per-player lives"],
@@ -1373,7 +1373,7 @@ TEMPLATES.gg = {
     runtime: GG_RUNTIME,
     lang: GG_LANG,
     ext: ".gg",
-    describe: "SLUICE STACK - falling-gem versus match-3 to the full contract, fit to the GG's 160x144 visible window (VIS_* offset idiom): title shell, 1P MARATHON (levels speed the fall as you clear) and 2P SIMULTANEOUS versus (P2 on PORT B via gg_joypad_read_p2 - gpgx wires the SMS second pad for GG) on two narrow side-by-side wells where cascade chains lay garbage rows on your rival. The GG-window adaptation: wells are 5 cells wide (vs the SMS's 6) so two + a centre gutter fit the 20-col window - documented in-file. Move/cycle-colour/soft-drop/hard-drop, 3+ clears in all 4 directions, gravity cascades chain for multiplied score. Fixed HUD under the GG line-IRQ split (split at full-frame scanline 47, not the SMS's 23). 12-bit CRAM palette. Hi-score persists to Sega-mapper cart RAM (verified across power-cycle on 64KB; honest in-session at 32KB).",
+    describe: "SLUICE STACK - falling-gem versus match-3 to the full contract, fit to the GG's 160x144 visible window (VIS_* offset idiom): title shell, 1P MARATHON (levels speed the fall as you clear) and 2P SIMULTANEOUS versus (P2 on PORT B via gg_joypad_read_p2 - gpgx wires the SMS second pad for GG) on two narrow side-by-side wells where cascade chains lay garbage rows on your rival. The GG-window adaptation: wells are 5 cells wide (vs the SMS's 6) so two + a centre gutter fit the 20-col window - documented in-file. Move/cycle-colour/soft-drop/hard-drop, 3+ clears in all 4 directions, gravity cascades chain for multiplied score. Fixed HUD under the GG line-IRQ split (split at full-frame scanline 47, not the SMS's 23). 12-bit CRAM palette. Hi-score persists to Sega-mapper cart RAM (verified across power-cycle on 64KB; in-session only at 32KB).",
     players: "1-2 (1P marathon; 2P = simultaneous split-board versus, P2 on port B)",
     sram: "Sega-mapper cart RAM at $8000 ($FFFC bit 3) on 64KB+ builds (verified across soft reset AND power-cycle); in-session at 32KB",
     mechanics: ["falling-trio match-3", "3+ clears in 4 directions", "gravity cascade chains (multiplied score)", "1P marathon with levels", "simultaneous 2P versus with garbage-row attacks", "persistent hi-score"],
@@ -1391,7 +1391,7 @@ TEMPLATES.gg = {
     runtime: GG_RUNTIME,
     lang: GG_LANG,
     ext: ".gg",
-    describe: "BAFFLE BOUNCE - head-to-head court sports to the full contract, fit to the GG's 160x144 visible window (VIS_* offset idiom): title shell with 1P-vs-CPU / 2P-versus select, a beatable chase-AI CPU, 2P SIMULTANEOUS versus (P2 on PORT B via gg_joypad_read_p2 - gpgx wires the SMS second pad for GG), first-to-5 match flow into a result screen, PSG music + SFX. A +/-1 PRNG deflection spin guarantees idle rallies END. Longest 1P win streak persists to Sega-mapper cart RAM (verified across power-cycle on 64KB; honest in-session at 32KB). Fixed HUD under the GG line-IRQ split (split at full-frame scanline 47, not the SMS's 23). 12-bit CRAM palette.",
+    describe: "BAFFLE BOUNCE - head-to-head court sports to the full contract, fit to the GG's 160x144 visible window (VIS_* offset idiom): title shell with 1P-vs-CPU / 2P-versus select, a beatable chase-AI CPU, 2P SIMULTANEOUS versus (P2 on PORT B via gg_joypad_read_p2 - gpgx wires the SMS second pad for GG), first-to-5 match flow into a result screen, PSG music + SFX. A +/-1 PRNG deflection spin guarantees idle rallies END. Longest 1P win streak persists to Sega-mapper cart RAM (verified across power-cycle on 64KB; in-session only at 32KB). Fixed HUD under the GG line-IRQ split (split at full-frame scanline 47, not the SMS's 23). 12-bit CRAM palette.",
     players: "1-2 (1P = vs beatable CPU; 2P = simultaneous versus, P2 on port B)",
     sram: "Sega-mapper cart RAM at $8000 ($FFFC bit 3) on 64KB+ builds (verified across soft reset AND power-cycle); in-session at 32KB",
     mechanics: ["paddle vs ball court play", "position-based deflection angle", "beatable chase-AI CPU", "simultaneous 2P versus", "first-to-5 match flow + result screen", "PRNG rally spin (no limit cycle)", "longest-win-streak record"],
@@ -1432,18 +1432,18 @@ TEMPLATES.gg = {
   },
 };
 
-// ── C64: cc65 + SID sound (R39 brings tier-1 parity) ────────────────────
+// ── C64: cc65 + SID sound (tier-1 parity) ────────────────────────
 const C64_RUNTIME = [
   { src: "lib/c64_registers.h", dst: "c64_registers.h" },
   { src: "lib/c/c64_sfx.h",     dst: "c64_sfx.h" },
   { src: "lib/c/c64_sfx.c",     dst: "c64_sfx.c" },
 ];
-// R58b: ship cc65 C64 libsrc into project. Joystick driver,
+// ship cc65 C64 libsrc into project. Joystick driver,
 // VIC-II / SID / CIA helpers, conio, header builder - all readable.
 const C64_VENDOR_DIRS = [
   { src: "lib/cc65-src", dst: "vendor/cc65/libsrc/c64" },
 ];
-// R49: music_demo gets its own 3-voice SID music driver instead of the
+// music_demo gets its own 3-voice SID music driver instead of the
 // one-shot sfx wrapper. Note table IS the song - open c64_music.c.
 const C64_MUSIC_RUNTIME = [
   { src: "lib/c64_registers.h", dst: "c64_registers.h" },
@@ -1472,7 +1472,7 @@ TEMPLATES.c64 = {
     lang: C64_LANG, ext: ".prg",
     describe: "ION SQUALL - complete horizontal shooter: title shell (port-2 fire = 1P, port-1 fire = 2P co-op), shared-lives co-op, bullet/enemy pools, score + session hi-score, 2-voice SID music with the signature filter sweep + voice-2 SFX, and the C64 signature raster-IRQ split (fixed score bar over a fine-scrolling starfield). Hi-score persists via a 1541 DISK SAVE when run from a .d64 (KERNAL write to drive 8, committed to the live disk; in-session only as a bare .prg) - documented in-file.",
     players: "1-2 (simultaneous co-op; P1 on joystick port 2, P2 on port 1)",
-    sram: "1541 DISK SAVE - the honest C64 medium (no battery SRAM): the game writes a 2-byte record to a SEQ file 'HI' on drive 8 via the KERNAL (cbm_open/read/write), VICE commits it into the live .d64 (true-drive write-back). Requires running from a .d64 (state({op:exportDisk}) captures the save; reload restores it); as a bare .prg the save is a silent no-op (in-session only).",
+    sram: "1541 DISK SAVE - the real C64 medium (no battery SRAM): the game writes a 2-byte record to a SEQ file 'HI' on drive 8 via the KERNAL (cbm_open/read/write), VICE commits it into the live .d64 (true-drive write-back). Requires running from a .d64 (state({op:exportDisk}) captures the save; reload restores it); as a bare .prg the save is a silent no-op (in-session only).",
     mechanics: ["projectile pools", "altitude-seeking enemy spawner", "AABB collision", "shared-lives co-op", "title/play/game-over state machine"],
     techniques: [
       "raster-IRQ split (mid-frame $D016 rewrite: fixed bar over scrolling field)",
@@ -1488,7 +1488,7 @@ TEMPLATES.c64 = {
     lang: C64_LANG, ext: ".prg",
     describe: "TALUS TROT - complete C64 side-scrolling platformer: title shell (port-2 fire = 1P, port-1 fire = 2P alternating turns, per-player score/lives), gravity + Q4.4 sub-pixel jump physics, one-way platforms, pits + spikes, coins + distance scoring, raster-IRQ split (fixed score bar over a fine ($D016) + coarse (screen-RAM shift) hardware-scrolled level), 2-voice SID music with the filter sweep + SFX. Hi-score persists via 1541 disk save when run from a .d64 (in-session as a bare .prg). KEY SCROLL FINDING: shifting both screen AND color RAM per coarse step crawls cc65; a STATIC row-based color texture + screen-RAM-only shift keeps the coarse scroll real-time (taught in-file).",
     players: "1-2 (alternating turns; P1 on joystick port 2, P2 on port 1)",
-    sram: "1541 DISK SAVE - the honest C64 medium (no battery SRAM): the game writes a 2-byte record to a SEQ file 'HI' on drive 8 via the KERNAL (cbm_open/read/write), VICE commits it into the live .d64 (true-drive write-back). Requires running from a .d64 (state({op:exportDisk}) captures the save; reload restores it); as a bare .prg the save is a silent no-op (in-session only).",
+    sram: "1541 DISK SAVE - the real C64 medium (no battery SRAM): the game writes a 2-byte record to a SEQ file 'HI' on drive 8 via the KERNAL (cbm_open/read/write), VICE commits it into the live .d64 (true-drive write-back). Requires running from a .d64 (state({op:exportDisk}) captures the save; reload restores it); as a bare .prg the save is a silent no-op (in-session only).",
     mechanics: ["gravity + Q4.4 sub-pixel jump", "one-way platforms", "pits + spikes (lethal)", "coins + distance scoring", "alternating-turns 2P", "title/play/game-over state machine"],
     techniques: [
       "raster-IRQ split (fixed bar over scrolling level)",
@@ -1504,7 +1504,7 @@ TEMPLATES.c64 = {
     lang: C64_LANG, ext: ".prg",
     describe: "MAGMA MATCH - complete C64 falling-trio versus puzzle: title/1P-marathon/2P-simultaneous-versus shell, falling-trio match-3 (4-direction clears, per-column gravity, cascade chains, 9 levels), hi-score persisted via 1541 disk save when run from a .d64 (in-session as a bare .prg), 2-voice SID music with the filter sweep + SFX, raster-IRQ split fixed HUD. The board is screen RAM ($0400) chars + color RAM ($D800) repainted via a CELL-DIFF (shadow buffers; only changed cells touch RAM) - dodging the C64 full-repaint freeze (taught in-file, the inverse of the NES vblank-queue famine). Real 2P simultaneous versus with garbage: a cascade chain erupts garbage rows into your rival's well; P1 on control port 2, P2 on control port 1.",
     players: "1-2 (2P = simultaneous versus, split boards; P1 port 2, P2 port 1)",
-    sram: "1541 DISK SAVE - the honest C64 medium (no battery SRAM): the game writes a 2-byte record to a SEQ file 'HI' on drive 8 via the KERNAL (cbm_open/read/write), VICE commits it into the live .d64 (true-drive write-back). Requires running from a .d64 (state({op:exportDisk}) captures the save; reload restores it); as a bare .prg the save is a silent no-op (in-session only).",
+    sram: "1541 DISK SAVE - the real C64 medium (no battery SRAM): the game writes a 2-byte record to a SEQ file 'HI' on drive 8 via the KERNAL (cbm_open/read/write), VICE commits it into the live .d64 (true-drive write-back). Requires running from a .d64 (state({op:exportDisk}) captures the save; reload restores it); as a bare .prg the save is a silent no-op (in-session only).",
     mechanics: ["falling-trio control", "match-3 in 4 directions", "cascade chains with multipliers", "garbage attack rows", "soft/hard drop + levels", "simultaneous split-board versus"],
     techniques: [
       "cell-diff screen/color-RAM repaint (shadow buffers; only changed cells)",
@@ -1517,9 +1517,9 @@ TEMPLATES.c64 = {
   sports: {
     main: "templates/sports.c", runtime: C64_RUNTIME, runtimeDirs: C64_VENDOR_DIRS,
     lang: C64_LANG, ext: ".prg",
-    describe: "DELTA DUEL - complete C64 head-to-head court sports (Pong lineage): title shell with 1P-vs-beatable-CPU / 2P-SIMULTANEOUS-versus select (P1 control port 2, P2 control port 1), first-to-5 match flow into a result screen, beatable chase-AI CPU, a +/-1 PRNG deflection spin so idle 1P rallies provably END, best 1P-vs-CPU win-streak record persisted via 1541 disk save when run from a .d64 (in-session as a bare .prg), 2-voice SID music with the filter sweep + SFX, raster-IRQ split fixed HUD. Paddles + ball are VIC-II HARDWARE SPRITES (9th-X-bit staging for the right paddle past X=255); the court is static screen-RAM chars painted once per match (no per-frame repaint).",
+    describe: "DELTA DUEL - complete C64 head-to-head court sports (paddle-and-ball lineage): title shell with 1P-vs-beatable-CPU / 2P-SIMULTANEOUS-versus select (P1 control port 2, P2 control port 1), first-to-5 match flow into a result screen, beatable chase-AI CPU, a +/-1 PRNG deflection spin so idle 1P rallies provably END, best 1P-vs-CPU win-streak record persisted via 1541 disk save when run from a .d64 (in-session as a bare .prg), 2-voice SID music with the filter sweep + SFX, raster-IRQ split fixed HUD. Paddles + ball are VIC-II HARDWARE SPRITES (9th-X-bit staging for the right paddle past X=255); the court is static screen-RAM chars painted once per match (no per-frame repaint).",
     players: "1-2 (2P = simultaneous versus; P1 control port 2, P2 control port 1)",
-    sram: "1541 DISK SAVE - the honest C64 medium (no battery SRAM): the game writes a 2-byte record to a SEQ file 'HI' on drive 8 via the KERNAL (cbm_open/read/write), VICE commits it into the live .d64 (true-drive write-back). Requires running from a .d64 (state({op:exportDisk}) captures the save; reload restores it); as a bare .prg the save is a silent no-op (in-session only). (record = longest 1P win streak vs the CPU).",
+    sram: "1541 DISK SAVE - the real C64 medium (no battery SRAM): the game writes a 2-byte record to a SEQ file 'HI' on drive 8 via the KERNAL (cbm_open/read/write), VICE commits it into the live .d64 (true-drive write-back). Requires running from a .d64 (state({op:exportDisk}) captures the save; reload restores it); as a bare .prg the save is a silent no-op (in-session only). (record = longest 1P win streak vs the CPU).",
     mechanics: ["1P vs beatable chase-AI CPU", "2P simultaneous versus", "first-to-5 match flow + result screen", "PRNG deflection spin (rallies END)", "longest-win-streak record", "title/play/result state machine"],
     techniques: [
       "VIC-II hardware sprites (paddles + ball) with 9th-X-bit batch staging ($D010)",
@@ -1534,7 +1534,7 @@ TEMPLATES.c64 = {
     lang: C64_LANG, ext: ".prg",
     describe: "VAPOR VECTOR - complete C64 top-down vertical road racer: title/1P-race/2P-split-lane-versus shell, vertical hardware scroll via $D011 YSCROLL fine-Y + software coarse row-shift with the static-color-texture trick (coarse shift touches only screen RAM → real-time), raster-IRQ split fixed HUD over the moving road, player cars as VIC-II hardware sprites. 1P: four lanes, UP/FIRE accelerate + DOWN brake (speed 1-5), 3 crashes end the run, best DISTANCE; 2P: real simultaneous split-lane versus (P1 control port 2 left two lanes / P2 control port 1 right two), first to wreck out loses. Best DISTANCE persists via 1541 disk save when run from a .d64 (KERNAL write to drive 8, committed to the live disk; in-session only as a bare .prg). SID music + filter sweep + SFX.",
     players: "1-2 (2P = simultaneous split-lane versus; P1 control port 2, P2 control port 1)",
-    sram: "1541 DISK SAVE - the honest C64 medium (no battery SRAM): the game writes a 2-byte record to a SEQ file 'HI' on drive 8 via the KERNAL (cbm_open/read/write), VICE commits it into the live .d64 (true-drive write-back). Requires running from a .d64 (state({op:exportDisk}) captures the save; reload restores it); as a bare .prg the save is a silent no-op (in-session only). (record = best distance).",
+    sram: "1541 DISK SAVE - the real C64 medium (no battery SRAM): the game writes a 2-byte record to a SEQ file 'HI' on drive 8 via the KERNAL (cbm_open/read/write), VICE commits it into the live .d64 (true-drive write-back). Requires running from a .d64 (state({op:exportDisk}) captures the save; reload restores it); as a bare .prg the save is a silent no-op (in-session only). (record = best distance).",
     mechanics: ["lane steering", "speed control 1-5 (1P)", "best-distance (in-session)", "traffic dodging + crashes", "crash lives", "2P split-lane versus"],
     techniques: [
       "vertical hardware scroll ($D011 fine-Y + coarse row-shift, static-color-texture trick)",
@@ -1550,7 +1550,7 @@ TEMPLATES.c64 = {
     describe: "Continuous 3-voice SID music demo. Per-frame note-table sequencer (c64_music.c IS the song - edit it). Melody / bass / harmony over an Am-F-C-G loop; FIRE on joy port 2 toggles playback.",
   },
 };
-// R31: SNES audio assets shared by all C-mode genre scaffolds. The
+// SNES audio assets shared by all C-mode genre scaffolds. The
 // SPC700 driver source + sample BRR files are visible alongside the
 // prebuilt apu_blob.bin (which gets .incbin'd into the ROM via
 // snes_sfx_data.asm). User can rebuild apu_blob with asar - see
@@ -1567,7 +1567,7 @@ const SNES_SFX_RUNTIME = [
   { src: "lib/audio/sample_bank.bin", dst: "sample_bank.bin" },
 ];
 
-// R58b: ship the full PVSnesLib source tree into every SNES C
+// ship the full PVSnesLib source tree into every SNES C
 // project so the agent can grep snes/sound.h, consoleDrawText,
 // setMode, padsCurrent, etc. instead of stabbing at the precompiled
 // .obj. Same rationale as the Lynx cc65-src bundling - the agent
@@ -1619,7 +1619,7 @@ TEMPLATES.snes = {
     ext: ".sfc",
     describe: "PVSnesLib text-mode starter: consoleDrawText writes ASCII into a tile-mapped BG0. Stub font in data.asm - replace with .incbin of a real .pic/.pal for legible glyphs.",
   },
-  // R21: parity templates with NES + Genesis. tcc-65816 is C89, so all
+  // parity templates with NES + Genesis. tcc-65816 is C89, so all
   // declarations live at block top. Two-file projects (.c + .asm) because
   // PVSnesLib's runtime expects tilfont/palfont symbols to be linkable;
   // sprite templates also ship tilsprite + palsprite hand-authored bytes.
@@ -1743,7 +1743,7 @@ TEMPLATES.snes = {
       "SPC700 driver init-race avoidance",
     ],
   },
-  // R46: continuous-music demo on the SPC700 driver. Showcases
+  // continuous-music demo on the SPC700 driver. Showcases
   // sfx_music_play / sfx_music_stop alongside the existing sfx_play
   // path - the SPC walks a song table autonomously while the 65816
   // just polls input.
@@ -1771,14 +1771,14 @@ const SGDK_RUNTIME = [
   { src: "lib/sgdk/md.ld",               dst: "md.ld" },
   { src: "lib/sgdk/LICENSE",             dst: "LICENSE-SGDK" },
   { src: "lib/sgdk/COPYING.RUNTIME",     dst: "COPYING-SGDK-RUNTIME" },
-  // R30: minimal PSG sound-effects wrapper. 3 functions matching the
+  // minimal PSG sound-effects wrapper. 3 functions matching the
   // NES/GB/GBA scaffold sound shape.
   { src: "lib/c/genesis_sfx.h",          dst: "genesis_sfx.h" },
   { src: "lib/c/genesis_sfx.c",          dst: "genesis_sfx.c" },
 ];
 const SGDK_RUNTIME_DIRS = [
   { src: "lib/sgdk/include", dst: "include" },
-  // R58b: ship the full SGDK src tree into the project. Agent can grep
+  // ship the full SGDK src tree into the project. Agent can grep
   // it directly instead of guessing what SPR_addSprite / VDP_drawText /
   // JOY_readJoypad / XGM2_play actually do. SGDK is compiled FROM this
   // source by the build (no prebuilt libmd.a).
@@ -1789,7 +1789,7 @@ const SGDK_RUNTIME_DIRS = [
 ];
 const SGDK_LANG = "C (m68k-elf-gcc + SGDK)";
 
-// R42: XGM2 music runtime - adds the demo .vgm source + compiled .xgc blob
+// XGM2 music runtime - adds the demo .vgm source + compiled .xgc blob
 // alongside the standard SGDK headers/libmd. .vgm is the human-editable
 // chiptune (regen via scripts/build-genesis-demo-vgm.js + xgm2tool); .xgc
 // is what gets .incbin'd into ROM via the data.s sibling.
@@ -1820,9 +1820,9 @@ TEMPLATES.genesis = {
       { src: "lib/vdp_init.s", dst: "vdp_init.s" },
       { src: "lib/vblank_wait.s", dst: "vblank_wait.s" },
     ],
-    lang: "68k assembly (vasm68k)",
+    lang: "68k assembly (Motorola syntax, m68k-elf-as)",
     ext: ".bin",
-    describe: "Raw 68k Genesis starter (vasm68k): header + VDP init + vblank wait. Use when you need cycle-accurate control (raster splits, mid-frame DMA). For most game work prefer template:\"default\" (SGDK C).",
+    describe: "Raw 68k Genesis starter (Motorola-syntax assembly): header + VDP init + vblank wait. Use when you need cycle-accurate control (raster splits, mid-frame DMA). For most game work prefer template:\"default\" (SGDK C).",
   },
   sgdk_hello: {
     main: "templates/sgdk_hello.c",
@@ -1832,9 +1832,9 @@ TEMPLATES.genesis = {
     ext: ".bin",
     describe: "Alias of template:\"default\" (kept for backward-compat with earlier scripts that named it explicitly).",
   },
-  // R42: XGM2 music playback - counterpart to the R30 PSG sfx wrapper.
+  // XGM2 music playback - counterpart to the PSG sfx wrapper.
   // Two-file project (main.c + data.s sibling); data.s does the .incbin
-  // of demo.xgc, matching R31's snes_sfx_data.asm pattern. The compiled
+  // of demo.xgc, matching the snes_sfx_data.asm pattern. The compiled
   // .xgc plus its source .vgm both ship in the project tree so users can
   // regen with xgm2tool.
   xgm2_demo: {
@@ -1978,14 +1978,13 @@ TEMPLATES.genesis = {
 // Empty today; every supported platform now has a full TEMPLATES entry.
 const SIMPLE_STARTERS = {};
 
-// R38: Lynx tier-1 with full template set + MIKEY sound + tgi graphics.
-// R43: music_demo template - cc65's lynx_snd_play streaming music engine.
-// R58b: ship the cc65 Lynx libsrc INTO each project so the agent can
+// Lynx tier-1 with full template set + MIKEY sound + tgi graphics.
+// music_demo template - cc65's lynx_snd_play streaming music engine.
+// ship the cc65 Lynx libsrc INTO each project so the agent can
 //   grep the TGI driver / lynx_snd engine / joystick driver without
-//   leaving their project dir. The 1500-frame TGI wedge round
-//   (rounds 28-32) was caused entirely by the agent debugging a
-//   blackbox driver. R58 copy-into-install was the half-step;
-//   R58b shipping into the PROJECT closes the loop.
+//   leaving their project dir. Debugging the TGI driver as a black
+//   box is slow; with the source in the project it can be read and
+//   searched like the game's own code.
 const LYNX_VENDOR_DIRS = [
   { src: "lib/cc65-src", dst: "vendor/cc65/libsrc/lynx" },
 ];
@@ -2017,7 +2016,7 @@ TEMPLATES.lynx = {
   shmup: {
     main: "templates/shmup.c", runtime: LYNX_RUNTIME, runtimeDirs: LYNX_VENDOR_DIRS,
     lang: LYNX_LANG, ext: ".lnx",
-    describe: "VOID PLUNGE - complete Lynx depth-dive shooter: title shell with attract demo, in-session hi-score, and the Lynx signature - Suzy HARDWARE sprite scaling: divers grow 2px to 20px as they approach (HSIZE/VSIZE recomputed per frame from depth, hitbox tracking the hardware scale, far kills pay more). MIKEY 4-voice music + SFX. Honest 1P (ComLynx needs a second Lynx); honest no-save (handy's libretro build exposes no SAVE_RAM - probed; cart 93Cxx EEPROM is the real-hardware path, future core round).",
+    describe: "VOID PLUNGE - complete Lynx depth-dive shooter: title shell with attract demo, in-session hi-score, and the Lynx signature - Suzy HARDWARE sprite scaling: divers grow 2px to 20px as they approach (HSIZE/VSIZE recomputed per frame from depth, hitbox tracking the hardware scale, far kills pay more). MIKEY 4-voice music + SFX. 1P only (ComLynx needs a second Lynx); no save (handy's libretro build exposes no SAVE_RAM - probed; cart 93Cxx EEPROM is the real-hardware path, future core round).",
     players: "1 (handheld - ComLynx multiplayer needs a second physical Lynx)",
     sram: "none - probe: regionSize(save_ram)=0, retro_get_memory(SAVE_RAM)=NULL; cart EEPROM named in-file as the real path (future core round)",
     mechanics: ["depth-corridor enemy dives (screen-Y as depth)", "scaled collision boxes (hitbox = hardware sprite size)", "range-weighted scoring", "projectile pool", "level ramp", "title/play/game-over state machine", "attract-mode demo"],
@@ -2031,7 +2030,7 @@ TEMPLATES.lynx = {
   platformer: {
     main: "templates/platformer.c", runtime: LYNX_RUNTIME, runtimeDirs: LYNX_VENDOR_DIRS,
     lang: LYNX_LANG, ext: ".lnx",
-    describe: "RIDGE ROMP - complete Lynx side-scrolling platformer: title shell with breathing-gem attract, gravity + Q4.4 sub-pixel jump physics, one-way platforms, lethal pits, spikes, coins + distance scoring, in-session hi-score, MIKEY 4-voice music + SFX. The Lynx signature - Suzy HARDWARE sprite scaling - runs throughout: collectible gems pulse 0.75x to 1.75x every frame (HSIZE/VSIZE in the SCB, grab box tracking the live scale) and the hero rides the same scaling SCB path. Scrolling is a software camera over a looping 384px column map (the Lynx has no hardware tilemap/scroll), redrawing the visible slice each frame. Honest 1P (ComLynx needs a second Lynx); honest no-save (handy's libretro build exposes no SAVE_RAM - probed; cart 93Cxx EEPROM is the real-hardware path, future core round).",
+    describe: "RIDGE ROMP - complete Lynx side-scrolling platformer: title shell with breathing-gem attract, gravity + Q4.4 sub-pixel jump physics, one-way platforms, lethal pits, spikes, coins + distance scoring, in-session hi-score, MIKEY 4-voice music + SFX. The Lynx signature - Suzy HARDWARE sprite scaling - runs throughout: collectible gems pulse 0.75x to 1.75x every frame (HSIZE/VSIZE in the SCB, grab box tracking the live scale) and the hero rides the same scaling SCB path. Scrolling is a software camera over a looping 384px column map (the Lynx has no hardware tilemap/scroll), redrawing the visible slice each frame. 1P only (ComLynx needs a second Lynx); no save (handy's libretro build exposes no SAVE_RAM - probed; cart 93Cxx EEPROM is the real-hardware path, future core round).",
     players: "1 (handheld - ComLynx multiplayer needs a second physical Lynx)",
     sram: "none - probe: regionSize(save_ram)=0, retro_get_memory(SAVE_RAM)=NULL; cart EEPROM named in-file as the real path (future core round)",
     mechanics: ["gravity + Q4.4 sub-pixel jump physics", "one-way platforms (4-px landing window)", "lethal pits + spikes", "coins + scaling gems (live-size grab box)", "distance scoring", "software-camera scrolling over a looping column map", "title/play/game-over state machine"],
@@ -2046,7 +2045,7 @@ TEMPLATES.lynx = {
   puzzle: {
     main: "templates/puzzle.c", runtime: LYNX_RUNTIME, runtimeDirs: LYNX_VENDOR_DIRS,
     lang: LYNX_LANG, ext: ".lnx",
-    describe: "QUARRY QUELL - complete Lynx falling-trio match-3: 1P marathon with cascade chains + ramping levels (29->5 frames/row), a 6x12 well + slim HUD fit into 160x102, 4-direction 3+ clears with multiplied cascade scoring, in-session hi-score, MIKEY 4-voice music + SFX. The Lynx signature Suzy HARDWARE sprite scaling is woven in: the trio renders as scaling SCB sprites and every match fires a clear-pop scale flash (well gems swell >1.0x then ease back). One 8x8 gem art recoloured per-draw via the SCB penpal (1 art block, 3 colours); the well repaints cell-by-cell each frame (no hardware tilemap). Honest 1P (ComLynx needs a 2nd Lynx); honest no-save (handy exposes no SAVE_RAM - probed; cart EEPROM is the real path).",
+    describe: "QUARRY QUELL - complete Lynx falling-trio match-3: 1P marathon with cascade chains + ramping levels (29->5 frames/row), a 6x12 well + slim HUD fit into 160x102, 4-direction 3+ clears with multiplied cascade scoring, in-session hi-score, MIKEY 4-voice music + SFX. The Lynx signature Suzy HARDWARE sprite scaling is woven in: the trio renders as scaling SCB sprites and every match fires a clear-pop scale flash (well gems swell >1.0x then ease back). One 8x8 gem art recoloured per-draw via the SCB penpal (1 art block, 3 colours); the well repaints cell-by-cell each frame (no hardware tilemap). 1P only (ComLynx needs a 2nd Lynx); no save (handy exposes no SAVE_RAM - probed; cart EEPROM is the real path).",
     players: "1 (handheld - ComLynx multiplayer needs a second physical Lynx)",
     sram: "none - probe: regionSize(save_ram)=0, retro_get_memory(SAVE_RAM)=NULL; cart EEPROM named in-file as the real path",
     mechanics: ["falling-trio match-3", "4-direction 3+ clears", "gravity + cascade chains (multiplied score)", "ramping levels", "session hi-score", "title/play/game-over state machine"],
@@ -2061,7 +2060,7 @@ TEMPLATES.lynx = {
   sports: {
     main: "templates/sports.c", runtime: LYNX_RUNTIME, runtimeDirs: LYNX_VENDOR_DIRS,
     lang: LYNX_LANG, ext: ".lnx",
-    describe: "PULSE PARRY - complete Lynx versus court game fit to 160x102: 1P vs a beatable chase-AI CPU (deflect at the paddle edge to out-angle it), first-to-5 -> result screen, a PRNG +/-1 rally spin so an idle match provably ENDS, in-session win-streak record, MIKEY 4-voice music + SFX. The Lynx signature Suzy HARDWARE sprite scaling is woven in two ways: the ball is a scaling SCB sprite whose HSIZE/VSIZE tracks its speed (fast volleys loom larger), and the result screen pops the winner glyph to ~2.0x then eases back. Honest 1P (ComLynx needs a second physical Lynx); honest no-save (handy exposes no SAVE_RAM - probed; cart EEPROM is the real path).",
+    describe: "PULSE PARRY - complete Lynx versus court game fit to 160x102: 1P vs a beatable chase-AI CPU (deflect at the paddle edge to out-angle it), first-to-5 -> result screen, a PRNG +/-1 rally spin so an idle match provably ENDS, in-session win-streak record, MIKEY 4-voice music + SFX. The Lynx signature Suzy HARDWARE sprite scaling is woven in two ways: the ball is a scaling SCB sprite whose HSIZE/VSIZE tracks its speed (fast volleys loom larger), and the result screen pops the winner glyph to ~2.0x then eases back. 1P only (ComLynx needs a second physical Lynx); no save (handy exposes no SAVE_RAM - probed; cart EEPROM is the real path).",
     players: "1 (handheld - ComLynx multiplayer needs a second physical Lynx)",
     sram: "none - probe: regionSize(save_ram)=0, retro_get_memory(SAVE_RAM)=NULL; in-session win-streak; cart EEPROM named in-file as the real path",
     mechanics: ["paddle vs ball court play", "edge-deflection angle", "beatable chase-AI CPU", "first-to-5 match flow + result screen", "PRNG rally spin (no limit cycle)", "in-session win-streak record"],
@@ -2076,7 +2075,7 @@ TEMPLATES.lynx = {
   racing: {
     main: "templates/racing.c", runtime: LYNX_RUNTIME, runtimeDirs: LYNX_VENDOR_DIRS,
     lang: LYNX_LANG, ext: ".lnx",
-    describe: "DEPTH DODGE - complete Lynx top-down vertical road racer fit to 160x102: title shell with an approaching-car attract, 1P endless run with LEFT/RIGHT lane steering + UP/DOWN speed control (1-5), 3 lives, best-distance record, MIKEY 4-voice music + SFX. The Lynx signature Suzy HARDWARE sprite scaling is the CORE mechanic - obstacle cars enter tiny at the horizon and SWELL toward you as they approach (HSIZE/VSIZE recomputed per frame from screen-Y, the hitbox tracking the live hardware scale), an OutRun-ish pseudo-3D depth built from honest sprite scaling, NOT Mode-7. Result screen pops the glyph to ~2.0x then eases back. The road has no hardware tilemap/scroll: the full-redraw loop repaints it each frame and the lane-dash phase animation IS the scroll. Honest 1P (ComLynx needs a second physical Lynx); honest no-save (handy exposes no SAVE_RAM - probed; cart EEPROM is the real path).",
+    describe: "DEPTH DODGE - complete Lynx top-down vertical road racer fit to 160x102: title shell with an approaching-car attract, 1P endless run with LEFT/RIGHT lane steering + UP/DOWN speed control (1-5), 3 lives, best-distance record, MIKEY 4-voice music + SFX. The Lynx signature Suzy HARDWARE sprite scaling is the CORE mechanic - obstacle cars enter tiny at the horizon and SWELL toward you as they approach (HSIZE/VSIZE recomputed per frame from screen-Y, the hitbox tracking the live hardware scale), an arcade-racer pseudo-3D depth built from real sprite scaling, NOT Mode-7. Result screen pops the glyph to ~2.0x then eases back. The road has no hardware tilemap/scroll: the full-redraw loop repaints it each frame and the lane-dash phase animation IS the scroll. 1P only (ComLynx needs a second physical Lynx); no save (handy exposes no SAVE_RAM - probed; cart EEPROM is the real path).",
     players: "1 (handheld - ComLynx multiplayer needs a second physical Lynx)",
     sram: "none - probe: regionSize(save_ram)=0, retro_get_memory(SAVE_RAM)=NULL; in-session best distance; cart EEPROM named in-file as the real path",
     mechanics: ["3-lane top-down racing", "lane steering + speed control (1-5)", "depth-scaled approaching obstacles (hitbox = hardware sprite size)", "distance scoring", "3 crashes end the run", "in-session best-distance record", "attract-mode demo"],
@@ -2090,7 +2089,7 @@ TEMPLATES.lynx = {
   },
 };
 
-// R24 + R28: Game Boy Advance C tier-1 via arm-none-eabi-gcc + EITHER
+// Game Boy Advance C tier-1 via arm-none-eabi-gcc + EITHER
 // libtonc (default, Tonc-tutorial-aligned) OR libgba (devkitPro
 // official). Same self-containment policy as Genesis SGDK - the
 // entire runtime bundle gets copied INTO the user's project so they
@@ -2122,7 +2121,7 @@ const GBA_LIBTONC_RUNTIME = [
 const GBA_LIBTONC_RUNTIME_DIRS = [
   { src: "lib/libtonc/include",    dst: "include" },
   { src: "lib/libgba/sysinclude",  dst: "sysinclude" },   // shared with libgba
-  // R58b: ship the FULL libtonc source tree INTO the project so the
+  // ship the FULL libtonc source tree INTO the project so the
   // agent can grep/read every implementation (TTE, OAM helpers, IRQ
   // setup, etc.) instead of stabbing in the dark against libtonc.a.
   // The 1500-frame Lynx wedge took 5 rounds partly because cc65 TGI
@@ -2143,7 +2142,7 @@ const GBA_LIBGBA_RUNTIME = [
 const GBA_LIBGBA_RUNTIME_DIRS = [
   { src: "lib/libgba/include",    dst: "include" },
   { src: "lib/libgba/sysinclude", dst: "sysinclude" },
-  // R58b: ship full libgba source so the agent can grep irqInit /
+  // ship full libgba source so the agent can grep irqInit /
   // irqSet / VBlankIntrWait / GBA register defines directly.
   { src: "lib/libgba/src",        dst: "vendor/libgba/src" },
 ];
@@ -2193,7 +2192,7 @@ TEMPLATES.gba = {
     runtimeDirs: GBA_LIBTONC_RUNTIME_DIRS,
     lang: GBA_TONC_LANG,
     ext: ".gba",
-    describe: "GEAR GROTTO - complete GBA side-scrolling platformer: press-start title with battery-persistent cartridge-SRAM hi-score ('SRAM_V' marker, byte-wide bus, magic+checksum, verified across power cycles), gravity + Q.4 sub-pixel jump physics, one-way platforms, lethal pits, coins + distance scoring, DMA/PSG music + SFX. The GBA signature is an AFFINE OBJ hazard - a spinning, scale-pulsing 32x32 gear (OAM affine slot 0, double-size, 8.8 matrix taught register-by-register). The scrolling tile level is a Mode-0 64x32 BG that wraps in hardware at 512 px (cam & 511 / col & 63) for a seamlessly looping endless run under a fixed TTE HUD. 1P by design - link-cable 2P can't be emulated single-instance (stated honestly in-file).",
+    describe: "GEAR GROTTO - complete GBA side-scrolling platformer: press-start title with battery-persistent cartridge-SRAM hi-score ('SRAM_V' marker, byte-wide bus, magic+checksum, verified across power cycles), gravity + Q.4 sub-pixel jump physics, one-way platforms, lethal pits, coins + distance scoring, DMA/PSG music + SFX. The GBA signature is an AFFINE OBJ hazard - a spinning, scale-pulsing 32x32 gear (OAM affine slot 0, double-size, 8.8 matrix taught register-by-register). The scrolling tile level is a Mode-0 64x32 BG that wraps in hardware at 512 px (cam & 511 / col & 63) for a seamlessly looping endless run under a fixed TTE HUD. 1P by design - link-cable 2P can't be emulated single-instance (noted in-file).",
     players: "1 (handheld - link-cable 2P not emulatable single-instance)",
     sram: "cartridge SRAM hi-score at 0x0E000000 ('SRAM_V' marker, byte-wide bus, magic+checksum; survives power cycles)",
     mechanics: ["gravity-jump physics (Q.4 fixed point)", "one-way platform collision via column map", "endless one-way runner camera", "lethal pits", "coin pickup + distance scoring", "spinning affine gear hazard"],
@@ -2229,7 +2228,7 @@ TEMPLATES.gba = {
     runtimeDirs: GBA_LIBTONC_RUNTIME_DIRS,
     lang: GBA_TONC_LANG,
     ext: ".gba",
-    describe: "RALLY ROVER - complete GBA versus court game (Pong lineage): press-start title, 1P vs a beatable CPU (chases at a third your speed with a dead-zone - steep edge-deflections beat it), first-to-5 match flow into a result screen, a PRNG +/-1 rally spin so an idle match provably ENDS (the deterministic-versus footgun, taught in-file), DMA/PSG music + SFX, vivid 15-bit court (blue vs red teams via OBJ palbank, white net/rails/ball). Persistent RECORD = longest win streak vs the CPU in cartridge SRAM ('SRAM_V' marker, byte-wide bus, magic+checksum, verified across power cycles). KEY IDIOM: the score is surfaced onto hardware as BG score-pip tiles so headless verification reads it from VRAM (GBA C globals are not host-readable). 1P by design - link-cable 2P not emulatable single-instance (stated honestly in-file).",
+    describe: "RALLY ROVER - complete GBA versus court game (paddle-and-ball lineage): press-start title, 1P vs a beatable CPU (chases at a third your speed with a dead-zone - steep edge-deflections beat it), first-to-5 match flow into a result screen, a PRNG +/-1 rally spin so an idle match provably ENDS (the deterministic-versus footgun, taught in-file), DMA/PSG music + SFX, vivid 15-bit court (blue vs red teams via OBJ palbank, white net/rails/ball). Persistent RECORD = longest win streak vs the CPU in cartridge SRAM ('SRAM_V' marker, byte-wide bus, magic+checksum, verified across power cycles). KEY IDIOM: the score is surfaced onto hardware as BG score-pip tiles so headless verification reads it from VRAM (GBA C globals are not host-readable). 1P by design - link-cable 2P not emulatable single-instance (noted in-file).",
     players: "1 (handheld - link-cable 2P not emulatable single-instance)",
     sram: "cartridge SRAM record at 0x0E000000 - longest CPU-mode win streak ('SRAM_V' marker, byte-wide bus, magic+checksum; survives power cycles)",
     mechanics: ["versus match flow (first-to-5, result screen)", "beatable CPU opponent (speed-capped ball chase with dead zone)", "edge-hit ball deflection with PRNG spin", "serve pause + alternating serve angle", "battery win-streak record"],
@@ -2248,7 +2247,7 @@ TEMPLATES.gba = {
     runtimeDirs: GBA_LIBTONC_RUNTIME_DIRS,
     lang: GBA_TONC_LANG,
     ext: ".gba",
-    describe: "VERGE PILOT - complete GBA top-down road racer: press-start title, 1P endless race (handheld - link-cable 2P not emulatable single-instance, stated honestly in-file), lane steering + A/B throttle, traffic dodging with crash/lives, vivid 15-bit colour, DMA/PSG music + SFX, persistent best distance in cartridge SRAM ('SRAM_V' marker, byte-wide bus, magic+checksum, verified across power cycles). The GBA signature is an AFFINE BG2 ROAD (Mode 1, the console's Mode-7 trick) that recedes/scrolls, scales with speed, and banks as you steer - the 8.8 matrix taught register-by-register (a single-matrix demo; a full per-scanline perspective floor is noted as the heavier next step).",
+    describe: "VERGE PILOT - complete GBA top-down road racer: press-start title, 1P endless race (handheld - link-cable 2P not emulatable single-instance, noted in-file), lane steering + A/B throttle, traffic dodging with crash/lives, vivid 15-bit colour, DMA/PSG music + SFX, persistent best distance in cartridge SRAM ('SRAM_V' marker, byte-wide bus, magic+checksum, verified across power cycles). The GBA signature is an AFFINE BG2 ROAD (Mode 1, the console's Mode-7 trick) that recedes/scrolls, scales with speed, and banks as you steer - the 8.8 matrix taught register-by-register (a single-matrix demo; a full per-scanline perspective floor is noted as the heavier next step).",
     players: "1 (handheld - link-cable 2P not emulatable single-instance)",
     sram: "cartridge SRAM best distance at 0x0E000000 ('SRAM_V' marker, byte-wide bus, magic+checksum; survives power cycles)",
     mechanics: ["lane steering", "A/B throttle", "traffic dodging", "crash + lives", "best-distance persistence"],
@@ -2270,7 +2269,7 @@ TEMPLATES.gba = {
     ext: ".gba",
     describe: "Alternate GBA C starter using devkitPro's libgba SDK. MODE_3 framebuffer + red pixel. Pass runtime:'libgba' to build({output:'run'}) - or just use the Tonc path (gba_hello_tonc) which is better aligned with what published tutorials teach.",
   },
-  // R34: maxmod music demo. Ships a hand-authored CC0 chiptune.xm +
+  // maxmod music demo. Ships a hand-authored CC0 chiptune.xm +
   // its pre-built soundbank.bin. build({output:'run'}) must be called with
   // `maxmod: true` AND binaryIncludes:{ "soundbank.bin": <bytes> } -
   // the buildGbaC layer auto-emits a `.incbin "soundbank.bin"` asm
@@ -2301,16 +2300,16 @@ TEMPLATES.gba = {
   },
 };
 
-// R22: Atari 2600 promoted to multi-template platform. The 2600 has no
+// Atari 2600 promoted to multi-template platform. The 2600 has no
 // C compiler (asm only via dasm) and the genre-shmup/platformer/puzzle
 // scaffolds from other platforms don't map cleanly - its hardware
 // forces "race the beam" rendering. Three templates here that ARE
 // idiomatic 2600:
 //   default        - single sprite, blue background, joystick movement
-//   paddle         - Pong-style: two paddles + ball + walls
+//   paddle         - paddle-and-ball: two paddles + ball + walls
 //   single_screen  - dodge-the-falling-pixels using P0 + M0
 //   music_demo     - two-voice TIA chiptune
-//   mini_invaders  - gallery shooter via P0 cannon + P1/NUSIZ1 invaders + M0 shot
+//   gallery_shooter - gallery shooter via P0 cannon + P1/NUSIZ1 invaders + M0 shot
 TEMPLATES.atari2600 = {
   default: {
     main: "templates/default.asm",
@@ -2324,7 +2323,7 @@ TEMPLATES.atari2600 = {
     runtime: [],
     lang: "6507 assembly (dasm)",
     ext: ".a26",
-    describe: "Pong-style scaffold. Two 8-pixel paddles (P0 + P1), one 2-pixel ball (BL), top + bottom walls (PF). Left paddle on joystick, right paddle AI chases ball Y. Demonstrates multi-object positioning via RESP0/RESP1/RESBL.",
+    describe: "Paddle-and-ball scaffold. Two 8-pixel paddles (P0 + P1), one 2-pixel ball (BL), top + bottom walls (PF). Left paddle on joystick, right paddle AI chases ball Y. Demonstrates multi-object positioning via RESP0/RESP1/RESBL.",
   },
   single_screen: {
     main: "templates/single_screen.asm",
@@ -2340,16 +2339,16 @@ TEMPLATES.atari2600 = {
     ext: ".a26",
     describe: "Two-voice TIA chiptune scaffold. Voice 0 = 32-note melody, voice 1 = 16-note bass ostinato, both driven from hand-authored (AUDF, length_frames) note tables in ROM. AUDC0=AUDC1=$04 (pure tone). Music updates happen during VBLANK (never during visible scanlines). Display is minimal - blue BG + a centered playfield band - because the point IS the audio. The note tables ARE the song; edit them and you're writing chiptune.",
   },
-  mini_invaders: {
-    main: "templates/mini_invaders.asm",
+  gallery_shooter: {
+    main: "templates/gallery_shooter.asm",
     runtime: [],
     lang: "6507 assembly (dasm)",
     ext: ".a26",
-    describe: "Gallery-shooter (Space-Invaders-shaped) done with the RIGHT TIA objects, not playfield 'barcode' bars: P0 = double-width cannon, P1 + NUSIZ1=%011 = a row of THREE hardware-replicated invaders (one GRP1 write draws all three), M0 = the player shot. Aliens march left/right and drop a step at the edges; fire with the joystick button. The honest 2600-idiomatic way to do this genre - extend by reusing P1 lower for shields or adding M1 as an alien bomb. Verified: marches + renders cannon/aliens/shot.",
+    describe: "Gallery-shooter (marching-formation) done with the RIGHT TIA objects, not playfield 'barcode' bars: P0 = double-width cannon, P1 + NUSIZ1=%011 = a row of THREE hardware-replicated invaders (one GRP1 write draws all three), M0 = the player shot. Aliens march left/right and drop a step at the edges; fire with the joystick button. The 2600-idiomatic way to do this genre - extend by reusing P1 lower for shields or adding M1 as an alien bomb. Verified: marches + renders cannon/aliens/shot.",
   },
   // ── Genre games (all five, complete to the contract) ───────────────
-  // shmup + sports are the console's native idioms (Space Invaders /
-  // Pong); racing (top-down) and platformer (single-screen) are honest,
+  // shmup + sports are the console's native idioms (gallery shooter /
+  // paddle-and-ball); racing (top-down) and platformer (single-screen) are
   // period-correct fits. puzzle is a MEMORY MATCH-PAIRS game (TILE TWINS),
   // NOT match-3: a 6x12 multi-colour falling-block grid is not renderable
   // on a tilemap-less, one-COLUPF-per-line TIA - but a static, turn-based
@@ -2360,8 +2359,8 @@ TEMPLATES.atari2600 = {
     runtime: [],
     lang: "6507 assembly (dasm)",
     ext: ".a26",
-    describe: "FLAK FRENZY - Atari 2600 gallery shooter (a genre the TIA suits) to the full contract: a drawn FLAK/FRENZY title banner (asymmetric playfield, not text mode), title/play/game-over state machine, P0 ship + P1 with NUSIZ replication for a 2x3 invader formation (one GRP1 write draws the whole replicated row) + M0 shot, TIA hardware-collision hit detection, score + in-session hi-score on the title (honest no-battery), TIA SFX + a title jingle + game-over tune on separate voices, RIOT-timer frame pacing, the SBC-#15 RESP/HMOVE positioning idiom, SWCHA per-check re-read discipline. 1P by design - a gallery-shooter kernel already spends its scanline budget on the ship + replicated formation + shot (2P alternating turns left as a cheap fork).",
-    players: "1 (honest - gallery-shooter kernel budget; 2P alternating turns left as a fork)",
+    describe: "FLAK FRENZY - Atari 2600 gallery shooter (a genre the TIA suits) to the full contract: a drawn FLAK/FRENZY title banner (asymmetric playfield, not text mode), title/play/game-over state machine, P0 ship + P1 with NUSIZ replication for a 2x3 invader formation (one GRP1 write draws the whole replicated row) + M0 shot, TIA hardware-collision hit detection, score + in-session hi-score on the title (no battery), TIA SFX + a title jingle + game-over tune on separate voices, RIOT-timer frame pacing, the SBC-#15 RESP/HMOVE positioning idiom, SWCHA per-check re-read discipline. 1P by design - a gallery-shooter kernel already spends its scanline budget on the ship + replicated formation + shot (2P alternating turns left as a cheap fork).",
+    players: "1 (gallery-shooter kernel budget; 2P alternating turns left as a fork)",
     sram: "none - no persistent storage on real 2600 hardware; hi-score is in-session only",
     mechanics: ["player ship + shot", "NUSIZ-replicated invader formation", "TIA hardware-collision hit detection", "formation march + score", "session hi-score", "title/play/game-over state machine"],
     techniques: [
@@ -2378,7 +2377,7 @@ TEMPLATES.atari2600 = {
     runtime: [],
     lang: "6507 assembly (dasm)",
     ext: ".a26",
-    describe: "RAPID RALLY - complete 2600 head-to-head paddle game: drawn title screen, 1P vs AI or 2P versus (port-1 stick drives the right paddle), rally counter, TIA SFX + title jingle, auto-return to title, IN-SESSION hi-score (no battery on real 2600 hardware - stated honestly in-source). Teaches the machine itself: 2-line kernel, RESP positioning, SWCHA re-read discipline, score-mode dual color.",
+    describe: "RAPID RALLY - complete 2600 head-to-head paddle game: drawn title screen, 1P vs AI or 2P versus (port-1 stick drives the right paddle), rally counter, TIA SFX + title jingle, auto-return to title, IN-SESSION hi-score (no battery on real 2600 hardware - noted in-source). Teaches the machine itself: 2-line kernel, RESP positioning, SWCHA re-read discipline, score-mode dual color.",
     players: "1-2 (1P vs AI / 2P simultaneous versus)",
     sram: "none - the 2600 has no persistent storage on real hardware; hi-score is in-session only",
     mechanics: ["paddle versus (1P AI / 2P)", "rally counter", "score-to-limit match flow", "auto title return", "session hi-score"],
@@ -2395,8 +2394,8 @@ TEMPLATES.atari2600 = {
     runtime: [],
     lang: "6507 assembly (dasm)",
     ext: ".a26",
-    describe: "SWERVE STREAK - complete Atari 2600 top-down road racer to the full contract: a drawn SWERVE/STREAK title banner (asymmetric playfield, not text mode), title/play/game-over state machine, P0 player car (LEFT/RIGHT to weave) on a reflected-playfield road (PF0 rails + a PF2 centre dash that crawls DOWN every frame via a scroll-phase offset to convey speed), P1/M0 descending traffic you dodge, TIA hardware-collision crash, distance score + in-session hi-score on the title (honest no-battery), TIA engine/crash SFX + a title jingle + game-over tune, RIOT-timer pacing, SBC-#15 RESP positioning. 1P by design - the road kernel already spends its scanline budget on the road + your car + a rival + a hazard (2P best-distance alternating runs left as a fork). HONEST: the 2600 has no hardware scroll, so forward motion is the dashed line + descending traffic animated each frame.",
-    players: "1 (honest - road kernel budget; 2P best-distance alternating runs left as a fork)",
+    describe: "SWERVE STREAK - complete Atari 2600 top-down road racer to the full contract: a drawn SWERVE/STREAK title banner (asymmetric playfield, not text mode), title/play/game-over state machine, P0 player car (LEFT/RIGHT to weave) on a reflected-playfield road (PF0 rails + a PF2 centre dash that crawls DOWN every frame via a scroll-phase offset to convey speed), P1/M0 descending traffic you dodge, TIA hardware-collision crash, distance score + in-session hi-score on the title (no battery), TIA engine/crash SFX + a title jingle + game-over tune, RIOT-timer pacing, SBC-#15 RESP positioning. 1P by design - the road kernel already spends its scanline budget on the road + your car + a rival + a hazard (2P best-distance alternating runs left as a fork). NOTE: the 2600 has no hardware scroll, so forward motion is the dashed line + descending traffic animated each frame.",
+    players: "1 (road kernel budget; 2P best-distance alternating runs left as a fork)",
     sram: "none - no persistent storage on real 2600 hardware; best distance is in-session only",
     mechanics: ["lane weaving", "descending traffic dodging", "TIA hardware-collision crash", "distance scoring + speed ramp", "session hi-score", "title/play/game-over state machine"],
     techniques: [
@@ -2413,8 +2412,8 @@ TEMPLATES.atari2600 = {
     runtime: [],
     lang: "6507 assembly (dasm)",
     ext: ".a26",
-    describe: "PERCH PATROL - complete Atari 2600 single-screen platformer (Pitfall! / Montezuma / Kangaroo idiom) to the full contract: a drawn PERCH/PATROL title banner (asymmetric playfield, not text mode), title/play/game-over state machine, P0 hero with fixed-point gravity + a jump arc (FIRE), land-on-ledge collision tested in CODE against a per-row playfield LEVEL table (the same table the kernel draws, so picture and physics never disagree), a bouncing coin (BL) to grab and a patrolling spike (M0) to dodge via TIA hardware-collision, score + in-session hi-score on the title (honest no-battery), TIA SFX + a title jingle + game-over tune, RIOT-timer pacing, SBC-#15 RESP/HMOVE positioning. The 2600 has NO hardware scroll/tilemap - the honest platformer is a FIXED screen (real games flip whole screens), so this one is too.",
-    players: "1 (honest - single-screen kernel budget; an enemy/second hero is left as a fork)",
+    describe: "PERCH PATROL - complete Atari 2600 single-screen platformer (the classic 2600 single-screen idiom) to the full contract: a drawn PERCH/PATROL title banner (asymmetric playfield, not text mode), title/play/game-over state machine, P0 hero with fixed-point gravity + a jump arc (FIRE), land-on-ledge collision tested in CODE against a per-row playfield LEVEL table (the same table the kernel draws, so picture and physics never disagree), a bouncing coin (BL) to grab and a patrolling spike (M0) to dodge via TIA hardware-collision, score + in-session hi-score on the title (no battery), TIA SFX + a title jingle + game-over tune, RIOT-timer pacing, SBC-#15 RESP/HMOVE positioning. The 2600 has NO hardware scroll/tilemap - the natural platformer is a FIXED screen (real games flip whole screens), so this one is too.",
+    players: "1 (single-screen kernel budget; an enemy/second hero is left as a fork)",
     sram: "none - no persistent storage on real 2600 hardware; hi-score is in-session only",
     mechanics: ["gravity + jump arc", "land-on-ledge collision in CODE (PF LEVEL table)", "coin pickup (BL) + spike dodge (M0) via TIA collision", "score + session hi-score", "title/play/game-over state machine"],
     techniques: [
@@ -2431,7 +2430,7 @@ TEMPLATES.atari2600 = {
     runtime: [],
     lang: "6507 assembly (dasm)",
     ext: ".a26",
-    describe: "TILE TWINS - complete Atari 2600 memory match-pairs puzzle to the full contract: a drawn TILE/TWINS title banner (asymmetric playfield), title/play/game-over state machine, an 8-tile board (4 pairs) drawn as a vertical stack of full-width playfield BANDS (one COLUPF per band = per-tile color, the honest way to show distinct values on a tilemap-less TIA), a joystick UP/DOWN cursor with a bright separator-bar highlight, FIRE to flip a tile, match-clears with a chime + mismatch flip-back after a pause, a move counter + session best (fewest flips), TIA SFX + a title jingle + win tune, RIOT-timer pacing. A REAL puzzle (deliberate, turn-based, memory-driven) - not a reflex game - and a clean 2600 fit since a static turn-based board needs no per-frame motion. The board is a Fisher-Yates LFSR shuffle, fair every game.",
+    describe: "TILE TWINS - complete Atari 2600 memory match-pairs puzzle to the full contract: a drawn TILE/TWINS title banner (asymmetric playfield), title/play/game-over state machine, an 8-tile board (4 pairs) drawn as a vertical stack of full-width playfield BANDS (one COLUPF per band = per-tile color, the straightforward way to show distinct values on a tilemap-less TIA), a joystick UP/DOWN cursor with a bright separator-bar highlight, FIRE to flip a tile, match-clears with a chime + mismatch flip-back after a pause, a move counter + session best (fewest flips), TIA SFX + a title jingle + win tune, RIOT-timer pacing. A REAL puzzle (deliberate, turn-based, memory-driven) - not a reflex game - and a clean 2600 fit since a static turn-based board needs no per-frame motion. The board is a Fisher-Yates LFSR shuffle, fair every game.",
     players: "1 (turn-based memory puzzle; alternating-2P fewest-flips is left as a fork)",
     sram: "none - no persistent storage on real 2600 hardware; best is in-session only",
     mechanics: ["8-tile / 4-pair memory board", "cursor move + flip", "match-clear + mismatch flip-back", "Fisher-Yates board shuffle", "move counter + session best", "title/play/win state machine"],
@@ -2446,18 +2445,18 @@ TEMPLATES.atari2600 = {
   },
 };
 
-// R22: Atari 7800 promoted to multi-template platform. Each template is
+// Atari 7800 promoted to multi-template platform. Each template is
 // a standalone .c file under examples/atari7800/templates/. The 7800's
 // MARIA architecture (display lists, no traditional tilemap) makes the
 // scaffolds work differently from the NES - see the comments in each
 // template for the per-object-DL vs framebuffer trade-off.
-// R40: TIA sound wrapper for 7800 scaffolds. 2 voices (no noise channel
+// TIA sound wrapper for 7800 scaffolds. 2 voices (no noise channel
 // per se - but distortion mode 8 = white noise). See atari7800_sfx.h.
 const ATARI7800_SFX_RUNTIME = [
   { src: "lib/c/atari7800_sfx.h", dst: "atari7800_sfx.h" },
   { src: "lib/c/atari7800_sfx.c", dst: "atari7800_sfx.c" },
 ];
-// R44: TIA 2-voice music driver - separate runtime since music_demo
+// TIA 2-voice music driver - separate runtime since music_demo
 // pulls in the song-player tables (atari7800_music.*) instead of the
 // one-shot sfx wrapper. Other scaffolds still use ATARI7800_SFX_RUNTIME.
 const ATARI7800_MUSIC_RUNTIME = [
@@ -2485,7 +2484,7 @@ TEMPLATES.atari7800 = {
     runtime: ATARI7800_SFX_RUNTIME,
     lang: "C (cc65)",
     ext: ".a78",
-    describe: "COMET FLURRY - dense-field meteor shooter built on MARIA's signature object quantity: 24 meteors + 2 ships + 4 shots = 30 independent display-list objects, beyond what the 2600 or stock NES can draw. 1P and 2P simultaneous co-op (shared life pool), score-scaled difficulty, two-voice TIA music with SFX voice-stealing, session hi-score (honest: the bundled prosystem core has no High Score Cart support - comments wire the real HSC path for a future core round).",
+    describe: "COMET FLURRY - dense-field meteor shooter built on MARIA's signature object quantity: 24 meteors + 2 ships + 4 shots = 30 independent display-list objects, beyond what the 2600 or stock NES can draw. 1P and 2P simultaneous co-op (shared life pool), score-scaled difficulty, two-voice TIA music with SFX voice-stealing, session hi-score (note: the bundled prosystem core has no High Score Cart support - comments wire the real HSC path for a future core round).",
     players: "1-2 (simultaneous co-op; port-1 fire starts it)",
     sram: "none - 7800 persistence is the High Score Cart, unimplemented in the bundled core (SAVE_RAM size 0); in-session hi-score with the HSC path documented",
     mechanics: ["dense-swarm dodging", "twin-ship co-op (shared life pool)", "shot/meteor scoring (fast rocks pay more)", "score-scaled difficulty", "spawn-shield shimmer invulnerability", "session hi-score"],
@@ -2503,7 +2502,7 @@ TEMPLATES.atari7800 = {
     runtime: ATARI7800_SFX_RUNTIME,
     lang: "C (cc65)",
     ext: ".a78",
-    describe: "STRATA STRIDE - complete Atari 7800 single-screen platformer built on MARIA's signature object quantity: a multi-tier arena (long floor + lethal pit + three one-way slabs) of ledges, coins and spikes all drawn as display-list objects - more than a 2600 draws. Title/1P/2P-alternating-turns shell (P2 on joystick port 1, per-player score + lives), gravity + sub-pixel jump physics, coins with an all-collected bonus, two-voice TIA music with SFX voice-stealing, session hi-score. HONEST CAVEATS: MARIA has no hardware scroll so the arena is fixed single-screen; the bundled prosystem core has no High Score Cart, so hi-score is in-session only (the real HSC path is documented in-file).",
+    describe: "STRATA STRIDE - complete Atari 7800 single-screen platformer built on MARIA's signature object quantity: a multi-tier arena (long floor + lethal pit + three one-way slabs) of ledges, coins and spikes all drawn as display-list objects - more than a 2600 draws. Title/1P/2P-alternating-turns shell (P2 on joystick port 1, per-player score + lives), gravity + sub-pixel jump physics, coins with an all-collected bonus, two-voice TIA music with SFX voice-stealing, session hi-score. CAVEATS: MARIA has no hardware scroll so the arena is fixed single-screen; the bundled prosystem core has no High Score Cart, so hi-score is in-session only (the real HSC path is documented in-file).",
     players: "1-2 (alternating turns; port-1 fire selects 2P, per-player score + lives)",
     sram: "none - 7800 persistence is the High Score Cart, unimplemented in the bundled core (SAVE_RAM size 0); in-session hi-score with the HSC path documented",
     mechanics: ["gravity + sub-pixel jump", "one-way ledges", "lethal pit + spikes", "coin + all-collected-bonus scoring", "2P alternating turns (per-player score/lives)", "session hi-score", "title/play/game-over state machine"],
@@ -2522,7 +2521,7 @@ TEMPLATES.atari7800 = {
     runtime: ATARI7800_SFX_RUNTIME,
     lang: "C (cc65)",
     ext: ".a78",
-    describe: "PIVOT PURGE - complete Atari 7800 falling-trio match-3: title/1P-marathon/2P-simultaneous-versus shell, 4-direction clears, cascade chains with multipliers, levels (1P speed-up), 2P split-board versus with capped garbage attacks (P1 port 0 / P2 port 1, both wells falling at once), two-voice TIA music with SFX voice-stealing, session hi-score. KEY MARIA IDIOM: a puzzle well is MARIA's worst case (6 cells = 6 objects on the same 8 scanlines, double the ~3/line DMA budget), so each well row is composited into a 14-byte RAM canvas and drawn as ONE wide 5-byte object per scanline - which is what lets TWO wells fit for 2P. Well DLs rebuilt on board-change, the trio overlaid per frame (naive per-frame re-emit overran 60Hz ~19x). HONEST CAVEATS: no hardware tilemap; prosystem has no HSC, so hi-score is in-session only (HSC path documented in-file). #pragma optimize(on) is load-bearing.",
+    describe: "PIVOT PURGE - complete Atari 7800 falling-trio match-3: title/1P-marathon/2P-simultaneous-versus shell, 4-direction clears, cascade chains with multipliers, levels (1P speed-up), 2P split-board versus with capped garbage attacks (P1 port 0 / P2 port 1, both wells falling at once), two-voice TIA music with SFX voice-stealing, session hi-score. KEY MARIA IDIOM: a puzzle well is MARIA's worst case (6 cells = 6 objects on the same 8 scanlines, double the ~3/line DMA budget), so each well row is composited into a 14-byte RAM canvas and drawn as ONE wide 5-byte object per scanline - which is what lets TWO wells fit for 2P. Well DLs rebuilt on board-change, the trio overlaid per frame (naive per-frame re-emit overran 60Hz ~19x). CAVEATS: no hardware tilemap; prosystem has no HSC, so hi-score is in-session only (HSC path documented in-file). #pragma optimize(on) is load-bearing.",
     players: "1-2 (2P simultaneous split-board versus; P1 port 0 / P2 port 1)",
     sram: "none - prosystem has no High Score Cart (SAVE_RAM size 0); in-session hi-score with the HSC path documented",
     mechanics: ["falling-trio match-3", "4-direction clears", "cascade chains (multiplied score)", "levels (1P speed-up)", "2P simultaneous versus split board", "garbage-row attacks", "session hi-score"],
@@ -2540,7 +2539,7 @@ TEMPLATES.atari7800 = {
     runtime: ATARI7800_SFX_RUNTIME,
     lang: "C (cc65)",
     ext: ".a78",
-    describe: "FLUX FENCE - complete Atari 7800 versus court game (Pong lineage): title/1P-vs-beatable-CPU/2P-simultaneous-versus shell (P2 on joystick port 1), first-to-5 match flow with a result screen, PRNG rally spin so an idle match always ENDS, two-voice TIA music with SFX voice-stealing, in-session record (longest 1P-vs-CPU win streak). The two paddles, the ball, and the dashed centre net are all MARIA display-list objects emitted into the per-scanline pool - a court is the sparse/easy case of the same object budget the 7800 shmup spends on a swarm. HONEST CAVEATS: no hardware tilemap; prosystem has no HSC, so the record is in-session only (the HSC path is documented in-file). #pragma optimize(on) is load-bearing.",
+    describe: "FLUX FENCE - complete Atari 7800 versus court game (paddle-and-ball lineage): title/1P-vs-beatable-CPU/2P-simultaneous-versus shell (P2 on joystick port 1), first-to-5 match flow with a result screen, PRNG rally spin so an idle match always ENDS, two-voice TIA music with SFX voice-stealing, in-session record (longest 1P-vs-CPU win streak). The two paddles, the ball, and the dashed centre net are all MARIA display-list objects emitted into the per-scanline pool - a court is the sparse/easy case of the same object budget the 7800 shmup spends on a swarm. CAVEATS: no hardware tilemap; prosystem has no HSC, so the record is in-session only (the HSC path is documented in-file). #pragma optimize(on) is load-bearing.",
     players: "1-2 (1P vs beatable CPU; 2P simultaneous versus, P1 port 0 / P2 port 1)",
     sram: "none - prosystem has no High Score Cart (SAVE_RAM size 0); in-session win-streak record with the HSC path documented",
     mechanics: ["1P vs beatable CPU", "2P simultaneous versus", "first-to-5 match -> result screen", "PRNG rally spin (idle match ends)", "angle-deflection paddle physics", "in-session win-streak record"],
@@ -2559,7 +2558,7 @@ TEMPLATES.atari7800 = {
     runtime: ATARI7800_SFX_RUNTIME,
     lang: "C (cc65)",
     ext: ".a78",
-    describe: "PISTON PINCH - complete Atari 7800 top-down road racer built on MARIA's signature object quantity: a thick descending traffic stream (up to 10 cars) + player car(s), all display-list objects. Title/1P-race/2P-simultaneous-split-lane-versus shell (P2 on joystick port 1, P1 left two lanes / P2 right two), 1P speed control (UP/A gas, DOWN/B brake, speed 1-4) banking best DISTANCE, 3 crashes end the run; 2P shares one road, first to wreck out loses. Two-voice TIA music + SFX voice-stealing. KEY 7800 IDIOM: MARIA has NO scroll register, so vertical road motion is FAKED - the centre lane DASHES march downward (per-frame DLL phase repoint, no scroll) and traffic descends as objects. HONEST CAVEATS: prosystem has no High Score Cart, so best distance is in-session only (HSC path documented in-file). #pragma optimize(on) is load-bearing.",
+    describe: "PISTON PINCH - complete Atari 7800 top-down road racer built on MARIA's signature object quantity: a thick descending traffic stream (up to 10 cars) + player car(s), all display-list objects. Title/1P-race/2P-simultaneous-split-lane-versus shell (P2 on joystick port 1, P1 left two lanes / P2 right two), 1P speed control (UP/A gas, DOWN/B brake, speed 1-4) banking best DISTANCE, 3 crashes end the run; 2P shares one road, first to wreck out loses. Two-voice TIA music + SFX voice-stealing. KEY 7800 IDIOM: MARIA has NO scroll register, so vertical road motion is FAKED - the centre lane DASHES march downward (per-frame DLL phase repoint, no scroll) and traffic descends as objects. CAVEATS: prosystem has no High Score Cart, so best distance is in-session only (HSC path documented in-file). #pragma optimize(on) is load-bearing.",
     players: "1-2 (2P simultaneous split-lane versus; P1 port 0 / P2 port 1)",
     sram: "none - prosystem has no High Score Cart (SAVE_RAM size 0); in-session best distance with the HSC path documented",
     mechanics: ["top-down lane racing", "1P speed control (gas/brake)", "descending traffic dodging", "best-distance (in-session)", "2P simultaneous split-lane versus", "crash/lives rules", "title/play/game-over state machine"],
@@ -2659,7 +2658,7 @@ export async function createProjectImpl({ platform, name, path: projPath, title,
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
   const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
-  // R37 (revisited): gbc gets its own tree now - color-aware scaffolds,
+  // gbc gets its own tree now - color-aware scaffolds,
   // GBC-specific docs, distinct examples/gbc/templates/ + src/platforms/
   // gbc/lib/c/. Same Z80 + APU + most VRAM layout as GB, but BCPS/BCPD
   // palette setup and visibly colorful tile art make the difference.
@@ -2693,7 +2692,7 @@ export async function createProjectImpl({ platform, name, path: projPath, title,
   const hasTemplates = !!TEMPLATES[platform];
   const isSimple = !!SIMPLE_STARTERS[platform];
   if (!hasTemplates && !isSimple) {
-    throw new Error(`createProject doesn't yet support platform '${platform}'. Supported: ${[...Object.keys(TEMPLATES), ...Object.keys(SIMPLE_STARTERS)].sort().join(", ")}`);
+    throw new Error(`examples({op:'fork'}) doesn't yet support platform '${platform}'. Supported: ${[...Object.keys(TEMPLATES), ...Object.keys(SIMPLE_STARTERS)].sort().join(", ")}`);
   }
 
   /** @type {any} */
@@ -2750,7 +2749,7 @@ export async function createProjectImpl({ platform, name, path: projPath, title,
     }
   }
 
-  // R20 stage 3: runtimeDirs recursively copies a whole directory tree
+  // runtimeDirs recursively copies a whole directory tree
   // (used by the SGDK Genesis template to ship the include/ header tree).
   if (tmpl?.runtimeDirs) {
     for (const { src, dst } of tmpl.runtimeDirs) {
@@ -2760,12 +2759,12 @@ export async function createProjectImpl({ platform, name, path: projPath, title,
     }
   }
 
-  // R58b: auto-vendor cc65 platform libsrc when present. Cheap blanket
+  // auto-vendor cc65 platform libsrc when present. Cheap blanket
   // policy - every cc65-using platform gets `vendor/cc65/libsrc/<p>/`
   // dropped into the project unless the template already wired it via
   // runtimeDirs. The TGI driver, joystick driver, conio, sound engine,
-  // crt0 - all the things an agent would otherwise have to file a
-  // feedback round to debug - now live in their project tree, greppable.
+  // crt0 - all the things an agent would otherwise debug as a black
+  // box - now live in their project tree, greppable.
   // Lynx already wires this via LYNX_VENDOR_DIRS, so the skip-if-present
   // check below avoids double-copying for it.
   const cc65SrcDir = path.join(PLATFORM_LIB_DIR, "lib", "cc65-src");
@@ -2809,7 +2808,7 @@ export async function createProjectImpl({ platform, name, path: projPath, title,
     writtenFiles.push(tmpl.linkerConfig.dst);
   }
 
-  // R22: ship MENTAL_MODEL.md + TROUBLESHOOTING.md from src/platforms/
+  // ship MENTAL_MODEL.md + TROUBLESHOOTING.md from src/platforms/
   // <LIB_PLATFORM>/ into the project tree when they exist. Without this
   // copy, template comments like "see TROUBLESHOOTING.md" point at a
   // file the user can't find - they'd have to call getPlatformDoc.
@@ -2837,7 +2836,7 @@ export async function createProjectImpl({ platform, name, path: projPath, title,
   const isSdccZ80 = platform === "sms" || platform === "gg";
 
   const c89Note = (isCc65 || isSdccSm83 || isSdccZ80)
-    ? `## ⚠️ ${isCc65 ? "cc65" : "SDCC"} is C89
+    ? `## ${isCc65 ? "cc65" : "SDCC"} is C89
 
 Compiles **C89**, not C99/C11. Stick to:
 - Declare loop variables at the top of blocks: \`uint8_t i; for (i = 0; ...) { ... }\`.
@@ -2974,7 +2973,7 @@ Compiles **C89**, not C99/C11. Stick to:
           "`#include \"snes_sfx.c\"`). Omit any one and the build fails."
         : "");
   } else if (platform === "snes" || platform === "genesis") {
-    // R30: Genesis SGDK templates ship genesis_sfx.{h,c} as runtime helpers.
+    // Genesis SGDK templates ship genesis_sfx.{h,c} as runtime helpers.
     // If the template's runtime list includes .c files, emit a multi-file
     // sourcesPaths block; otherwise stick with the single-source form.
     //
@@ -3207,7 +3206,7 @@ async function _createGameCore({ platform, genre, name, path: projPath, title, o
       // TEMPLATES[platform] has a matching template entry - we DERIVE
       // availability from TEMPLATES rather than maintain a parallel table,
       // so createGame can never drift out of sync with the registered
-      // templates (R61: the old hardcoded GENRE_MAP did exactly that - it
+      // templates (the old hardcoded GENRE_MAP did exactly that - it
       // omitted c64/gba/lynx even though their genre templates were registered).
       //
       // R23 + R23e note: GB / GBC have no native 2P hardware (no second
@@ -3233,16 +3232,16 @@ async function _createGameCore({ platform, genre, name, path: projPath, title, o
         const projTemplates = platformTemplates ? Object.keys(platformTemplates) : [];
         const hint = projTemplates.length ? projTemplates.join(", ") : null;
         throw new Error(
-          `createGame: no genre scaffolds for platform '${platform}' yet. ` +
+          `examples({op:'fork'}): no genre scaffolds for platform '${platform}' yet. ` +
           `Supported platforms: ${genrePlatforms.join(", ") || "(none)"}. ` +
           (hint
-            ? `For ${platform}, use createProject({platform:"${platform}", template:"..."}) with one of: ${hint}.`
-            : `For other platforms, use createProject({platform, template:"default"}) and build up from there.`)
+            ? `For ${platform}, use examples({op:'fork', platform:"${platform}", template:"...", name, path}) with one of: ${hint}.`
+            : `For other platforms, use examples({op:'fork', platform, template:"default", name, path}) and build up from there.`)
         );
       }
       if (!availableGenres.includes(genre)) {
         throw new Error(
-          `createGame: genre '${genre}' not supported for platform '${platform}'. ` +
+          `examples({op:'fork'}): genre '${genre}' not supported for platform '${platform}'. ` +
           `Available genres: ${availableGenres.join(", ")}.`
         );
       }

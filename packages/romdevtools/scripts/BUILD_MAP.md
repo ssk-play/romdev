@@ -35,7 +35,8 @@ staging), and copies into the shipping package's `wasm/`.
 | PC Engine | geargrafx | `build-geargrafx.sh` | `geargrafx-romdev-memory-regions.patch` | `romdev-core-geargrafx` |
 | MSX | bluemsx | `build-bluemsx.sh` | `bluemsx-romdev-memory-regions.patch`, `bluemsx-emscripten-build.patch` | `romdev-core-bluemsx` |
 | Atari 2600 | stella2014 | `build-stella2014.sh` | `stella2014-romdev-memory-regions.patch` | `romdev-platform-atari2600` |
-| SNES | snes9x | `build-snes9x.sh` | `snes9x-romdev-memory-regions.patch` | `romdev-platform-snes` |
+| SNES | snes9x | `build-snes9x.sh` | `snes9x-romdev-memory-regions.patch`, `snes9x-ares-chips.patch`, `snes9x-romdev-hle-data.patch` (+ `patches/snes9x/`; links ares's uPD96050 / ARM chips, ISC, fetched by `fetch-ares.sh` with `ares-romdev.patch`, used only with the chip's firmware in the system directory; romdev's SPC700 boot ROM from `spc700-ipl/`; the DSP-1 / DSP-3 / ST010 data ROM tables emptied by `recompile-gen/snes9x-chips/hle-data.mjs` and read from the user's data ROM) | `romdev-platform-snes` |
+| SNES (accuracy reference for the firmware coprocessors; `ALT_CORES`, not loadMedia's default) | bsnes | `build-bsnes.sh` | `bsnes-romdev.patch`, `bsnes-romdev-firmware.patch` (+ `patches/bsnes/`: memory regions, firmware, `strip-firmware.mjs` empties the embedded chip data and boot ROMs; `patches/libco-wasm/`: libco on Asyncify; romdev's SPC700 boot ROM from `spc700-ipl/`) | `romdev-core-bsnes` |
 | GBA | mgba | `build-mgba.sh` | `mgba-romdev-watchpoint.patch` | `romdev-platform-gba` |
 
 **`romdev-core-*` vs `romdev-platform-*`:** a `core` package is just an emulator
@@ -60,20 +61,29 @@ each toolchain recipe the same `PKG_OUT` copy step the core recipes have;
 | cc65 (ca65/cc65/ld65/da65) | `build-cc65.sh` | `romdev-toolchain-cc65` |
 | SDCC | `build-sdcc.sh` (+ `build-z80-binutils-wasm.sh`), patch `sdcc-sdasgb-32bit-addresses.patch` | `romdev-toolchain-sdcc` |
 | RGBDS | `build-rgbds.sh` | `romdev-toolchain-rgbds` |
-| vasm (m68k) | `build-vasm68k.sh` | `romdev-toolchain-vasm` |
-| m68k GCC + sjasm | `build-m68k-wasm-tools.sh`, `build-sjasm.sh` (toolchain built by `build-m68k-toolchain.sh`) | `romdev-toolchain-m68k-gcc` |
+| m68k GCC + sjasm (its GNU as also assembles Genesis Motorola-syntax sources, through `src/toolchains/m68k-asm/`) | `build-m68k-wasm-tools.sh`, `build-sjasm.sh` (toolchain built by `build-m68k-toolchain.sh`) | `romdev-toolchain-m68k-gcc` |
 | asar (65816) | `build-asar.sh` | `romdev-platform-snes` |
 | tcc816, wla-dx | `build-tcc816.sh`, `build-wladx.sh` | `romdev-platform-snes` |
 | dasm | `build-dasm.sh` | `romdev-platform-atari2600` |
 | arm-none-eabi-gcc | `build-arm-wasm-tools.sh` (toolchain by `build-arm-toolchain.sh`) | `romdev-platform-gba` |
 | libtonc / libgba / maxmod | `build-libtonc.sh`, `build-libgba.sh`, `build-maxmod.sh` | GBA SDK libs (linked, ship as source/lib) |
+| IDO 5.3 / 7.1 (N64 decomp compilers; ido-static-recomp C, patch `ido-static-recomp-wasm.patch`) | `build-ido.sh` | `romdev-toolchain-ido` (private: IDO is proprietary and never published; a checkout builds it locally) |
+| armips (N64 decomp RSP microcode assembler; patch `armips-wasm-single-thread.patch`) | `build-armips.sh` | `romdev-toolchain-mips-gcc` |
+| KMC gcc 2.7.2 + binutils 2.6 as (N64 decomp gcc projects; patches `kmc-gcc-2.7.2-wasm.patch`, `kmc-binutils-2.6-wasm.patch`, native build replayed with `emcc-replay.mjs`) | `build-decomp-gcc.sh kmc` | `romdev-toolchain-decomp-gcc` |
+| EGCS 1.1.2 + binutils 2.9.5 as (N64 iQue builds; patches `egcs-1.1.2-wasm.patch`, `egcs-binutils-2.9.5-wasm.patch`, native build replayed with `emcc-replay.mjs`) | `build-decomp-gcc.sh egcs` | `romdev-toolchain-decomp-gcc` |
+| gcc 2.6.3-psx driver + cc1 + cccp (PS1 decomps; driver via psx-gcc-2.6.3-wasm.patch; decompals/old-gcc recipe, generators run under node, everything emcc-built) | `build-decomp-gcc.sh psx` | `romdev-toolchain-decomp-gcc` |
+| mips-linux-gnu binutils (N64 decomp as/ld/objcopy/objdump) | `build-mips-linux-binutils-wasm.sh` | `romdev-toolchain-mips-gcc` |
+| mips-linux-gnu gcc 14.2 driver/cpp/cc1 (N64 decomp data TUs, `.s`/linker-script cpp; patch `gcc-14-driver-wasm-spawn.patch`; configure probes the WASM binutils through `wasm-tool-shim.mjs`) | `build-mips-linux-gcc-wasm.sh` | `romdev-toolchain-decomp-gcc` |
+| slinky-cli, pigment64, crunch64 (Rust, wasm32-unknown-emscripten) + raw-deflate (vanilla zlib) for decomp builds; psx-str (a PS1 decomp project's string encoder, from the pinned project tree; its unit tests run as WASM) | `build-decomp-rust-tools.sh` | `romdev-toolchain-decomp-gcc` |
+| psx-disk, psx-assets (Go, GOOS=wasip1, run under node:wasi by `src/decomp/wasi-run.js`; a PS1 decomp project's setup tools from the pinned project tree, built with the pinned official Go toolchain from a copy `src/decomp-go-wasip1/gen-source.mjs` rewrites (WASI support, no game text); their Go tests run as WASM with DECOMP_GO_TEST_TREE) | `build-decomp-go-tools.sh` | `romdev-toolchain-decomp-gcc` |
+| rabbitizer 1.16.2 / 1.14.3 / 1.13.0 (MIPS instruction decoder C library, standalone WASM per version + JS binding mirroring the Python module; `--test` runs the upstream C checks and upstream test tables through the binding) | `build-rabbitizer.sh` | `romdev-rabbitizer` |
 
 ## Analysis engine → packages
 
 | Component | Recipe | Patch(es) | Ships in |
 |---|---|---|---|
-| Rizin (CFG / xrefs / functions) | `build-rizin.sh` | `rizin-romdev-emscripten.patch`, `rizin-libzip-emscripten.patch` | `romdev-analysis` |
-| Ghidra decompiler + rz-ghidra + SLEIGH | `build-decompiler.sh` | (rz-ghidra/meson pins; SLEIGH specs pinned in `analysis.sleigh_specs.*`) | `romdev-analysis-decompiler` |
+| Rizin (CFG / xrefs / functions) | `build-rizin.sh` (+ `rizin-wasm/build.mjs`, `rizin-wasm/plan.json`) | `rizin-romdev-emscripten.patch`, `rizin-libzip-emscripten.patch` | `romdev-analysis` |
+| Ghidra decompiler + rz-ghidra + SLEIGH | `build-decompiler.sh` | (rz-ghidra pin; SLEIGH specs pinned in `analysis.sleigh_specs.*`) | `romdev-analysis-decompiler` |
 
 ## Shared primitives (build no package directly)
 

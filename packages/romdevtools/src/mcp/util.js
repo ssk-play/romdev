@@ -39,7 +39,7 @@ export function writeOutput(data, { outputPath, inline = false, what = "output",
 
 /**
  * Parse a hex string to bytes, tolerating whitespace/underscore/$ separators
- * and naming the real cause on failure (v0.98.0 feedback #2). Shared by
+ * and naming the real cause on failure. Shared by
  * memory({op:'write'}) and wasm({op:'write'}) so both behave identically.
  * @param {string} hex
  * @param {string} [label] tool name for the error message (default "hex")
@@ -257,8 +257,8 @@ export function withClearToolErrors(server, z) {
 // (`{address: 0xC06C}`) gets a HARD parse error, and even valid JSON can't carry
 // hex. We accept the STRING forms `"0x..."`, `"$..."`, and decimal strings on
 // address-like params and coerce them to a number BEFORE validation, so the
-// natural thing an agent reaches for just works. (Reported repeatedly in v0.41.0
-// feedback as the #1 first-try-fail.)
+// natural thing an agent reaches for just works. (This was the most common
+// first-try failure.)
 //
 // Matched by KEY NAME (not schema introspection - robust across zod versions).
 // DELIBERATELY NARROW: only names that are unambiguously a numeric address/offset
@@ -337,7 +337,13 @@ function scopesFromDescription(desc) {
   // "op=a/b:" / "target=a:"
   for (const m of String(desc).matchAll(/\b(?:op|target)\s*=\s*([A-Za-z0-9'"|/,\s]+?)\s*:/g)) add(m[1]);
   // "op:'a' -" / "op:a -" / "target:'a' -", ending at an em-dash, hyphen or colon.
-  for (const m of String(desc).matchAll(/\b(?:op|target)\s*:\s*((?:'[A-Za-z0-9]+'|[A-Za-z0-9]+)(?:\s*[/,|]\s*(?:'[A-Za-z0-9]+'|[A-Za-z0-9]+))*)\s*(?=[--:-]|\s)/g)) add(m[1]);
+  // Accept BOTH spellings a description uses for a scope: `target:'x'` and
+  // `target=x`. Matching only the colon form meant a parameter documented as
+  // "target=recompile emit=ir: ..." was scoped ONLY by its other clause
+  // ("target=script: ..."), so the checker refused it on recompile - the very
+  // target its own text says it applies to. That made fileOffset/length
+  // unusable on emit:'ir', forcing whole-ROM exports where a range was wanted.
+  for (const m of String(desc).matchAll(/\b(?:op|target)\s*[:=]\s*((?:'[A-Za-z0-9]+'|[A-Za-z0-9]+)(?:\s*[/,|]\s*(?:'[A-Za-z0-9]+'|[A-Za-z0-9]+))*)/g)) add(m[1]);
   return scopes.size ? scopes : null;
 }
 
@@ -406,7 +412,7 @@ export function makeScopeChecker(shape, toolName) {
       noCache: ["compare", "variants", "context"],
       verifyTu: ["compare", "variants"],
       declarations: ["compare", "integrate", "variants", "generate"],
-      root: ["import", "research", "replay"],
+      root: ["setup", "import", "research", "replay"],
       tracePath: ["diagnose"],
       baselineText: ["gate", "experiment"],
       exactFunctionMatch: ["gate", "experiment"],

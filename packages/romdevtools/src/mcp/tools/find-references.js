@@ -433,7 +433,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
     null
   );
   if (!resolved) {
-    throw new Error(`findReferences: could not detect platform for '${path}'. Pass platform explicitly.`);
+    throw new Error(`disasm({target:'references'}): could not detect platform for '${path}'. Pass platform explicitly.`);
   }
   if (accessScan) {
     const family = accessFamilyFor(resolved);
@@ -473,7 +473,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
       // Banked PRG (>32KB, e.g. UxROM/MMC1/MMC3): the old code disassembled
       // the whole PRG as ONE flat blob at $8000, which mis-addresses every
       // bank past the first - a 128KB mapper-2 scan returned refsFound:0
-      // for bytes referenced in dozens of places (0.27.0 feedback #3).
+      // for bytes referenced in dozens of places.
       // Disassemble each 16KB bank separately: switchable banks at $8000,
       // the (conventionally fixed) last bank at $C000; tag refs with the
       // bank index.
@@ -690,14 +690,14 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
     // binutils ARM objdump ships in romdev-platform-gba.
     const { runObjdump, objdumpAvailable } = await import("../../toolchains/objdump.js");
     if (!objdumpAvailable("arm")) {
-      throw new Error("findReferences: GBA needs the ARM objdump WASM (romdev-platform-gba).");
+      throw new Error("disasm({target:'references'}): GBA needs the ARM objdump WASM (romdev-platform-gba).");
     }
     const CAP = 512 * 1024;
     const bytes = data.slice(0, Math.min(data.length, CAP));
     const r = await runObjdump({ bytes, arch: "arm", startAddress: 0x08000000 });
     asm = r.asm;
   } else {
-    throw new Error(`findReferences: platform '${resolved}' not supported yet.`);
+    throw new Error(`disasm({target:'references'}): platform '${resolved}' not supported yet.`);
   }
 
   if (accessScan) {
@@ -863,7 +863,7 @@ export async function findReferencesCore({ path, platform, address, mapper: _map
   // ONLY through an inline word table (computed jump / RTS-trick dispatcher), no
   // instruction names it - so when the direct scan comes up empty (or the caller
   // asks), scan the raw bytes for the address as a 16-bit pointer (LE/BE, direct
-  // and the RTS-trick addr-1 form). This is the case the v0.41.0 feedback hit
+  // and the RTS-trick addr-1 form). This covers the case
   // where the only "ref" was an inline `B5 8E` table entry da65 mis-decoded.
   const headerSkip = romHeaderSkip(resolved, data);
   // The RTS-trick (table holds addr-1) is a 6502 idiom; only scan for it on the

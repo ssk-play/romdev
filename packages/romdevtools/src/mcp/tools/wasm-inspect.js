@@ -13,10 +13,31 @@ import { jsonContent, safeTool, parseHexBytes } from "../util.js";
 
 const INLINE_HEX_LIMIT = 4096;
 
+/** A bytes field comes back from CartHost as a Uint8Array, which JSON turns
+ *  into an object with one key per byte (a 256-byte command buffer printed
+ *  as 256 lines). Render it as hex, plus the text up to the first NUL when
+ *  that prefix is printable: most byte fields are strings. */
+const BYTES_LIST_CAP = 256;
+function renderBytes(v, cap = Infinity) {
+  if (!v || !(v.bytes instanceof Uint8Array)) return v;
+  const b = Buffer.from(v.bytes);
+  const nul = b.indexOf(0);
+  const head = b.subarray(0, nul < 0 ? b.length : nul);
+  const printable = head.every((c) => c === 9 || c === 10 || c === 13 || (c >= 32 && c < 127));
+  const { bytes: _b, ...rest } = v;
+  if (b.length > cap) {
+    // a listing of every field must stay readable: a 256 KB mailbox printed
+    // as hex overflowed tool output; read it by name for the full contents
+    return { ...rest, length: b.length, truncated: true, ...(printable ? { text: head.subarray(0, cap).toString("latin1") } : { hex: b.subarray(0, cap).toString("hex") }),
+      note: `${b.length} bytes: read it with wasm({op:'read', name}) for the whole field` };
+  }
+  return { ...rest, length: b.length, hex: b.toString("hex"), ...(printable ? { text: head.toString("latin1") } : {}) };
+}
+
 /** Decode a named debug field to {value} or {values}/{bytes}, dropping the
  *  redundant name/type the caller already has from the field descriptor. */
 function decodeName(host, fieldName) {
-  const v = host.readDebugValue(fieldName);
+  const v = renderBytes(host.readDebugValue(fieldName), BYTES_LIST_CAP); /* the debugState listing */
   const { name: _n, type: _t, ...rest } = v;
   return rest;
 }
@@ -51,18 +72,26 @@ export function registerWasmInspectTools(server, z, sessionKey) {
     "BY NAME (player_x, hp, ...), each with type + current value. The source-level view an emulator can't give - reading " +
     "`player_x` instead of a raw offset. Only present when the cart set WC_FLAG_DEBUG + exports wc_debug_state(); " +
     "otherwise says so.\n" +
-    "• 'read' {name} OR {offset,length} / 'write' {name,value} OR {offset,hex|base64} - with `name`, resolves a debug " +
+    "• 'read' {name} OR {offset,length} / 'write' {name,value} OR {name,hex} (a bytes field) OR {offset,hex|base64} - with `name`, resolves a debug " +
     "field to its offset+type and reads/writes it DECODED (the preferred path when the cart exposes debug state). With " +
     "`offset`, peeks/pokes the RAW heap byte-wise (the fallback: raw offsets are opaque without the debug table, and " +
     "you own the source, so prefer `name`).\n" +
     "• 'events' - DRAIN the frame-stamped debug event trace: wc_log lines ({frame, text}) and wc_debug_mark(id) " +
     "annotations ({frame, id}) the cart emitted since the last drain. The navigable timeline of a run ('level " +
-    "loaded at frame 312') - pull-model, clears on read. wasmcart 0.5.0+.\n" +
+    "loaded at frame 312') - pull-model, clears on read.\n" +
     "• 'save' - the cart's declared save-data bytes (savePtr/saveSize), to assert a game persisted what it should.\n" +
+    "• 'command' {text} - the DEBUG CHANNEL: ask a running cart a question it answers itself (scene tree, get/set a " +
+    "property by path, spawn/free nodes, stats...). Convention, no ABI change: the cart exposes bytes fields `dbg.cmd` " +
+    "and `dbg.reply` plus u32 fields `dbg.cmd_seq`, `dbg.reply_seq`, `dbg.reply_len` in its debug table; this op writes " +
+    "`text` to dbg.cmd, bumps dbg.cmd_seq, steps frames until dbg.reply_seq catches up (the cart answers at the start of " +
+    "its next frame, so ONE frame runs per command; pause the game first if that matters), and returns the reply " +
+    "(parsed as JSON when it is JSON). `help` lists a cart's commands. Only carts built with a debug channel answer.\n" +
     "REFUSES on an emulator host (use disasm/symbols/memory there).",
     {
-      op: z.enum(["conformance", "info", "exports", "debugState", "events", "read", "write", "save"])
-        .describe("conformance = spec-validation verdict; info = running WCInfo; exports = module export list; debugState = the cart's opt-in named debug fields; events = drain the frame-stamped wc_log/wc_debug_mark trace; read/write = a named debug field (`name`) OR the raw heap (`offset`); save = declared save-data bytes."),
+      op: z.enum(["conformance", "info", "exports", "debugState", "events", "read", "write", "save", "command"])
+        .describe("conformance = spec-validation verdict; info = running WCInfo; exports = module export list; debugState = the cart's opt-in named debug fields; events = drain the frame-stamped wc_log/wc_debug_mark trace; read/write = a named debug field (`name`) OR the raw heap (`offset`); save = declared save-data bytes; command = send `text` over the cart's debug channel and return its reply."),
+      text: z.string().optional().describe("op=command: the request, e.g. 'tree', 'get /root/Level/Player position', 'set /root/Level/Player position vec3(0, 2, 0)', 'help'."),
+      maxFrames: z.number().int().min(1).max(600).default(8).describe("op=command: frames to step at most while waiting for the reply."),
       name: z.string().optional().describe("op=read/write: a debug field name from debugState (resolves to offset+type, reads/writes DECODED). Preferred over `offset` when the cart exposes debug state."),
       value: z.number().optional().describe("op=write: the value to write to the named scalar debug field (use with `name`)."),
       offset: z.number().int().min(0).optional().describe("op=read/write: RAW byte offset into the cart's WASM linear memory (fallback when there's no named field)."),
@@ -71,8 +100,37 @@ export function registerWasmInspectTools(server, z, sessionKey) {
       base64: z.string().optional().describe("op=write: bytes as base64 (alternative to hex) - raw-offset write."),
       inline: z.boolean().default(false).describe(`op=read: for reads >${INLINE_HEX_LIMIT}B, return hex in the response anyway.`),
     },
-    safeTool(async ({ op, name, value, offset, length, hex, base64, inline }) => {
+    safeTool(async ({ op, name, value, offset, length, hex, base64, inline, text, maxFrames }) => {
       const host = requireWasmHost(sessionKey);
+
+      if (op === "command") {
+        if (text == null) throw new Error("wasm({op:'command'}): pass `text` (try 'help').");
+        const fields = host.readDebugState?.() ?? [];
+        const f = (n) => fields.find((x) => x.name === n);
+        const missing = ["dbg.cmd", "dbg.cmd_seq", "dbg.reply", "dbg.reply_seq", "dbg.reply_len"].filter((n) => !f(n));
+        if (missing.length) {
+          throw new Error(`wasm({op:'command'}): this cart has no debug channel (missing ${missing.join(", ")} in its debug table). The cart has to be built with its debug channel enabled.`);
+        }
+        const cmd = f("dbg.cmd");
+        const bytes = Buffer.from(text + "\0", "utf8");
+        if (bytes.length > cmd.len) throw new Error(`wasm({op:'command'}): request is ${bytes.length} bytes; the cart's dbg.cmd holds ${cmd.len}.`);
+        const seq = ((host.readDebugValue("dbg.cmd_seq").value >>> 0) + 1) >>> 0;
+        host.writeMemory(cmd.valuePtr, new Uint8Array(bytes));
+        host.writeDebugValue("dbg.cmd_seq", seq);
+        let frames = 0;
+        while ((host.readDebugValue("dbg.reply_seq").value >>> 0) !== seq && frames < maxFrames) {
+          await host.stepFrames(1);
+          frames++;
+        }
+        if ((host.readDebugValue("dbg.reply_seq").value >>> 0) !== seq) {
+          throw new Error(`wasm({op:'command'}): no reply after ${frames} frames (is the cart paused by the host, or not processing its debug channel?).`);
+        }
+        const len = host.readDebugValue("dbg.reply_len").value >>> 0;
+        const reply = Buffer.from(host.readMemory(f("dbg.reply").valuePtr, Math.min(len, f("dbg.reply").len))).toString("utf8");
+        let parsed;
+        try { parsed = JSON.parse(reply); } catch { parsed = undefined; }
+        return jsonContent(parsed !== undefined ? { framesRun: frames, reply: parsed } : { framesRun: frames, reply });
+      }
 
       if (op === "conformance") {
         return jsonContent({
@@ -131,10 +189,25 @@ export function registerWasmInspectTools(server, z, sessionKey) {
       }
 
       if (op === "read" && name != null) {
-        return jsonContent({ ...host.readDebugValue(name) });
+        return jsonContent({ ...renderBytes(host.readDebugValue(name)) });
+      }
+      if (op === "write" && name != null && value == null && (hex != null || base64 != null)) {
+        // A bytes field written by name: the descriptor bounds the write, so a
+        // harness never needs the raw offset (which moves on every rebuild).
+        const field = (host.readDebugState?.() ?? []).find((f) => f.name === name);
+        if (!field) throw new Error(`wasm({op:'write', name}): the cart has no debug field '${name}'.`);
+        if (field.type !== 8) {
+          throw new Error(`wasm({op:'write', name:'${name}'}): hex/base64 writes need a bytes field; '${name}' is ${field.typeName ?? field.type}, so pass \`value\`.`);
+        }
+        const buf = hex != null ? parseHexBytes(hex, "wasm write: hex") : new Uint8Array(Buffer.from(base64, "base64"));
+        if (buf.length > field.len) {
+          throw new Error(`wasm({op:'write', name:'${name}'}): ${buf.length} bytes exceeds the field's ${field.len}.`);
+        }
+        const n = host.writeMemory(field.valuePtr, buf);
+        return jsonContent({ name, wrote: n, atOffset: field.valuePtr, note: "wrote the named bytes field; step a frame to see it take effect." });
       }
       if (op === "write" && name != null) {
-        if (value == null) throw new Error("wasm({op:'write', name}): `value` is required for a named scalar write.");
+        if (value == null) throw new Error("wasm({op:'write', name}): `value` is required for a named scalar write (or `hex`/`base64` for a bytes field).");
         const at = host.writeDebugValue(name, value);
         return jsonContent({ name, wrote: value, atOffset: at, note: "wrote the named debug field; step a frame to see it take effect." });
       }
