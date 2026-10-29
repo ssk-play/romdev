@@ -10,7 +10,7 @@
 // `prepublishOnly` AND as a preflight in publish-all.mjs.
 //
 // What it checks, for the package in `cwd` (or each path arg):
-//   - every *.wasm under the package's shipped `wasm/` dir exists
+//   - every *.wasm under the package's shipped `wasm/` dir (subfolders included) exists
 //   - none is suspiciously small (a stub / truncated / git-lfs pointer)
 //   - the JS/MJS glue each wasm pairs with is present
 //
@@ -26,6 +26,34 @@ import path from "node:path";
 // a truncated file, or a git-lfs/text pointer left where the binary should be.
 const MIN_WASM_BYTES = 16 * 1024;
 
+// Glue that must also run in a browser / Web Worker (romdev-core-host's
+// bytes-only path), i.e. whatever the 2D-core recipes and EM_CLI_FLAGS link
+// with `-s ENVIRONMENT=node,web,worker`. A rebuild with `ENVIRONMENT=node`
+// alone hard-codes ENVIRONMENT_IS_NODE=true and the glue then dies on
+// `await import("module")` outside Node - refuse to publish that.
+// (NODERAWFS builds, GPU cores and the gcc-family wraps stay node-only.)
+const BROWSER_GLUE = {
+  "romdev-core-bluemsx": ["bluemsx_libretro.js"],
+  "romdev-core-bsnes": ["bsnes_libretro.js"],
+  "romdev-core-fake08": ["fake08_libretro.js"],
+  "romdev-core-fceumm": ["fceumm_libretro.js"],
+  "romdev-core-gambatte": ["gambatte_libretro.js"],
+  "romdev-core-gametank": ["gametank_libretro.js"],
+  "romdev-core-geargrafx": ["geargrafx_libretro.js"],
+  "romdev-core-gpgx": ["genesis_plus_gx_libretro.js"],
+  "romdev-core-handy": ["handy_libretro.js"],
+  "romdev-core-prosystem": ["prosystem_libretro.js"],
+  "romdev-core-vice": ["vice_x64_libretro.js"],
+  "romdev-platform-atari2600": ["stella2014_libretro.js", "dasm.js"],
+  "romdev-platform-gba": ["mgba_libretro.js"],
+  "romdev-platform-snes": ["snes9x_libretro.js", "asar.js", "tcc816.js", "wla-65816.js", "wlalink.js"],
+  "romdev-toolchain-cc65": ["ca65.js", "cc65.js", "da65.js", "ld65.js"],
+  "romdev-toolchain-m68k-gcc": ["sjasm.js"],
+  "romdev-toolchain-rgbds": ["rgbasm.js", "rgbfix.js", "rgblink.js"],
+  "romdev-toolchain-sdcc": ["mcpp.js", "sdasgb.js", "sdasz80.js", "sdcc.js", "sdld.js"],
+};
+const NODE_ONLY_GLUE = /\bENVIRONMENT_IS_NODE\s*=\s*true\b|\bENVIRONMENT_IS_WEB\s*=\s*false\b/;
+
 /** @returns {string[]} problems found in this package (empty = ok) */
 function checkPackage(pkgDir) {
   const problems = [];
@@ -40,8 +68,8 @@ function checkPackage(pkgDir) {
   const wasmDir = path.join(pkgDir, "wasm");
   if (!existsSync(wasmDir)) return [`${name}: declares "wasm" in files[] but ${wasmDir} does not exist (build the wasm before publishing)`];
 
-  const entries = readdirSync(wasmDir);
-  const wasms = entries.filter((f) => f.endsWith(".wasm"));
+  // Recursive: some packages ship modules in subfolders (wasm/<version>/, wasm/<tool>/).
+  const wasms = readdirSync(wasmDir, { recursive: true }).filter((f) => String(f).endsWith(".wasm"));
   if (wasms.length === 0) return [`${name}: wasm/ is present but contains NO .wasm files (build was wiped?)`];
 
   for (const w of wasms) {
@@ -55,6 +83,14 @@ function checkPackage(pkgDir) {
     const fd = readFileSync(p, { encoding: null });
     if (fd.length < 8 || fd.readUInt32LE(0) !== 0x6d736100) {
       problems.push(`${name}: ${w} does not start with the wasm magic (\\0asm) - corrupt or wrong file`);
+    }
+  }
+  for (const glue of BROWSER_GLUE[name] ?? []) {
+    const p = path.join(wasmDir, glue);
+    if (!existsSync(p)) {
+      problems.push(`${name}: expected browser-capable glue ${glue} is missing`);
+    } else if (NODE_ONLY_GLUE.test(readFileSync(p, "utf8"))) {
+      problems.push(`${name}: ${glue} is node-only glue (linked with -s ENVIRONMENT=node) - rebuild with the recipe's node,web,worker flags`);
     }
   }
   return problems;
@@ -87,4 +123,4 @@ if (allProblems.length) {
   process.exit(1);
 }
 const checked = pkgDirs.length;
-console.log(`✓ wasm verified across ${checked} package${checked === 1 ? "" : "s"} (all declared .wasm present, sized, valid magic).`);
+console.log(`✓ wasm verified across ${checked} package${checked === 1 ? "" : "s"} (all declared .wasm present, sized, valid magic; browser glue not node-only).`);

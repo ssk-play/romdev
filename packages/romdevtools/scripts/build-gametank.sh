@@ -22,6 +22,7 @@ RDBG="$PROJECT_DIR/scripts/romdev-debug"
 [ -d "$SRC" ] || { echo "FATAL: gametank-libretro not found at $SRC" >&2; exit 1; }
 
 cd "$SRC"
+require_git_toplevel
 git checkout -- src/libretro.cpp vendor/mos6502/mos6502.cpp 2>/dev/null || true
 
 # ── stage the shared debug lib next to the core (quote-include reach) ──
@@ -93,7 +94,7 @@ emcc -O2 \
   vendor/audio_coprocessor.em.o vendor/emulator_config.em.o vendor/timekeeper.em.o \
   vendor/mos6502/mos6502.em.o romdev_debug.c -I. \
   -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORT_NAME=create_gametank \
-  -s ENVIRONMENT=node -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=33554432 \
+  -s ENVIRONMENT=node,web,worker -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=33554432 \
   -s MAXIMUM_MEMORY=268435456 -s ALLOW_TABLE_GROWTH=1 -s INVOKE_RUN=0 \
   -s EXPORTED_FUNCTIONS="$EXP" -s EXPORTED_RUNTIME_METHODS="$RT" \
   -o gametank_libretro.js

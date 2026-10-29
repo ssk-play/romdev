@@ -27,6 +27,7 @@ cd "$CC65_DIR"
 # build of the same input produce byte-identical .o - see the patch header and
 # scripts/patches/README.md). Reset the touched files so a re-run re-applies
 # cleanly; skip if the sentinel (GetSourceDateEpoch) is already present.
+require_git_toplevel
 git checkout -- src/ca65/filetab.c src/ca65/main.c src/cc65/input.c \
                 src/cc65/lineinfo.c src/common/filetime.c src/common/filetime.h 2>/dev/null || true
 if ! git apply --recount --check "$PATCH_FILE" 2>/dev/null; then
@@ -44,7 +45,7 @@ fi
 make clean -C src || true
 
 echo "Building host tools with emcc..."
-make -C src cc65 ca65 ld65 da65 ar65 CC=emcc AR=emar -j"$(nproc)"
+make -C src cc65 ca65 ld65 da65 ar65 CC=emcc AR=emar -j"${JOBS:-$(nproc)}"
 
 echo "Relinking with MODULARIZE flags..."
 # The cc65 src/Makefile writes objects to ../wrk and binaries to ../bin
@@ -68,13 +69,13 @@ done
 
 echo "Building 6502 runtime libraries (native cc65 tools)..."
 make clean -C src
-make -j"$(nproc)"
+make -j"${JOBS:-$(nproc)}"
 # Build the runtime libs for ALL targets explicitly - a bare `make` builds the
 # tools but does NOT reliably produce every target's lib (that's why an earlier
 # build shipped only 5 of the ~25 target libs, breaking PCE + Atari 5200/8-bit
 # at link). `make lib` walks libsrc/Makefile's full TARGETS list (incl. pce,
 # atari, atari5200, atarixl).
-make lib -j"$(nproc)"
+make lib -j"${JOBS:-$(nproc)}"
 
 mkdir -p "$SHARE/lib" "$SHARE/asminc" "$SHARE/include" "$SHARE/cfg" "$SHARE/target"
 cp -r asminc/* "$SHARE/asminc/"

@@ -68,12 +68,13 @@ of each file). Summary:
 Make Rizin v0.8.2 build single-threaded for wasm32-emscripten (Node target).
 Recipe derived from the rzwasi project (https://github.com/IndAlok/rzwasi,
 LGPL-3.0) and re-cut as committed diffs against our pinned commit. Applied by
-`build-rizin.sh`.
+`build-rizin.sh`, which builds with `scripts/rizin-wasm/build.mjs` (emcc driven
+directly from a frozen plan; no meson, no Python).
 
 | Patch | Why | What breaks without it |
 |---|---|---|
-| `rizin-romdev-emscripten.patch` | (1) thread.h/thread*.c: pthread API replaced with single-thread stubs (`rz_emscripten_thread_stubs.h`) - emscripten pthreads need SharedArrayBuffer wasm we don't want for a one-shot CLI tool; (2) cons.c: route `__cons_write_ll` through `Module.print` so output capture works under MODULARIZE; (3) sys.c: no `execinfo.h`/backtrace under emscripten; (4) io_shm.c: no SysV shm; (5) rz_heap_jemalloc.h: skip jemalloc internals; (6) meson.build: emscripten has no librt/ptrace. | Build fails at thread.c (`#error Threading library only supported for pthread and w32`), then at execinfo.h, shm.h; output is invisible to the JS host. |
-| `rizin-libzip-emscripten.patch` | libzip meson **subproject** (fetched at configure time, so this can't live in the rizin patch): stub `zip_secure_random` with `srand/rand` (no `/dev/urandom` guarantee), drop macOS `sys/attr.h`/clonefile path, fix `ftello` redefinition, map `*_s` bounded-string calls to plain libc. Applied after `meson subprojects download` with sentinel `romdev emscripten compat`. | libzip compile errors abort the whole rizin build (zip support is linked into rz_io). |
+| `rizin-romdev-emscripten.patch` | (1) thread.h/thread*.c: pthread API replaced with single-thread stubs (`rz_emscripten_thread_stubs.h`) - emscripten pthreads need SharedArrayBuffer wasm we don't want for a one-shot CLI tool; (2) cons.c: route `__cons_write_ll` through `Module.print` so output capture works under MODULARIZE; (3) sys.c: no `execinfo.h`/backtrace under emscripten; (4) io_shm.c: no SysV shm; (5) rz_heap_jemalloc.h: skip jemalloc internals; (6) meson.build: emscripten has no librt/ptrace (inert since romdev stopped using meson; kept so the patch stays upstream-shaped). | Build fails at thread.c (`#error Threading library only supported for pthread and w32`), then at execinfo.h, shm.h; output is invisible to the JS host. |
+| `rizin-libzip-emscripten.patch` | libzip wrap **subproject** (fetched by `scripts/rizin-wasm/build.mjs subprojects`, so this can't live in the rizin patch): stub `zip_secure_random` with `srand/rand` (no `/dev/urandom` guarantee), drop macOS `sys/attr.h`/clonefile path, fix `ftello` redefinition, map `*_s` bounded-string calls to plain libc. Applied after the subproject fetch; skipped when it reverse-applies cleanly. | libzip compile errors abort the whole rizin build (zip support is linked into rz_io). |
 
 Known runtime wart (documented in `build-rizin.sh`): plugin-LISTING commands
 (`La`, `e asm.arch=??`) trap with "null function or function signature
@@ -82,6 +83,14 @@ analysis path (`aaa`, `aflj`, `axtj`, `agf json`, `pdj`) hits it. If a future
 rizin bump fixes the cast, retest and delete this note.
 
 ---
+
+## Family 4 - SDCC (1 patch, GB / GBC toolchain)
+
+- **`sdcc-sdasgb-32bit-addresses.patch`** - `sdasgb` sets 24-bit addresses (`exprmasks(3)`), and a switchable ROM
+  bank n is linked at `n << 16 | 0x4000`, so from bank 256 up the linker wrapped banks onto 0-255 (data for bank 300
+  landed in bank 44, bank 511 overwrote 255). MBC5 has 512 banks (8 MB). The patch makes the gb assembler use
+  32-bit addresses (`XL4` objects); the recipe rebuilds the sm83 runtime libraries with it. Without it, GB games
+  cannot use more than 4 MB. Drop it if upstream SDCC widens sdasgb.
 
 ## Rules for this directory
 

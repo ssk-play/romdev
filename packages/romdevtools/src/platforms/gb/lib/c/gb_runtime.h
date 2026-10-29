@@ -83,7 +83,7 @@ void    lcd_init_default(void);
  * any `oam_dma_flush()` / `oam_dma_copy()`. `lcd_init_default()` calls
  * it for you; only call directly if you're bypassing lcd_init_default.
  *
- * Why this is mandatory (R55 fix): during OAM DMA the CPU can only
+ * Why this is mandatory: during OAM DMA the CPU can only
  * fetch from HRAM. Pre-r55 oam_dma_copy spun in main code, fetching
  * $FF (the bus-conflict default) for every instruction - that decodes
  * as `rst $38` which corrupts the stack. Symptom under long-running
@@ -141,5 +141,14 @@ void    sound_off(void);
 #define PAD_SELECT  0x04
 #define PAD_B       0x02
 #define PAD_A       0x01
+
+/* ── ROM banks (MBC5: up to 512 x 16 KB). One switchable bank sits at $4000-$7FFF; current_rom_bank says which
+ *    (1 at power-on). Switch only through SWITCH_ROM, so SDCC's banked calls (`__banked` functions in a file with
+ *    `#pragma codeseg CODE_<n>`, n = 1-255, via ___sdcc_bcall_ehl in crt0) and nested switches return to the right
+ *    bank. Constants go to bank n with `#pragma constseg CODE_<n>` (n up to 511). Code that switches banks must itself
+ *    sit outside $4000-$7FFF. */
+extern volatile uint16_t current_rom_bank;
+#define SWITCH_ROM(b) do { uint16_t sw_bank_ = (uint16_t)(b); current_rom_bank = sw_bank_; \
+    *(volatile uint8_t *)0x2000 = (uint8_t)sw_bank_; *(volatile uint8_t *)0x3000 = (uint8_t)(sw_bank_ >> 8); } while (0)
 
 #endif /* GB_RUNTIME_H */

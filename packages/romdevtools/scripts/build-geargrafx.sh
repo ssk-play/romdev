@@ -37,16 +37,18 @@ if [ -n "${PATCH_REL:-}" ] && [ -f "$PATCH_FILE" ]; then
   # - so a clean re-apply always works. EVERY file the patch
   # touches must be listed: one missing entry makes the second build in a row
   # fail to apply, and the script then silently builds a STOCK core.
+  require_git_toplevel
   git checkout -- platforms/libretro/libretro.cpp \
     src/memory.h src/memory_inline.h src/huc6280_inline.h \
     src/geargrafx_core_inline.h src/huc6270_inline.h src/huc6270.cpp src/huc6270.h \
     src/huc6260_inline.h src/huc6260.cpp 2>/dev/null || true
   if git apply --recount --check "$PATCH_FILE" 2>/dev/null; then
     git apply --recount "$PATCH_FILE"; echo "Applied $PATCH_FILE"
-  elif grep -rq "romdev_pcbreak_set" platforms/libretro/ 2>/dev/null; then
-    echo "Patch already present (sentinel found); skipping apply."
+  elif patch_already_applied "$PATCH_FILE"; then
+    echo "Patch already present (reverse-applies cleanly); skipping apply."
   else
-    echo "WARNING: region patch failed to apply; building STOCK core." >&2
+    echo "FATAL: region patch neither applies nor is already fully present. Delete the source dir and re-run." >&2
+    exit 1
   fi
 else
   echo "No region patch yet - building stock geargrafx."
@@ -90,7 +92,7 @@ EXPORTED_RUNTIME='["ccall","cwrap","addFunction","removeFunction","HEAPU8","HEAP
 mkdir -p "$OUT"
 emcc "$CORE_LIB" \
   -O3 -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORT_NAME=create_geargrafx \
-  -s ENVIRONMENT=node -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=67108864 \
+  -s ENVIRONMENT=node,web,worker -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=67108864 \
   -s MAXIMUM_MEMORY=268435456 -s ALLOW_TABLE_GROWTH=1 \
   -s DISABLE_EXCEPTION_CATCHING=0 \
   -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \

@@ -4,6 +4,369 @@ All notable changes to `romdevtools`. Dates are release dates.
 (Published as `romdev-mcp` through 0.11.0; renamed to `romdevtools` in 0.13.0 -
 the `romdev-mcp` bin is kept as an alias.)
 
+## Unreleased
+
+- **The 2D cores and the CLI toolchains load in a browser or Web Worker.**
+  They were linked with `-s ENVIRONMENT=node`, so their glue began with
+  `await import("module")` and failed outside Node before the wasm loaded,
+  although they use nothing but MEMFS. The 14 2D core recipes (fceumm, fake08,
+  bluemsx, bsnes, geargrafx, gametank, gambatte, genesis_plus_gx, handy, mgba,
+  prosystem, snes9x, stella2014, vice) and `EM_CLI_FLAGS` (sdcc + sdas*/sdld,
+  mcpp, rgbds, cc65, asar, dasm, sjasm, tcc816, wla-dx) now link with
+  `node,web,worker`. Under Node nothing changes, and the `.wasm` files are the
+  same; only the JS glue differs. `verify-wasm.mjs` refuses to publish those
+  glue files if they come out node-only again.
+
+## 0.151.1 - 2026-10-20
+
+- **wasmcart ^0.36.1**, which ships wasmcart's test cart
+  (`node_modules/wasmcart/testcart/testcart.wasc`): every pad with all 21
+  button bits, sticks and triggers, every pointer slot, the wheel and keyboard,
+  a note per face button with L/R channel panning, and a save checked byte for
+  byte at every start. Load it to see what `input` or a real controller
+  delivers; the wasmcart guide says how.
+- **The playtest window sends Guide and the back paddles to a wasmcart cart as
+  their own buttons.** Guide arrived as Select, so on a wasmcart cart the
+  Guide button pressed Select, and the paddles never arrived. A libretro core
+  still gets Guide as Select.
+
+## 0.151.0 - 2026-10-20
+
+- **wasmcart ^0.35.1.** Carts can prefetch assets: `wc_asset_prefetch`
+  fetches an asset in the background, so the read that follows does not stall
+  a frame (wasmcart SPEC.md, "Asset prefetch"; a cart that never calls it is
+  unaffected).
+- **Runtime code generation takes bigger modules.** A cart can link one
+  generated module of up to 256 MiB (it was 4 MiB), so a static recompiler's
+  guest code is no longer refused.
+
+## 0.150.2 - 2026-10-16
+
+- **A closed WebGPU cart frees its memory.** wasmcart ^0.34.4 (native-dawn
+  ^0.1.6): every WebGPU cart the server loaded stayed in memory after it was
+  closed, about 240 MB a load, with its GPU device and Dawn threads, so a long
+  session that loaded WebGPU carts over and over ran the machine out of memory.
+  GL carts were not affected.
+- **WebGPU carts read GPU results on time when stepped.** Between stepped
+  frames the host now waits for the GPU work a frame submitted before the next
+  one runs, as a browser does between animation frames. Buffer reads a cart
+  maps (GPU particle counts, readbacks) arrived a varying number of frames late.
+
+## 0.150.1 - 2026-10-15
+
+- **Four controllers.** `input({op:'set'})` takes up to four ports (it stopped
+  at two), so a wasmcart cart reads all four pads.
+- **wasmcart ^0.34.3**: pads keep their slots when controllers are unplugged
+  and plugged back in a different order.
+
+## 0.150.0 - 2026-10-11
+
+### Breaking changes
+
+- **wasmcart ^0.34 (ABI v4).** The `wasmcart` dependency moves from ^0.24 to
+  ^0.34.2. Carts built against an ABI older than v4 are refused at load: rebuild
+  them against wasmcart 0.32 or later. A cart must also export `wc_alloc` and
+  `wc_free` for any host-to-cart write (GL strings such as `glGetString`,
+  WebGPU messages, text payloads); carts built with the 0.32 or later SDK do.
+- **wasmcart buttons map by position.** `input({a:true})` on a wasmcart now
+  presses the east face button (`WC_BTN_B`), as `a` does on every libretro
+  core, and `b` presses south (`WC_BTN_A`). Update wasmcart input scripts, or
+  use the `south`/`east`/`west`/`north` names, which mean the same thing on
+  every platform.
+- **wasmcart triggers are 0..32767** (ABI v4), not a byte. Carts that read
+  triggers need the v4 range.
+- **Zero `inputPtr`/`timePtr`.** The host no longer writes pads or the clock
+  through a zero or misaligned pointer, and `wasm({op:'conformance'})` fails
+  such a cart. A cart that relied on offset 0 must point them at real memory.
+- **`sms_cram` is 64 bytes**: one little-endian u16 per colour, all 32 colours.
+  It was 32 bytes holding the first 16 colours as word pairs. Readers of the
+  region need the new layout. `palette({source:'live'})` on SMS is now
+  correct.
+- **`disasm` emit:'ir' output records.** Undecodable offsets now produce
+  `decodeStatus:'data'` records, bytes at the end of the ROM are reported as
+  `truncated-at-rom-end`, pc-relative operands of secondary records are
+  rebased (they were wrong), and GB records carry CPU addresses. IR consumers
+  should expect these records.
+- **Instruction stepping.** `frame({op:'stepInstructions'})` refuses a `count`
+  over the cap instead of clamping it, and a step that ran no instruction
+  returns `stepped:false` with an `error` instead of an empty success.
+- **decomp never runs the host toolchain.** Compile, compare, integrate and
+  verify run IDO, binutils, asm-processor and cpp as WASM/JS from a recipe
+  romdev reads out of the project's Makefile. A build step with no WASM/JS
+  equivalent is reported and its existing output kept, never run on the host;
+  host compilers and build drivers are refused. `buildCommand` is recorded for
+  reference only. The workbench no longer looks for an external checkout and
+  no Python environment is used.
+- **sync32 `video`.** An unknown `build({platform:'sync32', video})` value now
+  fails the build naming the valid values (`'240'`, `'180'`, `'128'`). It used
+  to pack silently as mode 1.
+- **SNES chip data is user-supplied.** snes9x, bsnes and recompiled SNES
+  carts no longer carry any chip data ROM. A DSP-1, DSP-3 or ST010 cart needs
+  the chip's data ROM in the system directory (`dsp1b.data.rom` or
+  `dsp1b.rom`, `dsp3.data.rom` or `dsp3.rom`, `st010.data.rom` or
+  `st010.rom`; `loadMedia({firmware})` copies one there), and `options.firmware`
+  when recompiling. Without it the cart is refused with the file and its size
+  named. On bsnes the Super Game Boy needs `sgb_boot.bin` / `sgb2_boot.bin`,
+  and a Cx4 cart uses bsnes's high-level emulation unless `cx4.data.rom` is
+  there.
+- **GL carts get a private GL context.** Every GL wasmcart session has its own
+  context, which fixes server crashes with parallel GL sessions. Set
+  `ROMDEV_SHARED_GL=1` to restore the shared context.
+- **Genesis assembly is assembled by GNU as.** `build({platform:'genesis'})`
+  for assembly sources, `assembleSnippet({cpu:'68k'})` and the recompiler's
+  m68k target now run the m68k-elf GNU as from `romdev-toolchain-m68k-gcc`
+  through a Motorola-syntax front end (`src/toolchains/m68k-asm/`) instead of
+  vasm. The source syntax is unchanged (org, dc/dcb/ds, equ/set/=, rs and
+  offset, rept, macros with \1..\9 \0 \@ \# NARG and mexit, conditional
+  assembly, include/incdir/incbin, .local and 1$ labels, equr/reg,
+  cnop/align/even), and the encoding choices are kept (moveq/addq/lea forms,
+  shortest branches, short absolute addresses for labels below $8000), so
+  existing sources build to the same bytes. What changes:
+  - The build result's `toolchain` is `"m68k-elf-as"` (was `"vasm68k"`), and
+    diagnostics read `main.s:12: error: message` with `issues[].stage`
+    `"m68k-as"` (was vasm's `error N in line L of "file"` with stage
+    `"vasm"`).
+  - An underscore between digits is a digit separator (`$7000_0083` is
+    $70000083; vasm read $7000). This fixes the precomputed VDP command in the
+    shipped `sprite_table.s` snippet. `0x` hex is accepted (vasm read 0).
+  - A space after a comma inside instruction operands is accepted.
+  - `suba.w #$8000,An` is no longer rewritten into a `lea` that subtracted in
+    the wrong direction.
+  - `rorg`, `comm`, `dr.*` and extended/packed floating point data are
+    reported as unsupported; section directives have no effect (one flat
+    image laid out by `org`).
+  - Assembler options: `-D NAME=VALUE`/`--define`, `-I` and `-m68000`..`-m68060`
+    are honored, other vasm flags are ignored with a note.
+  - The build result now carries `symbols` (each label and its address).
+
+### Prebuilt binary fixes
+
+- `z80-elf-objdump` in `romdev-toolchain-sdcc` 0.2.2 printed every 8-bit H
+  register operand as `/` (`ld d,/`), and that reached `disasm` and emit:'ir'
+  output for Z80 platforms. The Z80, MIPS and SH toolchains are rebuilt from
+  source and the register names are correct again.
+- The MIPS, SH and ARM `cc1` builds wrote a damaged `.ident` string into
+  every object (`GCC: (GNU) //////`). MIPS and SH are rebuilt; ARM and m68k
+  are restored from clean builds.
+
+### Static recompiler (new)
+
+- `disasm({target:'recompile', emit:'wasmcart'|'wasm'|'wat', platform, rom})`
+  recompiles a whole ROM into a playable wasmcart (or the bare module, or its
+  WAT text). Each backend is ported from its reference emulator and is checked
+  against it frame by frame:
+  - NES (fceumm): mappers 0, 1, 2, 3 and 4, undocumented opcodes, code run
+    from RAM, APU audio sample-exact.
+  - SNES (snes9x): LoROM, HiROM and ExHiROM, SPC700 and S-DSP audio, hires,
+    interlace and PAL, battery saves, and the coprocessors SA-1, SuperFX,
+    DSP-1 to DSP-4, ST010, ST011, ST018, OBC1, S-RTC, MSU-1, S-DD1, SPC7110,
+    CX4, BS-X and Sufami Turbo. DSP-1, DSP-3, ST010, ST011 and ST018 carts
+    need `options.firmware` (chip program and data ROMs are not shipped).
+  - GB and GBC (gambatte): the PPU dot for dot, timers, HDMA, OAM DMA,
+    MBC1/2/3/5 and HuC1, the MBC3 clock, APU audio sample-exact.
+  - GBA (mGBA): ARM and Thumb, audio, mosaic, the OBJ budget, GPIO with
+    RTC and sensors.
+  - SMS and GG (genesis_plus_gx): cycle-exact, PAUSE NMI, IM2, TMS9918 modes,
+    the Korean mapper, GG carts in SMS mode, a cart database, audio
+    sample-exact.
+  - Genesis (genesis_plus_gx): 6-button and second pads, J-Cart, PAL, backup
+    RAM, EEPROM and mappers, address errors, interlace mode 2, Mode 4,
+    YM2612 and PSG audio sample-exact, and SVP carts (the SSP1601 DSP and its
+    DRAM).
+- Code a game writes into RAM, or code in a bank its compiled code did not
+  cover, runs exactly with default options: SMS/GG and Genesis carry an
+  interpreter built from the backend's own lowering (`options.ramInterpreter`),
+  and the other backends already ran RAM code generically.
+- Must-fail controls build a deliberately wrong cart so a verification run can
+  prove it detects a fault: `options.breakArm`, `breakThumb`, `breakChip`,
+  `svpBreak`, `ramInterpreter:false`, and `muteChannels` for audio.
+- Recompiled carts declare wasmcart ABI v4.
+- A recompiled cart contains code ported from its reference emulator, so it is
+  under that emulator's licence (fceumm and gambatte GPL-2.0, mGBA MPL-2.0,
+  Genesis Plus GX, Musashi, z80.c and snes9x non-commercial). Every cart's
+  `romdev.recompile` section carries a `licence` entry (SPDX id, terms,
+  upstream name, URL and pinned commit, the licence texts and the notices that
+  must travel with every copy). NOTICE has a "Recompiled carts" section and the
+  licence texts ship in the new `LICENSES/` directory.
+- `emit:'sync32'` (and `emit:'c'`) on `platform:'genesis'` builds a native
+  sync32 cart for an open RP2350-based console, with `options.extraCflags`,
+  `audioRate:'reference'`, `audioQuality:'half'` and exact or fast timing
+  profiles.
+- `pack` writes .wasc files deterministically (fixed timestamps, sorted
+  entries), so the same inputs give the same bytes.
+
+### disasm emit:'ir' and blockMap
+
+- `emit:'ir'` now covers genesis (68000), gb/gbc (LR35902), nes (6502),
+  snes (65816) and gba (ARM and Thumb) as well as Z80, with `fileOffset` and
+  `length` ranges and `cpuState:'arm'|'thumb'`.
+- New `emit:'blockMap'` (with `primaryOnly`).
+
+### frame: recompile verification and profiling
+
+- `frame({op:'verifyRecompile', cart, reference})` runs a recompiled cart
+  beside its source ROM on the reference core and scores pixels, machine state
+  and audio at chosen frames, with wrong-input controls and frame-offset
+  search. `requireStateMatch` defaults to true; `referenceCore`, `firmware`,
+  `cartButtonMap` and `p1.`-`p4.` input prefixes are accepted.
+- Auto mode (`auto:true`, or `atFrames` omitted) picks the input schedule and
+  the scored frames itself from the reference core, reports every candidate
+  and a `reproduce` call, and returns INCONCLUSIVE with the reason when no
+  reference frame has enough content.
+- `findDiverge` gains a recompile mode (cart against reference),
+  `level:'instruction'` and `audio:true`, and accepts frame 0.
+- New `frame({op:'traceInstructions'})` and `frame({op:'fuzzRecompile'})`.
+- New `frame({op:'cycles'})` for sync32 carts: profile, per-frame cycles,
+  annotated source, series and groups.
+- `frame({op:'step'})` accepts `count` as an alias for `frames`;
+  `stepInstructions` accepts `format:'compact'`.
+
+### Cores and memory regions
+
+- fceumm, gambatte, snes9x, genesis_plus_gx and mGBA keep a free-running
+  instruction trace with register columns.
+- New regions: `gba_iwram`, `gba_timing`, `snes_timing`, `gb_lcdlog`,
+  `gb_apu_raw`, `gba_audio_raw`, `gpgx_blip_deltas`, `genesis_svp_dram`,
+  `genesis_svp_iram`, `genesis_svp_ssp`, `snes_chipstate`, `snes_bsx_psram`,
+  `sync32_timing` and `sync32_profile`. `gb_cpu_regs` bytes 14-17 carry the
+  cycle counter.
+- `cpu({op:'read'})` reports the core's clocks under `coreInternal`, and
+  sync32 frame cycles.
+- The `genesis_cram` description is corrected (little-endian packed 9-bit).
+- Fixes: gambatte single-step and breakpoints no longer hang in HALT;
+  gambatte's F register reads correctly; a Z80 interrupt entry on
+  genesis_plus_gx is visible to breakpoints and the trace; mGBA's Thumb ADD
+  sets the V flag correctly on overflow.
+- New alternate SNES core: `loadMedia({platform:'snes', core:'bsnes',
+  firmware})`, in the new package `romdev-core-bsnes`.
+- snes9x includes ares's firmware-chip code, used only when `st011.rom` or
+  `st018.rom` is in the system directory.
+
+### wasmcart host
+
+- WebGPU carts load, step, screenshot and run in the playtest window. The load
+  result and `catalog({op:'status'})` report `gpu:'webgpu'|'gl'|null`, and
+  capabilities carry `hasWgpuRendering`. `loadMedia({gpuPower:'low-power'|
+  'high-performance'})` picks the GPU on a two-GPU machine and the result's
+  `gpuAdapter` names it; `loadMedia({wgpu:false})` runs a dual GL/WebGPU cart
+  on GL. wasi-sdk carts (threads included) built with wasmcart's WebGPU
+  support run the same way.
+- `loadMedia({deterministicStepMs})` sets the clock step of a deterministic
+  replay.
+- `wasm({op:'command'})` is a text request/reply debug channel through named
+  debug fields.
+- Bytes debug fields read as `{length, hex, text}`, and `wasm({op:'write',
+  name, hex})` writes one by name.
+- Stick axes set with `input` reach the cart.
+- `loadMedia` and `catalog({op:'status'})` report `abiWarnings` when a cart's
+  pointers are unusable; `wasm({op:'conformance'})` reports
+  `input-span-overlap` when a cart's pad block overlaps its clock or audio
+  cursor.
+
+### Server and tools
+
+- `host({op:'play', seconds})` runs a session in real time on the server from
+  one call (default 60 s, max 600), so the livestream shows a moving game
+  without a step loop; `host({op:'stop'})` ends it and reports `framesRun`.
+  Any other call on the session also ends it. Refused while a playtest window
+  is open.
+- A session that averages more than 20 requests a second gets an extra
+  advisory naming the bulk form of the tool it is calling (`floodWarning` over
+  HTTP).
+- `state` ops `importSram`, `exportSram`, `importDisk`, `exportDisk` and
+  `putDiskFile` accept `path` (they were refused before).
+- `build({platform:'sync32', video:'128'})` builds a 128x128 mode-2 cart that
+  the console shows at 3x; `frame` screenshots of it are 128x128. sync32
+  builds return symbols from the map file.
+
+### Decomp
+
+- The compile path runs in process as WASM/JS: IDO 5.3 and 7.1, the
+  mips-linux-gnu binutils, a JS port of asm-processor and the C preprocessor,
+  with the flags the project's own Makefile chooses per file (romdev reads the
+  Makefile itself). Objects come out byte-identical to the project's own
+  build.
+- IDO is SGI's proprietary compiler and does not ship with romdev. Build it to
+  WASM from a romdev source checkout with `scripts/build-ido.sh`, or set
+  `ROMDEV_IDO_DIR` to a directory holding its `5.3/` and `7.1/` folders.
+  Without it the compile path says how to build it.
+- New `decomp({op:'setup', root, targets, makeVariables})` runs a fresh
+  checkout's setup and extract steps in process (splat runs as romdev-splat);
+  `import` accepts `buildPath` and `makeVariables`.
+- Workbench commands run in process.
+- m2c candidates come from romdev-m2c, and permuter searches from
+  romdev-permuter (worker threads, the WASM toolchain, `--algorithm
+  levenshtein`, and distributed searches with `-J`).
+- New WASM toolchains: KMC gcc 2.7.2 with binutils 2.6, EGCS 1.1.2 with
+  binutils 2.9.5, PS1 gcc 2.6.3 with maspsx (as JS), mips-linux-gnu gcc 14.2,
+  armips, slinky, pigment64 and crunch64.
+- PS1 decomp projects set up through WASM/JS ports of their tools.
+- Search reports gate outputs against the base function; a jump-table compare
+  bug is fixed.
+
+### New packages
+
+- `romdev-m2c` (GPL-3.0-only)
+- `romdev-permuter` (MIT)
+- `romdev-pycparser` (BSD-3-Clause)
+- `romdev-rabbitizer` (MIT)
+- `romdev-spimdisasm` (MIT)
+- `romdev-splat` (MIT)
+- `romdev-toolchain-decomp-gcc` (GPL-2.0-or-later, GPL-3.0-or-later,
+  LGPL-2.1-or-later, AGPL-3.0-only, MIT and Zlib, per tool)
+- `romdev-core-bsnes` (GPL-3.0-only)
+
+`romdev-toolchain-ido` is private and is never published (see Decomp).
+
+### No Python, no git at runtime
+
+- romdev never launches Python, and its builds no longer need it (rizin
+  builds without meson, fake08 pins are read with node, the Genesis code
+  generators are JS, bsnes builds with a Python-free emcc).
+- romdev reads git repositories in pure JS and never launches the git
+  program.
+
+### Licensing and packaging
+
+- The SNES SPC700 boot ROM is replaced by romdev's own clean-room
+  reimplementation (MIT, `scripts/spc700-ipl/`), in snes9x, bsnes and
+  recompiled carts. It samples and answers the ports on the same SPC700 cycles
+  as the console's (matched by measuring the ports from outside), so games
+  upload their sound on the same schedule and recorded frames are unchanged.
+  The chip data ROMs and boot ROMs upstream snes9x and bsnes
+  embed (DSP-1, DSP-3, ST010, Cx4, Super Game Boy) are removed at build time
+  and become user-supplied, like the ST011 and ST018 program ROMs.
+- `romdev-platform-gba` ships the libgba and libtonc licence files.
+- vasm is no longer bundled and `romdev-toolchain-vasm` is retired (its
+  licence allows non-commercial use only and redistribution of the unmodified
+  archive only). Genesis assembly uses the GPL-3.0 GNU binutils already in
+  `romdev-toolchain-m68k-gcc`; as with every bundled toolchain, its licence
+  does not encumber the ROMs you build.
+- Shipped toolchain and core binaries no longer contain build-machine paths:
+  the GBA, m68k, MIPS, SH and decomp toolchains, cc65's libraries and
+  flycast are rebuilt with mapped paths. Built ROMs are unchanged.
+- armips ships in `romdev-toolchain-mips-gcc`, beside the mips-linux-gnu
+  binutils.
+- `romdev-toolchain-decomp-gcc`'s PS1 asset and string tools get neutral
+  names (`psx-str`, `psx-disk`, `psx-assets`), and `romdev-permuter`'s commands are renamed under the
+  `romdev-permuter-` prefix (`romdev-permuter-remote`, `romdev-permuter-remote-controller`).
+- `psx-assets`, `psx-disk` and `psx-str` no longer carry any of the game's
+  names. The upstream tools compiled in the game's stage, boss and character
+  names, its short title (module, package and crate names, file paths, env
+  vars, messages) and the disc's volume identifiers. romdev builds them from a
+  rewritten copy of the pinned source: objdiff progress labels are the overlay
+  codes, the console-port file lists come from the project's config, the
+  short title in paths and env vars is read from the project the tool runs
+  in, and `psx-disk make` copies the volume identifiers from the original
+  disc image. `extract-assets`, `build-assets`, `psx-disk make` and
+  `psx-str process` output is unchanged, and `objdiff-gen` writes the same
+  units and categories with code labels.
+- The `romdevtools` package licence field becomes `SEE LICENSE IN NOTICE`:
+  the package is MIT, and the recompiler backends it ships carry their
+  reference emulators' licences, as NOTICE and `LICENSES/` describe.
+- Every published package whose contents changed gets a new version, and
+  romdevtools pins them.
+
 ## 0.149.1 - 2026-09-16
 
 ### Version bumps for the punctuation pass
@@ -2511,8 +2874,9 @@ Affects 0.116.0 only.
   30,531 of 30,532 published 8-letter codes in the bundled DB, and after
   the fix 20,090 of 20,118 unique DB codes re-encode byte-identical; the
   rest are known mis-published outliers). Every emitted 8-letter code used
-  to differ from its published spelling by exactly this bit (`SLZPLOVS`
-  for Contra's `SLXPLOVS`). Codes spelled either way still APPLY - fceumm
+  to differ from its published spelling by exactly this bit (for example, a published
+  Game Genie code with X as its third letter came out with Z there). Codes
+  spelled either way still APPLY - fceumm
   and romdev's decoder branch on length and mask the bit - but emitted
   text is published text, and real hardware sets the marker.
 - Why the round-trip test never caught it: the decoder masks the bit, so
@@ -3023,7 +3387,7 @@ The earlier stall was an input mistake on my side, not an emulator limit:
 these DC dialogs confirm on **B**, and only `a` had been tried. Nothing in
 the core changed.
 
-Still honestly scoped: *sustained* play (a full level, long-run stability,
+Still out of scope: *sustained* play (a full level, long-run stability,
 framerate in the heaviest scenes) remains uncharacterised, so the platform
 is still flagged EXPERIMENTAL.
 
@@ -3115,7 +3479,7 @@ regression goldens all see the actual draws.
 
 - `status.gl`: `"rendered"` | `"stubbed"` for GL carts, `null` for 2D carts;
   `getCapabilities().hasGlRendering` alongside.
-- Degrades honestly: wasmcart < 0.6.0 or missing webgl-node → the old
+- Degrades cleanly: wasmcart < 0.6.0 or missing webgl-node → the old
   stubbed-GL behavior (2D framebuffer only), reported as `"stubbed"`, never
   a load failure. Version-gated by reading wasmcart's package version (its
   exports map hides package.json - resolved next to the entry).
@@ -3241,7 +3605,7 @@ only because that is where a wasmcart cart first met the playtest window.
 
 **wasmcart harness, the rest of the plan - deterministic replay, debug events,
 positioning, and the dogfood proof** (WS3 Parts B+C, WS5, WS6 of
-internal-romdev/WASMCART_UMBRELLA_PLAN.md). Consumes wasmcart 0.5.0 (spec-side:
+the wasmcart harness plan). Consumes wasmcart 0.5.0 (spec-side:
 `WC_FLAG_DETERMINISTIC` + `wc_set_seed` + `WC_DETERMINISTIC_RNG`;
 `wc_debug_mark` + captured `wc_log`; both opt-in, default structurally absent).
 Feature-detected - inert on wasmcart 0.4.0. **Depends on `wasmcart` ^0.5.0**
@@ -3282,7 +3646,7 @@ Feature-detected - inert on wasmcart 0.4.0. **Depends on `wasmcart` ^0.5.0**
   loads, seed divergence, caps/status surfacing, events drain, conformance,
   airtight golden, seed-mismatch refusal, WAV rate) - skip-guarded so a clean
   clone on wasmcart 0.4.0 stays green.
-- **WS6 dogfood shipped** - `rom-games/wasmcart/starfall/`: a real game
+- **WS6 dogfood shipped** - a test game
   (deterministic spawns, named state, marks, audio, input) developed and
   verified END-TO-END through the live MCP server: seeded load → conformance
   → screenshot → input-driven `player_x` by name → non-silent audio record →
@@ -3299,8 +3663,8 @@ live for a fresh install rather than feature-detected-inert.
 
 ## 0.104.0 - 2026-07-23
 
-**wasmcart harness, Slice 1 - the sense loop + conformance** (internal-romdev/
-WASMCART_UMBRELLA_PLAN.md WS1+WS2). romdev is the run/debug/validate harness
+**wasmcart harness, Slice 1 - the sense loop + conformance** (the wasmcart harness
+plan, WS1+WS2). romdev is the run/debug/validate harness
 for wasmcart carts, NOT an SDK - it starts at the `.wasc` the developer's own
 toolchain produced. This slice makes the WASM-runtime introspection WasmcartHost
 already had reachable, and gives the agent EARS to go with its eyes:
@@ -3499,7 +3863,7 @@ repinned here as `romdev-core-host@0.2.0` + `romdev-core-runner@0.1.1`):
 
 ## 0.99.0 - 2026-07-18
 
-**The host + runner extraction** (internal-romdev/ROMDEV_CORE_RUNNER_PLAN.md
+**The host + runner extraction** (core runner plan
 Phase 1; MODULARITY.md item 4's trigger fired - six SDK run bridges + the web
 IDEs are the consumers):
 
@@ -3548,7 +3912,7 @@ that go across systems get done for all systems"):
   touched - nothing that could alias ROM/regs (a Genesis read-watch on a
   cart table at $000218 stays literal). Verified live on gpgx: arming the
   $E2-mirror form catches the canonical $FF-form writer.
-  ⚠ Residual, stated honestly: snes9x is the only core whose hooks
+  Residual limitation: snes9x is the only core whose hooks
   canonicalize LIVE accesses, so on the other platforms a WRITER that itself
   uses a mirror form still evades the watch. Fixing that direction needs
   per-core hook patches + core rebuilds - deferred until it bites someone.
@@ -3828,7 +4192,7 @@ A batch of RE-workflow fixes from two SNES annotation sessions (carving routines
   byte-exact, since the reassemble rebuild splices each chunk into `original.rom` by offset. Measured
   on a real 512 KB cart: **~5 min → ~33 s**, and the one-call `build({output:'reassemble'})` rebuild
   is **byte-identical** (verified). `planRebuild`'s Genesis header/pad math spans all chunks.
-- For the fully-robust path on any multi-MB ROM, `background:true` + poll (0.89.0) now genuinely
+- For the most reliable path on any multi-MB ROM, `background:true` + poll (0.89.0) now genuinely
   helps here - 15 chunks parallelize where one region couldn't.
 
 ## 0.91.2 - 2026-07-15
@@ -3962,7 +4326,7 @@ Two fixes from a real-world `disasm({target:'project'})` + `build({output:'reass
 - **`readablePercent` no longer lies about padding.** A uniform-fill bank (all `$FF` or `$00`)
   disassembles into junk instructions (`sbc $FFFFFF,x` ...) and used to report a bogus ~100% readable -
   so the *emptiest* bank looked the "most readable," inverting the "low % = data bank" heuristic. Fill
-  regions are now detected (≥99.5% one byte, ≥256 bytes) and reported honestly: `readablePercent: null`
+  regions are now detected (≥99.5% one byte, ≥256 bytes) and reported as such: `readablePercent: null`
   + `fill: true` + `fillByte`, excluded from the code-only `readablePercentAvg`, and labeled in the
   region `.asm` header. The payload reports `fillRegions` count.
 
@@ -4249,7 +4613,7 @@ test makes any drift a hard failure.
 
 ## 0.71.1 - 2026-06-29
 
-Feedback from the first run against the `pret/pokeruby` GBA decompilation.
+Feedback from the first run against a GBA decompilation project.
 
 - **Project-mode `entry` now resolves a NESTED path** (e.g. `entry:'src/main.c'`). The
   recursive asset staging already walked subdirs, but entry resolution stayed top-level
@@ -4264,7 +4628,7 @@ Feedback from the first run against the `pret/pokeruby` GBA decompilation.
 - **`platform({op:'resolve'})` surfaces the toolchain(s)** + a note that the build
   toolchain is WASM/harness-only (was core-paths-only, forcing `node_modules` spelunking).
 - **GBA `mental_model` "What's NOT bundled"** now calls out **agbcc's absence** (the real
-  blocker for byte-exact Gen-III decomps like pokeruby/pokeemerald) and adds a "romdev's
+  blocker for byte-exact GBA decomps) and adds a "romdev's
   build model" section: `build` is single-shot compile→ROM, the toolchain can't back an
   external Makefile, with the confirmed host agbcc recipe for matching builds.
 
@@ -4402,7 +4766,7 @@ The build + host fixes that made it work (every one was a real wall):
 
 ### Dreamcast examples + sh-c -O level fix
 
-Four DC example programs (rom-games/dreamcast/): dchello (test card), bounce (animation),
+Four DC example programs: dchello (test card), bounce (animation),
 starfield (shmup background), grid (puzzle/board) - all build via the WASM toolchain and
 render distinct content through Flycast, exercising the dc.h helper (no-KOS PowerVR2
 framebuffer + 2D primitives).
@@ -4712,7 +5076,7 @@ buildable through the normal createProject/build tool flow.
 
 **PS1** (4 × 3D + 1 × 2D, on a software 3D engine + the GPU): shmup STARFALL,
 racing POLE BENDER (a real receding 3D road), platformer BLOCK HOP, sports
-SLAM COURT (3D pong/air-hockey), puzzle DROP GRID (2D - the right idiom for a grid).
+SLAM COURT (3D paddle/air-hockey), puzzle DROP GRID (2D - the right idiom for a grid).
 
 **N64** (all 5 × 3D - the N64 was a 3D-first machine, so even the puzzle is a 3D
 well of cubes): STARFALL 64 / POLE BENDER 64 / BLOCK HOP 64 / SLAM COURT 64 /
@@ -4779,7 +5143,7 @@ pcsx_rearmed (R3000) are rebuilt with romdev's CPU instrumentation, so:
 - Reproducible via the updated build-pcsx-rearmed.sh / build-parallel-n64.sh
   (patch the source + hooks + exports).
 
-**Remaining honest gap:** `audioDebug` (PS1 SPU / N64 audio chip decoders) is still
+**Remaining gap:** `audioDebug` (PS1 SPU / N64 audio chip decoders) is still
 TODO. The tile/sprite/nametable inspectors stay N/A by hardware (framebuffer/3D
 renderers have no such tables). Everything else is at parity. Suite 1050/1050.
 
@@ -4868,7 +5232,7 @@ shim's `instanceof WebGLRenderingContext` check (needs WebGL1 to be a distinct
 class), the signed-vs-unsigned `RETRO_HW_FRAME_BUFFER_VALID` compare, and the
 all-transparent FBO alpha (forced opaque in a new RGBA decode path).
 
-**Still pending** for full parity (honestly off in the manifest): `build` (needs a
+**Still pending** for full parity (off in the manifest): `build` (needs a
 MIPS toolchain - PSn00bSDK/libdragon), `decompile` (needs a MIPS SLEIGH spec in the
 decompiler - slaspec sources exist, a decompiler-package rebuild), `getCPUState` +
 `cheats` (need a core rebuild exposing those exports). The framebuffer/3D renderers
@@ -5351,7 +5715,7 @@ three guarantees now hold across the whole platform matrix:
   scripts/patches/ carry all of it - the whole stack reproduces from a clean
   clone). `cpu({op:'call', pure:true})` remains gpgx-only (the other systems'
   CPU/video loops are not separable without deeper core surgery); their calls
-  carry the ⚠ frame-logic caveat instead.
+  carry the frame-logic caveat instead.
 - `test/regsnap-all-cores.test.js`: live single-step snapshot + freeze proof
   on 10 platforms (plus the existing gpgx suite for Genesis/SMS/GG).
 
@@ -5375,7 +5739,7 @@ The first core rebuild in this release (gpgx only; pins unchanged, patch extende
   raised - so the game's own VBlank logic can NOT run "concurrently" and
   stomp the driven routine's output buffer (a real session diffed a correct
   codec reimplementation against that poisoned output for ~1.5h). Non-pure
-  calls that spanned frames now carry a loud ⚠ caveat naming the risk and
+  calls that spanned frames now carry a warning caveat naming the risk and
   the fix.
 - **Genesis `system_ram` normalized to CPU byte order** - gpgx stores 68k
   work RAM host-LE word-swapped (`work_ram[A^1]`); the raw layout leaked
@@ -5441,7 +5805,7 @@ treatment:
   byte-identical `build()` rebuilds** - their asm toolchain is cc65/ca65, the
   same match that made NES one-call. NES-style glue: HEADER segment carrying
   the original header bytes, per-bank segment wrappers, generated multi-bank
-  `.cfg` via `linkerConfigPath`. **PCE was previously the one honestly-LOSSY
+  `.cfg` via `linkerConfigPath`. **PCE was previously the one LOSSY
   case** (planRegions trimmed real $FF padding and didn't strip copier
   headers) - both fixed, `verifiable:true` now.
 - **SMS/GG, MSX, and 2600 banked carts get per-bank native rebuild recipes**
@@ -5590,7 +5954,7 @@ resolution it may not change what the model sees (and can slightly degrade it vi
 bicubic downscale of stretched pixels). Reworded the param + tool description to
 lead with **native (`scale:1`, the default) = perfect pixels = the accurate
 representation**, keep the genuinely-useful DOWNscale (`<1`, fewer tokens for
-"did it change?" checks), and frame upscale honestly as a last resort for clients
+"did it change?" checks), and frame upscale as a last resort for clients
 that can't zoom a small image. (No behavior change - `scale` was already opt-in and
 defaulted to native; this is the docs telling the truth about it.)
 (Committed during the 0.27.0 cycle but AFTER 0.27.0 published - ships in 0.28.0.)
@@ -6413,7 +6777,7 @@ discoverable rename table).
 
 ### Fixed
 - Genesis music docs named the wrong tool/API. Corrected to `XGM2_play` (there is
-  no `XGM2_startPlay` in R58), the compiled-blob requirement, and that the legacy
+  no `XGM2_startPlay`), the compiled-blob requirement, and that the legacy
   `xgmtool`/`.xgc`/`XGM_*` is a DIFFERENT format.
 - **`romPatch({op:'findPointer'})` no longer doubles its hit list with shadows.**
   On the multi-width systems (Genesis: 32+24-bit BE; SNES: 16+24-bit LE) a wider

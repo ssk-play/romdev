@@ -7,7 +7,7 @@
 // in VDP regs $15-$17 (a word address; byte addr = source<<1), which for a
 // normal cart is the ROM offset the tiles were copied from.
 //
-// HONESTY: this is FRAME-SAMPLED. It steps frames (optionally driving input) and
+// NOTE: this is FRAME-SAMPLED. It steps frames (optionally driving input) and
 // reads the DMA source registers once per frame, logging each DISTINCT
 // mem→VRAM source it sees. It will MISS a second DMA that happens in the same
 // frame as another (only the last frame's register state is visible per step).
@@ -25,7 +25,7 @@ export async function traceVramSourceCore({ frames = 120, pressDuring, romPrevie
       const host = getHost(sessionKey);
       const platform = host.status.platform;
       if (platform !== "genesis" && platform !== "megadrive" && platform !== "md") {
-        throw new Error(`traceVramSource is Genesis-only (loaded platform: '${platform}'). VRAM-DMA source tracing uses the Genesis VDP DMA registers.`);
+        throw new Error(`watch({on:'dma'}) is Genesis-only (loaded platform: '${platform}'). VRAM-DMA source tracing uses the Genesis VDP DMA registers.`);
       }
       // ROM image for the preview (un-banked on Genesis: file offset == DMA source byte addr).
       let rom = null;

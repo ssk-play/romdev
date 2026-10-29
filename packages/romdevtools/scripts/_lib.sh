@@ -34,12 +34,19 @@ require_cmd() {
 }
 
 # Common Emscripten link flags for a tool that's invoked as a CLI via callMain.
+#
+# ENVIRONMENT lists web + worker as well as node: these tools only ever touch
+# MEMFS (inputs are written in, outputs read back), so the same glue runs in a
+# browser Web Worker when the caller supplies the wasm bytes. With node alone
+# emcc hard-codes ENVIRONMENT_IS_NODE=true and the glue's first act is
+# `await import("module")` - unusable in a browser even though nothing in the
+# tool needs Node. Node behavior is unchanged (runtime detection picks node).
 EM_CLI_FLAGS=(
   -O2
   -s WASM=1
   -s MODULARIZE=1
   -s EXPORT_ES6=1
-  -s ENVIRONMENT=node
+  -s ENVIRONMENT=node,web,worker
   -s ALLOW_MEMORY_GROWTH=1
   -s INITIAL_MEMORY=67108864
   -s STACK_SIZE=8388608
@@ -71,3 +78,19 @@ EM_WRAP_FLAGS=(
   # need DWARF; the source is available for anyone who wants to debug a build.
   -g0
 )
+
+# A core build resets and re-applies its romdev patch with git. That only works
+# when the source dir is the TOP of its own checkout: otherwise `git checkout --`
+# quietly does nothing, the tree keeps an OLDER patch revision, and a sentinel
+# grep calls it "already present", building a core that silently lacks newer hunks.
+require_git_toplevel() {
+  if [ "$(git rev-parse --show-toplevel 2>/dev/null)" != "$(pwd -P)" ]; then
+    echo "FATAL: $(pwd) is not the top of its own git checkout, so the romdev patch cannot be reset and re-applied. Delete it and re-run to re-fetch the pinned source." >&2
+    exit 1
+  fi
+}
+
+# Succeeds only when the exact patch is already fully applied (reverse-applies).
+patch_already_applied() {
+  git apply --recount --reverse --check "$1" 2>/dev/null
+}

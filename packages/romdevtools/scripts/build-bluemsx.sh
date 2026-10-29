@@ -31,6 +31,7 @@ fetch_pinned cores.bluemsx "$DIR"
 
 cd "$DIR"
 # 1) build-config patch (required).
+require_git_toplevel
 git checkout -- Makefile.libretro 2>/dev/null || true
 if git apply --recount --check "$BUILD_PATCH" 2>/dev/null; then
   git apply --recount "$BUILD_PATCH"; echo "Applied $BUILD_PATCH"
@@ -95,7 +96,7 @@ EXPORTED_RUNTIME='["ccall","cwrap","addFunction","removeFunction","HEAPU8","HEAP
 mkdir -p "$OUT"
 emcc $OBJS \
   -O3 -s WASM=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORT_NAME=create_bluemsx \
-  -s ENVIRONMENT=node -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=134217728 \
+  -s ENVIRONMENT=node,web,worker -s ALLOW_MEMORY_GROWTH=1 -s INITIAL_MEMORY=134217728 \
   -s MAXIMUM_MEMORY=536870912 -s ALLOW_TABLE_GROWTH=1 \
   -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCTIONS" \
   -s EXPORTED_RUNTIME_METHODS="$EXPORTED_RUNTIME" \

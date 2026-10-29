@@ -3,14 +3,27 @@
 // (rungame) sandboxes games in a vm.SourceTextModule realm, which requires that flag.
 // It's harmless for everything else, so we enable it once up front rather than making
 // users remember it. Guard against a re-exec loop via a sentinel env var.
-if (
-  !process.execArgv.some((a) => a.includes("experimental-vm-modules")) &&
-  !process.env.ROMDEV_REEXEChild
-) {
+//
+// --no-wasm-code-gc on V8 13.6 (every Node 24): its process-wide wasm import
+// wrapper cache can free a wrapper twice when wasm code GC runs while
+// instances come and go, and the process dies with "Check failed:
+// jit_page.has_value()" (or "end > addr") in ThreadIsolation, under
+// Runtime_TierUpWasmToJSWrapper -> WasmImportWrapperCache::Free. A server
+// loading and unloading many carts hits it (reproduced after 65-76
+// WebGPU cart loads). V8
+// fixed it in 9b8ca54d5a ("Fix lookup of wrappers marked is_dying"); no Node
+// 24 release has it yet (nodejs/node#66366). Without code GC, dead import
+// wrappers and code a module tiered past are not freed early; a module's code
+// still goes with the module. Measured: RSS stayed flat (1.4-2.1 GB) over 200
+// WebGPU/GL cart loads, where code GC crashed the server by load 76.
+const reexecFlags = ["--experimental-vm-modules"];
+if (process.versions.v8.startsWith("13.6.")) reexecFlags.push("--no-wasm-code-gc");
+const missingFlags = reexecFlags.filter((f) => !process.execArgv.some((a) => a.includes(f.slice(2))));
+if (missingFlags.length && !process.env.ROMDEV_REEXEChild) {
   const { spawnSync } = await import("node:child_process");
   const r = spawnSync(
     process.execPath,
-    ["--experimental-vm-modules", ...process.execArgv, process.argv[1], ...process.argv.slice(2)],
+    [...missingFlags, ...process.execArgv, process.argv[1], ...process.argv.slice(2)],
     { stdio: "inherit", env: { ...process.env, ROMDEV_REEXEChild: "1" } },
   );
   // A child killed by a SIGNAL reports status === null, so `r.status ?? 0`
@@ -262,7 +275,7 @@ async function main() {
   const transports = new Map();
   // Session id → last-activity timestamp (ms). Bumped on every request so
   // the idle reaper below can evict sessions whose client vanished without
-  // a clean MCP close (restarted Codex/Claude, crashed client, abandoned
+  // a clean MCP close (restarted client, crashed client, abandoned
   // tab). Without this the transports map - and the /livestream session
   // list - grows forever: each reconnect mints a new session and the dead
   // one is never closed.
@@ -287,8 +300,6 @@ async function main() {
     // Mcp-Session-Id), but an explicit client handle must WIN so a caller can
     // pin its own session -- which is the only mechanism that still exists
     // under MCP 2026-07-28, where there is no protocol session at all.
-    // Workstream B of
-    // internal-romdev/PLAN_mcp_v2_stateless_and_host_lifetime.md.
     const { sessionKey } = resolveSessionKey({
       meta: requestedHandle ? { [SESSION_META_KEY]: requestedHandle } : undefined,
     });
@@ -341,7 +352,7 @@ async function main() {
   // _initialized) passes - i.e. we adopt the client's session instead of
   // forcing a reinitialize.
   //
-  // ⚠ SDK-COUPLING: the streamable-HTTP transport only binds its sessionId by
+  // SDK-COUPLING: the streamable-HTTP transport only binds its sessionId by
   // running a real `initialize` HTTP request through Hono - which needs
   // genuine Node req/res stream objects, not fabricable here. So we set the
   // two state fields on the inner web-standard transport directly. These are

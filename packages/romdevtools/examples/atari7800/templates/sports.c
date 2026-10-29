@@ -3,7 +3,7 @@
  * FLUX FENCE - a COMPLETE, working game: title screen, 1P vs a beatable CPU
  * and 2P SIMULTANEOUS VERSUS (P2 on JOYSTICK PORT 1), first-to-5 match flow
  * with a result screen, two-voice TIA music + SFX, and an in-session record
- * (longest win streak vs the CPU). It's the Pong lineage rebuilt on MARIA: the
+ * (longest win streak vs the CPU). It's the paddle-and-ball lineage rebuilt on MARIA: the
  * two paddles, the ball, and the centre net are all just display-list OBJECTS
  * MARIA DMAs per scanline - the same per-line object pool the 7800 shmup uses
  * for a swarm, here spent on a sparse court (≤2 objects ever share a line, so
@@ -24,7 +24,7 @@
  *     ($2800 →). This game claims the BOTTOM of RAM3 ($2200-$25FD) for its
  *     display-list pool - see the RAM MAP below before moving anything.
  *
- * PERSISTENCE - honest note: the canonical 7800 save path is the High Score
+ * PERSISTENCE - note: the canonical 7800 save path is the High Score
  * Cart (HSC): a pass-through cartridge with 2KB battery RAM at $1000-$17FF
  * plus a directory ROM. The bundled prosystem core does NOT implement HSC
  * (probed 2026-06: retro_get_memory(SAVE_RAM) size = 0, and the core binary
@@ -632,7 +632,7 @@ static void end_match(void) {
         /* HSC NOTE (see file header): on real hardware with a High Score
          * Cart you would write the record into HSC RAM ($1000-$17FF) here.
          * The bundled prosystem core has no HSC support and exposes no
-         * SAVE_RAM, so the record honestly lives only as long as the session. */
+         * SAVE_RAM, so the record lives only as long as the session. */
       }
     }
   } else {                               /* P2 / CPU won                  */

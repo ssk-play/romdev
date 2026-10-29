@@ -5,6 +5,11 @@ name: lint
 # fills the gitignored wasm payloads from the published npm tarballs. Lint
 # stays its own fast job so a style break is visible in seconds, not after a
 # 450MB payload fetch.
+#
+# This fork lints only the JavaScript it changes relative to upstream
+# (monteslu/romdev main, from the merge base). Errors in upstream's own files
+# are upstream's to fix; fixing them here would spread the fork's diff over
+# files it does not otherwise touch and conflict on every upstream merge.
 
 on:
   push:
@@ -19,11 +24,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # the merge base with upstream
 
       - uses: actions/setup-node@v4
         with:
           node-version: 24          # repo engines floor is >=24
           cache: npm
+
+      - name: Check workspace pins
+        run: node scripts/check-pins.mjs
 
       # --ignore-scripts skips romdevtools' postinstall (it expects bundled wasm,
       # absent in CI). We DO install workspace deps (not --workspaces=false) so
@@ -33,5 +43,10 @@ jobs:
       - name: Install deps
         run: npm ci --ignore-scripts
 
-      - name: ESLint
-        run: npm run lint
+      - name: ESLint (files this fork changes)
+        run: |
+          git fetch --no-tags https://github.com/monteslu/romdev.git main
+          base=$(git merge-base HEAD FETCH_HEAD)
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMR "$base" HEAD -- '*.js' '*.mjs' '*.cjs')
+          echo "linting ${#files[@]} file(s) changed since $(git rev-parse --short "$base")"
+          if [ ${#files[@]} -gt 0 ]; then npx eslint --no-warn-ignored "${files[@]}"; fi

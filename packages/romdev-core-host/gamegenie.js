@@ -114,7 +114,7 @@ export function encodeNesGameGenie({ address, value, compare }) {
      * (GATKGATX-style spellings) is a mis-published code, not a convention.
      * An earlier version left it clear on the strength of that outlier,
      * which made every emitted 8-letter code differ from its canonical
-     * published spelling by exactly this bit (SLZPLOVS for Contra's
+     * published spelling by exactly this bit (SLZPLOVS for a published
      * SLXPLOVS, and so on).
      *
      * Decoders are forgiving - fceumm branches on length and masks the bit
@@ -433,7 +433,7 @@ export function decodeProActionReplay(code, platform) {
  *  Returns one of: "game-genie", "pro-action-replay", "gameshark",
  *  "action-replay", "raw", or "unknown". Per-platform, because the SAME shape
  *  means different devices on different systems (8 hex = SNES PAR, but on GB =
- *  GameShark). This is what lets us be HONEST about device type. */
+ *  GameShark). This is what lets the device type be reported accurately. */
 export function detectDevice(code, platform) {
   const c = code.trim();
   if (c.includes(":")) return "raw";
@@ -593,7 +593,7 @@ export function encodeRaw({ address, value, compare }) {
 }
 
 // Which physical cheat DEVICE each platform's "native" code is for. This is the
-// honesty layer: we don't call everything "Game Genie" - SNES native is Pro
+// Accuracy layer: do not call everything "Game Genie" - SNES native is Pro
 // Action Replay, SMS/GG is Action Replay, GB has both GG (ROM) and GameShark
 // (RAM). `nativeDevicesFor` lists them best-first.
 export function nativeDevicesFor(platform) {

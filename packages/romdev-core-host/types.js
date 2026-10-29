@@ -11,21 +11,22 @@
  *   | "snes_oam" | "snes_cgram" | "snes_aram" | "snes_fillram"
  *   | "genesis_cram" | "genesis_vsram" | "genesis_vdp_regs"
  *   | "genesis_z80_ram" | "genesis_m68k" | "genesis_ym2612" | "genesis_psg"
+ *   | "genesis_svp_dram" | "genesis_svp_iram" | "genesis_svp_ssp"
  *   | "md_linepix" | "md_bgpix" | "md_objpix" | "md_pixrgb" | "md_linestate"
  *   | "sms_linepix" | "sms_bgpix" | "sms_objpix" | "sms_pixrgb" | "sms_linestate"
  *   | "gg_linepix" | "gg_bgpix" | "gg_objpix" | "gg_pixrgb" | "gg_linestate"
  *   | "sms_vram" | "sms_cram" | "sms_vdp_regs" | "sms_z80_regs"
- *   | "gg_vram" | "gg_cram"
+ *   | "gg_vram" | "gg_cram" | "gpgx_blip_deltas"
  *   | "gb_vram" | "gb_oam" | "gb_io" | "gb_hram"
  *   | "gb_bgpdata" | "gb_objpdata" | "gb_cpu_regs"
  *   | "gb_lineregs" | "gb_bgpix" | "gb_sprpix" | "gb_palline"
- *   | "gb_bgcol15" | "gb_sprcol15"
+ *   | "gb_bgcol15" | "gb_sprcol15" | "gb_lcdlog" | "gb_apu_raw"
  *   | "a26_tia_regs" | "a26_cpu_regs"
  *   | "a78_cpu_regs"
  *   | "c64_color_ram" | "c64_vic_regs" | "c64_sid_regs"
  *   | "c64_cia1_regs" | "c64_cia2_regs" | "c64_cpu_regs"
- *   | "gba_cpu_regs" | "gba_io_regs" | "gba_palette" | "gba_oam" | "gba_iwram"
- *   | "sync32_cpu_regs" | "sync32_palette" | "sync32_canvas"
+ *   | "gba_cpu_regs" | "gba_io_regs" | "gba_palette" | "gba_oam" | "gba_iwram" | "gba_audio_raw"
+ *   | "sync32_cpu_regs" | "sync32_palette" | "sync32_canvas" | "sync32_timing" | "sync32_profile"
  *   | "lynx_cpu_regs" | "lynx_hw_regs"
  *   | "pce_vdc_vram" | "pce_vdc_satb" | "pce_vdc_regs"
  *   | "pce_vce_palette" | "pce_cpu_regs" | "pce_psg_regs"
@@ -102,6 +103,18 @@ export const RetroMemory = {
   SNES_CLIPLINES:     0x1B5,
   SNES_LP_WORLD:      0x1B6,
   SNES_LP_OBJ:        0x1B7,
+  /** 20 bytes, 5 u32 LE: [0] master clock since line 0 (V_Counter*H_Max + Cycles),
+   *  [1] CPU.Cycles, [2] CPU.V_Counter, [3] Timings.H_Max, [4] TotalEmulatedFrames. */
+  SNES_TIMING:        0x1B8,
+  /** The active coprocessor's internal state, serialized on read by the same
+   *  romdev_chipstate.h the recompiled cart's chip units compile (DSP-3, ST011,
+   *  ST018, S-RTC, SPC7110, BS-X); size 0 on any other cart. */
+  SNES_CHIPSTATE:     0x1B9,
+  /** The BS-X's 512KB PSRAM (where the BIOS loads a BS program); BS-X carts only. */
+  SNES_BSX_PSRAM:     0x1BA,
+  // bsnes (romdev-core-bsnes) only: every S-CPU access to a firmware chip
+  // (ST010/ST011/ST018) with the master clock, a ring the cross-check replays
+  SNES_CHIPLOG:       0x1BB,
   GENESIS_CRAM:       0x120,
   GENESIS_VSRAM:      0x121,
   GENESIS_VDP_REGS:   0x122,
@@ -121,6 +134,17 @@ export const RetroMemory = {
   SMS_Z80_REGS:       0x133,
   GG_VRAM:            0x134,
   GG_CRAM:            0x135,
+  /** RDAS per-frame event stream (s32 x 3, rate 0): every blip_add_delta on
+   *  the main blip buffer this retro_run as (blip clock time, delta_l, delta_r)
+   *  - the FM + PSG input to blip_buf BEFORE band-limited resampling. Shared by
+   *  the genesis / sms / gg platforms (all genesis_plus_gx). */
+  GPGX_BLIP_DELTAS:   0x136,
+  /** SVP carts (gpgx cart_hw/svp): the SSP1601 DRAM (128KB of host-order
+   *  16-bit words), its 2KB IRAM and the ssp1601_t state. Absent (size 0)
+   *  on a cart without the chip. */
+  GENESIS_SVP_DRAM:   0x137,
+  GENESIS_SVP_IRAM:   0x138,
+  GENESIS_SVP_SSP:    0x139,
   GB_VRAM:            0x140,
   GB_OAM:             0x141,
   GB_IO:              0x142,
@@ -135,6 +159,10 @@ export const RetroMemory = {
   GB_PALLINE:         0x14A,
   GB_BGCOL15:         0x14B,
   GB_SPRCOL15:        0x14C,
+  GB_LCDLOG:          0x14D,
+  /** RDAS per-frame audio stream: every stereo s16 sample frame PSG::fillBuffer
+   *  produced this retro_run at 2097152 Hz, BEFORE blipper / the CC resampler. */
+  GB_APU_RAW:         0x14E,
   A78_CPU_REGS:       0x150,
   A26_TIA_REGS:       0x160,
   A26_CPU_REGS:       0x161,
@@ -152,17 +180,36 @@ export const RetroMemory = {
   GBA_PALETTE:        0x182,
   GBA_OAM:            0x183,
   GBA_IWRAM:          0x184,
+  /** 16 bytes, 4 u32 LE: [0] master clock (mTimingCurrentTime), [1] cpu->cycles,
+   *  [2] cpu->nextEvent, [3] timing.masterCycles. Assembled on read. */
+  GBA_TIMING:         0x185,
+  /** RDAS per-frame audio stream (src/host/audio-verify.js AUDIO_STREAM): the
+   *  stereo s16 samples GBAAudioSample produced this retro_run, at the native
+   *  16777216/sampleInterval Hz, BEFORE libretro's resampler to 65536 Hz. */
+  GBA_AUDIO_RAW:      0x186,
   // Lynx (handy): CPU snapshot + the $FC00-$FDFF Suzy/Mikey HW register window
   // (sprite regs, LCD control, audio $FD20-$FD3F, palette $FDA0-$FDBF).
   LYNX_CPU_REGS:      0x190,
   LYNX_HW_REGS:       0x191,
 
-  // sync32 (s32core). The console is monteslu's own, so the core exposes
+  // sync32 (s32core). sync32 is a homebrew-only console, so the core exposes
   // exactly what a game DEVELOPER needs to debug their own cart - there are no
   // commercial ROMs here to reverse-engineer.
   SYNC32_CPU_REGS:    0x1A0,   // Cortex-M33: r0-r15, APSR, s0-s31, ITSTATE
   SYNC32_PALETTE:     0x1A1,   // 256 entries, RGB565
   SYNC32_CANVAS:      0x1A2,   // the 320x240 8-bit indexed framebuffer
+  /** Frame timing, u32 LE: [0] 'S32T', [1] layout version, [2] ABI floor
+   *  cycles per frame, [3] floor clock MHz, [4] frames presented, [5] last
+   *  frame's work cycles, [6..7] total cycles lo/hi, [8] history capacity,
+   *  [9] frames recorded; [16..] ring of per-frame work cycles, recorded
+   *  frame k (1-based) at 16 + (k - 1) % capacity. */
+  SYNC32_TIMING:      0x1A3,
+  /** pc-sampling profiler, u32 LE, WRITABLE control block: [0] 'S32P',
+   *  [1] enable, [2] base address, [3] shift, [4] bucket count, [5] active
+   *  (core-set), [6] clear request, [7] frames profiled; [16..] buckets of
+   *  CPU cycles, bucket (pc - base) >> shift, the last one also collecting
+   *  every pc outside the window. The vblank idle snap is excluded. */
+  SYNC32_PROFILE:     0x1A4,
   // Sprite sheets 0..31 at 0x1B0+n: 8-bit indices into the palette. sync32 has
   // no OAM - a game blits from these with api->sprite() - so the sheets ARE
   // the sprite data. Only sheet0 is named here; the rest are reachable by id.
@@ -261,6 +308,10 @@ export const MemoryRegionToRetro = {
   snes_cliplines: RetroMemory.SNES_CLIPLINES,
   snes_lp_world: RetroMemory.SNES_LP_WORLD,
   snes_lp_obj: RetroMemory.SNES_LP_OBJ,
+  snes_timing: RetroMemory.SNES_TIMING,
+  snes_chipstate: RetroMemory.SNES_CHIPSTATE,
+  snes_bsx_psram: RetroMemory.SNES_BSX_PSRAM,
+  snes_chiplog: RetroMemory.SNES_CHIPLOG,
   genesis_cram: RetroMemory.GENESIS_CRAM,
   genesis_vsram: RetroMemory.GENESIS_VSRAM,
   genesis_vdp_regs: RetroMemory.GENESIS_VDP_REGS,
@@ -268,6 +319,9 @@ export const MemoryRegionToRetro = {
   genesis_m68k: RetroMemory.GENESIS_M68K,
   genesis_ym2612: RetroMemory.GENESIS_YM2612,
   genesis_psg: RetroMemory.GENESIS_PSG,
+  genesis_svp_dram: RetroMemory.GENESIS_SVP_DRAM,
+  genesis_svp_iram: RetroMemory.GENESIS_SVP_IRAM,
+  genesis_svp_ssp: RetroMemory.GENESIS_SVP_SSP,
   /* gpgx resolved-layer capture (shared line renderer, so the same core
    * regions serve genesis/sms/gg; per-platform aliases below). */
   md_linepix: RetroMemory.MD_LINEPIX,
@@ -294,6 +348,7 @@ export const MemoryRegionToRetro = {
   sms_z80_regs: RetroMemory.SMS_Z80_REGS,
   gg_vram: RetroMemory.GG_VRAM,
   gg_cram: RetroMemory.GG_CRAM,
+  gpgx_blip_deltas: RetroMemory.GPGX_BLIP_DELTAS,
   gb_vram: RetroMemory.GB_VRAM,
   gb_oam: RetroMemory.GB_OAM,
   gb_io: RetroMemory.GB_IO,
@@ -307,6 +362,8 @@ export const MemoryRegionToRetro = {
   gb_palline: RetroMemory.GB_PALLINE,
   gb_bgcol15: RetroMemory.GB_BGCOL15,
   gb_sprcol15: RetroMemory.GB_SPRCOL15,
+  gb_lcdlog: RetroMemory.GB_LCDLOG,
+  gb_apu_raw: RetroMemory.GB_APU_RAW,
   a78_cpu_regs: RetroMemory.A78_CPU_REGS,
   a26_tia_regs: RetroMemory.A26_TIA_REGS,
   a26_cpu_regs: RetroMemory.A26_CPU_REGS,
@@ -321,9 +378,13 @@ export const MemoryRegionToRetro = {
   gba_palette:   RetroMemory.GBA_PALETTE,
   gba_oam:       RetroMemory.GBA_OAM,
   gba_iwram:     RetroMemory.GBA_IWRAM,
+  gba_timing:    RetroMemory.GBA_TIMING,
+  gba_audio_raw: RetroMemory.GBA_AUDIO_RAW,
   sync32_cpu_regs: RetroMemory.SYNC32_CPU_REGS,
   sync32_palette:  RetroMemory.SYNC32_PALETTE,
   sync32_canvas:   RetroMemory.SYNC32_CANVAS,
+  sync32_timing:   RetroMemory.SYNC32_TIMING,
+  sync32_profile:  RetroMemory.SYNC32_PROFILE,
   sync32_sheet0:   RetroMemory.SYNC32_SHEET0,
   lynx_cpu_regs: RetroMemory.LYNX_CPU_REGS,
   lynx_hw_regs:  RetroMemory.LYNX_HW_REGS,
@@ -382,6 +443,8 @@ export const MemoryRegionToRetro = {
 
 /**
  * @typedef {Object} LoadMediaArgs
+ * @property {{kind: "nes", playerMask: number}} [controllerTopology] Native controller slots, fixed across restore.
+ * @property {{rtcEpochSeconds: number}} [deterministic] Explicit deterministic bootstrap, before ROM load.
  * @property {string} platform
  * @property {string} path
  * @property {MediaKind} [mediaKind]
@@ -412,7 +475,7 @@ export const MemoryRegionToRetro = {
  * to cartridge; C64 depends on the file kind - a `.d64`/`.g64`/`.d71`/`.d81` is a
  * disk, a `.tap` is a tape, a `.crt` is a cartridge, and a bare `.prg`/`.p00` is
  * a program injected directly. The extension is passed when known (loadMedia has
- * it) so disk/tape images report honestly in status() and the agent knows a
+ * it) so disk/tape images report accurately in status() and the agent knows a
  * writable disk exists for saves.
  * @param {string} platform
  * @param {string} [ext] lower- or mixed-case file extension incl. dot, e.g. ".d64"

@@ -23,7 +23,7 @@
  *
  * PLAYERS: 1. This is a handheld - multiplayer on real hardware is ComLynx,
  *   a cable between TWO Lynx units. A single emulator instance has nobody on
- *   the other end of the cable, so this example is honestly single-player
+ *   the other end of the cable, so this example is single-player
  *   (no fake "P2" that could never work).
  *
  * SCREEN: 160x102. The system font is 8x8, so a full row of text is 20
@@ -294,7 +294,7 @@ static void start_game(void) {
 static void game_over(void) {
   over_new_hi = 0;
   if (score > hiscore) {
-    /* ── In-session hi-score ONLY - and here's the honest why. Real Lynx
+    /* ── In-session hi-score ONLY - and here is why. Real Lynx
      * carts persist via a 93Cxx serial EEPROM on the cart PCB (cc65 even
      * ships lynx_eeprom_read/write for it - bit-banged over A7/A1/AUDIN;
      * see vendor/cc65/libsrc/lynx/eeprom.s). PROBED 2026-06: the bundled
@@ -339,7 +339,7 @@ static void frame_title(uint8_t joy) {
   tgi_setcolor(COLOR_LIGHTGREY);
   tgi_outtextxy(28, 50, "HI ");
   tgi_outtextxy(52, 50, fmt5(hiscore));
-  tgi_outtextxy(24, 62, "1 PLAYER GAME");           /* handheld honesty   */
+  tgi_outtextxy(24, 62, "1 PLAYER GAME");           /* handheld: 1P only   */
 
   if (JOY_BTN_1(joy) && !JOY_BTN_1(prev_joy)) start_game();
 }
@@ -489,7 +489,7 @@ void main(void) {
      *   5. sfx_update() IMMEDIATELY after - MIKEY voice writes must land
      *      in vblank: handy reschedules its timer sweep on the spot when
      *      a voice CTL bit-3 write lands, and mid-frame that sweep can
-     *      preempt an in-flight Suzy blit and eat sprites (the R57 bug -
+     *      preempt an in-flight Suzy blit and eat sprites (history
      *      history in lynx_sfx.c). sfx_tone()/sfx_noise() only STAGE;
      *      sfx_update() is the hardware flush. */
     while (tgi_busy()) { }

@@ -1,7 +1,7 @@
 # Genesis / Mega Drive - quickstart
 
-The compressed version of "everything I had to learn the hard way
-building a Genesis ROM with romdev."
+The short list of what matters most when building a Genesis ROM in assembly
+with romdev.
 
 ## Snippets shipped in this directory
 
@@ -16,23 +16,26 @@ building a Genesis ROM with romdev."
 | `sprite_table.s` | Soft-OAM staging + DMA upload pattern. |
 | `z80_bootstrap.s` | Z80 sound CPU bring-up + bus protocol. |
 
-Fetch any with `getStarterSnippet({platform:"genesis", name:"<file>"})`.
-Pull them all at once with `getAllStarterSnippets({platform:"genesis"})`.
+Fetch one with
+`examples({op:'snippets', platform:'genesis', mode:'get', snippetName:'<name>'})`,
+list them with `mode:'list'`, or get them all at once with `mode:'getAll'`.
+`examples({op:'copySnippets', platform:'genesis', destinationDir})` copies them
+into a project.
 
-## The five gotchas that cost the most time
+## Five common mistakes
 
-### 1. vasm Motorola syntax: NO SPACES after commas
+### 1. Motorola syntax: whitespace ends the operand field
 
 ```asm
-move.w #$2700, sr       ; ERROR: "number or identifier expected"
 move.w #$2700,sr        ; OK
+move.w d0,d1 copy it    ; OK: everything after the operands is a comment
+dc.w 1 + 2              ; assembles dc.w 1 - " + 2" is a comment
 ```
 
-vasm's Motorola syntax tokenizer treats the space as terminating the
-operand. This applies to ALL multi-operand instructions: `move`, `add`,
-`movem`, `lea`, etc. The starter snippets in this directory are all
-no-space; don't add spaces when editing them even if your editor
-auto-formats.
+In Motorola syntax the operand field ends at the first space or tab, and the
+rest of the line is a comment. A space right after a comma is skipped
+(`move.w #$2700, sr` works), but a space anywhere else inside an operand or
+expression cuts it short. Write expressions without spaces: `dc.w 1+2`.
 
 ### 2. WRAM variables: use `equ`, not `org`
 
@@ -44,15 +47,15 @@ my_var equ $00FF0000    ; GOOD: pure compile-time constant
                         ;       CPU writes here at runtime; no ROM space used
 ```
 
-The "your ROM is 16 MB and will not fit on a cart" surprise is one of
-the top three Genesis-newbie mistakes. See `wram.s` for the full pattern.
+A ROM that comes out at 16 MB is the usual symptom. See `wram.s` for the full
+pattern.
 
 ### 3. Header byte counts: notes field is 32 bytes, NOT 40
 
 Several online references claim the "notes" field at $1D0 is 40 bytes.
 It is 32. ($1D0-$1EF, with region at $1F0-$1FF.) If you size it as
-40, region overlaps your code section at $200 and vasm yells
-"sections must not overlap." `header.s` has the authoritative layout
+40, region overlaps your code section at $200 and the build fails with
+"org blocks overlap." `header.s` has the authoritative layout
 in a prominent comment at the top.
 
 ### 4. VDP control reads: bit 3 of LOW byte, address $C00005
@@ -73,14 +76,13 @@ add.w d0, total_lines               ; OK
 
 The 68000's instruction set requires at least one operand of most
 arithmetic ops to be a register (D0-D7 or A0-A7). Coming from cc65 or
-asar (where memory-to-memory is sometimes legal) this catches you.
-The "instruction not supported on selected architecture" error from
-vasm is technically correct but cryptic - it means "this addressing-
-mode combination is invalid for the 68000," not "your CPU is too old."
+asar (where memory-to-memory is sometimes legal), this is easy to miss.
+An "operands mismatch" error from the assembler means "this addressing-mode
+combination is invalid for the 68000," not "your CPU is too old."
 
 ## Build + iterate workflow
 
-The fastest loop (works for most Genesis dev):
+The fastest loop for most Genesis work:
 
 ```js
 build({
@@ -92,8 +94,7 @@ build({
 })
 ```
 
-Returns build status + final screenshot in one call (~500 ms cold,
-faster after the core is warm).
+Returns the build status and a final screenshot in one call.
 
 For multi-file projects use the `sources` map:
 
@@ -140,18 +141,18 @@ start (see `catalog({op:'categories'})` for the map):
 | `memory({op:'read', region:"genesis_z80_ram"})` | 8 KB Z80 sound CPU RAM |
 | `state({op:'dump', path})` | Full savestate blob for forensic inspection |
 
-Pair `frame({op:'screenshot', overlayBoxes:true})` with `sprites({op:'inspect'})` for
-"is the GPU rendering sprites where I think they are" visual debugging.
+Compare `sprites({op:'inspect'})` with `frame({op:'screenshot'})` to check that
+sprites render where the game places them (the screenshot `overlayBoxes` option
+is NES and SNES only).
 
 ## ROM file extension
 
-Default convention in this MCP: `.gen`. Genesis frontends
-(Batocera, ES-DE, RetroBat, RetroPie, ROCKNIX) all accept `.gen`,
-`.md`, `.bin`, `.smd`. `.gen` is unambiguous in 2026: `.md` collides
-with markdown, `.bin` is generic, `.smd` implies a header format
-we do not emit.
+romdev writes `.gen` by default. Genesis frontends (Batocera, ES-DE,
+RetroBat, RetroPie, ROCKNIX) all accept `.gen`, `.md`, `.bin` and `.smd`.
+`.gen` is unambiguous: `.md` collides with Markdown, `.bin` is generic, and
+`.smd` implies an interleaved header format romdev does not emit.
 
-## Open question: live Z80 driver state
+## Limitation: live Z80 driver state
 
 The YM2612 + Z80 sound CPU state is not currently as deeply
 introspectable as the SNES SPC700 + DSP - YM2612 in particular

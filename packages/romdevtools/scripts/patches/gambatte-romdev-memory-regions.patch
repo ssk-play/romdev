@@ -22,10 +22,10 @@ index 7e5c43b..18dcb52 100644
  
  private:
 diff --git a/libgambatte/libretro/libretro.cpp b/libgambatte/libretro/libretro.cpp
-index 15b042c..7d21ba0 100644
+index 15b042c..8db8749 100644
 --- a/libgambatte/libretro/libretro.cpp
 +++ b/libgambatte/libretro/libretro.cpp
-@@ -2874,6 +2874,56 @@ void retro_unload_game()
+@@ -2874,6 +2874,70 @@ void retro_unload_game()
  
  unsigned retro_get_region() { return RETRO_REGION_NTSC; }
  
@@ -78,11 +78,25 @@ index 15b042c..7d21ba0 100644
 +#define ROMDEV_MEMORY_GB_PALLINE  0x14A  /* 144 x 128B bgr15 palettes per line */
 +#define ROMDEV_MEMORY_GB_BGCOL15  0x14B  /* 144 x 160 x u16 BG bgr15 per pixel */
 +#define ROMDEV_MEMORY_GB_SPRCOL15 0x14C  /* 144 x 160 x u16 OBJ bgr15 per pixel */
++#define ROMDEV_MEMORY_GB_LCDLOG   0x14D  /* LCD timing decision ring (romdev_gbcap.h) */
++#define ROMDEV_MEMORY_GB_APU_RAW  0x14E  /* RDAS stream: PSG::fillBuffer's stereo s16 at 2097152 Hz, before blipper/CC */
++
++/* romdev: gb_apu_raw - every sample frame runFor produced this retro_run (the
++ * 2 MiHz PSG output blipper/CC resample from), as an RDAS stream region. */
++#include "romdev_audio_stream.h"
++#define ROMDEV_GB_APU_CAP 40960u
++static uint8_t romdev_gb_apu_raw[ROMDEV_AS_BYTES(ROMDEV_GB_APU_CAP, 2, 2)];
++static void romdev_gb_apu_raw_init(void)
++{
++   if (romdev_as_hdr(romdev_gb_apu_raw)->magic != ROMDEV_AS_MAGIC)
++      romdev_as_init(romdev_gb_apu_raw, 2, ROMDEV_AS_S16, 2097152u, ROMDEV_GB_APU_CAP);
++}
++
 +
  void *retro_get_memory_data(unsigned id)
  {
     if (rom_loaded) switch (id)
-@@ -2883,11 +2933,26 @@ void *retro_get_memory_data(unsigned id)
+@@ -2883,11 +2947,28 @@ void *retro_get_memory_data(unsigned id)
        case RETRO_MEMORY_RTC:
           return gb.rtcdata_ptr();
        case RETRO_MEMORY_SYSTEM_RAM:
@@ -108,10 +122,12 @@ index 15b042c..7d21ba0 100644
 +      case ROMDEV_MEMORY_GB_PALLINE:  return romdev_gb_palline;
 +      case ROMDEV_MEMORY_GB_BGCOL15:  return romdev_gb_bgcol15;
 +      case ROMDEV_MEMORY_GB_SPRCOL15: return romdev_gb_sprcol15;
++      case ROMDEV_MEMORY_GB_LCDLOG:   return romdev_gb_lcdlog;
++      case ROMDEV_MEMORY_GB_APU_RAW:  romdev_gb_apu_raw_init(); return romdev_gb_apu_raw;
     }
  
     return 0;
-@@ -2902,14 +2967,27 @@ size_t retro_get_memory_size(unsigned id)
+@@ -2902,14 +2983,29 @@ size_t retro_get_memory_size(unsigned id)
        case RETRO_MEMORY_RTC:
           return gb.rtcdata_size();
        case RETRO_MEMORY_SYSTEM_RAM:
@@ -138,10 +154,21 @@ index 15b042c..7d21ba0 100644
 +      case ROMDEV_MEMORY_GB_PALLINE:  return sizeof(romdev_gb_palline);
 +      case ROMDEV_MEMORY_GB_BGCOL15:  return sizeof(romdev_gb_bgcol15);
 +      case ROMDEV_MEMORY_GB_SPRCOL15: return sizeof(romdev_gb_sprcol15);
++      case ROMDEV_MEMORY_GB_LCDLOG:   return sizeof(romdev_gb_lcdlog);
++      case ROMDEV_MEMORY_GB_APU_RAW:  return sizeof(romdev_gb_apu_raw);
     }
  
     return 0;
-@@ -2924,6 +3002,21 @@ void retro_run()
+@@ -2917,6 +3013,8 @@ size_t retro_get_memory_size(unsigned id)
+ 
+ void retro_run()
+ {
++   romdev_gb_apu_raw_init();
++   romdev_as_begin_frame(romdev_gb_apu_raw);
+    /* libretro_samples_count and libretro_frames_count are
+     * file-scope so they can be reset in retro_load_game,
+     * retro_reset, and retro_unserialize. */
+@@ -2924,6 +3022,21 @@ void retro_run()
     input_poll_cb();
     update_input_state();
  
@@ -163,11 +190,27 @@ index 15b042c..7d21ba0 100644
     uint64_t expected_frames = libretro_samples_count / SOUND_SAMPLES_PER_FRAME;
     if (libretro_frames_count < expected_frames) // Detect frame dupes.
     {
+@@ -2941,6 +3054,7 @@ void retro_run()
+ 
+    while (gb.runFor(video_buf, VIDEO_PITCH, sound_buf.u32, SOUND_BUFF_SIZE, samples) == -1)
+    {
++      romdev_as_push(romdev_gb_apu_raw, sound_buf.i16, samples, 2);
+       if (use_cc_resampler)
+          CC_renderaudio((audio_frame_t*)sound_buf.u32, samples);
+       else
+@@ -2965,6 +3079,7 @@ void retro_run()
+ 
+    video_cb(video_buf, VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_PITCH * sizeof(gambatte::video_pixel_t));
+ 
++   romdev_as_push(romdev_gb_apu_raw, sound_buf.i16, samples, 2);
+    if (use_cc_resampler)
+       CC_renderaudio((audio_frame_t*)sound_buf.u32, samples);
+    else
 diff --git a/libgambatte/src/cpu.cpp b/libgambatte/src/cpu.cpp
-index 0fb6199..7de286d 100644
+index 0fb6199..5ba140a 100644
 --- a/libgambatte/src/cpu.cpp
 +++ b/libgambatte/src/cpu.cpp
-@@ -20,6 +20,23 @@
+@@ -20,6 +20,30 @@
  #include "gambatte-memory.h"
  #include "savestate.h"
  
@@ -181,6 +224,15 @@ index 0fb6199..7de286d 100644
 +/* romdev_gb_instr_pc - the address of the currently-executing instruction, latched
 + * at dispatch in CPU::process; the hooks stamp it as the writer/reader PC. */
 +unsigned romdev_gb_instr_pc = 0xFFFFFFFF;
++/* Register columns for the instruction trace (sp, hl, bc, de, af), copied out
++ * of CPU::process at each dispatch only while the trace asks for them. af is
++ * A << 8 | F, F synthesized from the split flags (toF) as getCPUState does. */
++static unsigned romdev_gb_tregs[5];
++static void romdev_gb_trace_regs(unsigned *dst) {
++	dst[0] = romdev_gb_tregs[0]; dst[1] = romdev_gb_tregs[1];
++	dst[2] = romdev_gb_tregs[2]; dst[3] = romdev_gb_tregs[3];
++	dst[4] = romdev_gb_tregs[4];
++}
 +/* at-hit REGISTER SNAPSHOT (sm83). The CPU state lives in LOCALS inside CPU::process;
 + * snapshot into romdev_snap_regs[] (shared) at the hit instant. Layout = the
 + * romdev_getReg regId order: [0]=A [1]=F [2]=B [3]=C [4]=D [5]=E [6]=H [7]=L
@@ -191,7 +243,15 @@ index 0fb6199..7de286d 100644
  namespace gambatte {
  
  CPU::CPU()
-@@ -130,6 +147,57 @@ void CPU::loadState(SaveState const &state) {
+@@ -49,6 +73,7 @@ CPU::CPU()
+ , l(0x4D)
+ , skip_(false)
+ {
++	romdev_trace_provide_regs(romdev_gb_trace_regs, 5);
+ }
+ 
+ long CPU::runFor(unsigned long const cycles) {
+@@ -130,6 +155,57 @@ void CPU::loadState(SaveState const &state) {
  	skip_ = state.cpu.skip;
  }
  
@@ -232,7 +292,7 @@ index 0fb6199..7de286d 100644
 +unsigned CPU::romdev_getReg(int regId) const {
 +	switch (regId) {
 +	case 0:  return a_;
-+	case 1:  return toF(hf2, cf, zf) & 0xFF;
++	case 1:  return toF(updateHf2FromHf1(hf1, hf2), cf, zf) & 0xFF;
 +	case 2:  return b;
 +	case 3:  return c;
 +	case 4:  return d;
@@ -249,7 +309,7 @@ index 0fb6199..7de286d 100644
  // The main reasons for the use of macros is to more conveniently be able to tweak
  // which variables are local and which are not, combined with the fact that at the
  // time they were written GCC had a tendency to not be able to keep hot variables
-@@ -139,12 +207,44 @@ void CPU::loadState(SaveState const &state) {
+@@ -139,12 +215,44 @@ void CPU::loadState(SaveState const &state) {
  #define de() ( d << 8 | e )
  #define hl() ( h << 8 | l )
  
@@ -262,7 +322,7 @@ index 0fb6199..7de286d 100644
 +		int snap_i_; \
 +		for (snap_i_ = 0; snap_i_ < 19; snap_i_++) romdev_snap_regs[snap_i_] = 0; \
 +		romdev_snap_regs[0]  = a; \
-+		romdev_snap_regs[1]  = toF(hf2, cf, zf) & 0xFF; \
++		romdev_snap_regs[1]  = toF(updateHf2FromHf1(hf1, hf2), cf, zf) & 0xFF; \
 +		romdev_snap_regs[2]  = b;  romdev_snap_regs[3] = c; \
 +		romdev_snap_regs[4]  = d;  romdev_snap_regs[5] = e; \
 +		romdev_snap_regs[6]  = h;  romdev_snap_regs[7] = l; \
@@ -298,7 +358,7 @@ index 0fb6199..7de286d 100644
  
  #define PC_MOD(data) do { pc = data; cycleCounter += 4; } while (0)
  
-@@ -499,6 +599,19 @@ void CPU::process(unsigned long const cycles) {
+@@ -499,6 +607,19 @@ void CPU::process(unsigned long const cycles) {
  	mem_.setEndtime(cycleCounter_, cycles);
  	mem_.updateInput();
  
@@ -318,7 +378,7 @@ index 0fb6199..7de286d 100644
  	unsigned char a = a_;
  	unsigned long cycleCounter = cycleCounter_;
  
-@@ -515,6 +628,28 @@ void CPU::process(unsigned long const cycles) {
+@@ -515,6 +636,38 @@ void CPU::process(unsigned long const cycles) {
  				cycleCounter += cycles + (-cycles & 3);
  			}
  		} else while (cycleCounter < mem_.nextEventTime()) {
@@ -328,8 +388,13 @@ index 0fb6199..7de286d 100644
 +				 * shared lib (romdev_debug.c) whether this dispatch should FREEZE -
 +				 * coverage logging + watchdog + pc-break/single-step all live there now. */
 +				romdev_gb_instr_pc = pc;
++				if (romdev_trace_wants_regs()) {
++					romdev_gb_tregs[0] = sp; romdev_gb_tregs[1] = hl();
++					romdev_gb_tregs[2] = bc(); romdev_gb_tregs[3] = de();
++					romdev_gb_tregs[4] = (a & 0xFF) << 8 | (toF(updateHf2FromHf1(hf1, hf2), cf, zf) & 0xFF);
++				}
 +
-+				if (romdev_on_dispatch(pc)) {
++				if (romdev_on_dispatch_ex(pc, (unsigned)cycleCounter, 0)) {
 +					/* take the GB register snapshot (per-CPU layout) with the kind the
 +					 * shared lib reports (2=watchdog, else 1=pc-break/step), then FREEZE:
 +					 * save the CPU epilogue with `pc` UNCHANGED (so getCPUState reads the
@@ -337,9 +402,15 @@ index 0fb6199..7de286d 100644
 +					 * loop COMPLETES this frame - else process() returns with cycleCounter <
 +					 * endtime and retro_run re-calls runFor forever (hang). Instruction NOT run. */
 +					ROMDEV_GB_SNAP(romdev_pc_hit_kind() == 2 ? 2 : 1);
-+					pc_ = pc;
-+					a_ = a;
-+					cycleCounter_ = mem_.nextEventTime();
++					/* The CPU idles to the next event exactly as a HALT does
++					 * (the branch above): the LOCAL counter is what the event
++					 * loop below and the epilogue use. Advancing only the member
++					 * left the local stale, so mem_.event() ran events at a time
++					 * before their own; the interrupt/video events then
++					 * rescheduled themselves behind the stale counter forever
++					 * (single-step hung as soon as a game waited in HALT for
++					 * its VBlank interrupt). */
++					cycleCounter = mem_.nextEventTime();
 +					break;                /* outer `while` sees the freeze + exits cleanly */
 +				}
 +
@@ -348,10 +419,10 @@ index 0fb6199..7de286d 100644
  
  			PC_READ(opcode);
 diff --git a/libgambatte/src/cpu.h b/libgambatte/src/cpu.h
-index 76c29de..29d01ca 100644
+index 76c29de..e6cdaf0 100644
 --- a/libgambatte/src/cpu.h
 +++ b/libgambatte/src/cpu.h
-@@ -56,6 +56,55 @@ public:
+@@ -56,6 +56,59 @@ public:
     void *rombank1_ptr() const { return mem_.rombank1_ptr(); }
     void *zeropage_ptr() const { return mem_.zeropage_ptr(); }
     void *oamram_ptr() const { return mem_.oamram_ptr(); }
@@ -372,7 +443,7 @@ index 76c29de..29d01ca 100644
 +    *  10:   h  11:   l
 +    *  12:   ime    (0/1)
 +    *  13:   halt   (0/1)
-+    *  14-17: reserved (zero)
++    *  14-17: cycleCounter_ (u32 LE, the CPU clock)
 +    * gambatte stores flags split across hf1/hf2/zf/cf - synthesize the
 +    * standard SM83 F register from them. zf is INVERTED: zf=0 means
 +    * Z bit is set. */
@@ -390,7 +461,11 @@ index 76c29de..29d01ca 100644
 +      out[10] = h; out[11] = l;
 +      out[12] = mem_.ime() ? 1 : 0;
 +      out[13] = mem_.halted() ? 1 : 0;
-+      out[14] = 0; out[15] = 0; out[16] = 0; out[17] = 0;
++      /* the CPU clock (gambatte cycleCounter_: 4 per M-cycle at single speed,
++       * rebased by resetCounters when bit 31 would set) - what a per-frame
++       * differ compares to tell "same registers, different time" apart */
++      out[14] = cycleCounter_ & 0xFF; out[15] = (cycleCounter_ >> 8) & 0xFF;
++      out[16] = (cycleCounter_ >> 16) & 0xFF; out[17] = (cycleCounter_ >> 24) & 0xFF;
 +   }
 +
 +   /* rom-dev-mcp RE round 2: register read/write by romdev reg-id (the inverse
@@ -408,7 +483,7 @@ index 76c29de..29d01ca 100644
  
  	void setVideoBuffer(video_pixel_t *videoBuf, std::ptrdiff_t pitch) {
 diff --git a/libgambatte/src/gambatte-memory.cpp b/libgambatte/src/gambatte-memory.cpp
-index c8790fc..5028a98 100644
+index c8790fc..a98edff 100644
 --- a/libgambatte/src/gambatte-memory.cpp
 +++ b/libgambatte/src/gambatte-memory.cpp
 @@ -24,6 +24,8 @@
@@ -519,7 +594,7 @@ index 5e1f952..1d7df17 100644
  
  }
 diff --git a/libgambatte/src/video.cpp b/libgambatte/src/video.cpp
-index a997aad..89c05de 100644
+index a997aad..2b480c2 100644
 --- a/libgambatte/src/video.cpp
 +++ b/libgambatte/src/video.cpp
 @@ -17,6 +17,8 @@
@@ -565,8 +640,26 @@ index a997aad..89c05de 100644
  }
  
  void LCD::resetCc(const unsigned long oldCc, const unsigned long newCc)
+@@ -653,6 +675,7 @@ unsigned LCD::getStat(const unsigned lycReg, const unsigned long cc)
+ 
+       if (lycReg == lycCmp.ly && lycCmp.timeToNextLy > 4 - is_doublespeed * 4)
+          stat |= 4;
++      romdev_gb_lcdev(1, cc, ppu_.lyCounter().ly() | stat << 8, nextM0Time_.predictedNextM0Time(), ppu_.lyCounter().time());
+    }
+ 
+    return stat;
+@@ -687,6 +710,9 @@ inline void LCD::doMode2IrqEvent()
+ 
+ inline void LCD::event()
+ {
++   romdev_gb_lcdev(3, eventTimes_.nextEventTime(),
++      (eventTimes_.nextEvent() == MEM_EVENT ? (unsigned)eventTimes_.nextMemEvent() : 0x10u) | ppu_.lyCounter().ly() << 8,
++      statReg_, ppu_.lastM0Time());
+    switch (eventTimes_.nextEvent())
+    {
+       case MEM_EVENT:
 diff --git a/libgambatte/src/video.h b/libgambatte/src/video.h
-index 7516ba1..94ccb70 100644
+index 7516ba1..bf231cb 100644
 --- a/libgambatte/src/video.h
 +++ b/libgambatte/src/video.h
 @@ -80,6 +80,11 @@ class LCD
@@ -603,8 +696,21 @@ index 7516ba1..94ccb70 100644
     private:
        enum Event { MEM_EVENT, LY_COUNT }; enum { NUM_EVENTS = LY_COUNT + 1 };
        enum MemEvent { ONESHOT_LCDSTATIRQ, ONESHOT_UPDATEWY2, MODE1_IRQ, LYC_IRQ, SPRITE_MAP,
+diff --git a/libgambatte/src/video/next_m0_time.cpp b/libgambatte/src/video/next_m0_time.cpp
+index bf382c3..3fe4720 100644
+--- a/libgambatte/src/video/next_m0_time.cpp
++++ b/libgambatte/src/video/next_m0_time.cpp
+@@ -1,6 +1,8 @@
+ #include "next_m0_time.h"
++#include "romdev_gbcap.h"
+ #include "ppu.h"
+ 
+ void gambatte::NextM0Time::predictNextM0Time(PPU const &ppu) {
+ 	predictedNextM0Time_ = ppu.predictedNextXposTime(167);
++	romdev_gb_lcdev(2, ppu.now(), ppu.lyCounter().ly(), predictedNextM0Time_, ppu.now());
+ }
 diff --git a/libgambatte/src/video/ppu.cpp b/libgambatte/src/video/ppu.cpp
-index 5d36a9d..e16cd95 100644
+index 5d36a9d..ed29282 100644
 --- a/libgambatte/src/video/ppu.cpp
 +++ b/libgambatte/src/video/ppu.cpp
 @@ -18,10 +18,56 @@
@@ -920,7 +1026,7 @@ index 5d36a9d..e16cd95 100644
  	}
  }
 diff --git a/libgambatte/src/video_libretro.cpp b/libgambatte/src/video_libretro.cpp
-index 02c140e..5c131a2 100644
+index 02c140e..d41e145 100644
 --- a/libgambatte/src/video_libretro.cpp
 +++ b/libgambatte/src/video_libretro.cpp
 @@ -17,6 +17,7 @@

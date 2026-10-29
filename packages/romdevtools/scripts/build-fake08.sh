@@ -21,6 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 require_cmd emcc
 require_cmd git
 require_cmd make
+require_cmd node
 
 # Upstream pin lives in scripts/versions.json (cores.fake08), incl. the z8lua submodule.
 FAKE08_DIR="$BUILD_DIR/fake08"
@@ -39,16 +40,15 @@ while read -r subpath subcommit; do
       && git -C "$subpath" checkout -q "$subcommit" \
       && echo "  submodule $subpath @ $subcommit" || true
   fi
-done < <(python3 -c "
-import json,sys
-d=json.load(open('$PROJECT_DIR/scripts/versions.json'))
-subs=d['cores']['fake08'].get('submodules',{})
-for k,v in subs.items(): print(k, v)
-")
+done < <(node -e '
+const subs = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).cores.fake08.submodules || {};
+for (const [k, v] of Object.entries(subs)) console.log(k, v);
+' "$PROJECT_DIR/scripts/versions.json")
 
 # ── apply romdev's memory-region patch (exposes PICO-8's 64KB RAM as SYSTEM_RAM) ──
 PATCH_FILE="$PROJECT_DIR/scripts/patches/fake08-romdev-memory-regions.patch"
 cd "$FAKE08_DIR"
+require_git_toplevel
 git checkout -- platform/libretro/libretro.cpp 2>/dev/null || true
 if git apply --check "$PATCH_FILE" 2>/dev/null; then
   git apply "$PATCH_FILE"
@@ -117,7 +117,7 @@ emcc "$CORE_LIB" \
   -s MODULARIZE=1 \
   -s EXPORT_ES6=1 \
   -s EXPORT_NAME=create_fake08 \
-  -s ENVIRONMENT=node \
+  -s ENVIRONMENT=node,web,worker \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s INITIAL_MEMORY=33554432 \
   -s MAXIMUM_MEMORY=268435456 \

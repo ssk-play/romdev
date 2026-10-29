@@ -202,10 +202,31 @@ async function _getOffscreenGl(wantW, wantH) {
 // memory, identical to libretro's XRGB8888, so romdev's decoder handles it as-is.
 const WASMCART_FB_FORMAT = RETRO_PIXEL_FORMAT_XRGB8888;
 
-// libretro RETRO_DEVICE_ID_JOYPAD bit → wasmcart pad button field. romdev's
-// setInput speaks the libretro button vocabulary (b,y,select,start,up,down,left,
-// right,a,x,l,r,...); wasmcart pads carry the same conceptual buttons. We translate
-// the input bitmask/object into the pad object shape CartHost._writePads expects.
+// romdev's setInput speaks the libretro RetroPad vocabulary, and the RetroPad
+// names its face buttons by POSITION with the Nintendo labels: b = SOUTH,
+// a = EAST, y = WEST, x = NORTH. wasmcart names its face buttons by position
+// too, but with the Xbox labels: WC_BTN_A = SOUTH (wasmcart docs/input.md:
+// "an Xbox controller's A button = WC_BTN_A = W3C buttons[0]"), B = EAST,
+// X = WEST, Y = NORTH.
+//
+// This used to translate BY NAME (libretro 'a' -> WC_BTN_A), which pressed a
+// DIFFERENT physical button on a wasmcart than the same input call pressed on
+// every core: input({ports:[{a:true}]}) was EAST (SMS button 2) on
+// genesis_plus_gx and SOUTH (button 1) on a recompiled SMS cart, so a game's
+// character attacked on one and jumped on the other and a whole verification run
+// diverged from that frame. Translate by POSITION, so one input schedule
+// presses the same physical button on both sides. The spatial names
+// (south/east/west/north) are accepted too, exactly as the cores accept them.
+const RETROPAD_TO_WASMCART = {
+  b: "A", a: "B", y: "X", x: "Y",
+  south: "A", east: "B", west: "X", north: "Y",
+  l: "L", r: "R", l3: "L3", r3: "R3",
+  start: "START", select: "SELECT", up: "UP", down: "DOWN", left: "LEFT", right: "RIGHT",
+  // wasmcart-only buttons (no RetroPad equivalent); the playtest window sends them
+  guide: "GUIDE", paddle1: "PADDLE1", paddle2: "PADDLE2", paddle3: "PADDLE3", paddle4: "PADDLE4",
+};
+
+// libretro RETRO_DEVICE_ID_JOYPAD bit indices (kept for callers that pass a bitmask).
 const _JOYPAD = {
   b: 0, y: 1, select: 2, start: 3, up: 4, down: 5, left: 6, right: 7,
   a: 8, x: 9, l: 10, r: 11, l2: 12, r2: 13, l3: 14, r3: 15,
@@ -271,6 +292,8 @@ export class WasmcartHost {
       // GL carts render on a real (offscreen) WebGL2 context and screenshots
       // show the actual draws. 2D carts: false (they never request a context).
       hasGlRendering: !!this._gl,
+      // wasmcart's WebGPU tier: frames come back by async GPU readback.
+      hasWgpuRendering: !!this.cart?.usesWgpu,
       // Named debug state (opt-in wasmcart debug ABI). True only when the cart
       // opted in AND the wasmcart build exposes the reader - feature-detected.
       hasDebugState: this.debugSupported(),
@@ -292,7 +315,7 @@ export class WasmcartHost {
    * in-memory cart zip. Mirrors LibretroHost.loadMedia's post-conditions:
    * status.loaded + a first framebuffer so screenshot works immediately.
    */
-  async loadMedia({ platform, path: mediaPath, bytes, glBackend, deterministic, presentWindow } = {}) {
+  async loadMedia({ platform, path: mediaPath, bytes, glBackend, deterministic, presentWindow, gpuPower, wgpu, beforeSettle } = {}) {
     const source = bytes ?? mediaPath;
     if (!source) throw new Error("WasmcartHost.loadMedia: provide `path` or `bytes`.");
 
@@ -368,7 +391,20 @@ export class WasmcartHost {
         // (the shared offscreen one is every other session's too), so build a
         // private one. Falls through to the shared context if that fails --
         // a slower present is better than no cart.
-        if (presentWindow) {
+        //
+        // EVERY GL cart gets a private context now, not just presentWindow
+        // ones. Carts cache GL state (bound VAO/buffers/program/textures) and
+        // trust it across frames; on the one shared context another session's
+        // cart rebinds everything in between, so the next cart's
+        // glBufferData lands with nothing (or someone else's buffer) bound.
+        // Measured 2026-10-01: several OpenArena carts in parallel sessions
+        // segfaulted the server inside mesa's glBufferData five times in an
+        // hour (gdb: native-gles gl::_bufferData -> libgallium); each cart
+        // alone, or on its own server process, ran clean. native-gles is
+        // multi-context and a private context is destroyed with its host, so
+        // isolation costs one context per live GL session.
+        // ROMDEV_SHARED_GL=1 restores the old shared context.
+        if (presentWindow || process.env.ROMDEV_SHARED_GL !== "1") {
           const priv = await _createPrivateGl(wantW, wantH);
           if (priv) {
             this._glCtx = priv;
@@ -436,12 +472,19 @@ export class WasmcartHost {
       glBackend: glBackend ?? glFactory,
       ...(deterministic ? { deterministic } : {}),
       ...(savedData ? { saveData: savedData } : {}),
+      ...(gpuPower ? { adapterOptions: { powerPreference: gpuPower } } : {}),
+      ...(wgpu === false ? { wgpu: false } : {}),
     });
     if (glBackend && this.cart.usesGL) this._gl = glBackend;
+    this._guardHostWrites();
     // Surfaced in status: are this GL cart's draws real pixels or stubs?
     // "stubbed" is no longer reachable: the factory either supplies a context
     // or throws, so a loaded GL cart is always really rendering.
     this.status.gl = this.cart.usesGL ? "rendered" : null;
+    // WebGPU carts (wasmcart's `wgpu` tier) render on a device the cart host
+    // owns, and their frames come back by an async GPU readback.
+    this.status.gpu = this.cart.usesWgpu ? "webgpu" : this.cart.usesGL ? "gl" : null;
+    this.status.gpuAdapter = this.cart.usesWgpu ? this.cart.getGpuAdapterInfo() : null;
     // Deterministic clock: romdev steps frames, so frame N should be reproducible.
     // Feature-detect - setFixedStep is a newer CartHost addition; older published
     // versions fall back to wall-clock (still works, just non-deterministic timing).
@@ -466,9 +509,12 @@ export class WasmcartHost {
     try { this.status.audioSampleRate = this.cart.getInfo()?.audioSampleRate || 0; }
     catch { this.status.audioSampleRate = 0; }
 
+    // A caller that must observe the settle frame itself (the instruction
+    // differ traces power-on) arms its hooks here, after wc_init.
+    if (typeof beforeSettle === "function") beforeSettle(this);
     // Settle a first frame so width/height and a framebuffer exist (carts often
     // finalize their resolution during the first render).
-    this.stepFrames(1);
+    await this.stepFrames(1);
     this.status.fbWidth = this.state.lastFrame?.width || 0;
     this.status.fbHeight = this.state.lastFrame?.height || 0;
     // A cart's display IS its framebuffer (square pixels, no CRT stretch) -
@@ -478,6 +524,39 @@ export class WasmcartHost {
     return this.status;
   }
 
+  /**
+   * CartHost writes 80 bytes of pad state (4 x 20-byte wc_pad_t, ABI v4) at WCInfo.inputPtr and 20 bytes of
+   * clock (f64 time, f64 delta, u32 frame) at WCInfo.timePtr EVERY frame, with
+   * no check for 0 - so a cart that leaves either field unset gets the host
+   * scribbling over linear offset 0, underneath the running program. For a
+   * recompiled console that is the emulated zero page / direct page: four
+   * recompiler agents spent hours on "CPU bugs" that were this one write (an
+   * NES cart's PPUCTRL shadow at $10 cycled with the frame counter). timePtr
+   * is also indexed through a Float64Array, so a pointer that is not 8-byte
+   * aligned lands somewhere else entirely.
+   *
+   * Skip those writes instead, and say so: status.abiWarnings, the loadMedia
+   * result and wasm({op:'conformance'}) all carry it.
+   */
+  _guardHostWrites() {
+    const info = this.cart?.info ?? this.cart?.getInfo?.();
+    const warnings = [];
+    if (info && this.cart) {
+      if (!info.inputPtr) {
+        this.cart._writePads = () => {};
+        warnings.push({ code: "input-ptr-zero", message: "cart declares inputPtr=0 (WCInfo field 7, byte 28): pad state is NOT delivered (the host would otherwise write 80 bytes at linear offset 0 every frame). Fill the field to receive input." });
+      }
+      if (!info.timePtr || info.timePtr % 8 !== 0) {
+        this.cart._writeTime = () => {};
+        warnings.push({ code: info.timePtr ? "time-ptr-misaligned" : "time-ptr-zero",
+          message: info.timePtr
+            ? `cart declares timePtr=${info.timePtr}, which is not 8-byte aligned: the host indexes it as a Float64Array, so the clock would land at ${info.timePtr & ~7}. The clock is NOT delivered. Align WCInfo field 10 (byte 40) to 8.`
+            : "cart declares timePtr=0 (WCInfo field 10, byte 40): the clock is NOT delivered (the host would otherwise write 20 bytes at linear offset 0 every frame). Point it at 20 bytes of 8-byte-aligned memory." });
+      }
+    }
+    this.status.abiWarnings = warnings;
+  }
+
   /** Translate romdev's setInput vocabulary into the pad object
    *  CartHost._writePads expects: {connected, buttons: <BUTTON bitmask>,
    *  leftX..rightTrigger}. A pad without `connected` is ZEROED by CartHost,
@@ -485,15 +564,27 @@ export class WasmcartHost {
   _padFromInput(input) {
     const src = input && typeof input === "object" ? input : {};
     let buttons = 0;
-    for (const [name, bit] of Object.entries(BUTTON)) {
-      if (src[name.toLowerCase()]) buttons |= bit;
+    for (const [name, wc] of Object.entries(RETROPAD_TO_WASMCART)) {
+      if (src[name] && BUTTON[wc] != null) buttons |= BUTTON[wc];
     }
+    // The validated analog channel is `axes` ({lx,ly,rx,ry} in -1..1, {lt,rt}
+    // in 0..1). It used to be accepted by input({op:'set'}) and then dropped
+    // here, so every stick move a harness sent a wasmcart cart was a silent
+    // no-op. The raw leftX..rightTrigger keys (wasmcart units) still win when
+    // given, for callers that already speak the pad struct.
+    const ax = src.axes && typeof src.axes === "object" ? src.axes : {};
+    const stick = (v) => Math.max(-32768, Math.min(32767, Math.round((Number(v) || 0) * 32767)));
+    // 0..32767 as of wasmcart ABI v4, the same scale as the sticks above: a
+    // trigger is just an axis that never goes negative. It was 0..255 while
+    // the pad struct stored it in a byte.
+    const trigger = (v) => Math.max(0, Math.min(32767, Math.round((Number(v) || 0) * 32767)));
+    const pick = (raw, scaled) => (raw !== undefined ? raw | 0 : scaled);
     return {
       connected: true,
       buttons,
-      leftX: src.leftX | 0, leftY: src.leftY | 0,
-      rightX: src.rightX | 0, rightY: src.rightY | 0,
-      leftTrigger: src.leftTrigger | 0, rightTrigger: src.rightTrigger | 0,
+      leftX: pick(src.leftX, stick(ax.lx)), leftY: pick(src.leftY, stick(ax.ly)),
+      rightX: pick(src.rightX, stick(ax.rx)), rightY: pick(src.rightY, stick(ax.ry)),
+      leftTrigger: pick(src.leftTrigger, trigger(ax.lt)), rightTrigger: pick(src.rightTrigger, trigger(ax.rt)),
     };
   }
 
@@ -567,6 +658,7 @@ export class WasmcartHost {
   stepFrames(n) {
     if (!this.cart) throw new Error("no cart loaded - loadMedia first");
     if (this.status.paused) return 0;
+    if (this.cart.usesWgpu) return this._stepFramesWgpu(n);
     // Claim OUR context for this burst. native-gles is multi-context (another
     // cart, a bezel compositor, another session), so whoever rendered last
     // owns currency -- draws land in someone else's context otherwise.
@@ -638,7 +730,7 @@ export class WasmcartHost {
       const fromFbo = this.cart?.withRenderedFrame?.((fw, fh) => { w = fw; h = fh; });
       if (!fromFbo || !(w > 0 && h > 0)) {
         // No redirect FBO: the cart really does draw into the default
-        // framebuffer, so the context size is the honest answer there.
+        // framebuffer, so the context size is the correct answer there.
         w = Math.min(this.status.fbWidth || gl.drawingBufferWidth, gl.drawingBufferWidth);
         h = Math.min(this.status.fbHeight || gl.drawingBufferHeight, gl.drawingBufferHeight);
       }
@@ -649,6 +741,91 @@ export class WasmcartHost {
       }
     }
     return n;
+  }
+
+  /**
+   * stepFrames for a WebGPU cart. The frames run synchronously, exactly as on
+   * the GL path, so a caller that sets input, steps and releases without
+   * awaiting still gets its input on the right frames. The difference is the
+   * pixels: a GPU readback is asynchronous. The copy of the burst's last frame
+   * is encoded right here (so it is THAT frame, whatever runs next), and
+   * state.lastFrame is filled when it lands; the returned promise resolves
+   * then. Callers that await stepFrames (most do) see the new frame.
+   *
+   * A cart's own async results (buffer maps, error scopes) reach it when the
+   * event loop runs, i.e. between tool calls, not inside a burst: the
+   * contract allows that ("delivered between frames, when the host yields").
+   */
+  // Bursts run in order: a call made while an earlier one is still yielding
+  // waits for it, so frames never interleave. A call made on an idle host
+  // starts its first frames synchronously, as before.
+  _stepFramesWgpu(n) {
+    const run = () => this._wgpuBurst(n);
+    const p = this._wgpuPending ? this._wgpuTail.then(run) : run();
+    this._wgpuPending = (this._wgpuPending || 0) + 1;
+    const done = () => { this._wgpuPending--; };
+    this._wgpuTail = p.then(done, done);
+    return p;
+  }
+
+  async _wgpuBurst(n) {
+    if (!this.cart) return n;
+    let r = null;
+    for (let i = 0; i < n; i++) {
+      // Between every two frames: the GPU work the last frame submitted, then
+      // an event-loop turn, as a browser or a native player gives a WebGPU
+      // cart. Asynchronous results (buffer maps, error scopes) then arrive
+      // before the next frame on this host too, so one step call of N frames
+      // matches N one-frame calls; callers used to step one frame per call to
+      // get that, thousands of calls per run. A bare turn was not enough: a
+      // map is answered only once the GPU has finished the work before it, so
+      // a frame with more GPU work than one turn's worth read results a
+      // varying number of frames old (a per-frame stats readback, dozens of
+      // frames late). The turn also frees what the cart released: Dawn
+      // objects go only after V8 collects their JS wrappers AND a later turn
+      // runs the native finalizer, and a long synchronous burst grew VRAM
+      // about 0.9 MiB per frame. Input timing is unchanged: ports are set
+      // before the burst and each frame still reads them.
+      if (i > 0) {
+        const device = this.cart.getGpuDevice?.();
+        if (device) await device.queue.onSubmittedWorkDone().catch(() => {});
+        await new Promise(resolve => setImmediate(resolve));
+        if (!this.cart) return n;
+      }
+      r = this.cart.runFrame(this._inputPorts);
+      this.status.frameCount++;
+      if (r?.audio && r.audio.length) {
+        const a = r.audio;
+        if (a instanceof Float32Array) {
+          const i16 = new Int16Array(a.length);
+          for (let k = 0; k < a.length; k++) {
+            const s = a[k] < -1 ? -1 : a[k] > 1 ? 1 : a[k];
+            i16[k] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          }
+          this.state.audioRing.push(i16);
+        } else {
+          this.state.audioRing.push(new Int16Array(a));
+        }
+      }
+    }
+    if (r) this.state.lastAudio = r.audio || null;
+    const seq = (this._wgpuReadSeq = (this._wgpuReadSeq || 0) + 1);
+    return this.cart.readGpuFrame().then(f => {
+      // An older read landing after a newer one must not overwrite it.
+      if (!f || seq !== this._wgpuReadSeq) return n;
+      // Top-down RGBA already; WebGPU's alpha is whatever the cart wrote, so
+      // force opaque as the GL path does (alpha 0 composites to black).
+      const px = f.data;
+      for (let i = 3; i < px.length; i += 4) px[i] = 255;
+      this.state.lastFrame = {
+        width: f.width, height: f.height, pixels: px, pitch: f.width * 4,
+        format: ROMDEV_PIXEL_FORMAT_RGBA8888,
+      };
+      this.status.fbWidth = f.width;
+      this.status.fbHeight = f.height;
+      this.status.displayAspect = f.height > 0 ? f.width / f.height : 0;
+      return n;
+    });
   }
 
   /** Bring state.lastFrame up to date if a GL cart has stepped since the last
@@ -1187,6 +1364,35 @@ export class WasmcartHost {
         message: "cart exports wc_set_seed() but WC_FLAG_DETERMINISTIC isn't set - hosts won't seed it (default is a normal run). Set the flag if the cart truly honors seeded replay." });
     }
 
+    // 7. Host-written pointers. CartHost writes pads at inputPtr and the clock
+    //    at timePtr every frame without checking them; 0 means "linear offset
+    //    0" to it, not "none". The host now skips those writes (see
+    //    _guardHostWrites), but a cart relying on them is still broken:
+    //    it gets no input, or no clock.
+    if (!info.inputPtr) {
+      issues.push({ severity: "error", code: "input-ptr-zero",
+        message: "WCInfo.inputPtr (field 7, byte 28) is 0. The cart receives NO input, and an unguarded host writes 80 bytes of pad state over linear offset 0 every frame. Point it at 80 bytes of cart memory (4 x 20-byte wc_pad_t, ABI v4)." });
+    }
+    // The pad block is 80 bytes as of ABI v4 (it was 64): a cart laid out for
+    // v3 that put its clock or host info right after 64 bytes of pads now
+    // has the host's pad write landing on them every frame.
+    if (info.inputPtr) {
+      const spans = [["timePtr", info.timePtr, 20], ["hostInfoPtr", info.hostInfoPtr, 20], ["audioWritePtr", info.audioWritePtr, 4]];
+      for (const [name, p, len] of spans) {
+        if (p && p < info.inputPtr + 80 && info.inputPtr < p + len) {
+          issues.push({ severity: "error", code: "input-span-overlap",
+            message: `WCInfo.inputPtr (${info.inputPtr}) + 80 bytes of pads overlaps ${name} (${p}, ${len} bytes): the host writes 4 x 20-byte wc_pad_t every frame (ABI v4), so ${name}'s bytes are overwritten. Move one of them.` });
+        }
+      }
+    }
+    if (!info.timePtr) {
+      issues.push({ severity: "error", code: "time-ptr-zero",
+        message: "WCInfo.timePtr (field 10, byte 40) is 0. The cart receives NO clock, and an unguarded host writes 20 bytes (f64 time, f64 delta, u32 frame) over linear offset 0 every frame. Point it at 20 bytes of 8-byte-aligned memory." });
+    } else if (info.timePtr % 8 !== 0) {
+      issues.push({ severity: "error", code: "time-ptr-misaligned",
+        message: `WCInfo.timePtr is ${info.timePtr}, not 8-byte aligned. The host indexes it as a Float64Array, so the clock lands at ${info.timePtr & ~7}. Align it to 8.` });
+    }
+
     return {
       conforms: issues.every((i) => i.severity !== "error"),
       abi: info.version ?? null,
@@ -1229,10 +1435,8 @@ export class WasmcartHost {
       // SHARED offscreen context then made GL calls against a null current
       // context and died with "Cannot read properties of null (reading
       // '_id')" - so ONE presentWindow load poisoned every later plain load
-      // in the process. (Found by the MCP client agent screenshotting five
-      // shipped carts: 4 of 5 came back black or failed, and the discriminator
-      // turned out to be a presentWindow load earlier in the run, not
-      // anything about the carts.) Hand currency back to the shared context
+      // in the process (screenshots of later carts came back black or failed).
+      // Hand currency back to the shared context
       // if this process has one.
       //
       // ONLY IF WE HELD IT. Doing this unconditionally stole currency from

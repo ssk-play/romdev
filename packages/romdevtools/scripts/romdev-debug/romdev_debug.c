@@ -12,6 +12,8 @@
  * the exports from being LTO-stripped; they must ALSO be in EXPORTED_FUNCTIONS.
  */
 #include "romdev_debug.h"
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -46,6 +48,65 @@ static unsigned      range_addr[ROMDEV_RANGE_CAP];
 static unsigned char range_val[ROMDEV_RANGE_CAP];
 static unsigned      range_count = 0, range_stored = 0;
 
+/* Diagnostic-only snapshots at an engine's completed logical world tick. */
+#define OBSERVE_CAP 8
+#define OBSERVE_BYTES 1024
+#define OBSERVE_SPANS 32
+static unsigned observe_trigger = 0, observe_bytes = 0, observe_spans = 0;
+static unsigned observe_total = 0, observe_stored = 0;
+static int observe_enabled = 0;
+static unsigned char observe_value = 0;
+static const unsigned char *observe_tick = 0;
+static const unsigned char *observe_data[OBSERVE_SPANS];
+static unsigned observe_sizes[OBSERVE_SPANS];
+static unsigned char observe_records[OBSERVE_CAP][8 + OBSERVE_BYTES];
+
+EMSCRIPTEN_KEEPALIVE
+void romdev_observe_set(unsigned trigger, const unsigned char *tick, unsigned char value) {
+    observe_enabled = 0;
+    observe_trigger = trigger; observe_tick = tick; observe_value = value;
+    observe_bytes = observe_spans = observe_total = observe_stored = 0;
+}
+
+EMSCRIPTEN_KEEPALIVE
+int romdev_observe_add(const unsigned char *data, unsigned size) {
+    if (observe_enabled || !data || !size || observe_spans >= OBSERVE_SPANS || size > OBSERVE_BYTES - observe_bytes) return 0;
+    observe_data[observe_spans] = data; observe_sizes[observe_spans++] = size;
+    observe_bytes += size;
+    return 1;
+}
+
+EMSCRIPTEN_KEEPALIVE
+int romdev_observe_arm(int enabled) {
+    observe_enabled = 0;
+    if (enabled && (!observe_tick || !observe_spans)) return 0;
+    observe_enabled = enabled ? 1 : 0;
+    return 1;
+}
+
+EMSCRIPTEN_KEEPALIVE
+unsigned romdev_observe_get(unsigned char *out, unsigned capacity, unsigned *out3, int clear) {
+    unsigned i, j, stride = 8 + observe_bytes, n = observe_stored;
+    if (out3) { out3[0] = observe_total; out3[1] = observe_stored; out3[2] = stride; }
+    if (!out) n = 0;
+    else if (n > capacity / stride) n = capacity / stride;
+    for (i = 0; i < n; i++) for (j = 0; j < stride; j++) out[i * stride + j] = observe_records[i][j];
+    if (clear) observe_total = observe_stored = 0;
+    return n;
+}
+
+static void observe_write(unsigned addr, unsigned pc, unsigned char value) {
+    unsigned i, j, at;
+    unsigned char *record;
+    if (!observe_enabled || addr != observe_trigger || value != observe_value) return;
+    if (observe_total != 0xFFFFFFFFu) observe_total++;
+    if (observe_stored == OBSERVE_CAP) return;
+    record = observe_records[observe_stored++];
+    for (i = 0; i < 4; i++) { record[i] = observe_tick[i]; record[i + 4] = (unsigned char)(pc >> (8 * i)); }
+    at = 8;
+    for (i = 0; i < observe_spans; i++) for (j = 0; j < observe_sizes[i]; j++) record[at++] = observe_data[i][j];
+}
+
 /* coverage (distinct-PC ring + dedup) */
 static unsigned      cov_lo = 0, cov_hi = 0;
 static int           cov_enabled = 0;
@@ -67,6 +128,17 @@ static unsigned      wd_limit = 0;         /* watchdog: max instrs (0=off) */
 static unsigned      wd_count = 0;
 static int           wd_tripped = 0;
 static int           pc_hit_kind = 0;      /* why the last dispatch froze: 1=pcbreak 2=watchdog */
+
+/* instruction trace ring (romdev_trace_set / romdev_trace_info) */
+static unsigned     *tr_buf = 0;
+static unsigned      tr_cap = 0;           /* entries (2 words each) */
+static unsigned      tr_count = 0;         /* entries recorded since trace_set (monotone) */
+static int           tr_enabled = 0;
+static unsigned      tr_cpumask = 1u;      /* which dispatching CPUs are recorded */
+static unsigned      tr_words = 2;         /* u32 per entry: pc, clock (+ registers) */
+static unsigned      tr_regs_want = 0;     /* host asked for the register columns */
+static unsigned      tr_regs_n = 0;        /* register columns the core provides */
+static void        (*tr_regs_fn)(unsigned *dst) = 0;
 
 /* at-hit snapshots (filled by the core's shim; declared in the header) */
 unsigned romdev_snap_regs[ROMDEV_SNAP_REGS];
@@ -254,13 +326,41 @@ void romdev_regsnap_get(unsigned *out, int clear) {
 EMSCRIPTEN_KEEPALIVE
 void romdev_irqblock_set(int on) { romdev_irq_block = on ? 1 : 0; }
 
+EMSCRIPTEN_KEEPALIVE
+unsigned romdev_trace_set(unsigned cap, int enabled, unsigned cpumask) {
+    /* (Re)arm the trace: the count restarts at 0 and the ring is kept (or
+     * reallocated when the capacity changes). cap 0 or enabled 0 disarms. */
+    unsigned words = 2u + (tr_regs_want && tr_regs_fn ? tr_regs_n : 0u);
+    tr_enabled = 0; tr_count = 0;
+    if (!enabled || !cap) return tr_cap;
+    if (cap > ROMDEV_TRACE_MAX) cap = ROMDEV_TRACE_MAX;
+    if (cap != tr_cap || words != tr_words || !tr_buf) {
+        free(tr_buf);
+        tr_buf = (unsigned *)malloc((size_t)cap * words * sizeof(unsigned));
+        tr_cap = tr_buf ? cap : 0;
+        tr_words = words;
+    }
+    tr_cpumask = cpumask ? cpumask : 1u;
+    tr_enabled = tr_buf ? 1 : 0;
+    return tr_cap;
+}
+EMSCRIPTEN_KEEPALIVE
+void romdev_trace_info(unsigned *out) {
+    if (!out) return;
+    out[0] = (unsigned)tr_enabled; out[1] = tr_cap; out[2] = tr_count;
+    out[3] = (unsigned)(unsigned long)tr_buf; out[4] = tr_cpumask;
+    out[5] = tr_words; out[6] = tr_regs_n;
+}
+EMSCRIPTEN_KEEPALIVE
+void romdev_trace_regs(int on) { tr_regs_want = on ? 1u : 0u; }
+
 /* ── PART 2: core-facing hooks (the seam) ───────────────────────────────────── */
 
 int romdev_wp_wants_old(void) { return wp_enabled && wp_cond; }
 
 int romdev_any_armed(void) {
     return wp_enabled || rd_enabled || range_enabled || cov_enabled || covb_enabled
-        || pc_enabled || pc_step || wd_limit || pc_hit;
+        || pc_enabled || pc_step || wd_limit || pc_hit || observe_enabled || tr_enabled;
 }
 
 static int wp_cond_ok(unsigned char oldv, unsigned char v) {
@@ -275,6 +375,7 @@ static int wp_cond_ok(unsigned char oldv, unsigned char v) {
 int romdev_on_write(unsigned addr, unsigned char oldv, unsigned char newv,
                     unsigned pc, unsigned rom_off) {
     int hit = 0;
+    observe_write(addr, pc, newv);
     if (wp_enabled && addr == wp_addr && wp_cond_ok(oldv, newv)) {
         wp_last_pc = pc; wp_last_val = newv; wp_last_old = oldv;
         wp_last_rom_off = rom_off; wp_hits++;
@@ -306,7 +407,36 @@ int romdev_on_read(unsigned addr, unsigned char val, unsigned pc) {
     return hit;
 }
 
-int romdev_on_dispatch(unsigned pc) {
+static int romdev_dispatch_checks(unsigned pc);
+
+/* One instruction-trace entry: the dispatched pc and the core's clock at dispatch. */
+static void trace_record(unsigned pc, unsigned clock, int cpu) {
+    if (!((tr_cpumask >> (cpu & 31)) & 1u)) return;
+    {
+        unsigned *e = tr_buf + tr_words * (tr_count % tr_cap);
+        e[0] = pc; e[1] = clock;
+        if (tr_words > 2) tr_regs_fn(e + 2);
+    }
+    tr_count++;
+}
+
+int romdev_trace_wants_regs(void) { return tr_enabled && tr_words > 2; }
+
+void romdev_trace_provide_regs(void (*fn)(unsigned *dst), unsigned n) {
+    tr_regs_fn = fn; tr_regs_n = fn ? n : 0;
+}
+
+int romdev_on_dispatch(unsigned pc) { return romdev_on_dispatch_ex(pc, 0, 0); }
+
+int romdev_on_dispatch_ex(unsigned pc, unsigned clock, int cpu) {
+    int r = romdev_dispatch_checks(pc);
+    /* Record only instructions that EXECUTE: a freeze returns 1 before the
+     * instruction runs, and the resumed dispatch of the same pc records it once. */
+    if (tr_enabled && !r) trace_record(pc, clock, cpu);
+    return r;
+}
+
+static int romdev_dispatch_checks(unsigned pc) {
     /* exact coverage bitmap: O(1) per instruction */
     if (covb_enabled && pc >= covb_lo && pc < covb_hi) {
         unsigned bit = (pc - covb_lo) >> covb_shift, w = bit >> 5, m = 1u << (bit & 31);
