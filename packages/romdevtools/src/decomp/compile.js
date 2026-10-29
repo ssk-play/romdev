@@ -7,17 +7,23 @@
 // what else the TU declares (types, statics, the -G 0 globals, literal pools).
 // A standalone snippet can compile to different code and then "match" a
 // target the real build never would.
+//
+// Every step runs as WASM/JS (recipe.js): IDO, asm-processor, the
+// mips-linux-gnu binutils. No host compiler, assembler or objdump.
 import { readFile, writeFile, mkdir, copyFile, rm, rename } from "node:fs/promises";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { run, assembleTarget, prepareTargetAsm, dumpObject, findSymbol, symbolTable, trimToSize } from "./mips-obj.js";
+import { assembleTarget, prepareTargetAsm, dumpObject, findSymbol, symbolTable, trimToSize, readSectionBytes } from "./mips-obj.js";
+import { runArgv, runRecipeLine, mapRecipeLine } from "./recipe.js";
+import { binutils, programFiles } from "./toolchain.js";
+import { syntaxCheck } from "./cpp.js";
 import { strictCompare, scoreDistance, classifyDifferences, changedRanges, renderDiff } from "./diff.js";
 import { parseSplatAsm } from "./splat-map.js";
 import { dependencyHash, sha256Text } from "./project.js";
 import { assembleVerdictFields, cacheUsable, VERIFIER_VERSION } from "./verdict.js";
 import { profileFor, readWord } from "./platform.js";
-import { MEASUREMENT_SCHEMA, compilationIdentity, compilationEnvironment, compilerFiles, resolveToolFile, fileIdentities, fileRevisions, hashRecord, atomicJson, instructionIdentity } from "./measurement.js";
+import { MEASUREMENT_SCHEMA, compilationIdentity, compilationEnvironment, compilerFiles, fileIdentities, fileRevisions, hashRecord, atomicJson, instructionIdentity } from "./measurement.js";
 
 const compiling = new Map();
 const assembling = new Map();
@@ -101,18 +107,27 @@ export function applyRelocations(stream, symbolVa, baseVa) {
       {
         const target = (sv + (ins.reloc.addend | 0)) >>> 0;
         switch (ins.reloc.type) {
-          case "R_MIPS_26": word = ((word & 0xfc000000) | ((target >>> 2) & 0x03ffffff)) >>> 0; break;
+          case "R_MIPS_26": {
+            // REL: the addend lives in the instruction's own 26-bit field
+            // (non-zero for a call through a section symbol, e.g. to a
+            // static function: `jal .text+0x88`).
+            const inPlace = ((word & 0x03ffffff) << 2) >>> 0;
+            const dest = (target + inPlace) >>> 0;
+            word = ((word & 0xfc000000) | ((dest >>> 2) & 0x03ffffff)) >>> 0; break;
+          }
           case "R_MIPS_HI16": {
             // The addend for a HI16 lives in the following LO16's immediate (GNU as convention): find it.
             let lo = 0;
             for (let j = i + 1; j < stream.length; j++) { const r = stream[j].reloc; if (r && r.type === "R_MIPS_LO16" && r.symbol === ins.reloc.symbol) { lo = (stream[j].word << 16) >> 16; break; } }
-            const full = (sv + lo + (ins.reloc.addend | 0)) >>> 0;
+            // REL: the pair's addend is (this instruction's field << 16) +
+            // the LO16's signed field (non-zero field e.g. for `.data`+offset).
+            const full = (sv + ((word & 0xffff) << 16) + lo + (ins.reloc.addend | 0)) >>> 0;
             const hi = ((full + 0x8000) >>> 16) & 0xffff;
             word = ((word & 0xffff0000) | hi) >>> 0; break;
           }
           case "R_MIPS_LO16": { const lo = ((word << 16) >> 16); const full = (sv + lo + (ins.reloc.addend | 0)) >>> 0; word = ((word & 0xffff0000) | (full & 0xffff)) >>> 0; break; }
           case "R_MIPS_GPREL16": case "R_MIPS_LITERAL": default:
-            // Relocation TYPE not handled: same honesty rule as an unknown symbol.
+            // Relocation TYPE not handled: same rule as an unknown symbol.
             unresolved.add(`${ins.reloc.type}:${ins.reloc.symbol}`);
             out.push({ ...ins, linkedWord: word, unresolvedReloc: `${ins.reloc.type}:${ins.reloc.symbol}` });
             continue;
@@ -169,7 +184,7 @@ export async function ensureTarget(project, fn) {
   const as = tc.assembler?.path ?? (tc.binutilsPrefix ?? profile.binutilsPrefixes[0]) + "as";
   const key = hashRecord({ schema: "target-v3", prepared: prepareTargetAsm(asmText),
     dependencies: await fileIdentities(await assemblerInputs(project, asmAbs, asmText)),
-    assembler: await fileIdentities([await resolveToolFile(project, as)]), flags: profile.asFlags, env: compilationEnvironment(project) }).slice(0, 24);
+    assembler: await fileIdentities(programFiles(as)), flags: profile.asFlags, env: compilationEnvironment(project) }).slice(0, 24);
   const meta = path.join(dir, `${key}.target.json`);
   if (fs.existsSync(meta)) {
     try { const m = JSON.parse(await readFile(meta, "utf8")); if (m.key === key && fs.existsSync(m.targetO)) return m; } catch {}
@@ -180,7 +195,7 @@ export async function ensureTarget(project, fn) {
   // Never assemble into a shared target.o: even independent server processes
   // publish metadata pointing only at their own fully completed target object.
   const targetDir = path.join(dir, `${key}-${randomUUID()}`);
-  const t = await assembleTarget({ asmText, outDir: targetDir, as, asFlags: profile.asFlags, includeDirs: inc, cwd: project.root, env: project.env });
+  const t = await assembleTarget({ asmText, outDir: targetDir, as, asFlags: profile.asFlags, includeDirs: inc, cwd: project.root });
   const parsed = parseSplatAsm(asmText);
   const m = { key, symbol: fn.symbol, asmPath: asmRel, targetFrom: fn.targetAsm?.from ?? "pragma", targetO: t.targetO, targetS: t.targetS, instructions: parsed.instructions.length, sizeBytes: parsed.sizeBytes, rodata: parsed.rodataSymbols.map((r) => r.name) };
   await atomicJson(meta, m);
@@ -341,9 +356,17 @@ export async function compileAndCompare(project, fn, opts) {
   const execute = async () => {
   const compileArgv = retargetArgv(inv.compile, { tuRel, objRel, newTu: newTuAbs, newObj: newObjAbs });
   const t0 = Date.now();
-  const cr = await run(compileArgv[0], compileArgv.slice(1), { cwd: project.root, env: project.env, timeoutMs: 180_000 });
+  // Test hook: the moment the compiler starts (integration tests edit a header
+  // here to prove the measurement is invalidated). Never set in production.
+  if (opts._atCompileBoundary) await opts._atCompileBoundary();
+  // A pipeline compile (gcc -E | iconv | gcc -c -) runs as its whole recipe line.
+  const cr0 = inv.compileLine
+    ? await runRecipeLine(mapRecipeLine(inv.compileLine, (a) => retargetArgv(a, { tuRel, objRel, newTu: newTuAbs, newObj: newObjAbs })), { cwd: project.root, tmpRoot: path.join(work, ".tmp") })
+    : await runArgv(compileArgv, { cwd: project.root, tmpRoot: path.join(work, ".tmp") });
+  if (cr0.unsupported) throw Object.assign(new Error(`the TU's compile step cannot run as WASM: ${cr0.unsupported}`), { code: "COMPILE_STEP_UNSUPPORTED" });
+  const cr = { code: cr0.code, stdout: cr0.stdout ? cr0.stdout.toString("latin1") : "", stderr: cr0.log ?? "" };
   const compileMs = Date.now() - t0;
-  const log = [`$ ${compileArgv.join(" ")}`, cr.stdout, cr.stderr].join("\n");
+  const log = [`$ ${inv.compileLine ? mapRecipeLine(inv.compileLine, (a) => retargetArgv(a, { tuRel, objRel, newTu: newTuAbs, newObj: newObjAbs })) : compileArgv.join(" ")}`, cr.stdout, cr.stderr].join("\n");
   const logPath = path.join(candDir, `${artifactKey}.build.log`);
   await writeFile(logPath, log);
   const result = {
@@ -367,12 +390,13 @@ export async function compileAndCompare(project, fn, opts) {
     else if (result.diagnostics.some((d) => /Selector requires struct\/union/.test(d.message))) result.hint = "a field access through a non-struct pointer: the TU's prototype for this function (or a callee) types the argument as u8*/void*; declare the real struct type in the TU/header and regenerate";
     else if (/->unk-\d|\.unk-\d/.test(opts.candidateText)) result.hint = "m2c emitted a NEGATIVE field offset (`->unk-N`): the draft advanced a typed pointer and then indexed behind it - rewrite as an array/index expression before compiling";
     else if (/M2C_ERROR\(/.test(opts.candidateText)) result.hint = "the draft contains M2C_ERROR(...) markers: m2c could not translate those instructions; each needs a hand rewrite";
-    // A clearer parse error from the host syntax check, when the project has one.
+    // A clearer parse error from the project's syntax check (its gcc
+    // -fsyntax-only step), run with the WASM gcc front end.
     const check = inv.steps.find((s) => s.role === "syntax-check");
     if (check) {
       const ca = retargetArgv(check.argv, { tuRel, objRel, newTu: newTuAbs, newObj: path.join(work, "check.o") });
-      const chk = await run(ca[0], ca.slice(1), { cwd: project.root, env: project.env, timeoutMs: 60_000 });
-      result.diagnostics.push(...extractDiagnostics(chk.stderr).map((d) => ({ ...d, from: "host-syntax-check" })));
+      const chk = await syntaxCheck({ cwd: project.root, args: ca.slice(1) });
+      result.diagnostics.push(...extractDiagnostics(chk.log).map((d) => ({ ...d, from: "gcc-syntax-check (wasm)" })));
     }
     result.exactFunctionMatch = false; result.textExact = false;
     result.distance = null;
@@ -384,8 +408,9 @@ export async function compileAndCompare(project, fn, opts) {
   }
   for (const post of inv.post) {
     const pa = retargetArgv(post, { tuRel, objRel, newTu: newTuAbs, newObj: newObjAbs });
-    const postResult = await run(pa[0], pa.slice(1), { cwd: project.root, env: project.env });
-    if (postResult.code !== 0) throw Object.assign(new Error(`compile post-processing failed: ${postResult.stderr.slice(0, 400)}`), { code: "POST_COMPILE_FAILED" });
+    const postResult = await runArgv(pa, { cwd: project.root, tmpRoot: path.join(work, ".tmp") });
+    if (postResult.unsupported) throw Object.assign(new Error(`compile post-processing step cannot run as WASM: ${postResult.unsupported}`), { code: "POST_COMPILE_FAILED" });
+    if (postResult.code !== 0) throw Object.assign(new Error(`compile post-processing failed: ${(postResult.log ?? "").slice(0, 400)}`), { code: "POST_COMPILE_FAILED" });
   }
   // Extract + compare.
   const tc = project.m.toolchain;
@@ -393,11 +418,11 @@ export async function compileAndCompare(project, fn, opts) {
   const target = await ensureTarget(project, fn);
   let tstream = [];
   if (!target.romOnly) {
-    const tdump = await dumpObject({ objdump, objPath: target.targetO, cwd: project.root, env: project.env });
+    const tdump = await dumpObject({ objdump, objPath: target.targetO, cwd: project.root });
     tstream = trimToSize(findSymbol(tdump, fn.symbol)?.instructions ?? [], target.sizeBytes);
   }
-  const cdump = await dumpObject({ objdump, objPath: newObjAbs, cwd: project.root, env: project.env });
-  const csyms = await symbolTable({ objdump, objPath: newObjAbs, cwd: project.root, env: project.env });
+  const cdump = await dumpObject({ objdump, objPath: newObjAbs, cwd: project.root });
+  const csyms = await symbolTable({ objdump, objPath: newObjAbs, cwd: project.root });
   const csym = findSymbol(cdump, fn.symbol);
   if (!csym) {
     result.exactFunctionMatch = false; result.textExact = false; result.distance = null;
@@ -482,7 +507,9 @@ export async function compareAgainstRom(project, fn, cstream, csyms) {
   // without the link; use the linker map's VA for them (same object in the verified build).
   // Section symbols (.rodata/.data/.bss/.text) resolve to THIS object's section VA from the
   // linker map: IDO references its local literals and jump tables as section+addend.
-  const objSections = fn.object ? (ld?.objects.get(fn.object) ?? []) : [];
+  // Section placements: the linker map's, else (no link here) the splat map's.
+  const mapped = fn.object ? (ld?.objects.get(fn.object) ?? []) : [];
+  const objSections = mapped.length ? mapped : await project.splatSectionPlacement(fn.source?.tu);
   const sectionVa = (name) => objSections.find((s) => s.section === name)?.va ?? null;
   const symbolVa = (name) => ld?.symbols.get(name)?.va ?? sa.get(name)?.va ?? local.get(name) ?? (name.startsWith(".") ? sectionVa(name) : null);
   const linked = applyRelocations(cstream, symbolVa, fn.va);
@@ -563,9 +590,9 @@ export async function compareAgainstRom(project, fn, cstream, csyms) {
 /** Compare every other .text symbol of the candidate object with the verified build object. */
 async function verifyTranslationUnit(project, fn, { objdump, candidateObj, buildObj, csyms }) {
   if (!fs.existsSync(buildObj)) return { status: "no-build-object", note: `${path.relative(project.root, buildObj)} does not exist; run the project build first` };
-  const bdump = await dumpObject({ objdump, objPath: buildObj, cwd: project.root, env: project.env });
-  const cdump = await dumpObject({ objdump, objPath: candidateObj, cwd: project.root, env: project.env });
-  const bsyms = await symbolTable({ objdump, objPath: buildObj, cwd: project.root, env: project.env });
+  const bdump = await dumpObject({ objdump, objPath: buildObj, cwd: project.root });
+  const cdump = await dumpObject({ objdump, objPath: candidateObj, cwd: project.root });
+  const bsyms = await symbolTable({ objdump, objPath: buildObj, cwd: project.root });
   const btext = bdump.sections.get(".text") ?? new Map();
   const ctext = cdump.sections.get(".text") ?? new Map();
   const changed = [], missing = [], added = [];
@@ -579,7 +606,7 @@ async function verifyTranslationUnit(project, fn, { objdump, candidateObj, build
   }
   for (const name of ctext.keys()) if (!btext.has(name) && name !== fn.symbol && !name.endsWith(".NON_MATCHING")) added.push(name);
   // Section sizes as evidence for rodata/data effects.
-  const sec = async (o) => { const r = await run(objdump, ["-h", o], { cwd: project.root, env: project.env }); const out = {}; for (const m of r.stdout.matchAll(/^\s*\d+\s+(\.\S+)\s+([0-9a-f]+)/gm)) out[m[1]] = parseInt(m[2], 16); return out; };
+  const sec = async (o) => { const r = await binutils("objdump", ["-h", o], { cwd: project.root }); const out = {}; for (const m of r.stdout.matchAll(/^\s*\d+\s+(\.\S+)\s+([0-9a-f]+)/gm)) out[m[1]] = parseInt(m[2], 16); return out; };
   const bsec = await sec(buildObj), csec = await sec(candidateObj);
   const sizeDiffs = Object.keys({ ...bsec, ...csec }).filter((k) => /^\.(rodata|data|bss|sdata|sbss|text)$/.test(k) && bsec[k] !== csec[k]).map((k) => ({ section: k, build: bsec[k] ?? 0, candidate: csec[k] ?? 0 }));
   const ok = changed.length === 0 && missing.length === 0 && added.length === 0;
@@ -654,7 +681,7 @@ export function lintCandidate(text) {
 export async function compareRodata(project, fn, { objdump, targetO, candidateO, tstream, cstream }) {
   const objcopy = project.m.toolchain.objcopy?.path ?? (project.m.toolchain.binutilsPrefix ?? "mips-linux-gnu-") + "objcopy";
   const side = async (objPath, stream, funcName) => {
-    const syms = await symbolTable({ objdump, objPath, cwd: project.root, env: project.env });
+    const syms = await symbolTable({ objdump, objPath, cwd: project.root });
     const secBytes = await sectionBytesOf(objcopy, objPath, ".rodata", project);
     const relocs = await sectionRelocs(objdump, objPath, ".rodata", project);
     const funcOff = syms.get(funcName)?.value ?? 0;
@@ -731,20 +758,22 @@ function wordsWithRelocs(buf, base, relocs, funcOff, endian = "big") {
     const off = base + i;
     const rel = relocs.find((r) => r.offset === off);
     const w = endian === "big" ? buf.readUInt32BE(i) : buf.readUInt32LE(i);
-    if (rel && rel.type === "R_MIPS_32" && rel.symbol === ".text") out.push("text+0x" + (((rel.addend ?? 0) || w) - funcOff).toString(16));
+    // Unsigned, as the ROM side renders it: an entry may point before the function.
+    if (rel && rel.type === "R_MIPS_32" && rel.symbol === ".text") out.push("text+0x" + ((((rel.addend ?? 0) || w) - funcOff) >>> 0).toString(16));
     else if (rel && rel.type === "R_MIPS_32") out.push(`${rel.symbol}+0x${((rel.addend ?? 0) || w).toString(16)}`);
     else out.push("0x" + w.toString(16).padStart(8, "0"));
   }
   return out;
 }
-async function sectionBytesOf(objcopy, objPath, section, project) {
-  const tmp = objPath + `.${section.replace(".", "")}.bin`;
-  const r = await run(objcopy, ["-O", "binary", "--only-section=" + section, objPath, tmp], { cwd: project.root, env: project.env });
-  if (r.code !== 0) return null;
-  try { const b = await readFile(tmp); await rm(tmp, { force: true }); return b; } catch { return null; }
+// Read directly from the ELF (not objcopy -O binary: that drops a section the
+// assembler did not mark SHF_ALLOC, which binutils 2.6 does for .rodata).
+// The objcopy/project parameters stay for callers' signatures.
+async function sectionBytesOf(_objcopy, objPath, section, _project) {
+  // A missing section reads as empty, as objcopy's output file did.
+  try { return (await readSectionBytes(objPath))(section) ?? Buffer.alloc(0); } catch { return null; }
 }
 async function sectionRelocs(objdump, objPath, section, project) {
-  const r = await run(objdump, ["-r", "-j", section, objPath], { cwd: project.root, env: project.env });
+  const r = await binutils("objdump", ["-r", "-j", section, objPath], { cwd: project.root });
   const out = [];
   for (const m of r.stdout.matchAll(/^([0-9a-f]+)\s+(R_MIPS_\w+)\s+(\S+?)(?:\+0x([0-9a-f]+))?\s*$/gm)) out.push({ offset: parseInt(m[1], 16), type: m[2], symbol: m[3], addend: m[4] ? parseInt(m[4], 16) : 0 });
   return out;
@@ -761,8 +790,9 @@ export async function compareRodataAgainstRom(project, fn, { objdump, candidateO
   const ld = await project.linkerMap();
   const map = await project.map();
   const objcopy = project.m.toolchain.objcopy?.path ?? (project.m.toolchain.binutilsPrefix ?? "mips-linux-gnu-") + "objcopy";
-  const rodataSec = fn.object ? (ld?.objects.get(fn.object) ?? []).find((s) => s.section === ".rodata") : null;
-  const syms = await symbolTable({ objdump, objPath: candidateO, cwd: project.root, env: project.env });
+  const rodataSec = (fn.object ? (ld?.objects.get(fn.object) ?? []).find((s) => s.section === ".rodata") : null)
+    ?? (await project.splatSectionPlacement(fn.source?.tu)).find((s) => s.section === ".rodata") ?? null;
+  const syms = await symbolTable({ objdump, objPath: candidateO, cwd: project.root });
   const secBytes = await sectionBytesOf(objcopy, candidateO, ".rodata", project);
   const relocs = await sectionRelocs(objdump, candidateO, ".rodata", project);
   const funcOff = syms.get(fn.symbol)?.value ?? 0;
@@ -781,7 +811,14 @@ export async function compareRodataAgainstRom(project, fn, { objdump, candidateO
   // differ in TEXT - the load instructions would be missing - so text exactness covers it.)
   if (refs.length === 0) return { compared: true, equal: true, applicable: false, references: { candidate: 0 }, items: [], reason: "the candidate references no .rodata (no jump tables, no literals): nothing to compare" };
   if (!rodataSec) return { compared: false, reason: `the candidate references .rodata but the linker map has no .rodata placement for ${fn.object ?? "the object"}: cannot locate the bytes in the ROM` };
-  const items = []; let equal = true;
+  const items = []; let equal = true; const unknown = [];
+  // Data words that point at OTHER symbols (a table of addresses or of
+  // linker-script values) link against those symbols' addresses; one with no
+  // known address cannot be checked, which is unknown, not a mismatch.
+  const sa = await project.symbolAddrs();
+  const placement = (fn.object ? (ld?.objects.get(fn.object) ?? []) : []);
+  const sections = placement.length ? placement : await project.splatSectionPlacement(fn.source?.tu);
+  const addrOf = (name) => ld?.symbols.get(name)?.va ?? sa.get(name)?.va ?? (name.startsWith(".") ? sections.find((s) => s.section === name)?.va ?? null : null);
   for (let i = 0; i < refs.length; i++) {
     const c = refs[i];
     let size = c.size || 0;
@@ -789,6 +826,33 @@ export async function compareRodataAgainstRom(project, fn, { objdump, candidateO
     // Jump tables: extend to the run of R_MIPS_32 entries starting here.
     let run = 0; while (relocs.some((r) => r.offset === c.offset + run * 4 && r.type === "R_MIPS_32")) run++;
     if (run) size = run * 4;
+    const entryRelocs = relocs.filter((r) => r.type === "R_MIPS_32" && r.offset >= c.offset && r.offset < c.offset + size);
+    if (entryRelocs.length && entryRelocs.some((r) => r.symbol !== ".text")) {
+      // An address table: link every entry and compare absolute words.
+      const cb = secBytes ? secBytes.subarray(c.offset, c.offset + size) : Buffer.alloc(0);
+      const endian = profileFor(project.m.splatPlatform ?? project.m.platform).endian;
+      const linked = [], missing = [];
+      for (let k = 0; k + 4 <= cb.length; k += 4) {
+        const w = endian === "big" ? cb.readUInt32BE(k) : cb.readUInt32LE(k);
+        const r = entryRelocs.find((x) => x.offset === c.offset + k);
+        if (!r) { linked.push(w); continue; }
+        const sv = r.symbol === ".text" ? addrOf(".text") : addrOf(r.symbol);
+        if (sv == null) { missing.push(r.symbol); linked.push(null); continue; }
+        linked.push((sv + ((r.addend ?? 0) || w)) >>> 0);
+      }
+      const va = (rodataSec.va + c.offset) >>> 0;
+      const rv = map.resolveVa(va, { segment: fn.segment });
+      if (missing.length) { unknown.push(...missing); items.push({ index: i, kind: "address-table", candidate: describe(c), va: "0x" + va.toString(16), bytes: size, equal: null, unresolvedSymbols: [...new Set(missing)].slice(0, 12) }); continue; }
+      if (!rv.ok || rv.resolved.romOffset == null) { items.push({ index: i, candidate: describe(c), va: "0x" + va.toString(16), equal: false, note: "rodata VA does not map to ROM bytes" }); equal = false; continue; }
+      const rom = await project.romSlice(rv.resolved.romOffset, size);
+      const rw = [];
+      for (let k = 0; k + 4 <= rom.bytes.length; k += 4) rw.push(readWord(profileFor(project.m.splatPlatform ?? project.m.platform), rom.bytes, k));
+      const same = rw.length === linked.length && rw.every((w, k) => w === linked[k]);
+      if (!same) equal = false;
+      items.push({ index: i, kind: "address-table", candidate: describe(c), va: "0x" + va.toString(16), romOffset: "0x" + rv.resolved.romOffset.toString(16), bytes: size, equal: same,
+        ...(same ? {} : { romWords: rw.slice(0, 16).map((w) => "0x" + w.toString(16).padStart(8, "0")), candidateWords: linked.slice(0, 16).map((w) => "0x" + w.toString(16).padStart(8, "0")) }) });
+      continue;
+    }
     const cb = secBytes ? secBytes.subarray(c.offset, c.offset + size) : Buffer.alloc(0);
     const cw = wordsWithRelocs(cb, c.offset, relocs, funcOff, profileFor(project.m.splatPlatform ?? project.m.platform).endian);
     const va = (rodataSec.va + c.offset) >>> 0;
@@ -805,5 +869,6 @@ export async function compareRodataAgainstRom(project, fn, { objdump, candidateO
     if (!same) equal = false;
     items.push({ index: i, kind: run ? "jump-table" : size === 8 ? "double-literal" : "literal", candidate: describe(c), va: "0x" + va.toString(16), romOffset: "0x" + rv.resolved.romOffset.toString(16), bytes: size, equal: same, ...(same ? {} : { romWords: rw.slice(0, 16), candidateWords: cw.slice(0, 16) }) });
   }
+  if (equal && unknown.length) return { compared: false, reason: `referenced data holds addresses of symbols with no known address (${[...new Set(unknown)].slice(0, 6).join(", ")}); it cannot be checked until they resolve (a linker-script symbol needs the linked map)`, references: { candidate: refs.length }, items };
   return { compared: true, equal, references: { candidate: refs.length }, items, method: "rom-linked: candidate .rodata references placed at this object's .rodata VA from the linker map, compared with the base ROM bytes", note: "a differing jump table or literal makes exactFunctionMatch false even when the text matches" };
 }

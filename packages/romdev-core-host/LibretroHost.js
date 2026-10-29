@@ -285,7 +285,18 @@ export class LibretroHost {
       systemDir: opts.systemDir ?? "/romdev-system",
       saveDir: opts.saveDir ?? "/romdev-save",
     });
-    this.log = opts.log;
+    // The core's error-level log lines (RETRO_LOG_ERROR) are also kept, so a
+    // load the core refuses can say why in the core's own words (a missing
+    // firmware file, named by the core).
+    const userLog = opts.log;
+    this._coreErrors = [];
+    this.log = (level, msg) => {
+      if (level >= 3 && typeof msg === "string" && msg.trim()) {
+        this._coreErrors.push(msg.trim());
+        if (this._coreErrors.length > 8) this._coreErrors.shift();
+      }
+      if (userLog) userLog(level, msg);
+    };
     this.status = {
       platform: null,
       corePath: null,
@@ -307,7 +318,7 @@ export class LibretroHost {
    * @param {string} [wasmPath]
    * @param {Object} [opts]
    * @param {boolean} [opts.hwRender] this core HW-renders (GL) - n64/ps1. Loads the
-   *   optional native GL stack and creates a headless context BEFORE the core boots
+   *   native GL stack and creates a headless context BEFORE the core boots
    *   (GL calls happen during init/load). The 14 software cores omit this.
    */
   /** Infer the platform from a core's js filename stem (e.g.
@@ -748,6 +759,7 @@ export class LibretroHost {
     // flag while YIELDING to the JS event loop - the event loop must keep turning so emscripten
     // can service the app-thread's pooled-Worker grabs / postMessage wakeups. A blocking call
     // would freeze the event loop → the core's threads can't be scheduled → deadlock.
+    this._coreErrors.length = 0;
     let ok;
     if (this._proxied) {
       // Deferred retro_init (see loadCore): now that the system dir is mirrored into the app-thread
@@ -773,7 +785,7 @@ export class LibretroHost {
         mod._romdev_proxied_fire_context_reset(this.state.proxiedContextResetPtr);
       }
     } else {
-      ok = mod._retro_load_game(infoPtr);
+      ok = this._withClock(() => mod._retro_load_game(infoPtr));
     }
 
     // Free the struct itself. Don't free pathPtr or dataPtr - the core may
@@ -789,6 +801,10 @@ export class LibretroHost {
         `The '${platform}' core REFUSED this ${mediaKind || "media"} ` +
         `(${data ? data.length + " bytes" : "streamed from disk"}${ext ? `, ${ext}` : ""}, path ${mediaPath}). ` +
         `retro_load_game returned false - the bytes reached the core but it would not accept them. ` +
+        // the core's own reason, when it logged one (e.g. a firmware file it needs, by name)
+        (this._coreErrors.some((m) => m.startsWith("romdev:"))
+          ? `The core said: ${this._coreErrors.filter((m) => m.startsWith("romdev:")).join(" ")} `
+          : "") +
         `Common causes: (1) wrong platform for this file (a GB ROM loaded as 'nes', etc.) - ` +
         `confirm the platform matches the file; (2) a corrupt or TRUNCATED image - re-check the byte length; ` +
         `(3) an unsupported mapper/board or a missing/!bad header. ` +
@@ -908,9 +924,9 @@ export class LibretroHost {
     //   - snes9x defaults to 256×224 but games select 256×239 or
     //     512×448 (interlaced) based on PPU regs the ROM sets up.
     //
-    // The rom-games agent reasonably expected fbWidth/Height after
-    // loadMedia to reflect "what screenshot will show me". Step a
-    // small number of frames here so the agent sees the ROM-chosen
+    // Callers expect fbWidth/Height after loadMedia to reflect "what
+    // screenshot will show me". Step a small number of frames here so
+    // the caller sees the ROM-chosen
     // geometry, not the pre-init default.
     //
     // 8 frames is generous - Genesis games typically settle their
@@ -920,6 +936,9 @@ export class LibretroHost {
     // Proxied cores (PSP) drive frames through the async run path (run_start + poll); the
     // synchronous settle loop below uses the blocking sync run, so skip it. PSP geometry is the
     // fixed 480×272 av_info already read, so there's no pre-init default to settle past.
+    // A caller that must observe the settle frames themselves (the
+    // instruction differ traces power-on) arms its hooks here.
+    if (typeof args.beforeSettle === "function") args.beforeSettle(this);
     if (!args.deterministic && !this.status.paused && !this._proxied) {
       // Settle frames are core warm-up, not agent-visible gameplay
       // frames - don't increment frameCount. From the agent's POV the
@@ -982,10 +1001,8 @@ export class LibretroHost {
    *
    * This is what makes host eviction actually reclaim anything. Without it a
    * long-lived server accumulates one full core heap per host it has ever
-   * created - which is how the server got OOM-killed twice on 2026-08-19
-   * (~5.4 GB RSS, 300-500 GB of mapped address space) under a single agent
-   * running a 21-gate suite that loads 20+ carts. See
-   * internal-romdev/PLAN_mcp_v2_stateless_and_host_lifetime.md.
+   * created, which reached about 5.4 GB RSS (300-500 GB of mapped address
+   * space) under one client running a test suite that loads 20+ carts.
    *
    * Ordering matters: unload the game, then `retro_deinit` so the core frees
    * its own allocations while its heap is still valid, then drop every
@@ -1069,7 +1086,44 @@ export class LibretroHost {
    *     observes (frameCount is incremented after the frame runs).
    *  A hook failure never breaks emulation: it is caught and remembered on
    *  `beforeFrameError`; the callback owner surfaces it. */
+  /**
+   * Pin the wall clock the core reads (Date.now, which emscripten's time()
+   * and clock_gettime call: gambatte's MBC3 RTC, mGBA's GPIO RTC) to a
+   * frame clock, so a verifier can give a recompiled cart the same one:
+   *   baseMs + max(0, runs - startRun) * stepMs
+   * where runs counts retro_run calls since the pin was set (0 while the
+   * game loads), in UTC (localtime = gmtime while the core runs). baseMs
+   * should be a whole second. null restores the host
+   * clock. Set it before loadMedia so the load (gambatte's RTC base time)
+   * sees it too.
+   * @param {{baseMs: number, stepMs: number, startRun?: number|(() => number)}|null} pin
+   */
+  setPinnedClock(pin) {
+    this._clockPin = pin ? { baseMs: pin.baseMs, stepMs: pin.stepMs, startRun: pin.startRun ?? 0, runs: 0 } : null;
+  }
+
+  /** @param {() => any} fn run with Date.now pinned (see setPinnedClock) */
+  _withClock(fn) {
+    const pin = this._clockPin;
+    if (!pin) return fn();
+    const start = typeof pin.startRun === "function" ? pin.startRun() : pin.startRun;
+    const t = pin.baseMs + Math.max(0, pin.runs - start) * pin.stepMs;
+    const real = Date.now;
+    Date.now = () => t;
+    // localtime() is emscripten's JS Date getters in the host's zone; a
+    // pinned clock is UTC so the calendar a core computes (mGBA's RTC date
+    // and hour) does not depend on the machine running the verification
+    const env = globalThis.process?.env;
+    const tz = env?.TZ;
+    if (env) env.TZ = "UTC";
+    try { return fn(); } finally {
+      Date.now = real;
+      if (env) { if (tz === undefined) delete env.TZ; else env.TZ = tz; }
+    }
+  }
+
   _runCore() {
+    if (this._clockPin) this._clockPin.runs++;
     if (this.state.inputOverrides) this.state.inputOverrides.fill(null);
     if (this.beforeFrame) {
       try {
@@ -1078,8 +1132,10 @@ export class LibretroHost {
         this.beforeFrameError = e;
       }
     }
-    if (this._proxied) this.mod._romdev_proxied_run();
-    else this.mod._retro_run();
+    this._withClock(() => {
+      if (this._proxied) this.mod._romdev_proxied_run();
+      else this.mod._retro_run();
+    });
   }
 
   /**
@@ -1983,7 +2039,7 @@ export class LibretroHost {
     if (typeof mod._retro_cheat_set !== "function") {
       throw new Error(
         "this core build does not expose the cheat interface (retro_cheat_set). " +
-        "Rebuild the core with the cheat exports, or apply RAM cheats via writeMemory.",
+        "Rebuild the core with the cheat exports, or apply RAM cheats via memory({op:'write'}).",
       );
     }
     const bytes = encodeCString(String(code));
@@ -2038,7 +2094,7 @@ export class LibretroHost {
    *
    *  The other mirror platforms (NES/GB/GBC/SMS/GG/Genesis) get the SAME
    *  arm-side canonicalization so arming a mirror-form address matches the
-   *  canonical-form writer (the common agent mistake). ⚠ Their core hooks
+   *  canonical-form writer (the common agent mistake). Their core hooks
    *  compare RAW bus addresses (only snes9x canonicalizes live accesses), so
    *  a WRITER that itself uses a mirror form still evades on those platforms
    *  - fixing that direction needs per-core hook patches (deferred; noted in
@@ -2716,8 +2772,8 @@ export class LibretroHost {
       // interrupt raising). Without it, each "frame" of the call runs the
       // game's OWN per-frame logic concurrently (VBlank handlers via RAM
       // vectors etc.), which can stomp the buffer the driven routine is
-      // writing - a real session diffed a CORRECT codec reimplementation
-      // against that poisoned output for hours. gpgx (Genesis/SMS/GG) only.
+      // writing, so a CORRECT codec reimplementation can look wrong when
+      // diffed against that output. gpgx (Genesis/SMS/GG) only.
       pure = false,
       // presetMemory: [{addr, bytes}] CPU-space writes applied before the call
       // (codecs that read a global from RAM - a dest stride, a mode flag, etc).
@@ -2787,7 +2843,7 @@ export class LibretroHost {
       }
       // Set caller-supplied registers.
       // regs accepts NAMES ('a','x','y','p','sp',..., per the platform's regNames
-      // map) OR raw numeric ids - field report: no 65816 reg-id table meant a
+      // map) OR raw numeric ids; without a 65816 reg-id table a
       // caller couldn't preset A without guessing. A name with no mapping, or a
       // non-numeric key on a platform without regNames, throws clearly.
       for (const [key, val] of Object.entries(regs)) {
@@ -2920,7 +2976,7 @@ export class LibretroHost {
       // Use the platform's REAL register file (getCPUState decodes per-core: A/X/Y/
       // P/DB/DP on 65816, D0-D7/A0-A7 on m68k, ...). The old _readCallRegs hardcoded
       // m68k names {D0,D1,A0,A1,PC,SP}, so on a 65816 core the values came back
-      // under WRONG labels - a caller couldn't read A/X/Y/P (field report). Fall
+      // under WRONG labels - a caller couldn't read A/X/Y/P. Fall
       // back to the raw m68k-id read only if the per-core decode is unavailable.
       try {
         const st = getCPUState(this, this._loadArgs?.platform);
@@ -3047,8 +3103,8 @@ export class LibretroHost {
       case "snes":
         // 65816: A=0,X=1,Y=2,P=3,S=4,DB=5,D=6,PC=16. retBytes DEFAULTS to 3 for a
         // JSL/RTL callee; a JSR/RTS callee pushes only 2 (PCL,PCH) - pass
-        // callMode:'jsr' to size the sentinel/return-pop to 2 (field report: a
-        // plain jsr helper "returned" 1 byte off into vector-stub land). The
+        // callMode:'jsr' to size the sentinel/return-pop to 2 (otherwise a
+        // plain jsr helper "returns" 1 byte off into vector-stub land). The
         // 65816 stack is in bank 0; WRAM low mirror.  ~3.58MHz / ~6 cyc / 60 ≈ 10k.
         return { spReg: 4, pcReg: 16, retBytes: 3, retBigEndian: false, defaultSentinel: 0, ramMask: 0x1FFF, retAdjust: -1, instrPerFrame: 12000,
           regNames: { a: 0, x: 1, y: 2, p: 3, s: 4, sp: 4, db: 5, d: 6, dp: 6, pc: 16 },
@@ -3185,6 +3241,106 @@ export class LibretroHost {
     } finally {
       mod._free(outPtr); mod._free(out2Ptr);
     }
+  }
+
+  // ── instruction trace (free-running, exact) ────────────────────────────────
+  // Every EXECUTED instruction's pc (and the core's clock at dispatch) in
+  // order, recorded by the core while it runs normally. stepInstruction is not
+  // a substitute: it freezes the CPU while the rest of the machine finishes the
+  // frame, so consecutive stepped instructions are a frame apart in machine
+  // time and every interrupt/poll lands somewhere else.
+
+  /** True when this core build records the instruction trace (romdev_trace_*). */
+  traceSupported() {
+    const mod = this.mod;
+    return !!(mod && typeof mod._romdev_trace_set === "function" && typeof mod._romdev_trace_info === "function");
+  }
+
+  /**
+   * Which dispatching CPUs the trace records for the loaded platform: bit 0 =
+   * the main CPU. genesis_plus_gx dispatches its Z80 as cpu 1, which is the
+   * MAIN CPU on SMS / Game Gear.
+   */
+  traceCpuMask() {
+    const p = this.status.platform;
+    return p === "sms" || p === "gg" || p === "sg1000" ? 2 : 1;
+  }
+
+  /**
+   * Arm (restart) or disarm the trace. The count restarts at 0.
+   * `registers:true` adds the core's per-instruction register columns
+   * (traceRegisterNames()) where the core provides them.
+   * @param {{capacity?:number, enabled?:boolean, cpuMask?:number, registers?:boolean}} [o]
+   * @returns {number} the ring capacity allocated (entries)
+   */
+  setTrace({ capacity = 1 << 20, enabled = true, cpuMask, registers = false } = {}) {
+    const mod = this._needMod();
+    if (!this.traceSupported()) throw new Error("this core build does not record an instruction trace (rebuild with romdev_trace_* exports).");
+    if (typeof mod._romdev_trace_regs === "function") mod._romdev_trace_regs(registers ? 1 : 0);
+    return mod._romdev_trace_set(capacity >>> 0, enabled ? 1 : 0, (cpuMask ?? this.traceCpuMask()) >>> 0) >>> 0;
+  }
+
+  /** Names of the register columns this core records with setTrace({registers:true}). */
+  traceRegisterNames() {
+    const p = this.status.platform;
+    if (p === "gba") return [...Array.from({ length: 16 }, (_, i) => `r${i}`), "cpsr"];
+    // gambatte: af (A << 8 | F) is the fifth column; an older build records
+    // four and readTrace keeps only the columns the core wrote
+    if (p === "gb" || p === "gbc") return ["sp", "hl", "bc", "de", "af"];
+    if (p === "nes") return ["a", "x", "y", "s", "p"];
+    // genesis_plus_gx: one filler for both CPUs (17 columns); the 68000's
+    // d0-d7, a0-a7 (a7 = the active stack pointer), sr, or on SMS / Game Gear
+    // the Z80's (r as LD A,R reads it; af2.. = the alternate set; the rest 0).
+    if (p === "genesis" || p === "md") return [...Array.from({ length: 8 }, (_, i) => `d${i}`), ...Array.from({ length: 8 }, (_, i) => `a${i}`), "sr"];
+    if (p === "sms" || p === "gg") return ["af", "bc", "de", "hl", "ix", "iy", "sp", "r", "af2", "bc2", "de2", "hl2", "i"];
+    // snes9x: p = the status byte as PHP pushes it, emulation flag at bit 8.
+    if (p === "snes") return ["a", "x", "y", "s", "d", "db", "p"];
+    return [];
+  }
+
+  /** @returns {{enabled:boolean, capacity:number, count:number, ptr:number, cpuMask:number, words:number, regs:number}} */
+  traceInfo() {
+    const mod = this._needMod();
+    if (!this.traceSupported()) throw new Error("this core build does not record an instruction trace.");
+    const p = mod._malloc(28);
+    try {
+      new Uint32Array(mod.HEAPU8.buffer, p, 7).fill(0);
+      mod._romdev_trace_info(p);
+      const u = new Uint32Array(mod.HEAPU8.buffer, p, 7);
+      return { enabled: !!u[0], capacity: u[1], count: u[2], ptr: u[3], cpuMask: u[4], words: u[5] || 2, regs: u[6] };
+    } finally { mod._free(p); }
+  }
+
+  /**
+   * Read recorded entries [from, to) (indices since setTrace). Entries older
+   * than count - capacity were overwritten; `from` is raised to the oldest
+   * surviving one and `lost` says how many were asked for but gone.
+   * @param {number} [from=0]
+   * @param {number} [to] default: everything recorded so far
+   * `regs` (when the trace was armed with registers) maps each
+   * traceRegisterNames() column to a Uint32Array parallel to `pc`.
+   * @returns {{from:number, to:number, lost:number, pc:Uint32Array, clock:Uint32Array, regs:Record<string,Uint32Array>|null}}
+   */
+  readTrace(from = 0, to) {
+    const info = this.traceInfo();
+    const end = Math.min(to ?? info.count, info.count);
+    const oldest = Math.max(0, info.count - info.capacity);
+    const start = Math.max(from, oldest);
+    const n = Math.max(0, end - start);
+    const W = info.words;
+    const pc = new Uint32Array(n), clock = new Uint32Array(n);
+    const names = W > 2 ? this.traceRegisterNames().slice(0, W - 2) : [];
+    const cols = names.map(() => new Uint32Array(n));
+    if (n && info.ptr) {
+      const ring = new Uint32Array(this.mod.HEAPU8.buffer, info.ptr, info.capacity * W);
+      for (let k = 0; k < n; k++) {
+        const i = ((start + k) % info.capacity) * W;
+        pc[k] = ring[i]; clock[k] = ring[i + 1];
+        for (let c = 0; c < cols.length; c++) cols[c][k] = ring[i + 2 + c];
+      }
+    }
+    const regs = names.length ? Object.fromEntries(names.map((nm, c) => [nm, cols[c]])) : null;
+    return { from: start, to: start + n, lost: Math.max(0, Math.min(start, end) - from), pc, clock, regs };
   }
 
   logPCRange(lo, hi, frames) {
@@ -3363,7 +3519,7 @@ export class LibretroHost {
 
   _emptyRegionError(region) {
     const plat = this.status && this.status.platform;
-    // SRAM gets an honest, specific answer: empty save_ram almost always means
+    // SRAM gets a specific answer: empty save_ram almost always means
     // "this cart/system has no battery save," NOT "the core is broken."
     if (region === "save_ram") {
       if (["atari2600", "atari7800", "lynx"].includes(plat)) {
@@ -3397,13 +3553,13 @@ export class LibretroHost {
       sms:   { video_ram: "sms_vram (or sms_cram for palette, sms_vdp_regs for VDP regs)" },
       gg:    { video_ram: "gg_vram (or gg_cram for the 64-byte 12-bit palette, sms_vdp_regs for VDP regs)" },
       snes:  { video_ram: "snes_oam (sprite OAM), snes_cgram (palette), snes_aram (SPC700), or snes_fillram (PPU/DMA reg shadow). The libretro generic 'video_ram' id isn't wired in snes9x." },
-      genesis: { video_ram: "Genesis VRAM IS exposed via 'video_ram' (gpgx) once a ROM is loaded and a frame has run - if it reads empty, step a frame first (the SAT/sprites need the game to have written VRAM). Palette/scroll/VDP regs are genesis_cram / genesis_vsram / genesis_vdp_regs. For decoded views use inspectSprites / inspectPatternTiles / inspectBackgroundMap / getRenderingContext." },
+      genesis: { video_ram: "Genesis VRAM IS exposed via 'video_ram' (gpgx) once a ROM is loaded and a frame has run - if it reads empty, step a frame first (the SAT/sprites need the game to have written VRAM). Palette/scroll/VDP regs are genesis_cram / genesis_vsram / genesis_vdp_regs. For decoded views use sprites({op:'inspect'}) / tiles({op:'png'}) / background({view:'map'}) / background({view:'renderState'})." },
       c64:   { video_ram: "c64_color_ram (1 KB) / c64_vic_regs / c64_sid_regs / c64_cia1_regs / c64_cia2_regs. The C64 has no separate VRAM - the VIC-II reads from main system_ram." },
     };
     const hint = suggestions[plat] && suggestions[plat][region];
     if (hint) {
       return `memory region '${region}' is empty on platform '${plat}'. Try: ${hint}. ` +
-             `Or use inspectPatternTiles / inspectBackgroundMap / inspectSprites / inspectPalette which abstract over per-platform memory layout.`;
+             `Or use tiles({op:'png'}) / background({view:'map'}) / sprites({op:'inspect'}) / palette({source:'live'}), which abstract over per-platform memory layout.`;
     }
     return `memory region '${region}' is empty (core didn't expose it on platform '${plat || "?"}'). ` +
            `If you need raw bytes, see the platform-specific regions in src/host/types.js or the inspect* tools which know the right region per platform.`;

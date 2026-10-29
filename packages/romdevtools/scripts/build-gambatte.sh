@@ -19,14 +19,16 @@ OUT="$PROJECT_DIR/src/cores/wasm"
 fetch_pinned cores.gambatte "$GAMBATTE_DIR"
 
 cd "$GAMBATTE_DIR"
-git checkout -- libgambatte/src/video/ppu.cpp libgambatte/src/initstate.cpp libgambatte/src/mem/rtc.cpp libgambatte/src/mem/huc3.cpp libgambatte/libretro/blipper.h libgambatte/libretro/blipper.c libgambatte/libretro/libretro.cpp 2>/dev/null || true
 # Reset the files the patch touches so re-runs are idempotent.
+require_git_toplevel
+git checkout -- libgambatte/src/video/ppu.cpp libgambatte/src/initstate.cpp libgambatte/src/mem/rtc.cpp libgambatte/src/mem/huc3.cpp libgambatte/libretro/blipper.h libgambatte/libretro/blipper.c libgambatte/libretro/libretro.cpp 2>/dev/null || true
 git checkout -- \
   libgambatte/src/cpu.h \
   libgambatte/src/cpu.cpp \
   libgambatte/src/video/ppu.cpp \
   libgambatte/src/video/sprite_mapper.h \
   libgambatte/src/video/sprite_mapper.cpp \
+  libgambatte/src/video/next_m0_time.cpp \
   libgambatte/src/video.cpp \
   libgambatte/src/video_libretro.cpp \
   libgambatte/src/gambatte-memory.h \
@@ -39,8 +41,8 @@ git checkout -- \
 # --recount lets the patch survive small additions to hunks (e.g. adding
 # a new ROMDEV_MEMORY_* region) without manually re-computing the @@ counts.
 if ! git apply --recount --check "$PATCH_FILE" 2>/dev/null; then
-  if grep -q "ROMDEV_MEMORY_GB_VRAM" libgambatte/libretro/libretro.cpp; then
-    echo "Patch already present (sentinel ROMDEV_MEMORY_GB_VRAM found); skipping apply."
+  if patch_already_applied "$PATCH_FILE"; then
+    echo "Patch already present (reverse-applies cleanly); skipping apply."
   else
     echo "FATAL: patch failed to apply and sentinel not present." >&2
     exit 1
@@ -69,6 +71,8 @@ cp "$RDBG_SRC/romdev_debug.h" "$RDBG_SRC/romdev_debug.c" "$GAMBATTE_DIR/libgamba
 # resolves it from ppu.cpp / video.cpp / video_libretro.cpp.
 cp "$RDBG_SRC/romdev_gbcap.h" "$GAMBATTE_DIR/libgambatte/src/"
 cp "$RDBG_SRC/romdev_gbcap.h" "$GAMBATTE_DIR/libgambatte/src/video/"
+# The gb_apu_raw audio stream region (libretro.cpp) uses the shared RDAS helper.
+cp "$RDBG_SRC/romdev_audio_stream.h" "$GAMBATTE_DIR/libgambatte/src/"
 ROMDEV_INC="-I$GAMBATTE_DIR/libgambatte/src"
 
 emmake make -f Makefile.libretro platform=emscripten clean >/dev/null 2>&1 || true
@@ -140,7 +144,7 @@ RDBG_OBJ="$GAMBATTE_DIR/libgambatte/src/romdev_debug.o"
 emcc -c -O2 "$GAMBATTE_DIR/libgambatte/src/romdev_debug.c" -o "$RDBG_OBJ"
 emar rcs "$CORE_LIB" "$RDBG_OBJ"
 
-EXPORTED_FUNCTIONS='["_retro_api_version","_retro_init","_retro_deinit","_retro_set_environment","_retro_set_video_refresh","_retro_set_audio_sample","_retro_set_audio_sample_batch","_retro_set_input_poll","_retro_set_input_state","_retro_get_system_info","_retro_get_system_av_info","_retro_load_game","_retro_unload_game","_retro_run","_retro_reset","_retro_serialize_size","_retro_serialize","_retro_unserialize","_retro_cheat_reset","_retro_cheat_set","_romdev_watchpoint_set","_romdev_watchpoint_set_cond","_romdev_watchpoint_get","_romdev_readwatch_set","_romdev_readwatch_get","_romdev_pcbreak_set","_romdev_pcbreak_get","_romdev_watchdog_set","_romdev_regsnap_get","_romdev_irqblock_set","_romdev_setreg","_romdev_getreg","_romdev_range_set","_romdev_range_get","_romdev_observe_set","_romdev_observe_add","_romdev_observe_arm","_romdev_observe_get","_romdev_cov_set","_romdev_cov_get","_romdev_covbits_set","_romdev_covbits_get","_retro_get_memory_data","_retro_get_memory_size","_retro_get_region","_retro_set_controller_port_device","_romdev_deterministic_boot","_romdev_deterministic_disable","_romdev_state_schema","_romdev_state_digest","_malloc","_free"]'
+EXPORTED_FUNCTIONS='["_retro_api_version","_retro_init","_retro_deinit","_retro_set_environment","_retro_set_video_refresh","_retro_set_audio_sample","_retro_set_audio_sample_batch","_retro_set_input_poll","_retro_set_input_state","_retro_get_system_info","_retro_get_system_av_info","_retro_load_game","_retro_unload_game","_retro_run","_retro_reset","_retro_serialize_size","_retro_serialize","_retro_unserialize","_retro_cheat_reset","_retro_cheat_set","_romdev_watchpoint_set","_romdev_watchpoint_set_cond","_romdev_watchpoint_get","_romdev_readwatch_set","_romdev_readwatch_get","_romdev_pcbreak_set","_romdev_pcbreak_get","_romdev_watchdog_set","_romdev_regsnap_get","_romdev_irqblock_set","_romdev_setreg","_romdev_getreg","_romdev_range_set","_romdev_range_get","_romdev_observe_set","_romdev_observe_add","_romdev_observe_arm","_romdev_observe_get","_romdev_cov_set","_romdev_cov_get","_romdev_covbits_set","_romdev_covbits_get","_romdev_trace_set","_romdev_trace_info","_romdev_trace_regs","_retro_get_memory_data","_retro_get_memory_size","_retro_get_region","_retro_set_controller_port_device","_romdev_deterministic_boot","_romdev_deterministic_disable","_romdev_state_schema","_romdev_state_digest","_malloc","_free"]'
 EXPORTED_RUNTIME='["ccall","cwrap","addFunction","removeFunction","HEAPU8","HEAPU16","HEAPU32","HEAP16","HEAP32","HEAPF32","UTF8ToString","stringToUTF8","lengthBytesUTF8","getValue","setValue","FS"]'
 
 mkdir -p "$OUT"

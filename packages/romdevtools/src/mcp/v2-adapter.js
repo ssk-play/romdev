@@ -1,6 +1,6 @@
 // A `.tool()` face over the v2 (2026-07-28) McpServer.
 //
-// romdev registers 35 tools through the v1 shape:
+// romdev registers 38 tools through the v1 shape:
 //
 //     server.tool(name, description, zodRawShape, handler)
 //
@@ -17,8 +17,7 @@
 // call. It is deliberately tiny and does nothing else: no behaviour, no
 // policy, no error shaping -- those already live in safeTool /
 // withClearToolErrors, which wrap the handler before it ever gets here.
-//
-// See internal-romdev/PLAN_mcp_v2_stateless_and_host_lifetime.md (workstream C).
+
 
 import { z } from "zod";
 import { SESSION_ARG } from "./session-key.js";

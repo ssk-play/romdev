@@ -1,6 +1,7 @@
 # sync32 - mental model
 
-A 32-bit console with a **flat framebuffer and a function-pointer API**. If you
+sync32 is an open RP2350-based console: a 32-bit machine with a **flat
+framebuffer and a function-pointer API** (cart extension `.s32`). If you
 have written for the 8- and 16-bit platforms in this tree, unlearn the reflexes:
 there are no hardware registers to poke, no VRAM to bank, no tilemap, no
 scanline timing to hit. A game is an ARM binary that receives a struct of
@@ -32,7 +33,7 @@ launcher.
 | | |
 |---|---|
 | CPU | ARM Cortex-M33 (ARMv8-M main), **thumb**, hard float (fpv5-sp-d16, single precision) |
-| Video | 320x240 (`S32_VIDEO_240`, 4:3) or 320x180 (`S32_VIDEO_180`, 16:9 letterbox) |
+| Video | 320x240 (`S32_VIDEO_240`, 4:3), 320x180 (`S32_VIDEO_180`, 16:9 letterbox), or 128x128 (`S32_VIDEO_128`, shown at an exact 3x) |
 | Colour | RGB565, 16-bit |
 | Sprites | `S32_MAX_SPRITES` = 128 per frame, from loaded sheets |
 | Audio | 48kHz stereo s16, a ring of `S32_AUDIO_RING` (1024) frames |
@@ -61,6 +62,25 @@ backgrounds, HUD colours and grid lines in there alongside the sprite colours.
 the game. For direct pixel work, `canvas()` returns the framebuffer bytes
 and `canvas_mark(y0, y1)` tells the console which rows changed - mark only what
 you touched, since the console uploads marked rows.
+
+**Video modes.** `build({platform:'sync32', video})` writes the header byte
+that picks the canvas geometry, and the whole API follows it:
+
+| `video` | Header | Canvas | Stride | On the console | In romdev |
+|---|---|---|---|---|---|
+| `'240'` (default) | 0 | 320x240 | 320 | 640x480 at 2x | 320x240 frames |
+| `'180'` | 1 | 320x180 | 320 | 2x, black bars top and bottom | 320x240, bars drawn |
+| `'128'` | 2 | 128x128 | **128** | exact 3x: 384x384 centred in 640x480, black border | **128x128** frames |
+
+Mode `'128'` is for PICO-8-style carts. `canvas()` is then 128x128 with 128
+bytes per row (index it `fb[y * S32_W128 + x]`, not `y * 320`), `clear()`
+fills 16384 bytes, and `rect()`/`sprite()` clip at 128 in both axes. Pixels
+are still indices into the same 256-entry palette. romdev's core emits the
+frame at its NATIVE 128x128 (the 3x is the console's display, not the game's
+picture), so `frame({op:'screenshot'})` returns 128x128 and a mode-2 frame
+can be compared pixel for pixel against a 128x128 reference;
+`memory({op:'read', region:'sync32_canvas'})` is 16384 bytes. A header byte
+the console does not know runs as mode 0.
 
 **Sprites.** `sheet_load(pixels8, w, h)` uploads an 8-bit indexed sheet and
 returns a handle; `palette_set()` supplies the 256-entry RGB565 palette.
@@ -107,10 +127,48 @@ Compilation is the WASM `arm-none-eabi` toolchain targeting Cortex-M33; the SDK
 crt0, linker scripts and `sync32.h` ship in `romdev-platform-sync32`, so nothing
 external is needed. The result is a launchable `.s32`.
 
+`mode` is `'ram'` (default) or `'xip'` (see "Memory modes" below). The whole
+pipeline is WASM (cc1/as/ld/objcopy plus a JS packer): no native gcc, no Python.
+
 A game with **resources** passes `data` (or `dataPaths`) and gets the archive
 form instead - `main.s32e` + `info.txt` + your files in one tar, because a game
 that reads through the disk API needs its namespace to travel with it. Set
-`api: 2` when you use `disk_*`.
+`api: 2` when you use `disk_*`. **To RUN such a game in romdev, build it with
+`form:'folder'`**: the core loads a bare executable plus a sibling `<name>/`
+data directory and does not unpack the `archive` tar you would ship.
+
+**Start from an example.** All five genre games ship
+(`sync32/shmup|platformer|puzzle|sports|racing`). Fork one, then build the
+project in one call:
+
+```js
+examples({ op:'fork', example:'sync32/shmup', name:'mygame', path:'/abs/path/to/projects' })
+build({ output:'project', path:'/abs/path/to/projects/mygame' })
+```
+
+## Inspecting a running cart
+
+- **`memory({op:'read', region:'system_ram'})`** is the live 520 KB SRAM at
+  `0x20000000` (globals, stack, and in `ram` mode the code), so
+  `memory({op:'snapshot'|'diff'|'search'})` and watchpoints all work on it.
+  `sync32_canvas` is the framebuffer, `sync32_palette` the palette.
+- **`cpu({op:'read'})`** decodes r0-r15 + APSR + the FPv5-SP registers. There
+  is **no `execPc`**: the core is an interpreter, so r15 is already the next
+  instruction.
+- **`palette({source:'live'})`** reads the 256-entry RGB565 table.
+- **Sprite sheets** are memory regions: the first is `sync32_sheet0`, and sheet
+  n is region id `0x1B0+n`.
+- **Not available:** `sprites({op:'inspect'})`, `background` and `decompile`.
+  There is no OAM or tilemap to decode, and no commercial ROMs to
+  reverse-engineer.
+
+### Driving input over MCP
+
+The core maps `input({op:'set'})` button names **straight through** to the
+`S32_PAD_*` bits: `{a}`→`S32_PAD_A`, `{b}`→`S32_PAD_B`, `{x}`/`{y}`, `{l}`/`{r}`,
+`{start}`/`{select}` and the d-pad. Spatial names resolve as east→A, south→B,
+north→X, west→Y. Ports 0-3 are the four pads. `input({op:'layout',
+platform:'sync32'})` has the exact map.
 
 ## Freestanding, and what that means
 

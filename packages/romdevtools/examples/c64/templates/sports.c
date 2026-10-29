@@ -1,6 +1,6 @@
 /* ── sports.c - C64 head-to-head court sports (complete example game) ─────────
  *
- * DELTA DUEL - a COMPLETE, working game (Pong lineage): a title screen with
+ * DELTA DUEL - a COMPLETE, working game (paddle-and-ball lineage): a title screen with
  * 1P vs a BEATABLE CPU and 2P SIMULTANEOUS VERSUS (both paddles live at once,
  * P1 on CONTROL PORT 2, P2 on CONTROL PORT 1), a first-to-5 match into a
  * result screen, in-session best 1P-vs-CPU win streak behind the gated
@@ -101,7 +101,7 @@ static const uint8_t ball_sprite[64] = {   /* a small round-ish blob */
  * THE RASTER-IRQ SPLIT - the C64's classic "fixed status bar over a moving
  * world" trick (and the gateway drug to all raster effects). Here it pins a
  * HUD bar at the top while the court lives below it. The VIC-II has ONE
- * $D016 fine-scroll for the whole frame; we don't scroll the court (a Pong
+ * $D016 fine-scroll for the whole frame; we don't scroll the court (a paddle
  * arena holds still), but the split is STILL the idiomatic way to guarantee
  * the HUD's first rows render in a known, fixed scroll state regardless of
  * what the rest of the frame does - and it gives you the per-frame heartbeat
@@ -164,7 +164,7 @@ void raster_irq(void) {
   asm("sta $d016");
   asm("lda #251");           /* = BOTTOM_LINE (cc65's asm %b only takes     */
   asm("sta $d012");          /* signed bytes, so these are literals - the   */
-  asm("jmp $ea81");          /* #if below keeps them honest)                */
+  asm("jmp $ea81");          /* #if below keeps them in sync)                */
 at_bottom:
   asm("lda #$C0");           /* = D016_BAR                                  */
   asm("sta $d016");          /* bar scroll for the top of the NEXT frame    */
@@ -228,12 +228,12 @@ static uint8_t read_stick_port1(void) {     /* player 2 */
 #define JOY_FIRE  0x10
 
 /* ── HARDWARE IDIOM (load-bearing) - best-streak persistence: DISK SAVE ──────
- * The C64 has no battery SRAM - the honest save medium is the FLOPPY. The game
+ * The C64 has no battery SRAM - the real save medium is the FLOPPY. The game
  * persists by writing a file to drive 8; VICE commits it into the live 1541
  * disk image (true-drive GCR write-back), so a save survives a power cycle
  * exactly as on real hardware. REQUIRES THE GAME RUN FROM A DISK (build/load a
  * .d64); a bare .prg has no mounted disk, so the save is a silent no-op (still
- * honest - the record just stays in-session). Implemented in the load/save
+ * the record just stays in-session). Implemented in the load/save
  * functions below; these two are the STABLE SEAM (load at boot, save on a new
  * record) - reshape the record format freely, keep the signatures.
  *
@@ -242,7 +242,7 @@ static uint8_t read_stick_port1(void) {     /* player 2 */
  * LONGEST 1P-vs-CPU WIN STREAK - the stat a returning player actually chases.
  * 2P matches never touch it (humans beating each other isn't a record). */
 /* ── HARDWARE IDIOM (load-bearing) - record persistence: DISK SAVE ─────────
- * The C64 has no battery SRAM - the honest save medium is the FLOPPY. A game
+ * The C64 has no battery SRAM - the real save medium is the FLOPPY. A game
  * persists by writing a file to drive 8; VICE commits it into the live 1541
  * disk image (true-drive GCR write-back), so a save survives a power cycle
  * exactly as it did on real hardware. (To capture it headlessly the host does
@@ -250,7 +250,7 @@ static uint8_t read_stick_port1(void) {     /* player 2 */
  *
  * REQUIRES THE GAME RUN FROM A DISK: build/package it as a .d64 and load THAT
  * (loadMedia autostarts it). A bare .prg injected straight into RAM has no
- * mounted disk to save to, so the save is a silent no-op - still honest (the
+ * mounted disk to save to, so the save is a silent no-op - still correct (the
  * value just stays in-session), it simply has nowhere to persist.
  *
  * We keep a 2-byte record in a SEQ file "HI" on drive 8. These are the STABLE
@@ -540,7 +540,7 @@ static void draw_bar_stats(void) {
  * match start (a static screen - free to write directly), never during play.
  * Top + bottom rails frame the court; a dashed net runs down the centre; a
  * faint floor speckle so the arena reads as a court instead of a black void.
- * (Compare the puzzle template's cell-diff: a Pong court doesn't change during
+ * (Compare the puzzle template's cell-diff: a paddle court doesn't change during
  * play, so it needs NO per-frame repaint machinery at all.) ── */
 #define CH_RAIL  0xA0   /* reverse-space solid block = rail */
 #define CH_NET   0x5D   /* vertical-bar glyph = centre net */

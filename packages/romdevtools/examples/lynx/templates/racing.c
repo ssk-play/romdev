@@ -5,9 +5,9 @@
  * control and a steerable car, a best-distance record, MIKEY music + SFX, AND
  * the Lynx's signature party trick: HARDWARE SPRITE SCALING used for PSEUDO-3D
  * DEPTH. Obstacle cars are Suzy scalable sprites that ENTER tiny at the far
- * horizon and SWELL as they rush toward you - an OutRun-ish "coming at you"
+ * horizon and SWELL as they rush toward you - an arcade-racer "coming at you"
  * read built from real hardware scaling, not Mode-7 (the Lynx has no affine
- * background; this is honest sprite scaling, see the HARDWARE IDIOM note).
+ * background; this is real sprite scaling, see the HARDWARE IDIOM note).
  *
  * The game: you drive the YELLOW car along the bottom of a vertically-scrolling
  * road. LEFT/RIGHT hop between three lanes; UP accelerates, DOWN brakes
@@ -35,14 +35,14 @@
  * NO HARDWARE TILEMAP (read this - it is the platform's biggest "where's the
  *   road renderer?" surprise): the Lynx has NO background tilemap and NO
  *   hardware scroll. Suzy is a SPRITE BLITTER, not a tile engine. So the road
- *   is drawn the honest way: the full-redraw TGI loop repaints the WHOLE track
+ *   is drawn the straightforward way: the full-redraw TGI loop repaints the WHOLE track
  *   every frame as a stack of tgi_bar fills + tgi_line markings, and the road
  *   "scrolls" by animating the lane-dash phase each frame - cheap on a 160x102
  *   screen, and it falls out of the canonical full-redraw loop for free.
  *
  * PLAYERS: 1. This is a handheld - head-to-head on real hardware is ComLynx,
  *   a cable between TWO physical Lynx units. A single emulator instance has
- *   nobody on the other end of the cable, so this example is honestly a 1P
+ *   nobody on the other end of the cable, so this example is a 1P
  *   endless racer (no fake "P2 VERSUS" that could never work here - contrast
  *   the NES racing donor, which has a real simultaneous-2P split-road mode).
  *
@@ -130,7 +130,7 @@ static uint8_t rand8(void) {
  *     perspective, not a pre-scaled sprite sheet.
  *   - the player car and the RESULT POP (the glyph swells then eases back when
  *     a run ends) ride the same scaling SCB path.
- * This is NOT Mode-7 / affine backgrounds (the Lynx has none): it is honest
+ * This is NOT Mode-7 / affine backgrounds (the Lynx has none): it is real
  * SPRITE scaling, and the hitbox below TRACKS the live hardware size so the
  * collision reads what you SEE.
  *
@@ -351,7 +351,7 @@ static void start_run(void) {
  * Persistence choice: best DISTANCE this power-on. ── */
 static void end_run(void) {
   if (dist > best) {
-    /* ── In-session record ONLY - and here's the honest why. Real Lynx
+    /* ── In-session record ONLY - and here is why. Real Lynx
      * carts persist via a 93Cxx serial EEPROM on the cart PCB (cc65 even
      * ships lynx_eeprom_read/write for it; see vendor/cc65/libsrc/lynx/
      * eeprom.s). PROBED: the bundled handy core emulates CEEPROM internally
@@ -402,7 +402,7 @@ static void frame_title(uint8_t joy) {
   tgi_setcolor(COLOR_LIGHTGREY);
   tgi_outtextxy(28, 70, "BEST ");
   tgi_outtextxy(68, 70, fmt5(best));
-  tgi_outtextxy(36, 84, "1P RACE");           /* handheld honesty             */
+  tgi_outtextxy(36, 84, "1P RACE");           /* handheld: 1P only             */
 
   if (JOY_BTN_1(joy) && !JOY_BTN_1(prev_joy)) start_run();
 }
@@ -542,7 +542,7 @@ void main(void) {
      *   5. sfx_update() IMMEDIATELY after - MIKEY voice writes must land in
      *      vblank: handy reschedules its timer sweep on the spot when a voice
      *      CTL bit-3 write lands, and mid-frame that sweep can preempt an
-     *      in-flight Suzy blit and eat sprites (the R57 bug - history in
+     *      in-flight Suzy blit and eat sprites (history in
      *      lynx_sfx.c). sfx_tone()/sfx_noise() only STAGE; sfx_update() is
      *      the hardware flush. */
     while (tgi_busy()) { }

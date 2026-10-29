@@ -10,7 +10,7 @@ import { notifyActiveBezel } from "../active-bezel.js";
 // Resolve a state-file `path`. An ABSOLUTE path is used as-is. A RELATIVE path
 // is resolved against the LOADED ROM's directory (the agent's mental model is
 // "save states live next to my ROM") - NOT the server's CWD, which is opaque to
-// the caller and was a silent ENOENT footgun (v0.15.0 feedback #1). Falls back
+// the caller and was a silent ENOENT footgun. Falls back
 // to CWD only when no ROM path is known (e.g. ROM loaded from base64).
 export function resolveStatePath(p, host) {
   if (!p || path.isAbsolute(p)) return p;
@@ -37,7 +37,7 @@ function stateDiffSnapshots(key) {
  * The cheat sidecar path for a state file: `rig.state` -> `rig.state.cheats.json`.
  *
  * A SIDECAR rather than a field inside the blob, deliberately. A rig's cheat
- * requirements currently live in CLAUDE.md prose, so a `.state` shared between
+ * requirements otherwise live only in notes, so a `.state` shared between
  * sessions silently needs knowledge that does not travel with it. Recording them
  * makes the rig self-describing - but the states already on disk are working
  * assets people have invested in, and changing the blob format would put every
@@ -207,7 +207,7 @@ async function loadStateCore({ name, path: inPath, render = true, probeLiveness 
       }
       // A state saved with cheats active carries a sidecar listing them, so a
       // rig shared between sessions announces what it needs instead of relying
-      // on the reader having seen a note in CLAUDE.md.
+      // on the reader having seen a note elsewhere.
       let cheatsFromSidecar = null;
       if (resolvedIn) {
         try {
@@ -325,6 +325,7 @@ function noSramError(op, host, size) {
  * This is the actual save-game file (distinct from a whole-machine savestate):
  * the bytes a real cart keeps on its battery. Empty on a no-battery cart. */
 async function exportSramCore({ path: outPath }, sessionKey) {
+  if (!outPath) throw new Error("state({op:'exportSram'}): `path` is required.");
   const host = getHost(sessionKey);
   const shape = sramShape(host);
   const size = sramSize(host);
@@ -347,6 +348,7 @@ async function exportSramCore({ path: outPath }, sessionKey) {
 
 /** op:'importSram' - load a .sav file back into the cartridge's battery SAVE RAM. */
 async function importSramCore({ path: inPath }, sessionKey) {
+  if (!inPath) throw new Error("state({op:'importSram'}): `path` is required.");
   const host = getHost(sessionKey);
   const shape = sramShape(host);
   const size = sramSize(host);
@@ -382,6 +384,7 @@ async function importSramCore({ path: inPath }, sessionKey) {
  * The C64 analogue of exportSram: a game saves by writing files to its disk, and
  * this snapshots the whole disk (incl. any saves the game wrote). C64/VICE only. */
 async function exportDiskCore({ path: outPath, unit = 8 }, sessionKey) {
+  if (!outPath) throw new Error("state({op:'exportDisk'}): `path` is required.");
   const host = getHost(sessionKey);
   if (!host.diskImageSupported || !host.diskImageSupported()) {
     throw new Error("state({op:'exportDisk'}): disk images are a C64 feature (VICE). " +
@@ -406,6 +409,7 @@ async function exportDiskCore({ path: outPath, unit = 8 }, sessionKey) {
 
 /** op:'importDisk' - write a .d64 file back into the LIVE mounted C64 disk image. */
 async function importDiskCore({ path: inPath, unit = 8 }, sessionKey) {
+  if (!inPath) throw new Error("state({op:'importDisk'}): `path` is required.");
   const host = getHost(sessionKey);
   if (!host.diskImageSupported || !host.diskImageSupported()) {
     throw new Error("state({op:'importDisk'}): disk images are a C64 feature (VICE). " +
@@ -431,6 +435,7 @@ async function importDiskCore({ path: inPath, unit = 8 }, sessionKey) {
 
 /** op:'putDiskFile' - write ONE PRG file into the LIVE mounted C64 disk (inject a save). */
 async function putDiskFileCore({ path: inPath, name, unit = 8 }, sessionKey) {
+  if (!inPath) throw new Error("state({op:'putDiskFile'}): `path` is required.");
   const host = getHost(sessionKey);
   if (!host.diskImageSupported || !host.diskImageSupported()) {
     throw new Error("state({op:'putDiskFile'}): disk files are a C64 feature (VICE). " +
@@ -522,7 +527,7 @@ export function registerStateTools(server, z, sessionKey) {
     "Save-state lifecycle for the emulator. `op`: 'save' | 'load' | 'list' | 'export' | 'dump' | 'diff'.\n" +
     "'save': `name` = fast in-memory slot (LOST on server restart / new session), `path` = disk blob that SURVIVES " +
     "across sessions - reload via op:'load'. Multi-session RE: save once at the state you care about, reload it " +
-    "every session instead of re-running loadMedia + hundreds of stepFrames.\n" +
+    "every session instead of re-running loadMedia + hundreds of frame steps.\n" +
     "'load': restore from a `name` slot OR a `path` blob. A state captures RAM/CPU/PPU/APU - NOT the ROM - so it's " +
     "ROM-CONTENT-INDEPENDENT: a state saved on the stock ROM reloads into a rebuilt/patched ROM of the same core → " +
     "clean A/B patch test. KNOW: (1) `render:true` (default) steps one frame so the next screenshot isn't stale/" +
@@ -537,7 +542,7 @@ export function registerStateTools(server, z, sessionKey) {
       op: z.enum(["save", "load", "list", "export", "dump", "diff", "exportSram", "importSram", "exportDisk", "importDisk", "putDiskFile", "autoSnapshot", "recoverSnapshot"]).describe("autoSnapshot arms/disarms a periodic background save so an unprompted SERVER RESTART costs a minute instead of the session (recoverSnapshot restores the newest one). save/load a savestate (whole machine - load also LIVENESS-PROBES the restored state and flags one captured mid-pause/transition whose dispatchers aren't running, side-effect-free); list slots; export a slot to disk; dump the raw blob; diff the whole machine. SRAM (the cartridge BATTERY SAVE FILE, distinct from a savestate): exportSram writes the .sav, importSram loads one back. C64 DISK (VICE; the C64 save medium is a floppy, not battery SRAM): exportDisk writes the live .d64, importDisk pushes a .d64 back into the running drive, putDiskFile injects one PRG file into the live disk."),
       name: z.string().min(1).optional().describe("op=save/load: in-memory slot name. op=diff: snapshot label (default 'default'). op=putDiskFile: file name on the disk (≤16 chars; default = source basename)."),
       unit: z.number().int().min(8).max(11).default(8).describe("op=exportDisk/importDisk/putDiskFile (C64): drive unit (default 8)."),
-      path: z.string().optional().describe("op=save: also write the blob here (survives restarts). op=load: restore from this disk blob. op=export/dump: write the blob here (required). A RELATIVE path resolves against the loaded ROM's directory (NOT the server CWD); an absolute path is used as-is. The result echoes `resolvedPath` when they differ."),
+      path: z.string().optional().describe("op=save: also write the blob here (survives restarts). op=load: restore from this disk blob. op=export/dump: write the blob here (required). op=exportSram: write the .sav here (required). op=importSram: read the .sav from here (required). op=exportDisk: write the .d64 here (required). op=importDisk: read the .d64 from here (required). op=putDiskFile: the PRG file to inject (required). A RELATIVE path resolves against the loaded ROM's directory (NOT the server CWD); an absolute path is used as-is. The result echoes `resolvedPath` when they differ."),
       enabled: z.boolean().optional().describe("op=autoSnapshot: true to arm periodic snapshots, false to disarm."),
       intervalSeconds: z.number().int().min(5).max(3600).optional().describe("op=autoSnapshot: how often to capture, in seconds (default 60, minimum 5). Snapshots are taken LAZILY - the check runs when a tool call is already touching the host and does nothing if the interval hasn't elapsed, so there is no background timer and nothing fires while the session is idle."),
       dir: z.string().optional().describe("op=autoSnapshot/recoverSnapshot: where snapshots live (default a session-scoped dir under the OS temp dir). Deliberately separate from your named slots so an auto-snapshot can never clobber a rig you built by hand."),

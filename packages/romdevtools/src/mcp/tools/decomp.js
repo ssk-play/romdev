@@ -37,20 +37,21 @@ function typed(fn) {
  * the skill-staleness check reads it, so a shipped op cannot be missing from
  * the installed skill while the version number says everything is current.
  */
-export const DECOMP_OPS = Object.freeze(["import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage", "workbench", "dispatch", "experiment", "gate", "typeGraph", "rank", "ledger", "scenario", "capabilities", "knownSource", "assets", "artifacts", "handoff", "skill", "diagnose", "research", "variants", "layout", "replay"]);
+export const DECOMP_OPS = Object.freeze(["setup", "import", "status", "refresh", "list", "map", "plan", "batch", "resolve", "context", "generate", "types", "compare", "search", "job", "jobs", "candidates", "integrate", "verify", "progress", "smoke", "overlays", "symbolize", "state", "trace", "coverage", "workbench", "dispatch", "experiment", "gate", "typeGraph", "rank", "ledger", "scenario", "capabilities", "knownSource", "assets", "artifacts", "handoff", "skill", "diagnose", "research", "variants", "layout", "replay"]);
 
 export function registerDecompTools(server, z, sessionKey) {
   server.tool(
     "decomp",
     "Matching decompilation: recover C that compiles to the ORIGINAL bytes with the project's ORIGINAL compiler (splat + IDO/GCC projects; proven on an N64/IDO 5.3 checkout). Keyed by `op`. " +
-    "This is the user-authorized LOCAL-TOOLCHAIN path: a registered project's compiler, assembler and make are run as-is (never romdev's WASM toolchains, never a host install started by romdev). " +
+    "The compile path runs as WASM inside romdev: IDO 5.3/7.1 (SGI's compiler is proprietary and not shipped: build it with scripts/build-ido.sh from a romdev checkout, or set ROMDEV_IDO_DIR), the mips-linux-gnu binutils, asm-processor (JS port) and the C preprocessor, driven by the recipe romdev reads from the project's own Makefile (or a manifest-declared per-TU recipe). On the compile/compare/integrate/verify path no host make, compiler, python, binutils or diff is run; a recipe step with no WASM/JS equivalent is reported, never delegated to the host. " +
     "LOOP: import (once) → plan (payoff-ordered queue + batches over the call graph) → resolve (segment-exact address, provenance) → generate (m2c candidate with the TU's real type context) → compare (compile the candidate INSIDE its translation unit with the TU's exact flags; strict per-instruction + relocation equality; ROM-linked word equality; other functions in the TU unchanged; a documented distance for ranking) → search (bounded decomp-permuter job; cancel/resume/best/report) → integrate (reviewable patch; apply + full-ROM byte verify, auto-revert on mismatch) → progress (code-byte progress from the build's objects, states kept separate). " +
     "RUNTIME: smoke (base vs rebuilt, decoded pixels + CPU regs, replayable script), overlays (which overlay is resident, by bytes), symbolize (live PC → symbol with the resident overlay), state (is the session's emulator still there, and why not), trace (args/return of a function where the core can stop), coverage (sampled function-level observed/unobserved/unreferenced). " +
     "Every result names the project, function {symbol, segment, va}, candidate sha, compiler fingerprint and artifact paths; errors carry a typed [CODE]. `exactFunctionMatch` and `romLinked.status:'exact'` are the acceptance signals; `distance` is a ranking hint, never proof. " +
     "Ghidra pseudocode stays in disasm({target:'decompile'}) for understanding; it is never counted as matched.",
     {
       op: z.enum(DECOMP_OPS).describe(
-        "import=register a project (root; splat yaml auto-detected; ROM sha1 verified; toolchain fingerprinted; compile invocation captured from make); " +
+        "setup=run a fresh checkout's own setup/extract Makefile goals (ROM decompression, splat, segment/asset extraction) in-process: splat is romdev-splat (JS port, the splat/spimdisasm versions the project pins), project setup scripts are JS ports matched by content hash, native tools are WASM (`root`, optional `targets`, `makeVariables`); run it before import on a checkout whose asm/ has not been split; " +
+        "import=register a project (root; splat yaml auto-detected; ROM sha1 verified; toolchain fingerprinted; compile invocation derived from the project's Makefile, read in JS); " +
         "status=manifest + backend identities + segment table; list=registered projects; map=TU → object → segment → functions associations; " +
         "plan=payoff-ordered queue of remaining asm functions + batches that call each other inside one TU (call graph from the built objects' relocations); batch=generate+compare every function of a batch (`symbols`), sharing the context; " +
         "resolve=symbol/va → {segment, romOffset, va, size, tu, state, targetAsm, bytes sha1, compile invocation} (overlay VAs need `segment`; ambiguity returns the candidates, never a guess); " +
@@ -64,7 +65,7 @@ export function registerDecompTools(server, z, sessionKey) {
         "overlays=which overlay is resident at each shared VA in the live session (`session`), by comparing RAM with each candidate's ROM bytes; symbolize=live `va` → symbol/segment using the resident overlay; state=is `session`'s emulator alive, else a machine-readable loss reason + recovery; " +
         "trace=stop at a function's entry on the live session and read a0-a3/f12/f14/stack args, then v0/v1/f0 at return (N64: load the session with coreOptions {'parallel-n64-cpucore':'pure_interpreter'}; the result carries the core probe and says PC_BREAK_UNSUPPORTED with evidence otherwise); coverage=instruction-exact function + basic-block observed/unobserved/unreferenced over `frames` with `inputs` from the core's PC log (interpreter), else frame-boundary samples with the method stated."),
       project: z.string().optional().describe("Project id (required by every op except list). op:'import' picks it."),
-      // op:'workbench' - the n64-decomp-workbench bridge.
+      // op:'workbench' - the in-process late-stage workbench commands.
       // op:'experiment' / op:'gate'
       // ONE `action` FOR EVERY OP THAT HAS ONE. This was declared twice and the
       // second declaration - the job-only set - overwrote the first, so every
@@ -131,19 +132,22 @@ export function registerDecompTools(server, z, sessionKey) {
       // op:'dispatch' - parallel, memory-bounded triage.
       budgetMiB: z.number().int().min(512).optional().describe("op:'dispatch' - memory ceiling for the worker pool. Default: total RAM minus a reserve for the server and the build. Admission is by MEASURED peak RSS per worker class, not by a thread count."),
       maxWorkers: z.number().int().min(1).max(64).optional().describe("op:'dispatch' - hard cap on concurrent workers (default: cpus-2, max 12). The per-TU lock usually binds first."),
-      wbGroup: z.string().optional().describe("op:'workbench' - command group (object, campaign, experiment, probe, trace, permute, sweep, oracle, pass, instrument, ...). Omit wbCommand to list the discovered catalog."),
-      wbCommand: z.string().optional().describe("op:'workbench' - the command inside the group (e.g. 'diagnose', 'compare', 'collateral', 'staleness', 'linked-compare', 'reloc-proof'). Omit to get the catalog instead of running anything."),
+      wbGroup: z.string().optional().describe("op:'workbench' - command group (object, trace, instrument). Omit wbCommand to list the catalog."),
+      wbCommand: z.string().optional().describe("op:'workbench' - the command inside the group: object diagnose, trace scheduler, trace globalcolor, instrument globalcolor. Omit to get the catalog instead of running anything."),
       wbArgs: z.array(z.string()).optional().describe("op:'workbench' - positional args and flags passed through verbatim (e.g. [targetObj, candidateObj]). The project's --objdump is appended automatically when you do not pass one."),
-      traceMode: z.enum(["scheduler", "globalcolor"]).optional().describe("op:'workbench' with artifactId: scheduler captures native IDO -Wa,-R; globalcolor explicitly opts into building a workspace-only diagnostic IDO 5.3 uopt with the existing workbench's pinned profile. No project compiler is replaced. Both tracing-disabled and tracing-enabled diagnostic objects must equal the compared object before allocator attribution. Baseline optimization flags stay unchanged."),
+      traceMode: z.enum(["scheduler", "globalcolor"]).optional().describe("op:'workbench' with artifactId: scheduler captures native IDO -Wa,-R; globalcolor explicitly opts into building a workspace-only diagnostic IDO 5.3 uopt with the workbench's pinned profile. No project compiler is replaced. Both tracing-disabled and tracing-enabled diagnostic objects must equal the compared object before allocator attribution. Baseline optimization flags stay unchanged."),
       allowDestructive: z.boolean().default(false).describe("op:'workbench' - required to run a command the workbench's OWN catalog marks destructive."),
       allowNetwork: z.boolean().default(false).describe("op:'workbench' - required to run a command the workbench's OWN catalog marks as reaching the network."),
-      timeoutMs: z.number().int().min(1000).max(3_600_000).optional().describe("op:'workbench' - per-command timeout (default 600000)."),
+      timeoutMs: z.number().int().min(1000).max(3_600_000).optional().describe("op:'workbench' - per-command timeout (default 600000); the command runs in its own process and is killed, with everything it started, when it runs over."),
       force: z.boolean().default(false).describe("op:'workbench' - re-read the command catalog instead of using the cached one."),
-      root: z.string().optional().describe("op:'import' - absolute path of the decompilation checkout (the dir with the splat yaml + Makefile). op:'research' action:'import' - a directory of prior research (drafts and notes) to INDEX. op:'replay' - the research root holding the replay fixtures (default: <project>/docs/research). Indexing records what exists; it never turns a note into a verified result."),
+      root: z.string().optional().describe("op:'setup' - absolute path of the fresh checkout to set up (runs its own setup/extract Makefile goals). op:'import' - absolute path of the decompilation checkout (the dir with the splat yaml + Makefile). op:'research' action:'import' - a directory of prior research (drafts and notes) to INDEX. op:'replay' - the research root holding the replay fixtures (default: <project>/docs/research). Indexing records what exists; it never turns a note into a verified result."),
       splatYaml: z.string().optional().describe("op:'import' - splat yaml (relative to root) when auto-detection finds more than one."),
+      buildPath: z.string().optional().describe("op:'import' - where the project's Makefile puts objects (e.g. 'build/us'), when it differs from the splat yaml's build_path."),
+      targets: z.array(z.string()).optional().describe("op:'setup' - Makefile goals to run (default: `setup` then `extract`, whichever the Makefile has)."),
+      makeVariables: z.record(z.string()).optional().describe("op:'import'/'setup' - Makefile variables the project is built with (e.g. {VERSION:'us'}), applied as make's command-line variables whenever romdev reads the Makefile."),
       rom: z.string().optional().describe("op:'import' - base ROM path when it differs from the yaml's target_path."),
       expectedSha1: z.string().optional().describe("op:'import' - expected base-ROM sha1 (default: the yaml's)."),
-      buildCommand: z.array(z.string()).optional().describe("op:'import' - argv of the full-build command run from root (default: tools/matching-build.sh if present, else make)."),
+      buildCommand: z.array(z.string()).optional().describe("op:'import' - the project's own full-build command, recorded for reference only: romdev builds from the Makefile's rules itself, as WASM."),
       symbol: z.string().optional().describe("Function symbol name (func_801DEB08). Alternative to `va`."),
       symbols: z.array(z.union([z.string(), z.object({ symbol: z.string(), segment: z.string().optional(), va: z.union([z.string(), z.number()]).optional(), targetId: z.string().optional() }).passthrough()])).optional().describe("op:'batch' - the functions to run (a batch from op:'plan'). op:'dispatch' - explicit symbols to triage; omit to take the top of the plan queue. op:'replay' - restrict the run to these case ids or symbols. Each entry is either a bare symbol name OR a target record {symbol, segment} - required when a VA is mapped by several overlays, since a bare name cannot say which overlay it belongs to. op:'plan' returns records in this shape, so a plan batch can be passed straight back."),
       va: z.union([z.number().int(), z.string()]).optional().describe("Virtual address (number, or hex string '0x801DEB08')."),
@@ -203,7 +207,7 @@ export function registerDecompTools(server, z, sessionKey) {
       // vocabularies unreachable.
       apply: z.boolean().default(false).describe("op:'integrate' - apply the patch to the TU (else only write it). op:'artifacts' action:'prune' - actually move the duplicates to trash. Default is a DRY RUN; only byte-identical duplicates are ever proposed, files backing an accepted conclusion are always skipped, and a prune is recoverable with action:'restore'."),
       verify: z.boolean().default(true).describe("op:'integrate' - after apply, run the full build and compare the ROM (revert on mismatch)."),
-      jobs: z.number().int().min(1).max(64).default(8).describe("op:'integrate'/'verify' - make -j."),
+      jobs: z.number().int().min(1).max(64).default(8).describe("op:'integrate'/'verify' - concurrent build steps in romdev's WASM full-ROM build."),
       frames: z.number().int().min(1).max(100000).default(720).describe("op:'smoke'/'coverage' - frames to run."),
       inputs: z.array(z.object({ frame: z.number().int().min(0), buttons: z.record(z.string(), z.boolean()) })).optional().describe("op:'smoke'/'coverage' - input script applied identically (persisted with the smoke report)."),
       scriptPath: z.string().optional().describe("op:'smoke' - replay a persisted inputs.json instead of `inputs`/`frames`."),
@@ -215,10 +219,15 @@ export function registerDecompTools(server, z, sessionKey) {
       const { Project, importProject, listProjects } = await import("../../decomp/project.js");
       switch (args.op) {
         case "list": return jsonContent({ projects: await listProjects() });
+        case "setup": {
+          if (!args.root) throw Object.assign(new Error("decomp({op:'setup'}): `root` (the checkout) is required."), { code: "BAD_ARGS" });
+          const { runProjectSetup } = await import("../../decomp/setup.js");
+          return jsonContent(await runProjectSetup({ root: args.root, targets: args.targets, makeVariables: args.makeVariables }));
+        }
         case "import": {
           if (!args.project || !args.root) throw Object.assign(new Error("decomp({op:'import'}): `project` (an id you choose) and `root` are required."), { code: "BAD_ARGS" });
           let m;
-          try { m = await importProject({ id: args.project, root: args.root, splatYaml: args.splatYaml, rom: args.rom, expectedSha1: args.expectedSha1, buildCommand: args.buildCommand }); }
+          try { m = await importProject({ id: args.project, root: args.root, splatYaml: args.splatYaml, rom: args.rom, expectedSha1: args.expectedSha1, buildCommand: args.buildCommand, buildPath: args.buildPath, makeVariables: args.makeVariables }); }
           catch (e) { if (/sha1 .* != expected/.test(e.message)) e.code = "WRONG_ROM"; throw e; }
           const { backendStatus } = await import("../../decomp/m2c.js");
           const p = new Project(m);
@@ -337,27 +346,24 @@ export function registerDecompTools(server, z, sessionKey) {
           });
         }
         case "workbench": {
-          // The BRIDGE to n64-decomp-workbench: romdev's comparator is
+          // The late-stage workbench, run in process: romdev's comparator is
           // first-pass triage and cannot diagnose allocator webs, uopt global
           // coloring, ugen temporary provenance, stack homes or as1 scheduling.
-          // The workbench does, and it is the tool this campaign already uses
-          // by hand - so romdev calls it rather than growing a second, shallower
-          // copy that would disagree with it.
+          // The workbench commands do, in process (src/decomp/workbench/).
           const { workbenchCatalog, invokeWorkbench } = await import("../../decomp/workbench.js");
           const catalog = await workbenchCatalog({ force: !!args.force });
           if (!args.wbCommand) {
-            // No command: report the discovered catalog. Discovery means the
-            // workbench can grow without romdev being edited.
+            // No command: report the catalog.
             return jsonContent({ workbench: catalog,
               usage: "decomp({op:'workbench', wbGroup:'object', wbCommand:'diagnose', wbArgs:[targetObj, candidateObj]}). "
                 + "Objects are resolved against the project root; the project's objdump and LD_LIBRARY_PATH are supplied automatically. "
                 + "Exit 1 means gate/no-result - a real answer, not an error.",
               note: catalog.available
-                ? `${catalog.commandCount} commands in ${catalog.groupCount} groups, read from the workbench itself.`
-                : "workbench not installed; see `setup`." });
+                ? `${catalog.commandCount} commands in ${catalog.groupCount} groups, run in process.`
+                : "workbench unavailable." });
           }
           if (!catalog.available) {
-            throw Object.assign(new Error(`workbench unavailable: ${catalog.reason}. ${catalog.setup ?? ""}`), { code: "MISSING_WORKBENCH" });
+            throw Object.assign(new Error(`workbench unavailable: ${catalog.reason}`), { code: "MISSING_WORKBENCH" });
           }
           // Supply what the workbench cannot know: this project's objdump and
           // its runtime library path. A project-local binutils fails to load
@@ -751,7 +757,7 @@ export function registerDecompTools(server, z, sessionKey) {
           if (!asmRel) throw Object.assign(new Error(`'${fn.symbol}' has no extracted asm to fingerprint.`), { code: "NO_TARGET_ASM" });
           const asmText = await readFile(project.abs(asmRel), "utf8");
           // A fingerprint over ZERO instructions matches nothing and reports
-          // `siblingHits: []` - indistinguishable from an honest "no match
+          // `siblingHits: []` - indistinguishable from a real "no match
           // found". Refuse instead: an empty search that LOOKS like a completed
           // search is the worst of the three outcomes.
           if (!/^\s*\/\*\s*[0-9A-Fa-f]+\s+[0-9A-Fa-f]{8}\s+[0-9A-Fa-f]{8}\s*\*\//m.test(asmText)) {
