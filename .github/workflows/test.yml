@@ -57,6 +57,9 @@ jobs:
 
       # --ignore-scripts skips romdevtools' postinstall (SDL prebuilt fetch for
       # the playtest window; no window opens in CI and the runtime self-heals).
+      - name: Check workspace pins
+        run: node scripts/check-pins.mjs
+
       - name: Install deps
         run: npm ci --ignore-scripts
 
